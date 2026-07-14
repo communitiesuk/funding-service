@@ -220,6 +220,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "allow_multiple_submissions": "Allow multiple submissions",
         "multiple_submissions_are_managed_by_service": "Allow managed submissions only",
         "allow_public_sign_up": "Allow public sign up",
+        "allow_validate_submission": "Allow validate submission",
     }
 
     form_columns = [
@@ -236,6 +237,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "allow_multiple_submissions",
         "multiple_submissions_are_managed_by_service",
         "allow_public_sign_up",
+        "allow_validate_submission",
     ]
 
     form_args = {

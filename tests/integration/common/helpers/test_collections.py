@@ -34,6 +34,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -2724,6 +2725,100 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             assert helper.has_form_changed_since_previous_submission(question.form) is expected
+
+
+class TestValidateSubmission:
+    def test_marking_as_approved_sets_assessment_status_and_stores_comment(
+        self, grant_team_user, submission_submitted
+    ) -> None:
+        helper = SubmissionHelper(submission_submitted)
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.NOT_STARTED
+
+        helper.validate_submission(user=grant_team_user, is_approved=True, assessment_comment="Looks good")
+
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+        assert helper.assessment_comment == "Looks good"
+        assert helper.assessment_decision_by == grant_team_user
+        # the underlying submission status is untouched by an assessment decision
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+    def test_marking_as_rejected_sets_assessment_status_and_stores_reason(
+        self, grant_team_user, submission_submitted
+    ) -> None:
+        helper = SubmissionHelper(submission_submitted)
+
+        helper.validate_submission(
+            user=grant_team_user, is_approved=False, assessment_rejected_reason="Costs are not eligible"
+        )
+
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+        assert helper.assessment_rejected_reason == "Costs are not eligible"
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+    def test_decision_can_be_changed_from_approved_to_rejected(self, grant_team_user, submission_submitted) -> None:
+        helper = SubmissionHelper(submission_submitted)
+
+        helper.validate_submission(user=grant_team_user, is_approved=True, assessment_comment="Looks good")
+        helper.validate_submission(user=grant_team_user, is_approved=False, assessment_rejected_reason="On reflection")
+
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+        assert helper.assessment_rejected_reason == "On reflection"
+        # the approval comment is cleared by the later rejection
+        assert helper.assessment_comment is None
+
+    def test_revising_the_decision_clears_it(self, grant_team_user, submission_submitted) -> None:
+        helper = SubmissionHelper(submission_submitted)
+        helper.validate_submission(user=grant_team_user, is_approved=True, assessment_comment="Looks good")
+
+        helper.revise_assessment_decision(user=grant_team_user)
+
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.NOT_STARTED
+        assert helper.has_assessment_decision is False
+        assert helper.assessment_comment is None
+        assert helper.assessment_decision_by is None
+
+    def test_cannot_validate_a_submission_that_is_not_submitted(
+        self, grant_team_user, grant_recipient, factories
+    ) -> None:
+        submission = factories.submission.create(
+            grant_recipient=grant_recipient,
+            collection__grant=grant_recipient.grant,
+            collection__status=CollectionStatusEnum.OPEN,
+        )
+        helper = SubmissionHelper(submission)
+        assert helper.status != SubmissionStatusEnum.SUBMITTED
+
+        with pytest.raises(SubmissionIsNotSubmittedError, match="because it is not submitted"):
+            helper.validate_submission(user=grant_team_user, is_approved=True)
+
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    def test_cannot_validate_without_permission(self, data_provider_user, submission_submitted) -> None:
+        helper = SubmissionHelper(submission_submitted)
+
+        with pytest.raises(
+            SubmissionAuthorisationError, match="User does not have permission to validate the submission "
+        ):
+            helper.validate_submission(user=data_provider_user, is_approved=True)
+
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    def test_certifier_approval_does_not_count_as_an_assessment_decision(self, factories, db_session) -> None:
+        """The certifier sign-off events carry their own `is_approved`; they must not leak into assessment status."""
+        submission = factories.submission.create(
+            collection__requires_certification=True,
+            collection__status=CollectionStatusEnum.OPEN,
+        )
+        helper = SubmissionHelper(submission)
+
+        helper.add_submission_event(
+            event_type=SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+            user=submission.created_by,
+            related_entity_id=submission.id,
+        )
+
+        assert helper.events.submission_state.is_approved is True
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.NOT_STARTED
 
 
 class TestFormResetOnAnswerChange:

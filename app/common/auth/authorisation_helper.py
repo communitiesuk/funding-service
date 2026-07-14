@@ -211,6 +211,21 @@ class AuthorisationHelper:
         return has_deliver_grant_role and not is_deliver_org_member
 
     @staticmethod
+    def can_validate_submission(user: User, submission: "Submission | UUID") -> bool:
+        # Mirrors `can_request_or_allow_changes`, except that deliver org members are not excluded: while this is
+        # being demoed we want anyone in MHCLG to be able to try the assessor journey out.
+        if isinstance(submission, UUID):
+            submission = get_submission(submission)
+
+        if AuthorisationHelper.is_platform_admin(user):
+            return True
+
+        if AuthorisationHelper.is_deliver_org_member(user):
+            return True
+
+        return AuthorisationHelper.has_deliver_grant_role(submission.collection.grant.id, RoleEnum.MEMBER, user)
+
+    @staticmethod
     def has_access_org_access(user: User | AnonymousUserMixin, organisation_id: UUID) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

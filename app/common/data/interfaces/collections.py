@@ -55,6 +55,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -374,6 +375,7 @@ def update_collection(  # noqa: C901
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
+    allow_validate_submission: bool | TNotProvided = NOT_PROVIDED,
     prospectus_markdown: str | None | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
@@ -449,6 +451,9 @@ def update_collection(  # noqa: C901
 
     if allow_public_sign_up is not NOT_PROVIDED:
         collection.allow_public_sign_up = allow_public_sign_up
+
+    if allow_validate_submission is not NOT_PROVIDED:
+        collection.allow_validate_submission = allow_validate_submission
 
     if prospectus_markdown is not NOT_PROVIDED:
         collection.prospectus_markdown = prospectus_markdown
@@ -588,9 +593,17 @@ def update_submission_data(submission: Submission) -> None:
 
 
 @flush_and_rollback_on_exceptions
-def update_submission(submission: Submission, *, status: SubmissionStatusEnum | TNotProvided = NOT_PROVIDED) -> None:
+def update_submission(
+    submission: Submission,
+    *,
+    status: SubmissionStatusEnum | TNotProvided = NOT_PROVIDED,
+    assessment_status: SubmissionAssessmentStatusEnum | TNotProvided = NOT_PROVIDED,
+) -> None:
     if status is not NOT_PROVIDED:
         submission.status = status
+
+    if assessment_status is not NOT_PROVIDED:
+        submission.assessment_status = assessment_status
 
 
 def get_all_submissions_with_mode_for_collection(
@@ -669,6 +682,7 @@ class ListSubmissionData:
     name: str | None
     submission_id: UUID | None
     status: SubmissionStatusEnum | None
+    assessment_status: SubmissionAssessmentStatusEnum | None
     last_updated_at_utc: datetime.datetime | None
     is_overdue: bool | None
 
@@ -720,6 +734,7 @@ def get_submission_list_for_collection(
             name_column,
             Submission.id.label("submission_id"),
             Submission.status,
+            Submission.assessment_status,
             last_updated_at_utc,
             Submission.is_overdue.label("is_overdue"),
         )
@@ -744,6 +759,7 @@ def get_submission_list_for_collection(
             name=row.name,
             submission_id=row.submission_id,
             status=row.status,
+            assessment_status=row.assessment_status,
             last_updated_at_utc=row.last_updated_at_utc,
             is_overdue=row.is_overdue,
         )

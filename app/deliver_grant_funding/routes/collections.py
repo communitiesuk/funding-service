@@ -162,6 +162,8 @@ from app.deliver_grant_funding.forms import (
     SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
     UploadDataSetForm,
+    ValidateSubmissionForm,
+    ValidateSubmissionSettingsForm,
 )
 from app.deliver_grant_funding.helpers import start_previewing_collection
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
@@ -514,6 +516,44 @@ def collection_configure_public_sign_up(
 
     return render_template(
         "deliver_grant_funding/collections/configure_public_sign_up.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-validate-submission",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_validate_submission(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = ValidateSubmissionSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+        else:
+            update_collection(
+                collection,
+                allow_validate_submission=form.allow_validate_submission.data == "True",
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_validate_submission.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3397,6 +3437,9 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
         SubmissionEventType.SUBMISSION_REOPENED,
         SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+        SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+        SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
+        SubmissionEventType.ASSESSMENT_DECISION_REVISED,
     ]
 
     # we are not displaying SUBMISSION_SUBMITTED events when collection requires certification
@@ -3550,6 +3593,86 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
 
     return render_template(
         "deliver_grant_funding/collections/request_changes_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/validate", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def validate_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+
+    if not submission_helper.collection.allow_validate_submission:
+        abort(404)
+
+    if not AuthorisationHelper.can_validate_submission(get_current_user(), submission_helper.submission):
+        abort(403)
+
+    form = ValidateSubmissionForm()
+    if form.validate_on_submit():
+        try:
+            submission_helper.validate_submission(
+                user=get_current_user(),
+                is_approved=form.is_approved,
+                assessment_comment=form.assessment_comment.data or None,
+                assessment_rejected_reason=form.assessment_rejected_reason.data or None,
+            )
+
+            flash(
+                submission_helper.assessment_status,
+                FlashMessageType.SUBMISSION_ASSESSMENT_DECISION_RECORDED,
+            )
+
+            return redirect(
+                url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+            )
+        except SubmissionAuthorisationError:
+            form.form_errors.append("You do not have permission to approve or reject this submission")
+        except SubmissionIsNotSubmittedError:
+            form.form_errors.append("You cannot approve or reject this submission because it has not been submitted")
+
+    return render_template(
+        "deliver_grant_funding/collections/validate_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/revise-assessment-decision", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def revise_assessment_decision(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+
+    if not submission_helper.collection.allow_validate_submission:
+        abort(404)
+
+    if not AuthorisationHelper.can_validate_submission(get_current_user(), submission_helper.submission):
+        abort(403)
+
+    form = GenericSubmitForm()
+    if form.validate_on_submit():
+        try:
+            submission_helper.revise_assessment_decision(user=get_current_user())
+
+            flash("Assessment decision reset", FlashMessageType.SUBMISSION_ASSESSMENT_DECISION_REVISED)
+
+            return redirect(
+                url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+            )
+        except SubmissionAuthorisationError:
+            form.form_errors.append("You do not have permission to reset the decision on this submission")
+
+    return render_template(
+        "deliver_grant_funding/collections/revise_assessment_decision.html",
         form=form,
         helper=submission_helper,
         grant=submission_helper.grant,

@@ -46,6 +46,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionPresentationOptions,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -9513,6 +9514,120 @@ class TestRequestOrAllowChanges:
             "deliver_grant_funding.request_changes_submission",
             grant_id=submission_submitted.collection.grant.id,
             submission_id=submission_submitted.id,
+        )
+
+
+class TestValidateSubmission:
+    @pytest.fixture
+    def submission_allowing_validation(self, submission_submitted):
+        submission_submitted.collection.allow_validate_submission = True
+        return submission_submitted
+
+    def _url(self, submission, endpoint="deliver_grant_funding.validate_submission"):
+        return url_for(endpoint, grant_id=submission.collection.grant.id, submission_id=submission.id)
+
+    def test_get_is_404_when_collection_does_not_allow_validation(
+        self, authenticated_grant_member_client, submission_submitted
+    ):
+        assert submission_submitted.collection.allow_validate_submission is False
+
+        response = authenticated_grant_member_client.get(self._url(submission_submitted))
+
+        assert response.status_code == 404
+
+    def test_get_validate_submission_page(self, authenticated_grant_member_client, submission_allowing_validation):
+        response = authenticated_grant_member_client.get(self._url(submission_allowing_validation))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        recipient_name = submission_allowing_validation.grant_recipient.organisation.name
+
+        assert "Would you like to mark this submission as approved or rejected?" in get_h1_text(soup)
+        assert recipient_name in get_h1_text(soup)
+        assert f"We'll save this for internal records only and won't email anyone at {recipient_name}" in soup.text
+        assert [radio["value"] for radio in soup.find_all("input", {"type": "radio"})] == ["approved", "rejected"]
+
+    def test_post_marks_submission_as_approved(
+        self, authenticated_grant_member_client, submission_allowing_validation, db_session
+    ):
+        response = authenticated_grant_member_client.post(
+            self._url(submission_allowing_validation),
+            data={"decision": "approved", "assessment_comment": "All looks in order"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == self._url(submission_allowing_validation, "deliver_grant_funding.view_submission")
+
+        helper = SubmissionHelper(submission_allowing_validation)
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+        assert helper.assessment_comment == "All looks in order"
+
+    def test_post_marks_submission_as_rejected(
+        self, authenticated_grant_member_client, submission_allowing_validation, db_session
+    ):
+        response = authenticated_grant_member_client.post(
+            self._url(submission_allowing_validation),
+            data={"decision": "rejected", "assessment_rejected_reason": "Costs are not eligible"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+
+        helper = SubmissionHelper(submission_allowing_validation)
+        assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+        assert helper.assessment_rejected_reason == "Costs are not eligible"
+
+    def test_post_rejection_requires_a_reason(self, authenticated_grant_member_client, submission_allowing_validation):
+        response = authenticated_grant_member_client.post(
+            self._url(submission_allowing_validation),
+            data={"decision": "rejected", "assessment_rejected_reason": ""},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        assert "Enter why you are marking this submission as rejected" in response.text
+        assert (
+            SubmissionHelper(submission_allowing_validation).assessment_status
+            == SubmissionAssessmentStatusEnum.NOT_STARTED
+        )
+
+    def test_post_rejection_reason_is_limited_to_200_characters(
+        self, authenticated_grant_member_client, submission_allowing_validation
+    ):
+        response = authenticated_grant_member_client.post(
+            self._url(submission_allowing_validation),
+            data={"decision": "rejected", "assessment_rejected_reason": "x" * 201},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        assert "must be 200 characters or less" in response.text
+        assert (
+            SubmissionHelper(submission_allowing_validation).assessment_status
+            == SubmissionAssessmentStatusEnum.NOT_STARTED
+        )
+
+    def test_decision_can_be_reset(self, authenticated_grant_member_client, submission_allowing_validation, db_session):
+        authenticated_grant_member_client.post(
+            self._url(submission_allowing_validation),
+            data={"decision": "approved"},
+        )
+        assert (
+            SubmissionHelper(submission_allowing_validation).assessment_status
+            == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+        )
+
+        response = authenticated_grant_member_client.post(
+            self._url(submission_allowing_validation, "deliver_grant_funding.revise_assessment_decision"),
+            data={"submit": "Reset decision"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert (
+            SubmissionHelper(submission_allowing_validation).assessment_status
+            == SubmissionAssessmentStatusEnum.NOT_STARTED
         )
 
 

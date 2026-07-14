@@ -1,4 +1,4 @@
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "deliver_grant_funding/macros/status.html" import deliverSubmissionStatusTag with context %}
 {% extends 'admin/model/details.html' %}
 
 {% block details_table %}
@@ -45,7 +45,7 @@
   {% endif %}
   <dl class="app-metadata">
     <dt class="app-metadata__key">Status:</dt>
-    <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}</dd>
+    <dd class="app-metadata__value" data-testid="submission-status">{{ deliverSubmissionStatusTag(helper.status, helper.assessment_status, helper.submission.is_overdue) }}</dd>
   </dl>
 
   <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />

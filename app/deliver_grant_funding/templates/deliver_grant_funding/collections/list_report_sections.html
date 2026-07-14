@@ -126,6 +126,11 @@
               Configure public sign up
             </a>
           </li>
+          <li>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_validate_submission', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+              Configure validate submission
+            </a>
+          </li>
         {% endif %}
         {% if collection.allow_multiple_submissions %}
           <li>

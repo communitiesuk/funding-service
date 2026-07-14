@@ -1,0 +1,40 @@
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Reset assessment decision - " ~ helper.long_collection_name %}
+{% set type_constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+{% set recipient_name = helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
+  {% endif %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.view_submission", grant_id=grant.id, submission_id=helper.submission.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ recipient_name }}</span>
+        Are you sure you want to reset this decision?
+      </h1>
+      <p class="govuk-body">This submission is currently <strong>{{ helper.assessment_status | lower }}</strong>. Resetting the decision removes it, so the submission can be approved or rejected again.</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Reset decision", "classes": "govuk-button--warning"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

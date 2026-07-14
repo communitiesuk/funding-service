@@ -23,7 +23,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import Field, FieldList, FormField, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, Regexp, StopValidation, ValidationError
+from wtforms.validators import DataRequired, Email, Length, Optional, Regexp, StopValidation, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import (
@@ -1046,6 +1046,16 @@ class PublicSignUpSettingsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class ValidateSubmissionSettingsForm(FlaskForm):
+    allow_validate_submission = RadioField(
+        "Should this collection allow submissions to be approved or rejected?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether the collection should allow submissions to be approved or rejected")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class CollectionSettingsSelectSectionForm(FlaskForm):
     section = RadioField(
         "Select a section",
@@ -1542,6 +1552,49 @@ class RequestOrAllowChangesSubmissionForm(FlaskForm):
         widget=GovRadioInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class ValidateSubmissionForm(FlaskForm):
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    REJECTED_REASON_MAX_CHARACTERS = 200
+
+    decision = RadioField(
+        "Would you like to mark this submission as approved or rejected?",
+        choices=[(APPROVED, "Mark as approved"), (REJECTED, "Mark as rejected")],
+        validators=[DataRequired("Select whether to mark this submission as approved or rejected")],
+        widget=GovRadioInput(),
+    )
+    assessment_comment = TextAreaField(
+        "Add comments (optional)",
+        validators=[Optional()],
+        widget=GovTextArea(),
+    )
+    assessment_rejected_reason = TextAreaField(
+        "Why are you marking this submission as rejected?",
+        validators=[Optional()],
+        widget=GovCharacterCount(),
+    )
+    submit = SubmitField("Save decision", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
+        if self.decision.data == self.REJECTED:
+            self.assessment_rejected_reason.validators = [
+                DataRequired("Enter why you are marking this submission as rejected"),
+                Length(
+                    max=self.REJECTED_REASON_MAX_CHARACTERS,
+                    message=(
+                        "Reason for marking this submission as rejected must be "
+                        f"{self.REJECTED_REASON_MAX_CHARACTERS} characters or less"
+                    ),
+                ),
+            ]
+
+        return super().validate(extra_validators)
+
+    @property
+    def is_approved(self) -> bool:
+        return self.decision.data == self.APPROVED
 
 
 class RequestChangesSubmissionForm(FlaskForm):

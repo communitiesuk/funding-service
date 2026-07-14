@@ -72,6 +72,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.edit_question_validation",
     "deliver_grant_funding.collection_configure_multiple_submissions",
     "deliver_grant_funding.collection_configure_public_sign_up",
+    "deliver_grant_funding.collection_configure_validate_submission",
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
     "deliver_grant_funding.upload_data_set",
     "deliver_grant_funding.map_data_set_columns",
@@ -148,6 +149,8 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.request_or_allow_changes",
     "deliver_grant_funding.reopen_submission",
     "deliver_grant_funding.request_changes_submission",
+    "deliver_grant_funding.validate_submission",
+    "deliver_grant_funding.revise_assessment_decision",
     "deliver_grant_funding.download_latest_data_set_template",
 ]
 

@@ -27,6 +27,15 @@ class SubmittedMixin(Protocol):
     is_submitted: bool
 
 
+class AssessmentMixin(Protocol):
+    # Deliberately namespaced away from `SignOffMixin.is_approved`, which tracks the *certifier* decision on the
+    # Access side. Both sets of events reduce into the same `SubmissionState`, so sharing the field would make a
+    # certified submission look like an assessor had already approved it.
+    is_assessment_approved: bool | None
+    assessment_comment: str | None
+    assessment_rejected_reason: str | None
+
+
 # Events - things that can happen in the service, we calculate the final state
 # by taking all the latest event properties allowing workflows to go forward and backwards
 # Event names are past tense
@@ -138,6 +147,40 @@ class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
     is_changes_requested: bool = False
 
 
+@dataclass
+class AssessorMarkedAsApprovedEvent(SubmissionEventBase, AssessmentMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED
+    is_assessment_approved: bool | None = True
+    assessment_comment: str | None = field(default=None, metadata={"stored": True})
+    assessment_rejected_reason: str | None = None
+
+
+@dataclass
+class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessmentMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED
+    is_assessment_approved: bool | None = False
+    assessment_comment: str | None = None
+    assessment_rejected_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+@dataclass
+class AssessmentDecisionRevisedEvent(SubmissionEventBase, AssessmentMixin):
+    """Clears any existing assessor decision, taking the submission back to an undetermined assessment state."""
+
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSMENT_DECISION_REVISED
+    is_assessment_approved: bool | None = None
+    assessment_comment: str | None = None
+    assessment_rejected_reason: str | None = None
+
+
+class MarkedAsApprovedKwargs(TypedDict, total=False):
+    assessment_comment: str | None
+
+
+class MarkedAsRejectedKwargs(TypedDict, total=False):
+    assessment_rejected_reason: str | None
+
+
 # State - represents a snapshot of the current state of the target entity for those events
 # Combines metadata about who has been doing the events and the event properties themselves
 @dataclass
@@ -177,6 +220,12 @@ class ChangesRequestedMetadata:
 
 
 @dataclass
+class AssessmentDecisionMetadata:
+    assessment_decision_by: User | None = None
+    assessment_decision_at_utc: datetime | None = None
+
+
+@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
@@ -189,6 +238,8 @@ class SubmissionState(
     ReopenedMixin,
     ChangesRequestedMixin,
     ChangesRequestedMetadata,
+    AssessmentMixin,
+    AssessmentDecisionMetadata,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
@@ -199,6 +250,9 @@ class SubmissionState(
     submission_data: dict[str, Any] | None = None
     section_ids: list[str] = field(default_factory=list)
     is_changes_requested: bool = False
+    is_assessment_approved: bool | None = None
+    assessment_comment: str | None = None
+    assessment_rejected_reason: str | None = None
 
 
 @dataclass
@@ -319,6 +373,16 @@ class SubmissionEventHelper:
                         changes_requested_at_utc=event.created_at_utc,
                     )
                 )
+            case SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED | SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED:
+                return shallow_asdict(
+                    AssessmentDecisionMetadata(
+                        assessment_decision_by=event.created_by,
+                        assessment_decision_at_utc=event.created_at_utc,
+                    )
+                )
+            case SubmissionEventType.ASSESSMENT_DECISION_REVISED:
+                # Revising takes the decision back entirely, so the metadata about who made it is cleared too.
+                return shallow_asdict(AssessmentDecisionMetadata())
             case _:
                 return {}
 
@@ -341,6 +405,20 @@ class SubmissionEventHelper:
     def event_from(
         event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
         **kwargs: Unpack[ChangesRequestedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED],
+        **kwargs: Unpack[MarkedAsApprovedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED],
+        **kwargs: Unpack[MarkedAsRejectedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

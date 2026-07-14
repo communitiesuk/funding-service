@@ -1,7 +1,7 @@
 {# TODO: replace view_submission.html with this feature flagged implementation when flag is removed #}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "deliver_grant_funding/macros/status.html" import deliverSubmissionStatusTag with context %}
 {% from 'common/govuk/tabs/macro.html' import govukTabs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
@@ -48,6 +48,32 @@
           }}
         {% endif %}
       {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_ASSESSMENT_DECISION_RECORDED]) %}
+        {% if flashes %}
+          {% set assessment_decision_html %}
+            <h3 class="govuk-notification-banner__heading">Submission {{ flashes[0] | lower }}</h3>
+            <p class="govuk-body">This is saved for internal records only. We have not emailed {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": assessment_decision_html,
+              "type":"success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_ASSESSMENT_DECISION_REVISED]) %}
+        {% if flashes %}
+          {{
+            govukNotificationBanner({
+              "text": "The assessment decision has been reset. This submission can now be approved or rejected again.",
+              "type":"success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_CHANGES_REQUESTED]) %}
         {% if flashes %}
           {% set changes_requested_html %}
@@ -86,7 +112,7 @@
       <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
       <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
         <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
-        {{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}
+        {{ deliverSubmissionStatusTag(helper.status, helper.assessment_status, helper.submission.is_overdue) }}
       </div>
     </div>
   </div>
@@ -118,19 +144,32 @@
     </div>
   </div>
 
-  {% if helper.can_be_reopened_by_user(current_user) %}
+  {% if helper.can_be_reopened_by_user(current_user) or helper.can_be_validated_by_user(current_user) %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
-        <div class="govuk-body">
-          {{
-            govukButton(
-            params={
-              "text": "Request or allow changes",
-              "href": url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id),
-              "classes": "govuk-button--secondary"
-            }
-            )
-          }}
+        <div class="govuk-button-group govuk-body">
+          {% if helper.can_be_validated_by_user(current_user) %}
+            {{
+              govukButton(
+              params={
+                "text": "Approve or reject submission",
+                "href": url_for('deliver_grant_funding.validate_submission', grant_id=grant.id, submission_id=helper.submission.id),
+                "classes": "govuk-button--secondary" if helper.has_assessment_decision else "govuk-button--primary"
+              }
+              )
+            }}
+          {% endif %}
+          {% if helper.can_be_reopened_by_user(current_user) %}
+            {{
+              govukButton(
+              params={
+                "text": "Request or allow changes",
+                "href": url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id),
+                "classes": "govuk-button--secondary"
+              }
+              )
+            }}
+          {% endif %}
         </div>
       </div>
     </div>
@@ -166,6 +205,11 @@
 
         <ul class="govuk-list govuk-list--spaced">
           <li><a class="govuk-link govuk-link--no-visited-state" href="?delete">Reset this submission</a></li>
+          {% if helper.has_assessment_decision %}
+            {% if helper.can_assessment_decision_be_revised_by_user(current_user) %}
+              <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.revise_assessment_decision', grant_id=grant.id, submission_id=helper.submission.id) }}">Reset assessment decision</a></li>
+            {% endif %}
+          {% endif %}
         </ul>
       </div>
     </div>

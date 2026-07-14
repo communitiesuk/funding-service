@@ -55,6 +55,7 @@ from app.common.data.types import (
     NumberTypeEnum,
     QuestionDataType,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -346,7 +347,11 @@ class SubmissionHelper:
 
     def _update_submission_status(self):
         self.clear_caches()
-        update_submission(self.submission, status=self._calculate_submission_status())
+        update_submission(
+            self.submission,
+            status=self._calculate_submission_status(),
+            assessment_status=self._calculate_assessment_status(),
+        )
 
     def add_submission_event(self, event_type: SubmissionEventType, user: User, related_entity_id: UUID, **kwargs: Any):
         interfaces.collections._add_submission_event(
@@ -408,9 +413,110 @@ class SubmissionHelper:
                 else SubmissionStatusEnum.CHANGES_REQUESTED
             )
 
+    def _calculate_assessment_status(self) -> SubmissionAssessmentStatusEnum:
+        is_assessment_approved = self.events.submission_state.is_assessment_approved
+
+        if is_assessment_approved is True:
+            return SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+
+        if is_assessment_approved is False:
+            return SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+
+        return SubmissionAssessmentStatusEnum.NOT_STARTED
+
     @property
     def status(self) -> SubmissionStatusEnum:
         return self.submission.status
+
+    @property
+    def assessment_status(self) -> SubmissionAssessmentStatusEnum:
+        return self.submission.assessment_status
+
+    @property
+    def has_assessment_decision(self) -> bool:
+        return self.assessment_status != SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    @property
+    def assessment_comment(self) -> str | None:
+        return self.events.submission_state.assessment_comment
+
+    @property
+    def assessment_rejected_reason(self) -> str | None:
+        return self.events.submission_state.assessment_rejected_reason
+
+    @property
+    def assessment_decision_by(self) -> User | None:
+        return self.events.submission_state.assessment_decision_by
+
+    @property
+    def assessment_decision_at_utc(self) -> datetime | None:
+        return self.events.submission_state.assessment_decision_at_utc
+
+    def can_be_validated_by_user(self, user: User) -> bool:
+        return (
+            self.collection.allow_validate_submission
+            and self.is_submitted
+            and AuthorisationHelper.can_validate_submission(user, self.submission)
+        )
+
+    def can_assessment_decision_be_revised_by_user(self, user: User) -> bool:
+        return (
+            self.collection.allow_validate_submission
+            and self.has_assessment_decision
+            and AuthorisationHelper.can_validate_submission(user, self.submission)
+        )
+
+    def validate_submission(
+        self,
+        user: User,
+        is_approved: bool,
+        assessment_comment: str | None = None,
+        assessment_rejected_reason: str | None = None,
+    ) -> None:
+        """Record an assessor's approve/reject decision against a submitted submission."""
+        if not AuthorisationHelper.can_validate_submission(user, self.submission):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to validate the submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not self.is_submitted:
+            raise SubmissionIsNotSubmittedError(
+                f"Could not validate submission id={self.id} because it is not submitted."
+            )
+
+        if is_approved:
+            self.add_submission_event(
+                event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+                user=user,
+                related_entity_id=self.id,
+                assessment_comment=assessment_comment,
+            )
+        else:
+            self.add_submission_event(
+                event_type=SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
+                user=user,
+                related_entity_id=self.id,
+                assessment_rejected_reason=assessment_rejected_reason,
+            )
+
+    def revise_assessment_decision(self, user: User) -> None:
+        """Clear the assessor's decision, taking the submission back to an undetermined assessment state."""
+        if not AuthorisationHelper.can_validate_submission(user, self.submission):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to revise the assessment decision for submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        self.add_submission_event(
+            event_type=SubmissionEventType.ASSESSMENT_DECISION_REVISED,
+            user=user,
+            related_entity_id=self.id,
+        )
 
     @property
     def submitted_at_utc(self) -> datetime | None:

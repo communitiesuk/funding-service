@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
 {% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "deliver_grant_funding/macros/status.html" import deliverSubmissionStatusTag with context %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% extends "deliver_grant_funding/grant_base.html" %}
@@ -139,7 +140,7 @@
         {% endif %}
 
         {% if submission.submission_id %}
-          {% do cells.append({"html": submissionStatusTag(submission.status, submission.is_overdue)}) %}
+          {% do cells.append({"html": deliverSubmissionStatusTag(submission.status, submission.assessment_status, submission.is_overdue)}) %}
         {% else %}
           {% do cells.append({"html": submissionStatusTag(enum.submission_status.NOT_SUBMITTED if collection.is_closed else enum.submission_status.NOT_STARTED, collection.is_overdue)}) %}
         {% endif %}

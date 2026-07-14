@@ -60,6 +60,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -363,6 +364,7 @@ class Collection(BaseModel):
     requires_certification: Mapped[bool | None]
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
+    allow_validate_submission: Mapped[bool] = mapped_column(default=False)
     prospectus_markdown: Mapped[str | None]
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
     submission_name_question: Mapped["Question | None"] = relationship(
@@ -507,6 +509,17 @@ class Submission(BaseModel):
             validate_strings=True,
         ),
         nullable=False,
+    )
+
+    assessment_status: Mapped[SubmissionAssessmentStatusEnum] = mapped_column(
+        SqlEnum(
+            SubmissionAssessmentStatusEnum,
+            name="submission_assessment_status_enum",
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=SubmissionAssessmentStatusEnum.NOT_STARTED,
+        server_default=SubmissionAssessmentStatusEnum.NOT_STARTED.name,
     )
 
     @hybrid_property

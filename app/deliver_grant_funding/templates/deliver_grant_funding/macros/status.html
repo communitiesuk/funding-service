@@ -1,0 +1,20 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "common/macros/status.html" import submissionStatusTag with context %}
+
+{#
+  Deliver shows the assessor's decision in place of the submission status once one has been made; until then it falls
+  back to the standard submission status that Access shows.
+#}
+{% macro deliverSubmissionStatusTag(status, assessment_status, is_overdue) %}
+  {%
+    set classMap = {
+        enum.submission_assessment_status.MARKED_AS_APPROVED: "govuk-tag--green",
+        enum.submission_assessment_status.MARKED_AS_REJECTED: "govuk-tag--red",
+    }
+  %}
+  {% if assessment_status and assessment_status != enum.submission_assessment_status.NOT_STARTED %}
+    {{ govukTag({"text": assessment_status, "classes": "app-status-tag " ~ classMap[assessment_status] }) }}
+  {% else %}
+    {{ submissionStatusTag(status, is_overdue) }}
+  {% endif %}
+{% endmacro %}

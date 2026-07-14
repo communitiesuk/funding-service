@@ -1,0 +1,82 @@
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Approve or reject submission - " ~ helper.long_collection_name %}
+{% set type_constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+{% set recipient_name = helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
+  {% endif %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("deliver_grant_funding.view_submission", grant_id=grant.id, submission_id=helper.submission.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+
+        {% set approvedConditionalHtml %}
+          {{ form.assessment_comment(params={"label": {"text": form.assessment_comment.label.text}, "rows": 5}) }}
+        {% endset %}
+
+
+        {% set rejectedConditionalHtml %}
+          {{
+            form.assessment_rejected_reason(params={
+              "label": {"text": form.assessment_rejected_reason.label.text},
+              "maxlength": form.REJECTED_REASON_MAX_CHARACTERS,
+              "rows": 5
+            })
+          }}
+        {% endset %}
+
+
+        {% set legendHtml %}
+          <span class="govuk-caption-l">{{ recipient_name }}</span>
+          {{ form.decision.label.text }}
+        {% endset %}
+
+        {{
+          form.decision(params={
+            "fieldset": {
+              "legend": {
+                "html": legendHtml,
+                "isPageHeading": true,
+                "classes": "govuk-fieldset__legend--l"
+              }
+            },
+            "hint": {"text": "We'll save this for internal records only and won't email anyone at " ~ recipient_name},
+            "items": [
+              {
+                "value": form.APPROVED,
+                "text": "Mark as approved",
+                "conditional": {"html": approvedConditionalHtml}
+              },
+              {
+                "value": form.REJECTED,
+                "text": "Mark as rejected",
+                "conditional": {"html": rejectedConditionalHtml}
+              }
+            ]
+          })
+        }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Save decision"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}
