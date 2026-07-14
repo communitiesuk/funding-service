@@ -1183,7 +1183,15 @@ class SubmissionHelper:
                 notification_service.send_access_submission_sent_for_certification_confirmation(
                     data_provider.email, submission_helper=self
                 )
-            for certifier in self._certifiers_for_lifecycle_emails(user):
+
+            certifiers = self._certifiers_for_lifecycle_emails(user)
+            if not certifiers and self.is_live:
+                current_app.logger.error(
+                    "No certifiers configured for organisation %(organisation_id)s and grant %(grant_id)s",
+                    dict(organisation_id=self.submission.grant_recipient.organisation_id, grant_id=self.grant.id),
+                )
+
+            for certifier in certifiers:
                 assert self.sent_for_certification_by is not None
                 notification_service.send_access_submission_ready_to_certify(
                     certifier.email,
