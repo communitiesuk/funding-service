@@ -161,6 +161,18 @@ def get_summary_list_value_by_key(soup: BeautifulSoup, key_text: str) -> Tag | N
     return None
 
 
+def get_table_row_by_first_column_value(table: Tag, first_column_value: str) -> Tag | None:
+    rows = table.find_all("tr")
+    for row in rows:
+        cells = row.find_all("td")
+        if not cells:
+            continue
+        if cells[0].text.strip() == first_column_value:
+            return row
+
+    return None
+
+
 def page_has_h2(soup: BeautifulSoup, h2_text: str) -> Tag | None:
     h2s = soup.select("h2")
 

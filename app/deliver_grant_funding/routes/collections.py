@@ -4160,6 +4160,7 @@ def confirm_data_set(  # noqa: C901
                 )
             )
 
+    rows = _load_rows(data_set_data)
     if not form.is_submitted():
         columns_to_display_in_formatting = []
         columns_to_display_in_formatting.extend(data_set_data.column_mappings)
@@ -4173,8 +4174,6 @@ def confirm_data_set(  # noqa: C901
                 [DataSetColumnMapping.build_from_data_source_schema_column(col) for col in existing_columns]
             )
     if form.validate_on_submit():
-        rows = _load_rows(data_set_data)
-
         if data_set_data.is_replace:
             return _save_replaced_data_set_and_redirect(
                 grant_id=grant_id,
@@ -4229,6 +4228,7 @@ def confirm_data_set(  # noqa: C901
         session_data=data_set_data,
         form=form,
         columns_to_display_in_formatting=columns_to_display_in_formatting,
+        all_rows=rows,
     )
 
 

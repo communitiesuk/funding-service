@@ -112,6 +112,7 @@ from tests.utils import (
     get_h1_text,
     get_h2_text,
     get_summary_list_value_by_key,
+    get_table_row_by_first_column_value,
     get_test_flashes,
     page_has_button,
     page_has_error,
@@ -11017,10 +11018,6 @@ class TestDataSetConfirmData:
         ]
         mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
 
-        data = {
-            "submit": "y",
-        }
-
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.confirm_data_set",
@@ -11028,7 +11025,6 @@ class TestDataSetConfirmData:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data=data,
             follow_redirects=True,
         )
         assert response.status_code == 200
@@ -11077,9 +11073,7 @@ class TestDataSetConfirmData:
                 s3_key="data-set-uploads/test.csv",
                 is_replace=True,
             ).model_dump(mode="json")
-        form_data = {
-            "submit": "y",
-        }
+
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.confirm_data_set",
@@ -11088,7 +11082,6 @@ class TestDataSetConfirmData:
                 collection_id=collection.id,
                 data_source_id=data_source.id,
             ),
-            data=form_data,
             content_type="multipart/form-data",
             follow_redirects=False,
         )
@@ -11108,6 +11101,169 @@ class TestDataSetConfirmData:
         assert get_summary_list_value_by_key(soup, "Just text") is None
         assert get_summary_list_value_by_key(soup, "Decimal number") is None
         assert get_summary_list_value_by_key(soup, "Whole number") is None
+
+    def test_get_shows_correct_data_new(
+        self, mocker, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
+        )
+        data_source_id = uuid.uuid4()
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
+                preview_data={
+                    "Additional info": ["Some text", "Some text"],
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
+                column_mappings=[
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="BRITISH_POUNDS"),
+                    DataSetColumnMapping(
+                        column_name="Distance", column_type="DECIMAL", max_decimal_places=3, suffix="km"
+                    ),
+                    DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
+                ],
+                data_source_id=data_source_id,
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+                is_replace=False,
+            ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                "Capital allocation": "£1000",
+                "Revenue allocation": "£10000",
+                "Distance": "50.6km",
+                "Additional info": "Some text",
+            },
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                "Capital allocation": "£2000",
+                "Revenue allocation": "£30000",
+                "Additional info": "Some text",
+                "Distance": "0.4km",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        data_table = soup.find("table", class_="govuk-table")
+        header_cells = data_table.find_all("th")
+        column_ordering = {header_cell.text.strip(): i for i, header_cell in enumerate(header_cells)}
+
+        for row in all_rows:
+            table_row = get_table_row_by_first_column_value(data_table, row[DATA_SET_EXTERNAL_ID_COLUMN_HEADER])
+            assert table_row is not None
+            for col_name, col_index in column_ordering.items():
+                assert table_row.find_all("td")[col_index].text.strip() == row[col_name], (
+                    f"Incorrect value for {col_name} for {row[DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER]}"
+                )
+
+    def test_get_shows_correct_data_replace(
+        self, factories, mocker, mock_s3_service_calls, authenticated_grant_admin_client, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            created_by=factories.user.create(email="user1@test.com"),
+            has_column_of_each_type=True,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr1.organisation.external_id,
+            _data={"c_british_pounds": 1234},
+        )
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session[SESSION_DATA_SET_REPLACE] = DataSetUploadSessionModel(
+                name="Updated name",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["British pounds", "Area description", "Council tax band A cost"],
+                preview_data={
+                    "British pounds": [],
+                    "Area description": ["A fine place", "A wonderful place"],
+                    "Council tax band A cost": ["1234", "1455", "2098"],
+                },
+                column_mappings=[
+                    DataSetColumnMapping(column_name="Area description", column_type="TEXT"),
+                    DataSetColumnMapping(
+                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2
+                    ),
+                ],
+                data_source_id=data_source.id,
+                original_filename="replaced.csv",
+                s3_key="data-set-uploads/test.csv",
+                is_replace=True,
+            ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr1.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                "British pounds": "£1000",
+                "Council tax band A cost": "£10000",
+                "Area description": "Some text",
+            },
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                "British pounds": "£2000",
+                "Council tax band A cost": "£30000",
+                "Area description": "Some more text",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            ),
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        data_table = soup.find("table", class_="govuk-table")
+        header_cells = data_table.find_all("th")
+        column_ordering = {header_cell.text.strip(): i for i, header_cell in enumerate(header_cells)}
+
+        for row in all_rows:
+            table_row = get_table_row_by_first_column_value(data_table, row[DATA_SET_EXTERNAL_ID_COLUMN_HEADER])
+            assert table_row is not None
+            for col_name, col_index in column_ordering.items():
+                assert table_row.find_all("td")[col_index].text.strip() == row[col_name], (
+                    f"Incorrect value for {col_name} for {row[DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER]}"
+                )
 
 
 class TestMapDataSetNumberColumns:
