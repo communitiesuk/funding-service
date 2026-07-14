@@ -9,8 +9,10 @@ from sqlalchemy import select
 from app.common.collections.types import SingleChoiceFromListAnswer, TextSingleLineAnswer
 from app.common.data.models import Submission
 from app.common.data.types import (
+    ExpressionType,
     GrantRecipientModeEnum,
     QuestionDataType,
+    QuestionPresentationOptions,
     SubmissionModeEnum,
     TasklistSectionStatusEnum,
 )
@@ -419,6 +421,38 @@ def _extract_stdout_json(captured_out: str) -> dict:
 
 
 class TestExportGrants:
+    def test_export_output_sorts_grants_and_json_keys(self, db_session, factories, capsys):
+        community_transport_grant = factories.grant.create(name="Community Transport Fund")
+        affordable_housing_grant = factories.grant.create(name="Affordable Housing Fund")
+        collection = factories.collection.create(grant=affordable_housing_grant)
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(
+            form=form,
+            presentation_options=QuestionPresentationOptions.model_validate({"suffix": "kg", "prefix": "£"}),
+        )
+        factories.expression.create(
+            question=question,
+            context={"z_key": "last", "a_key": "first"},
+            statement="True",
+            type_=ExpressionType.CONDITION,
+        )
+
+        _export_grants(
+            grant_ids=[community_transport_grant.id, affordable_housing_grant.id],
+            output="stdout",
+            email_address=None,
+            exclude_users=True,
+        )
+
+        captured = capsys.readouterr().out
+        payload = _extract_stdout_json(captured)
+
+        assert [grant_data["grant"]["name"] for grant_data in payload["grants"]] == [
+            "Affordable Housing Fund",
+            "Community Transport Fund",
+        ]
+        assert captured.index('"a_key"') < captured.index('"z_key"')
+
     def test_exclude_users_collapses_to_placeholder(self, db_session, factories, capsys):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant

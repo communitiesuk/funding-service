@@ -110,6 +110,7 @@ def _sort_export_data_in_place(export_data: ExportData) -> None:
 
     # Grant-managing orgs first, then by name
     export_data["organisations"].sort(key=lambda o: (not o["can_manage_grants"], o["name"]))
+    export_data["grants"].sort(key=lambda gd: (gd["grant"]["name"], gd["grant"]["id"]))
 
     for grants_data in export_data["grants"]:
         for k, v in grants_data.items():
@@ -120,7 +121,7 @@ def _sort_export_data_in_place(export_data: ExportData) -> None:
 
 
 def __replace_id(export_data: ExportData, old_id: str, new_id: str) -> ExportData:
-    export_json = current_app.json.dumps(export_data)
+    export_json = current_app.json.dumps(export_data, sort_keys=True)
     export_json = export_json.replace(old_id, new_id)
     return cast(ExportData, current_app.json.loads(export_json))
 
@@ -322,7 +323,7 @@ def export_grants(  # noqa: C901
     _sort_export_data_in_place(export_data)
     export_data = _handle_org_ids_for_export(export_data)
 
-    export_json = current_app.json.dumps(export_data, indent=2)
+    export_json = current_app.json.dumps(export_data, indent=2, sort_keys=True)
     match output:
         case "file":
             with open(export_path, "w") as outfile:
