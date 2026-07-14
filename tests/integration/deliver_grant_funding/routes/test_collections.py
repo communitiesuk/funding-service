@@ -111,6 +111,7 @@ from tests.utils import (
     get_form_data,
     get_h1_text,
     get_h2_text,
+    get_summary_list_value_by_key,
     get_test_flashes,
     page_has_button,
     page_has_error,
@@ -10786,6 +10787,33 @@ class TestMapDataSetColumns:
 
 
 class TestDataSetConfirmData:
+    def test_404(self, authenticated_grant_admin_client, factories, subtests):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT
+        )
+        test_data = [
+            (uuid.uuid4(), uuid.uuid4(), uuid.uuid4(), "none exist"),
+            (uuid.uuid4(), collection.id, data_source.id, "bad grant id"),
+            (grant.id, uuid.uuid4(), data_source.id, "bad collection id"),
+            (grant.id, collection.id, uuid.uuid4(), "bad data source id"),
+        ]
+        for data in test_data:
+            with subtests.test(
+                msg=f"Expected 404 with mismatched entity IDs: {data[3]}",
+            ):
+                response = authenticated_grant_admin_client.get(
+                    url_for(
+                        "deliver_grant_funding.confirm_data_set",
+                        grant_id=data[0],
+                        collection_type=CollectionType.MONITORING_REPORT,
+                        collection_id=data[1],
+                        data_source_id=data[2],
+                    )
+                )
+                assert response.status_code == 404
+
     def test_post_saves_new_data_set(
         self,
         authenticated_grant_admin_client,
@@ -10932,6 +10960,154 @@ class TestDataSetConfirmData:
         assert page_has_flash(soup, "Updated name data set replaced")
         with authenticated_grant_admin_client.session_transaction() as updated_session:
             assert updated_session.get(SESSION_DATA_SET_REPLACE) is None
+
+    def test_get_shows_correct_columns_new(
+        self, mocker, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
+        )
+        data_source_id = uuid.uuid4()
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
+                preview_data={
+                    "Additional info": ["Some text", "Some text"],
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
+                column_mappings=[
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="BRITISH_POUNDS"),
+                    DataSetColumnMapping(
+                        column_name="Distance", column_type="DECIMAL", max_decimal_places=3, suffix="km"
+                    ),
+                    DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
+                ],
+                data_source_id=data_source_id,
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+                is_replace=False,
+            ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                "Capital allocation": "£1000",
+                "Revenue allocation": "£10000",
+                "Distance": "50.6km",
+                "Additional info": "Some text",
+            },
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                "Capital allocation": "£2000",
+                "Revenue allocation": "£30000",
+                "Additional info": "Some text",
+                "Distance": "0.4km",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        data = {
+            "submit": "y",
+        }
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data=data,
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Confirm Test Data Set data" in get_h1_text(soup)
+        assert get_summary_list_value_by_key(soup, "Capital allocation").text.strip() == "British pounds"
+        assert get_summary_list_value_by_key(soup, "Revenue allocation").text.strip() == "British pounds"
+        assert get_summary_list_value_by_key(soup, "Additional info").text.strip() == "Text"
+        assert (
+            get_summary_list_value_by_key(soup, "Distance").text.strip()
+            == "Decimal number, 3 decimal places, suffix: km"
+        )
+
+    def test_get_shows_correct_columns_replace(
+        self, factories, mock_s3_service_calls, authenticated_grant_admin_client, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            created_by=factories.user.create(email="user1@test.com"),
+            has_column_of_each_type=True,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session[SESSION_DATA_SET_REPLACE] = DataSetUploadSessionModel(
+                name="Updated name",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["British pounds", "Area description", "Council tax band A cost"],
+                preview_data={
+                    "British pounds": [],
+                    "Area description": ["A fine place", "A wonderful place"],
+                    "Council tax band A cost": ["1234", "1455", "2098"],
+                },
+                column_mappings=[
+                    DataSetColumnMapping(column_name="Area description", column_type="TEXT"),
+                    DataSetColumnMapping(
+                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2
+                    ),
+                ],
+                data_source_id=data_source.id,
+                original_filename="replaced.csv",
+                s3_key="data-set-uploads/test.csv",
+                is_replace=True,
+            ).model_dump(mode="json")
+        form_data = {
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=form_data,
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Confirm Updated name data" in get_h1_text(soup)
+        assert get_summary_list_value_by_key(soup, "British pounds").text.strip() == "British pounds"
+        assert get_summary_list_value_by_key(soup, "Area description").text.strip() == "Text"
+        assert (
+            get_summary_list_value_by_key(soup, "Council tax band A cost").text.strip()
+            == "Decimal number, 2 decimal places"
+        )
+        # check removed columns are not there
+        assert get_summary_list_value_by_key(soup, "Whole number suffix") is None
+        assert get_summary_list_value_by_key(soup, "Whole number prefix") is None
+        assert get_summary_list_value_by_key(soup, "Just text") is None
+        assert get_summary_list_value_by_key(soup, "Decimal number") is None
+        assert get_summary_list_value_by_key(soup, "Whole number") is None
 
 
 class TestMapDataSetNumberColumns:

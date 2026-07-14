@@ -153,6 +153,14 @@ def page_has_link(soup: BeautifulSoup, link_text: str) -> Tag | None:
     return None
 
 
+def get_summary_list_value_by_key(soup: BeautifulSoup, key_text: str) -> Tag | None:
+    keys = soup.find_all("dt", class_="govuk-summary-list__key")
+    for key in keys:
+        if key_text in key.text:
+            return key.parent.find("dd", class_="govuk-summary-list__value") if key.parent else None
+    return None
+
+
 def page_has_h2(soup: BeautifulSoup, h2_text: str) -> Tag | None:
     h2s = soup.select("h2")
 

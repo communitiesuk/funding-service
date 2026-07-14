@@ -176,6 +176,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
 from app.extensions import auto_commit_after_request, notification_service, s3_service
@@ -4128,9 +4129,15 @@ def confirm_data_set(  # noqa: C901
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    existing_datasource = get_data_source(data_source_id, with_organisation_items=True) if data_source_id else None
     user = get_current_user()
     form = GenericSubmitForm()
 
+    if collection.grant_id != grant_id or (
+        existing_datasource is not None
+        and (existing_datasource.collection_id != collection_id or existing_datasource.grant_id != grant_id)
+    ):
+        abort(404)
     data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
         if data_source_id:
@@ -4152,6 +4159,19 @@ def confirm_data_set(  # noqa: C901
                     collection_id=collection_id,
                 )
             )
+
+    if not form.is_submitted():
+        columns_to_display_in_formatting = []
+        columns_to_display_in_formatting.extend(data_set_data.column_mappings)
+        if data_set_data.is_replace:
+            existing_columns = [
+                v
+                for k, v in existing_datasource.schema.root.items()  # ty:ignore[unresolved-attribute]
+                if v.original_column_name in data_set_data.data_columns
+            ]
+            columns_to_display_in_formatting.extend(
+                [DataSetColumnMapping.build_from_data_source_schema_column(col) for col in existing_columns]
+            )
     if form.validate_on_submit():
         rows = _load_rows(data_set_data)
 
@@ -4160,7 +4180,7 @@ def confirm_data_set(  # noqa: C901
                 grant_id=grant_id,
                 collection=collection,
                 data_set_data=data_set_data,
-                existing_datasource=get_data_source(data_set_data.data_source_id, with_organisation_items=True),
+                existing_datasource=existing_datasource,  # ty:ignore[invalid-argument-type]
                 rows=rows,
             )
         data_source = create_uploaded_data_source(
@@ -4208,6 +4228,7 @@ def confirm_data_set(  # noqa: C901
         collection=collection,
         session_data=data_set_data,
         form=form,
+        columns_to_display_in_formatting=columns_to_display_in_formatting,
     )
 
 

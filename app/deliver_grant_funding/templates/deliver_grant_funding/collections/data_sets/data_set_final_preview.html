@@ -39,7 +39,7 @@
     <div class="govuk-grid-column-full">
       <h2 class="govuk-heading-m">Data columns</h2>
       {% set data_columns=[] %}
-      {% for data_col in session_data.column_mappings %}
+      {% for data_col in columns_to_display_in_formatting %}
         {%
           do data_columns.append(
             {
