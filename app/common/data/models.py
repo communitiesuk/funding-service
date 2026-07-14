@@ -22,7 +22,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, aliased, column_property, foreign, mapped_column, relationship, remote
@@ -245,6 +245,8 @@ class Organisation(BaseModel):
     retirement_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
     mode: Mapped[OrganisationModeEnum] = mapped_column(default=OrganisationModeEnum.LIVE)
+
+    trusted_domains: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
 
     @property
     def typed_id(self) -> str:
