@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import uuid
 from copy import deepcopy
 from datetime import date, datetime
@@ -1832,7 +1833,11 @@ class TestSubmissionHelper:
 
     class TestSentForCertification:
         def test_mark_as_sent_for_certification(
-            self, data_provider_user, certifier_user, submission_ready_to_submit, mock_notification_service_calls
+            self,
+            data_provider_user,
+            certifier_user,
+            submission_ready_to_submit,
+            mock_notification_service_calls,
         ) -> None:
             helper = SubmissionHelper(submission_ready_to_submit)
             assert helper.collection.requires_certification is True
@@ -1842,6 +1847,29 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
             assert len(mock_notification_service_calls) == 2
+
+        def test_mark_as_sent_for_certification_no_certifiers(
+            self,
+            data_provider_user,
+            submission_ready_to_submit,
+            mock_notification_service_calls,
+            caplog,
+        ) -> None:
+            helper = SubmissionHelper(submission_ready_to_submit)
+            assert helper.collection.requires_certification is True
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            with caplog.at_level(logging.ERROR):
+                helper.mark_as_sent_for_certification(user=data_provider_user)
+
+            assert helper.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+            assert len(mock_notification_service_calls) == 1
+
+            assert (
+                "No certifiers configured for organisation "
+                f"{submission_ready_to_submit.grant_recipient.organisation_id} and grant "
+                f"{submission_ready_to_submit.grant_recipient.grant_id}"
+            ) in caplog.messages
 
         @pytest.mark.parametrize(
             "submission_mode, expected_data_provider_emails, expected_certifier_emails",
