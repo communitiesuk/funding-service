@@ -1,0 +1,56 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{# Renders the "Only applicable if ..." condition tags for a question or a group. #}
+{% macro _component_conditions(component, interpolate, describe_conditions) %}
+  {% set conditions = describe_conditions(component, interpolate) %}
+  {% if conditions %}
+    <div class="govuk-!-margin-top-1 govuk-!-margin-bottom-1">
+      {% for condition in conditions %}
+        <p class="govuk-!-margin-bottom-1">
+          {{ govukTag({"html": condition, "classes": "govuk-tag--pink app-full-tag app-all-questions-condition"}) }}
+        </p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{#
+  Recursively renders a list of components (questions and groups).
+
+  The top level of each section is a numbered list; everything nested inside a group is bulleted, at
+  any depth. A group shows its name in bold, an optional "add another" indicator, any guidance body,
+  its conditions, and then its child components as sub-items.
+#}
+{% macro render_components(components, interpolate, question_setting_details, describe_conditions, enum, numbered=false) %}
+  {% set list_tag = "ol" if numbered else "ul" %}
+  <{{ list_tag }} class="govuk-list {{ 'govuk-list--number' if numbered else 'govuk-list--bullet' }}">
+    {% for component in components %}
+      <li class="govuk-!-margin-bottom-4">
+        {% if component.is_group %}
+          <strong>{{ component.name }}</strong>
+          {% if component.add_another %}
+            {{ govukTag({"text": "Can be added more than once", "classes": "govuk-tag--grey govuk-!-margin-left-1"}) }}
+          {% endif %}
+          {{ _component_conditions(component, interpolate, describe_conditions) }}
+          {% if component.guidance_body %}
+            <p class="govuk-body govuk-!-margin-top-1">{{ interpolate(component.guidance_body, with_interpolation_highlighting=True) }}</p>
+          {% endif %}
+          {{ render_components(component.components, interpolate, question_setting_details, describe_conditions, enum, numbered=false) }}
+        {% else %}
+          {{ interpolate(component.text, with_interpolation_highlighting=True) -}}
+          {%- set details = question_setting_details(component) -%}
+          {%- for detail in details %} ({{ detail }}){% endfor %}
+          {# <div class="govuk-hint govuk-!-margin-top-1 govuk-!-margin-bottom-0 app-all-questions-answer-type">{{ component.data_type.value }}</div> #}
+          {% if component.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] and component.data_source %}
+            <ul class="govuk-list govuk-list--bullet govuk-!-margin-top-1 govuk-!-margin-bottom-0">
+              {% for item in component.data_source.items %}
+                <li>{{ item.label }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {{ _component_conditions(component, interpolate, describe_conditions) }}
+        {% endif %}
+      </li>
+    {% endfor %}
+  </{{ list_tag }}>
+{% endmacro %}

@@ -9,6 +9,7 @@ from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_access_grant_role
 from app.common.collections.forms import build_question_form
+from app.common.collections.question_display import describe_component_conditions, get_question_setting_details
 from app.common.collections.runner import AGFFormRunner
 from app.common.collections.types import FileUploadAnswer
 from app.common.data import interfaces
@@ -203,6 +204,40 @@ def tasklist(
     # if complete_submission failed, the runner has appended errors to the form which will show to the user
     return render_template(
         "access_grant_funding/collections/tasklist.html", grant_recipient=grant_recipient, runner=runner
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/all-questions",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def all_questions(
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
+) -> ResponseReturnValue:
+    """A read-only reference page listing every question in the collection, including conditional ones."""
+    grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
+
+    # Load through the runner so we confirm this submission belongs to the grant recipient before showing anything.
+    runner = AGFFormRunner.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    collection = get_collection(runner.submission.collection_id, grant_id=grant_id, with_full_schema=True)
+
+    back_url = url_for(
+        "access_grant_funding.tasklist",
+        organisation_id=organisation_id,
+        grant_id=grant_id,
+        collection_type=collection.type,
+        submission_id=submission_id,
+    )
+
+    return render_template(
+        "access_grant_funding/collections/all_questions.html",
+        collection=collection,
+        grant_recipient=grant_recipient,
+        interpolate=SubmissionHelper.get_interpolator(collection=collection),
+        question_setting_details=get_question_setting_details,
+        describe_conditions=describe_component_conditions,
+        back_url=back_url,
     )
 
 
