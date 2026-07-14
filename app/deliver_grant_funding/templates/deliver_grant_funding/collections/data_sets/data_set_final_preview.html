@@ -1,0 +1,67 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
+
+{% set type_constants = collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% set page_title = "Confirm " ~ session_data.name ~ " data" %}
+
+{% block beforeContent %}
+  {% if session_data.has_columns_requiring_manual_formatting %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
+  {% else %}
+    {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
+  {% endif %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        Confirm {{ session_data.name }} data
+      </h1>
+      <p class="govuk-body">Check and confirm the {{ session_data.name }} data set is correct before uploading.</p>
+
+      <form method="POST" novalidate>
+        {{ form.csrf_token }}
+
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text":"Upload data set" }) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_collection_data_sets', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-m">Data columns</h2>
+      {% set data_columns=[] %}
+      {% for data_col in session_data.column_mappings %}
+        {%
+          do data_columns.append(
+            {
+              "key":{"text":data_col.column_name},
+              "value":{"text":data_col.text_description},
+            }
+          )
+        %}
+      {% endfor %}
+      {% set data_format_html %}
+        {{
+          govukSummaryList({
+            "rows": data_columns
+          })
+        }}
+      {% endset %}
+      {{
+        govukDetails({
+          "summaryText": "Data format settings",
+          "html": data_format_html,
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}

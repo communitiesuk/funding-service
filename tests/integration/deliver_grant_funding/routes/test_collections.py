@@ -10496,7 +10496,7 @@ class TestMapDataSetColumns:
             )
         )
 
-    def test_post_no_errors_creates_datasource_and_redirects(
+    def test_post_no_errors_redirects(
         self, authenticated_grant_admin_client, factories, db_session, mock_s3_service_calls, mocker
     ):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
@@ -10546,20 +10546,15 @@ class TestMapDataSetColumns:
                 collection_id=collection.id,
             ),
             data=data,
-            follow_redirects=True,
+            follow_redirects=False,
         )
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(
-            soup, f"You can now reference {session['data_set_upload']['name']} data in the {collection.name} grant form"
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.confirm_data_set",
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
         )
-
-        assert authenticated_grant_admin_client.user.name in soup.text
-        assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
-        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
-
-        assert len(mock_s3_service_calls.update_file_tags) == 1
-        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
 
     def test_post_to_replace_saves_changes(
         self, factories, mock_s3_service_calls, authenticated_grant_admin_client, db_session
@@ -10599,20 +10594,16 @@ class TestMapDataSetColumns:
             ),
             data=form_data,
             content_type="multipart/form-data",
-            follow_redirects=True,
+            follow_redirects=False,
         )
-
-        assert response.status_code == 200
-        from_db = db_session.get(DataSource, data_source.id)
-        assert from_db.name == "Updated name"
-        assert from_db.file_metadata.original_filename == "replaced.csv"
-        assert from_db.updated_by.email == "test2@communities.gov.uk"
-
-        assert "c_allocation" in from_db.schema.root
-        assert "c_area_description" in from_db.schema.root
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Updated name data set replaced")
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.confirm_data_set",
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+            data_source_id=data_source.id,
+        )
 
     @pytest.mark.parametrize("is_replace", [True, False])
     def test_post_missing_required_field_shows_error(self, authenticated_grant_admin_client, factories, is_replace):
@@ -10784,29 +10775,163 @@ class TestMapDataSetColumns:
             data=data,
             follow_redirects=False,
         )
-
         assert response.status_code == 302
-        if is_replace:
-            assert response.location.endswith(
-                url_for(
-                    "deliver_grant_funding.view_data_source",
-                    grant_id=collection.grant.id,
-                    collection_type=collection.type,
-                    collection_id=collection.id,
-                    data_source_id=data_source.id,
-                )
-            )
-        else:
-            assert response.location.endswith(
-                url_for(
-                    "deliver_grant_funding.list_collection_data_sets",
-                    grant_id=collection.grant.id,
-                    collection_type=collection.type,
-                    collection_id=collection.id,
-                    data_source_id=data_source.id if is_replace else None,
-                )
-            )
-        assert db_session.get(DataSource, data_source_id) is not None
+        assert response.location == url_for(
+            "deliver_grant_funding.confirm_data_set",
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+            data_source_id=data_source.id if is_replace else None,
+        )
+
+
+class TestDataSetConfirmData:
+    def test_post_saves_new_data_set(
+        self,
+        authenticated_grant_admin_client,
+        factories,
+        db_session,
+        mock_s3_service_calls,
+        mocker,
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000123"
+        )
+        grant_recipient_2 = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
+        )
+        data_source_id = uuid.uuid4()
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                name="Test Data Set",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Capital allocation", "Revenue allocation", "Additional info"],
+                preview_data={
+                    "Additional info": ["Some text", "Some text"],
+                    "Capital allocation": ["£1000", "£2000"],
+                    "Revenue allocation": ["£10000", "£30000"],
+                },
+                column_mappings=[
+                    DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                    DataSetColumnMapping(column_name="Revenue allocation", column_type="BRITISH_POUNDS"),
+                    DataSetColumnMapping(column_name="Additional info", column_type="TEXT"),
+                ],
+                data_source_id=data_source_id,
+                original_filename="test.csv",
+                s3_key="data-set-uploads/test.csv",
+                is_replace=False,
+            ).model_dump(mode="json")
+
+        all_rows = [
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                "Capital allocation": "£1000",
+                "Revenue allocation": "£10000",
+                "Additional info": "Some text",
+            },
+            {
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
+                "Capital allocation": "£2000",
+                "Revenue allocation": "£30000",
+                "Additional info": "Some text",
+            },
+        ]
+        mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        data = {
+            "submit": "y",
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data=data,
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, f"You can now reference Test Data Set data in the {collection.name} grant form")
+        assert authenticated_grant_admin_client.user.name in soup.text
+        assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
+        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
+
+        assert len(mock_s3_service_calls.update_file_tags) == 1
+        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
+
+        with authenticated_grant_admin_client.session_transaction() as updated_session:
+            assert updated_session.get(SESSION_DATA_SET_UPLOAD) is None
+
+    def test_post_to_replace_saves_changes(
+        self, factories, mock_s3_service_calls, authenticated_grant_admin_client, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            created_by=factories.user.create(email="user1@test.com"),
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as session:
+            session[SESSION_DATA_SET_REPLACE] = DataSetUploadSessionModel(
+                name="Updated name",
+                data_source_type=DataSourceType.GRANT_RECIPIENT,
+                data_columns=["Allocation", "Area description", "Council tax band A cost"],
+                preview_data={
+                    "Allocation": [],
+                    "Area description": ["A fine place", "A wonderful place"],
+                    "Council tax band A cost": ["1234", "1455", "2098"],
+                },
+                column_mappings=[
+                    DataSetColumnMapping(column_name="Area description", column_type="TEXT"),
+                    DataSetColumnMapping(
+                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2
+                    ),
+                ],
+                data_source_id=data_source.id,
+                original_filename="replaced.csv",
+                s3_key="data-set-uploads/test.csv",
+                is_replace=True,
+            ).model_dump(mode="json")
+        form_data = {
+            "submit": "y",
+        }
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            ),
+            data=form_data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        from_db = db_session.get(DataSource, data_source.id)
+        assert from_db.name == "Updated name"
+        assert from_db.file_metadata.original_filename == "replaced.csv"
+        assert from_db.updated_by.email == "test2@communities.gov.uk"
+
+        assert "c_allocation" in from_db.schema.root
+        assert "c_area_description" in from_db.schema.root
+        assert "c_council_tax_band_a_cost" in from_db.schema.root
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Updated name data set replaced")
+        with authenticated_grant_admin_client.session_transaction() as updated_session:
+            assert updated_session.get(SESSION_DATA_SET_REPLACE) is None
 
 
 class TestMapDataSetNumberColumns:
@@ -10913,7 +11038,7 @@ class TestMapDataSetNumberColumns:
         assert soup.find("input", {"name": "columns-0-max_decimal_places"})["value"] == "2"
         assert soup.find("input", {"name": "columns-1-suffix"})["value"] == "km"
 
-    def test_post_no_errors_creates_datasource_and_redirects(
+    def test_post_no_errors_redirects(
         self,
         authenticated_grant_admin_client,
         factories,
@@ -10985,21 +11110,16 @@ class TestMapDataSetNumberColumns:
                 collection_id=collection.id,
             ),
             data=data,
-            follow_redirects=True,
+            follow_redirects=False,
         )
 
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, f"You can now reference Test Data Set data in the {collection.name} grant form")
-        assert authenticated_grant_admin_client.user.name in soup.text
-        assert db_session.scalar(select(func.count()).select_from(DataSource)) == 1
-        assert db_session.scalar(select(func.count()).select_from(DataSourceOrganisationItem)) == 2
-
-        assert len(mock_s3_service_calls.update_file_tags) == 1
-        assert mock_s3_service_calls.update_file_tags[0].args[1] == {"status": DataSourceFileTagEnum.IN_USE}
-
-        with authenticated_grant_admin_client.session_transaction() as updated_session:
-            assert updated_session.get(SESSION_DATA_SET_UPLOAD) is None
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.confirm_data_set",
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+        )
 
     def test_post_to_replace_saves_changes(
         self, factories, mock_s3_service_calls, authenticated_grant_admin_client, db_session
@@ -11049,23 +11169,16 @@ class TestMapDataSetNumberColumns:
             ),
             data=form_data,
             content_type="multipart/form-data",
-            follow_redirects=True,
+            follow_redirects=False,
         )
-
-        assert response.status_code == 200
-        from_db = db_session.get(DataSource, data_source.id)
-        assert from_db.name == "Updated name"
-        assert from_db.file_metadata.original_filename == "replaced.csv"
-        assert from_db.updated_by.email == "test2@communities.gov.uk"
-
-        assert "c_allocation" in from_db.schema.root
-        assert "c_area_description" in from_db.schema.root
-        assert "c_council_tax_band_a_cost" in from_db.schema.root
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Updated name data set replaced")
-        with authenticated_grant_admin_client.session_transaction() as updated_session:
-            assert updated_session.get(SESSION_DATA_SET_REPLACE) is None
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.confirm_data_set",
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+            data_source_id=data_source.id,
+        )
 
     @pytest.mark.parametrize("is_replace", [True, False])
     def test_post_shows_form_errors(self, authenticated_grant_admin_client, factories, is_replace):
@@ -12150,6 +12263,21 @@ class TestReplaceDataSet:
         )
 
         assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Confirm Updated for full journey data" in get_h1_text(soup)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=grant.id,
+                collection_type=data_source.collection.type,
+                collection_id=data_source.collection.id,
+                data_source_id=data_source.id,
+            ),
+            data={"submit": "y"},
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Updated for full journey" in get_h1_text(soup)
         uploaded_at = soup.find("time")

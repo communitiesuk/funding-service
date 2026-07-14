@@ -79,6 +79,7 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.map_data_set_number_columns",
     "deliver_grant_funding.data_set_missing_data",
     "deliver_grant_funding.confirm_data_set_grant_recipients",
+    "deliver_grant_funding.confirm_data_set",
     "deliver_grant_funding.add_custom_question_validation",
     "deliver_grant_funding.edit_custom_question_validation",
     "deliver_grant_funding.add_group_validation",
