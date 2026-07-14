@@ -1,106 +1,67 @@
-from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, TypedDict, Unpack, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, Unpack, overload
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.common.data.models_user import User
 from app.common.data.types import SubmissionEventType
 
 if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-
     from app.common.data.models import Submission, SubmissionEvent
-    from app.common.data.models_user import User
 
 
-# Mixins - schema protocol used to guarantee that the properties we're tracking using events
-# and our final state line up
-class CompletedMixin(Protocol):
-    is_completed: bool
-
-
-class SignOffMixin(Protocol):
-    is_awaiting_sign_off: bool | None
-    is_approved: bool | None
-
-
-class SubmittedMixin(Protocol):
-    is_submitted: bool
-
-
-# Events - things that can happen in the service, we calculate the final state
-# by taking all the latest event properties allowing workflows to go forward and backwards
-# Event names are past tense
-class DeclinedMixin(Protocol):
-    declined_reason: str | None
-
-
-class ReopenedMixin(Protocol):
-    reopened_reason: str | None
-
-
-class ChangesRequestedMixin(Protocol):
-    changes_requested_reason: str | None
-
-
-@dataclass
-class SubmissionEventBase:
+class SubmissionEventBase(BaseModel):
     """Base class for all submission event dataclasses."""
 
     event_type: ClassVar[SubmissionEventType]
 
 
-@dataclass
-class FormCompletedEvent(SubmissionEventBase, CompletedMixin):
+class FormCompletedEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_COMPLETED
     is_completed: bool = True
 
 
-@dataclass
-class FormResetToInProgressEvent(SubmissionEventBase, CompletedMixin):
+class FormResetToInProgressEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
     is_completed: bool = False
 
 
-@dataclass
-class FormResetByCertifierEvent(SubmissionEventBase, CompletedMixin):
+class FormResetByCertifierEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER
     is_completed: bool = False
 
 
-@dataclass
-class SubmissionSentForCertificationEvent(SubmissionEventBase, SignOffMixin):
+class SubmissionSentForCertificationEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION
     is_awaiting_sign_off: bool = True
     is_approved: bool = False
 
 
-@dataclass
-class SubmissionDeclinedByCertifierEvent(SubmissionEventBase, SignOffMixin, DeclinedMixin):
+class SubmissionDeclinedByCertifierEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
-    declined_reason: str | None = field(default=None, metadata={"stored": True})
+    declined_reason: str | None = Field(default=None, json_schema_extra={"stored": True})
 
 
-@dataclass
-class SubmissionReopenedEvent(SubmissionEventBase, SignOffMixin, ReopenedMixin, SubmittedMixin):
-    reopened_reason: str = field(metadata={"stored": True})
+class SubmissionReopenedEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_REOPENED
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     is_submitted: bool = False
-    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
+    reopened_reason: str = Field(json_schema_extra={"stored": True})
+    submission_data: dict[str, Any] = Field(default_factory=dict, json_schema_extra={"stored": True})
 
 
-@dataclass
-class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, ChangesRequestedMixin, SubmittedMixin):
-    changes_requested_reason: str = field(metadata={"stored": True})
+class SubmissionChangesRequestedEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_CHANGES_REQUESTED
     is_awaiting_sign_off: bool = False
     is_approved: bool = False
     is_submitted: bool = False
-    submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
-    section_ids: list[str] = field(default_factory=list, metadata={"stored": True})
+    changes_requested_reason: str = Field(json_schema_extra={"stored": True})
+    submission_data: dict[str, Any] = Field(default_factory=dict, json_schema_extra={"stored": True})
+    section_ids: list[UUID] = Field(default_factory=list, json_schema_extra={"stored": True})
     is_changes_requested: bool = True
 
 
@@ -121,18 +82,16 @@ class ReopenedKwargs(TypedDict, total=False):
 class ChangesRequestedKwargs(TypedDict, total=False):
     changes_requested_reason: str | None
     submission_data: dict[str, Any] | None
-    section_ids: list[str]
+    section_ids: list[UUID]
 
 
-@dataclass
-class SubmissionApprovedByCertifierEvent(SubmissionEventBase, SignOffMixin):
+class SubmissionApprovedByCertifierEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER
     is_awaiting_sign_off: bool = False
     is_approved: bool = True
 
 
-@dataclass
-class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
+class SubmissionSubmittedEvent(SubmissionEventBase):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.SUBMISSION_SUBMITTED
     is_submitted: bool = True
     is_changes_requested: bool = False
@@ -140,54 +99,54 @@ class SubmissionSubmittedEvent(SubmissionEventBase, SubmittedMixin):
 
 # State - represents a snapshot of the current state of the target entity for those events
 # Combines metadata about who has been doing the events and the event properties themselves
-@dataclass
-class SentForCertificationMetadata:
+class SentForCertificationMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     sent_for_certification_by: User | None = None
     sent_for_certification_at_utc: datetime | None = None
 
 
-@dataclass
-class CertifiedMetadata:
+class CertifiedMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     certified_by: User | None = None
     certified_at_utc: datetime | None = None
 
 
-@dataclass
-class CertificationDeclinedMetadata:
+class CertificationDeclinedMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     declined_by: User | None = None
     declined_at_utc: datetime | None = None
 
 
-@dataclass
-class SubmittedMetadata:
+class SubmittedMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     submitted_by: User | None = None
     submitted_at_utc: datetime | None = None
 
 
-@dataclass
-class ReopenedMetadata:
+class ReopenedMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     reopened_by: User | None = None
     reopened_at_utc: datetime | None = None
 
 
-@dataclass
-class ChangesRequestedMetadata:
+class ChangesRequestedMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     changes_requested_by: User | None = None
     changes_requested_at_utc: datetime | None = None
 
 
-@dataclass
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
     CertifiedMetadata,
     CertificationDeclinedMetadata,
     ReopenedMetadata,
-    SignOffMixin,
-    SubmittedMixin,
-    DeclinedMixin,
-    ReopenedMixin,
-    ChangesRequestedMixin,
     ChangesRequestedMetadata,
 ):
     is_awaiting_sign_off: bool | None = None
@@ -197,16 +156,17 @@ class SubmissionState(
     reopened_reason: str | None = None
     changes_requested_reason: str | None = None
     submission_data: dict[str, Any] | None = None
-    section_ids: list[UUID] = field(default_factory=list)
+    section_ids: list[UUID] = Field(default_factory=list)
     is_changes_requested: bool = False
 
-    def __post_init__(self) -> None:
-        self.section_ids = [UUID(s) if isinstance(s, str) else s for s in self.section_ids]
 
-
-@dataclass
-class FormState(CompletedMixin):
+class FormState(BaseModel):
     is_completed: bool = False
+
+
+def _shallow_dict(model: BaseModel) -> dict[str, Any]:
+    """Return model field values without deep serialization (preserves ORM instances etc)."""
+    return {name: getattr(model, name) for name in type(model).model_fields}
 
 
 _SUBMISSION_EVENT_REGISTRY = {event.event_type: event for event in SubmissionEventBase.__subclasses__()}
@@ -219,12 +179,23 @@ def _get_event_class(event_type: SubmissionEventType) -> type[SubmissionEventBas
 
 
 def _get_stored_field_names(event_class: type[SubmissionEventBase]) -> set[str]:
-    return {f.name for f in fields(event_class) if f.metadata.get("stored", False)}
+    return {
+        name
+        for name, field_info in event_class.model_fields.items()
+        if field_info.json_schema_extra and field_info.json_schema_extra.get("stored", False)
+    }
 
 
 def _get_static_data(event_class: type[SubmissionEventBase]) -> dict[str, Any]:
     stored = _get_stored_field_names(event_class)
-    return {f.name: f.default for f in fields(event_class) if f.name not in stored}
+    result: dict[str, Any] = {}
+    for name, field_info in event_class.model_fields.items():
+        if name not in stored:
+            if field_info.default is not None:
+                result[name] = field_info.default
+            elif field_info.default_factory is not None:
+                result[name] = field_info.default_factory()
+    return result
 
 
 class SubmissionEventHelper:
@@ -281,42 +252,42 @@ class SubmissionEventHelper:
         """
         match event.event_type:
             case SubmissionEventType.SUBMISSION_SUBMITTED:
-                return shallow_asdict(
+                return _shallow_dict(
                     SubmittedMetadata(
                         submitted_by=event.created_by,
                         submitted_at_utc=event.created_at_utc,
                     )
                 )
             case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
-                return shallow_asdict(
+                return _shallow_dict(
                     SentForCertificationMetadata(
                         sent_for_certification_by=event.created_by,
                         sent_for_certification_at_utc=event.created_at_utc,
                     )
                 )
             case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
-                return shallow_asdict(
+                return _shallow_dict(
                     CertifiedMetadata(
                         certified_by=event.created_by,
                         certified_at_utc=event.created_at_utc,
                     )
                 )
             case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
-                return shallow_asdict(
+                return _shallow_dict(
                     CertificationDeclinedMetadata(
                         declined_by=event.created_by,
                         declined_at_utc=event.created_at_utc,
                     )
                 )
             case SubmissionEventType.SUBMISSION_REOPENED:
-                return shallow_asdict(
+                return _shallow_dict(
                     ReopenedMetadata(
                         reopened_by=event.created_by,
                         reopened_at_utc=event.created_at_utc,
                     )
                 )
             case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
-                return shallow_asdict(
+                return _shallow_dict(
                     ChangesRequestedMetadata(
                         changes_requested_by=event.created_by,
                         changes_requested_at_utc=event.created_at_utc,
@@ -356,14 +327,8 @@ class SubmissionEventHelper:
     def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
         event_class = _get_event_class(event_type)
         stored_field_names = _get_stored_field_names(event_class)
-        return {k: v for k, v in kwargs.items() if k in stored_field_names}
-
-
-def shallow_asdict(obj: DataclassInstance) -> dict[str, Any]:
-    """
-    Avoid duplicating properties when using the default dataclass `asdict` method, when collecting
-    metadata to build state we always want to reference ORM models and not recreate them.
-
-    See https://docs.python.org/3/library/dataclasses.html#dataclasses.asdict
-    """
-    return {field.name: getattr(obj, field.name) for field in fields(obj)}
+        stored_kwargs = {k: v for k, v in kwargs.items() if k in stored_field_names}
+        if not stored_kwargs:
+            return {}
+        event = event_class(**{**stored_kwargs, **{k: v for k, v in kwargs.items() if k not in stored_field_names}})
+        return event.model_dump(mode="json", include=stored_field_names)
