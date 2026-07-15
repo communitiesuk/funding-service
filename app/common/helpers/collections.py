@@ -1242,11 +1242,12 @@ class SubmissionHelper:
                 related_entity_id=self.id,
             )
             for form in self.collection.forms:
-                self.add_submission_event(
-                    event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
-                    user=user,
-                    related_entity_id=form.id,
-                )
+                if not self.form_is_managed_by_service(form):
+                    self.add_submission_event(
+                        event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
+                        user=user,
+                        related_entity_id=form.id,
+                    )
 
             # There are two distinct emails for data providers and certifiers in this flow so we want users to receive
             # the relevant ones, even if they have both permissions.
@@ -1341,11 +1342,12 @@ class SubmissionHelper:
             related_entity_id=self.id,
         )
         for form in self.collection.forms:
-            self.add_submission_event(
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
-                user=user,
-                related_entity_id=form.id,
-            )
+            if not self.form_is_managed_by_service(form):
+                self.add_submission_event(
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                    user=user,
+                    related_entity_id=form.id,
+                )
         recipients = set(self._data_providers_for_lifecycle_emails(user))
 
         if self.collection.requires_certification:
@@ -1385,7 +1387,7 @@ class SubmissionHelper:
             related_entity_id=self.id,
         )
         for form in self.collection.forms:
-            if not section_ids or str(form.id) in section_ids:
+            if (not section_ids or str(form.id) in section_ids) and not self.form_is_managed_by_service(form):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
                     user=user,
