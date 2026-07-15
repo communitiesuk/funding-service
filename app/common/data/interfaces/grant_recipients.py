@@ -126,6 +126,39 @@ def create_grant_recipient(
     return grant_recipient
 
 
+@flush_and_rollback_on_exceptions()
+def create_grant_recipient_with_test_counterpart(
+    grant: Grant, organisation: Organisation, status: GrantRecipientStatusEnum
+) -> GrantRecipient:
+    """Create a grant recipient for a live organisation, plus a matching one for its test-mode counterpart.
+
+    Mirrors the admin 'set up grant recipients' journey: as well as the live grant recipient, current grant team
+    members are given data provider/certifier access to the test organisation so they can try out the applicant
+    journey without touching live data. Organisations set up without a test-mode counterpart (eg manually created
+    ones) are skipped rather than failing sign up.
+    """
+    from app.common.data.interfaces.user import add_permissions_to_user
+
+    grant_recipient = create_grant_recipient(grant, organisation, status=status)
+
+    test_organisation = organisation.matching_test_organisation
+    if test_organisation is None:
+        return grant_recipient
+
+    if not get_grant_recipient_or_none(grant.id, test_organisation.id):
+        create_grant_recipient(grant, test_organisation, status=status)
+
+    for grant_team_member in grant.grant_team_users:
+        add_permissions_to_user(
+            grant_team_member,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+            organisation_id=test_organisation.id,
+            grant_id=grant.id,
+        )
+
+    return grant_recipient
+
+
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
     statement = (
         select(func.count())

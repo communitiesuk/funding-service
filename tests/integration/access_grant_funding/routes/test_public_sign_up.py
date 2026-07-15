@@ -8,6 +8,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     ExpressionType,
+    GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
@@ -15,6 +16,7 @@ from app.common.data.types import (
     RoleEnum,
 )
 from app.common.expressions.references import ExpressionReference
+from tests.models import _get_grant_managing_organisation
 from tests.utils import get_h1_text, page_has_error
 
 TRUSTED_DOMAIN = "barnsley.gov.uk"
@@ -205,6 +207,47 @@ class TestPublicSignUpEligible:
         db_session.refresh(user)
         assert RoleEnum.DATA_PROVIDER in user.roles[0].permissions
 
+    def test_signing_up_also_sets_up_a_test_grant_recipient_and_grant_team_test_access(
+        self, authenticated_no_role_client, application, factories, db_session
+    ):
+        organisation = factories.organisation.create(
+            name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN], with_matching_test_org=True
+        )
+        team_member = factories.user.create()
+        factories.user_role.create(
+            user=team_member,
+            organisation=_get_grant_managing_organisation(),
+            grant=application.grant,
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id),
+            data={"submit": "Continue and start application"},
+        )
+        assert response.status_code == 302
+
+        test_organisation = organisation.matching_test_organisation
+        test_grant_recipient = get_grant_recipient_or_none(application.grant_id, test_organisation.id)
+        assert test_grant_recipient is not None
+        assert test_grant_recipient.mode == GrantRecipientModeEnum.TEST
+
+        db_session.refresh(team_member)
+        test_role = next(role for role in team_member.roles if role.organisation_id == test_organisation.id)
+        assert RoleEnum.DATA_PROVIDER in test_role.permissions
+        assert RoleEnum.CERTIFIER in test_role.permissions
+
+    def test_signing_up_does_not_fail_when_the_organisation_has_no_matching_test_organisation(
+        self, authenticated_no_role_client, application, factories
+    ):
+        factories.organisation.create(name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN])
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id),
+            data={"submit": "Continue and start application"},
+        )
+        assert response.status_code == 302
+
     def test_joins_you_to_an_organisation_that_is_already_applying(
         self, authenticated_no_role_client, application, factories, db_session
     ):
@@ -328,6 +371,27 @@ class TestPublicSignUpName:
         grant_recipient = get_grant_recipient_or_none(application.grant_id, organisation.id)
         assert grant_recipient is not None
         assert RoleEnum.DATA_PROVIDER in user.roles[0].permissions
+
+    def test_completing_sign_up_also_sets_up_a_test_grant_recipient(
+        self, authenticated_no_role_client, application, factories, db_session
+    ):
+        organisation = factories.organisation.create(
+            name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN], with_matching_test_org=True
+        )
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.public_sign_up_name", collection_id=application.id),
+            data={"full_name": "Chief Cheesemonger"},
+        )
+        assert response.status_code == 302
+
+        test_grant_recipient = get_grant_recipient_or_none(
+            application.grant_id, organisation.matching_test_organisation.id
+        )
+        assert test_grant_recipient is not None
+        assert test_grant_recipient.mode == GrantRecipientModeEnum.TEST
 
     def test_rejects_a_blank_name(self, authenticated_no_role_client, application, factories, db_session):
         factories.organisation.create(name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN])

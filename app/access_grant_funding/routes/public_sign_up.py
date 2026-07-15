@@ -15,7 +15,10 @@ from app.common.data.interfaces.collections import (
     get_public_sign_up_collection,
     get_submissions_by_user,
 )
-from app.common.data.interfaces.grant_recipients import create_grant_recipient, get_grant_recipient_or_none
+from app.common.data.interfaces.grant_recipients import (
+    create_grant_recipient_with_test_counterpart,
+    get_grant_recipient_or_none,
+)
 from app.common.data.interfaces.organisations import get_organisations_by_trusted_domain
 from app.common.data.models import Collection, Organisation
 from app.common.data.models_user import User
@@ -230,7 +233,9 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         if not user.name:
             return redirect(url_for("access_grant_funding.public_sign_up_name", collection_id=collection.id))
-        create_grant_recipient(collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING)
+        create_grant_recipient_with_test_counterpart(
+            collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING
+        )
         return _start_applying(user, collection, organisation)
 
     return _render_sign_up_page(
@@ -360,7 +365,9 @@ def public_sign_up_name(collection_id: uuid.UUID) -> ResponseReturnValue:
 
         grant_recipient = get_grant_recipient_or_none(collection.grant_id, organisation.id)
         if not grant_recipient:
-            create_grant_recipient(collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING)
+            create_grant_recipient_with_test_counterpart(
+                collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING
+            )
 
         return _start_applying(user, collection, organisation)
 
