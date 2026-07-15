@@ -1433,7 +1433,7 @@ def _store_question_state_and_redirect_to_add_context(
             )
         case _ManagedExpressionForm() | CustomValidationExpressionForm() | CalculatedConditionForm():
             add_context_data = AddContextToExpressionsModel(
-                field=expression_type,  # ty: ignore[invalid-argument-type]
+                field=expression_type,
                 managed_expression_name=managed_expression_name,
                 expression_form_data=form_data,  # ty: ignore[invalid-argument-type]
                 component_id=component_id,  # ty: ignore[invalid-argument-type]
