@@ -1099,7 +1099,7 @@ class SubmissionHelper:
 
         return self.submission.grant_recipient.certifiers
 
-    def submit(self, user: User) -> None:
+    def submit(self, user: User) -> None:  # noqa: C901
         if self.is_submitted:
             return
 
@@ -1157,11 +1157,17 @@ class SubmissionHelper:
                 submission_helper=self,
             )
 
-        if was_changes_requested_or_reopened and self.requested_or_allowed_changes_by:
-            notification_service.send_submission_with_changes_notify_requester(
-                user=self.requested_or_allowed_changes_by,
-                submission_helper=self,
-            )
+        if was_changes_requested_or_reopened:
+            if self.requested_or_allowed_changes_by:
+                notification_service.send_submission_with_changes_notify_requester(
+                    user=self.requested_or_allowed_changes_by,
+                    submission_helper=self,
+                )
+            else:
+                current_app.logger.error(
+                    "Submission %(submission_id)s has no requested_or_allowed_changes_by in the SubmissionState",
+                    dict(submission_id=self.id),
+                )
 
     def mark_as_sent_for_certification(self, user: User) -> None:
         if not self.collection.requires_certification:
