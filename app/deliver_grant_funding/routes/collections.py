@@ -75,6 +75,7 @@ from app.common.data.interfaces.exceptions import (
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_collection_with_submitted_submissions
 from app.common.data.interfaces.grants import get_all_deliver_grants_by_user, get_grant
+from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
     CollectionType,
@@ -131,6 +132,7 @@ from app.constants import (
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataSetValidationResult,
+    build_current_data_set_view,
     build_data_set_upload_s3_key,
     build_missing_data_display_rows,
     find_grant_recipient_mismatches,
@@ -4367,13 +4369,14 @@ def view_data_source(
     if data_source.type != DataSourceType.GRANT_RECIPIENT:
         abort(404)
 
-    grant_recipient_name_by_external_id: dict[str, str] = {}
     all_grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
-    grant_recipient_name_by_external_id = {
-        gr.organisation.external_id: gr.organisation.name
-        for gr in all_grant_recipients
-        if gr.organisation.mode == OrganisationModeEnum.LIVE
-    }
+    current_data_set_view = build_current_data_set_view(data_source, all_grant_recipients)
+    has_missing_data = data_source.has_missing_data(all_grant_recipients)
+
+    removed_grant_recipient_names = []
+    if current_data_set_view.removed_external_ids:
+        removed_organisations = get_organisations(with_external_ids=current_data_set_view.removed_external_ids)
+        removed_grant_recipient_names = sorted(org.name for org in removed_organisations)
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
@@ -4420,7 +4423,10 @@ def view_data_source(
         collection=collection,
         data_source=data_source,
         delete_form=delete_wtform,
-        grant_recipient_name_by_external_id=grant_recipient_name_by_external_id,
+        has_missing_data=has_missing_data,
+        current_rows=current_data_set_view.rows,
+        added_grant_recipient_names=current_data_set_view.added_grant_recipient_names,
+        removed_grant_recipient_names=removed_grant_recipient_names,
         interpolate=SubmissionHelper.get_interpolator(collection=collection),
     )
 

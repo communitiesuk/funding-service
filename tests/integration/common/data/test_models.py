@@ -939,7 +939,7 @@ class TestDataSourceModel:
     def test_has_missing_data_python_true_when_null_values(self, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
-        factories.grant_recipient.create_batch(3, grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(
             grant=grant,
             collection=report,
@@ -948,12 +948,12 @@ class TestDataSourceModel:
             create_gr_org_items__data=[111, 222, None],
         )
 
-        assert data_source.has_missing_data is True
+        assert data_source.has_missing_data(grant_recipients) is True
 
     def test_has_missing_data_python_false_when_all_values_present(self, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
-        factories.grant_recipient.create_batch(3, grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(
             grant=grant,
             collection=report,
@@ -962,14 +962,36 @@ class TestDataSourceModel:
             create_gr_org_items__data=[111, 222, 333],
         )
 
-        assert data_source.has_missing_data is False
+        assert data_source.has_missing_data(grant_recipients) is False
 
-    def test_has_missing_data_python_true_when_no_org_items(self, factories):
+    def test_has_missing_data_python_true_when_no_org_items_but_grant_recipients(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+
+        assert data_source.has_missing_data(grant_recipients) is True
+
+    def test_has_missing_data_python_true_when_no_org_items_and_no_grant_recipients(self, factories):
         grant = factories.grant.create()
         report = factories.collection.create(grant=grant)
         data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
 
-        assert data_source.has_missing_data is True
+        assert data_source.has_missing_data([]) is False
+
+    def test_has_missing_data_python_true_when_grant_recipient_added_since_upload(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+
+        assert data_source.has_missing_data(grant_recipients) is True
 
     def test_has_missing_data_sql_true_when_null_values(self, factories, db_session, track_sql_queries):
         grant = factories.grant.create()
@@ -991,7 +1013,7 @@ class TestDataSourceModel:
             create_gr_org_items__data=[111, 222, None],
         )
 
-        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data)).all()
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
         assert data_source_2 in results
         assert data_source not in results
 
@@ -1001,11 +1023,200 @@ class TestDataSourceModel:
         factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
 
-        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data)).all()
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
+        assert data_source in results
+
+    def test_has_missing_data_sql_false_when_no_org_items_and_no_grant_recipients(self, factories, db_session):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+
+        assert data_source.has_missing_data([]) is False
+
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
+        assert data_source not in results
+
+    def test_has_missing_data_sql_true_when_grant_recipient_added_since_upload(
+        self, factories, db_session, track_sql_queries
+    ):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        factories.grant_recipient.create(grant=grant)
+
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
         assert data_source in results
 
     def test_has_missing_data_sql_false_for_custom_type(self, factories, db_session):
         data_source = factories.data_source.create(type=DataSourceType.CUSTOM)
 
-        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data)).all()
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
         assert data_source not in results
+
+    def test_get_missing_data_organisations_returns_empty_for_custom_type(self, factories):
+        grant = factories.grant.create()
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(type=DataSourceType.CUSTOM)
+
+        assert data_source.get_missing_data_organisations(grant_recipients) == []
+
+    def test_get_missing_data_organisations_returns_empty_when_no_grant_recipients_passed(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        assert data_source.get_missing_data_organisations([]) == []
+
+    def test_get_missing_data_organisations_returns_empty_when_all_values_present(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        assert data_source.get_missing_data_organisations(grant_recipients) == []
+
+    def test_get_missing_data_organisations_returns_organisations_with_null_column_values(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        result = data_source.get_missing_data_organisations(grant_recipients)
+
+        expected = [
+            gr.organisation
+            for gr in grant_recipients
+            if data_source.get_filtered_organisation_item(gr.organisation.external_id)._data["c_allocation"] is None
+        ]
+        assert len(expected) == 1
+        assert result == expected
+
+    def test_get_missing_data_organisations_returns_organisations_missing_entirely(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        existing_grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        new_grant_recipients = factories.grant_recipient.create_batch(2, grant=grant)
+
+        result = data_source.get_missing_data_organisations([existing_grant_recipient, *new_grant_recipients])
+
+        assert set(result) == {gr.organisation for gr in new_grant_recipients}
+
+    def test_get_missing_data_organisations_checks_all_schema_columns(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        complete_data = {
+            "c_british_pounds": 1.23,
+            "c_decimal_number": 4.567,
+            "c_just_text": "some text",
+            "c_whole_number": 1,
+            "c_whole_number_prefix": 2,
+            "c_whole_number_suffix": 3,
+        }
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr1.organisation.external_id,
+            _data={**complete_data, "c_just_text": None},
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr2.organisation.external_id,
+            _data=complete_data,
+        )
+
+        result = data_source.get_missing_data_organisations([gr1, gr2])
+
+        assert result == [gr1.organisation]
+
+    def test_get_removed_organisation_external_ids_returns_empty_when_no_organisations_removed(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        assert data_source.get_removed_organisation_external_ids(grant_recipients) == []
+
+    def test_get_removed_organisation_external_ids_returns_empty_when_no_org_items(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+
+        assert data_source.get_removed_organisation_external_ids(grant_recipients) == []
+
+    def test_get_removed_organisation_external_ids_returns_ids_for_organisations_no_longer_recipients(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        gr1, gr2, gr3 = factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        result = data_source.get_removed_organisation_external_ids([gr1, gr2])
+
+        assert result == [gr3.organisation.external_id]
+
+    def test_get_removed_organisation_external_ids_returns_all_when_no_grant_recipients_passed(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        result = data_source.get_removed_organisation_external_ids([])
+
+        assert set(result) == {item.external_id for item in data_source.organisation_items}
+        assert len(result) == 3
