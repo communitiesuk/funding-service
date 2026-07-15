@@ -8,6 +8,10 @@
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <h1 class="govuk-heading-l">You are eligible to apply</h1>
 
+      {% if collection.requires_eligibility_check %}
+        <p class="govuk-body">Based on your answers, you're eligible to apply for the {{ grant.name }}.</p>
+      {% endif %}
+
       <p class="govuk-body">Based on your email, we think you're applying on behalf of <b>{{ organisation.name }}</b>.</p>
 
       <form method="post" novalidate>

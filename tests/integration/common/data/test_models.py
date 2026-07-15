@@ -46,9 +46,10 @@ class TestSubmissionModel:
         assert preview_submissions.grant_recipient_id is None
         assert preview_submissions.grant_recipient is None
 
-    def test_live_submissions_cannot_be_created_without_grant_recipient(self, factories, db_session):
-        from sqlalchemy.exc import IntegrityError
-
+    def test_live_submissions_can_be_created_without_grant_recipient(self, factories, db_session):
+        # The `ck_grant_recipient_if_live` check constraint was relaxed to support eligibility-check submissions,
+        # which have no grant recipient. Application code is still responsible for creating grant recipients for
+        # normal (non-eligibility) submission flows.
         from app.common.data.models import Submission
 
         collection = factories.collection.create()
@@ -63,9 +64,9 @@ class TestSubmissionModel:
             status=SubmissionStatusEnum.NOT_STARTED,
         )
         db_session.add(submission)
+        db_session.flush()
 
-        with pytest.raises(IntegrityError, match="ck_grant_recipient_if_live"):
-            db_session.flush()
+        assert submission.grant_recipient_id is None
 
     def test_live_submissions_can_be_created_with_grant_recipient(self, factories):
         collection = factories.collection.create()

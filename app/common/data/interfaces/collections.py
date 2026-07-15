@@ -98,10 +98,27 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
         grant=grant,
         slug=slugify(name),
         type=type_,
-        requires_certification=True,  # note: this'll need to change when we have more than just monitoring reports
+        requires_certification=type_ != CollectionType.ELIGIBILITY_CHECK,
     )
     db.session.add(collection)
+
+    if type_ == CollectionType.ELIGIBILITY_CHECK:
+        create_form(title="Eligibility", collection=collection)
+
     return collection
+
+
+def get_or_create_eligibility_collection(*, collection: Collection, user: User) -> Collection:
+    """Return the eligibility-check collection linked to `collection`, creating one if it doesn't exist yet."""
+    if collection.depends_on_collection_eligibility:
+        return collection.depends_on_collection_eligibility
+
+    return create_collection(
+        name=f"{collection.name} eligibility check",
+        user=user,
+        grant=collection.grant,
+        type_=CollectionType.ELIGIBILITY_CHECK,
+    )
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
@@ -376,6 +393,8 @@ def update_collection(  # noqa: C901
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     allow_validate_submission: bool | TNotProvided = NOT_PROVIDED,
+    requires_eligibility_check: bool | TNotProvided = NOT_PROVIDED,
+    depends_on_collection_eligibility_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     prospectus_markdown: str | None | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
@@ -454,6 +473,12 @@ def update_collection(  # noqa: C901
 
     if allow_validate_submission is not NOT_PROVIDED:
         collection.allow_validate_submission = allow_validate_submission
+
+    if requires_eligibility_check is not NOT_PROVIDED:
+        collection.requires_eligibility_check = requires_eligibility_check
+
+    if depends_on_collection_eligibility_id is not NOT_PROVIDED:
+        collection.depends_on_collection_eligibility_id = depends_on_collection_eligibility_id
 
     if prospectus_markdown is not NOT_PROVIDED:
         collection.prospectus_markdown = prospectus_markdown
@@ -2390,6 +2415,16 @@ def add_component_validation(
         1,
         evaluatable_expression=evaluatable_expression,
     )
+    return component
+
+
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
+def add_component_eligibility(
+    component: Component, user: User, evaluatable_expression: "EvaluatableExpression"
+) -> Component:
+    expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.ELIGIBILITY, user)
+    component.expressions.append(expression)
+    _validate_and_sync_expression_references(expression)
     return component
 
 

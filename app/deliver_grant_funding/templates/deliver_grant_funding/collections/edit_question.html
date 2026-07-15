@@ -162,34 +162,64 @@
           {% endif %}
         </div>
 
-        <div class="govuk-form-group">
-          <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
-          <p class="govuk-body">Add conditions to only show this question if the user has answered other questions in a particular way.</p>
+        {% if db_form.collection.type == enum.collection_type_enum.ELIGIBILITY_CHECK %}
+          <div class="govuk-form-group">
+            <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility</h2>
+            {% if managed_eligibility_available %}
+              <p class="govuk-body">Add a check to determine whether the applicant is eligible to apply, based on their answer to this question.</p>
 
-          {% with component=question %}
-            {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
-          {% endwith %}
+              {% set rows = [] %}
+              {% with component=question %}
+                {% include 'deliver_grant_funding/partials/_explicit-eligibility.html' %}
+              {% endwith %}
 
-          {% set rows = [] %}
+              {% if rows %}
+                {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+              {% endif %}
 
-          {% with component=question %}
-            {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
-          {% endwith %}
-          {% with component=question %}
-            {% include 'deliver_grant_funding/partials/_explicit-conditions.html' %}
-          {% endwith %}
+              {% if not question.eligibility %}
+                {{
+                  govukButton({
+                    "text": "Add eligibility check",
+                    "href": url_for('deliver_grant_funding.add_question_eligibility', grant_id=grant.id, question_id=question.id),
+                    "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
+                  })
+                }}
+              {% endif %}
+            {% else %}
+              <p class="govuk-body">Eligibility checks are not available for this question type.</p>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="govuk-form-group">
+            <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
+            <p class="govuk-body">Add conditions to only show this question if the user has answered other questions in a particular way.</p>
 
-          {% if rows %}
-            {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
-          {% endif %}
-          {{
-            govukButton({
-              "text": "Add condition",
-              "href": url_for('deliver_grant_funding.add_question_condition_select_calculation', grant_id=grant.id, component_id=question.id),
-              "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
-            })
-          }}
-        </div>
+            {% with component=question %}
+              {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
+            {% endwith %}
+
+            {% set rows = [] %}
+
+            {% with component=question %}
+              {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
+            {% endwith %}
+            {% with component=question %}
+              {% include 'deliver_grant_funding/partials/_explicit-conditions.html' %}
+            {% endwith %}
+
+            {% if rows %}
+              {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+            {% endif %}
+            {{
+              govukButton({
+                "text": "Add condition",
+                "href": url_for('deliver_grant_funding.add_question_condition_select_calculation', grant_id=grant.id, component_id=question.id),
+                "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
+              })
+            }}
+          </div>
+        {% endif %}
         <div class="govuk-form-group">
           <h2 class="govuk-heading-m">Validations</h2>
           {% if managed_validation_available %}

@@ -1036,7 +1036,7 @@ class TestConfigurePublicSignUp:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data={"allow_public_sign_up": True, "submit": "Save"},
+            data={"allow_public_sign_up": True, "requires_eligibility_check": False, "submit": "Save"},
             follow_redirects=False,
         )
 
@@ -1056,7 +1056,7 @@ class TestConfigurePublicSignUp:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data={"allow_public_sign_up": False, "submit": "Save"},
+            data={"allow_public_sign_up": False, "requires_eligibility_check": False, "submit": "Save"},
             follow_redirects=False,
         )
 
@@ -1076,7 +1076,7 @@ class TestConfigurePublicSignUp:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data={"allow_public_sign_up": True, "submit": "Save"},
+            data={"allow_public_sign_up": True, "requires_eligibility_check": False, "submit": "Save"},
         )
 
         assert response.status_code == 200
@@ -1096,6 +1096,54 @@ class TestConfigurePublicSignUp:
         )
 
         assert response.status_code == 403
+
+    def test_post_enable_eligibility_check_creates_and_links_collection(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": False, "requires_eligibility_check": True, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert collection.requires_eligibility_check is True
+        eligibility_collection = collection.depends_on_collection_eligibility
+        assert eligibility_collection is not None
+        assert eligibility_collection.type == CollectionType.ELIGIBILITY_CHECK
+        assert eligibility_collection.forms[0].title == "Eligibility"
+
+    def test_get_configure_public_sign_up_shows_manage_eligibility_form_link_when_linked(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_eligibility_check=True
+        )
+        eligibility_collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.ELIGIBILITY_CHECK
+        )
+        factories.form.create(collection=eligibility_collection, title="Eligibility")
+        collection.depends_on_collection_eligibility = eligibility_collection
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Manage the eligibility form" in soup.text
 
 
 class TestReportSectionsConfigurePublicSignUp:

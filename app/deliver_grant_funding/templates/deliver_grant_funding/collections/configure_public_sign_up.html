@@ -37,6 +37,25 @@
           })
         }}
 
+        {% set eligibility_collection = collection.depends_on_collection_eligibility %}
+        {% set manage_eligibility_url = url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=eligibility_collection.forms[0].id) if eligibility_collection else "" %}
+
+        {{
+          form.requires_eligibility_check(params={
+            "fieldset": {"legend": {"text": form.requires_eligibility_check.label.text, "classes": "govuk-fieldset__legend--m"} },
+            "items": [
+              {
+                "value": true,
+                "text": "Yes",
+                "conditional": {
+                  "html": "<p class='govuk-body'><a class='govuk-link' href='" ~ manage_eligibility_url ~ "'>Manage the eligibility form</a></p>" if eligibility_collection else ""
+                }
+              },
+              {"value": false, "text": "No"}
+            ]
+          })
+        }}
+
         {{ form.prospectus_markdown(params={"rows": 5}) }}
 
         <div class="govuk-button-group">

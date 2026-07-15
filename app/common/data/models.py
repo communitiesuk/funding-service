@@ -365,12 +365,23 @@ class Collection(BaseModel):
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
     allow_validate_submission: Mapped[bool] = mapped_column(default=False)
+    requires_eligibility_check: Mapped[bool] = mapped_column(default=False)
     prospectus_markdown: Mapped[str | None]
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
     submission_name_question: Mapped["Question | None"] = relationship(
         "Question", foreign_keys=[submission_name_question_id]
     )
     submission_guidance: Mapped[str | None]
+
+    # The eligibility-check collection an applicant must pass before starting a submission to this collection.
+    depends_on_collection_eligibility_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("collection.id"), nullable=True
+    )
+    depends_on_collection_eligibility: Mapped["Collection | None"] = relationship(
+        "Collection",
+        remote_side="Collection.id",
+        foreign_keys=[depends_on_collection_eligibility_id],
+    )
 
     # Prevents grant recipients from creating their own submissions in a multi-submission collection; where we set this
     # to be true, we need to generate the initial submissions for them.
@@ -631,13 +642,6 @@ class Submission(BaseModel):
             & not_(cls.is_submitted)
         )
 
-    __table_args__ = (
-        CheckConstraint(
-            "mode = 'TEST' OR grant_recipient_id IS NOT NULL",
-            name="ck_grant_recipient_if_live",
-        ),
-    )
-
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"
 
@@ -879,6 +883,10 @@ class Component(BaseModel):
     @property
     def validations(self) -> list[Expression]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.VALIDATION]
+
+    @property
+    def eligibility(self) -> list[Expression]:
+        return [expression for expression in self.expressions if expression.type_ == ExpressionType.ELIGIBILITY]
 
     def get_expression(self, id: uuid.UUID) -> Expression:
         try:

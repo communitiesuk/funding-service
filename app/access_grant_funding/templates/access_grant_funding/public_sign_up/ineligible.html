@@ -1,0 +1,23 @@
+{% extends "access_grant_funding/public_sign_up/base.html" %}
+
+{% set page_title = "You are not eligible to apply" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Eligibility</span>
+      <h1 class="govuk-heading-l">You are not eligible to apply</h1>
+
+      <p class="govuk-body">Based on your answers, you're not eligible to apply for {{ grant.name }}.</p>
+
+      <p class="govuk-body">
+        You cannot complete an application form for this grant. You can review the eligibility criteria in the prospectus and
+        <a class="govuk-link" href="https://www.find-government-grants.service.gov.uk/" target="_blank">find other government grants (opens in new tab)</a>.
+      </p>
+
+      {% if prospectus_html %}
+        {{ prospectus_html }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

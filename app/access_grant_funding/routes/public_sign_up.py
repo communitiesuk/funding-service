@@ -7,14 +7,29 @@ from flask.typing import ResponseReturnValue
 from app.access_grant_funding.forms import PublicSignUpEmailForm, PublicSignUpNameForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import get_collection, get_public_sign_up_collection
+from app.common.data.interfaces.collections import (
+    create_submission,
+    get_collection,
+    get_public_sign_up_collection,
+    get_submissions_by_user,
+)
 from app.common.data.interfaces.grant_recipients import create_grant_recipient, get_grant_recipient_or_none
 from app.common.data.interfaces.organisations import get_organisations_by_trusted_domain
 from app.common.data.models import Collection, Organisation
 from app.common.data.models_user import User
-from app.common.data.types import CollectionStatusEnum, GrantRecipientStatusEnum, GrantStatusEnum, RoleEnum
+from app.common.data.types import (
+    CollectionStatusEnum,
+    GrantRecipientStatusEnum,
+    GrantStatusEnum,
+    RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
+)
+from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
+from app.common.helpers.collections import SubmissionHelper
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
@@ -168,6 +183,21 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
     if not user.is_authenticated:
         return redirect(url_for("access_grant_funding.public_sign_up_email", collection_id=collection.id))
 
+    if collection.requires_eligibility_check and collection.depends_on_collection_eligibility:
+        eligibility_collection = collection.depends_on_collection_eligibility
+        mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
+        eligibility_submissions = get_submissions_by_user(user, eligibility_collection.id, mode)
+
+        if not any(submission.is_submitted for submission in eligibility_submissions):
+            first_question = eligibility_collection.forms[0].components[0]
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_eligibility_question",
+                    collection_id=collection.id,
+                    question_id=first_question.id,
+                )
+            )
+
     # TODO: for now only people from a registered organisation can sign up; in the future they'll be able to register
     #       their organisation themselves from here
     organisation = _get_organisation_by_email_domain(user.email)
@@ -209,6 +239,100 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
         form=form,
         organisation=organisation,
         has_name=bool(user.name),
+    )
+
+
+def _get_or_create_eligibility_submission(
+    user: User, eligibility_collection: Collection, mode: SubmissionModeEnum
+) -> SubmissionHelper:
+    submissions = get_submissions_by_user(user, eligibility_collection.id, mode)
+    unsubmitted = next((submission for submission in submissions if not submission.is_submitted), None)
+    submission_id = (
+        unsubmitted.id
+        if unsubmitted
+        else create_submission(collection=eligibility_collection, created_by=user, mode=mode, grant_recipient=None).id
+    )
+    return SubmissionHelper.load(submission_id)
+
+
+@access_grant_funding_blueprint.route(
+    "/sign-up/<uuid:collection_id>/eligibility/<uuid:question_id>", methods=["GET", "POST"]
+)
+@auto_commit_after_request
+def public_sign_up_eligibility_question(collection_id: uuid.UUID, question_id: uuid.UUID) -> ResponseReturnValue:
+    collection = _check_sign_up_page_available(get_collection(collection_id))
+    user = interfaces.user.get_current_user()
+
+    if not user.is_authenticated:
+        return redirect(url_for("access_grant_funding.public_sign_up_email", collection_id=collection.id))
+
+    eligibility_collection = collection.depends_on_collection_eligibility
+    if not collection.requires_eligibility_check or eligibility_collection is None:
+        abort(404)
+
+    mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
+    submission_helper = _get_or_create_eligibility_submission(user, eligibility_collection, mode)
+    question = submission_helper.get_question(question_id)
+
+    form_cls = build_question_form(
+        [question], submission_helper.cached_evaluation_context, submission_helper.cached_interpolation_context
+    )
+    form = form_cls(data=submission_helper.form_data())
+
+    if form.validate_on_submit():
+        submission_helper.submit_answer_for_question(question.id, form, user)
+        submission_helper.clear_caches()
+
+        eligibility_expression = question.eligibility[0] if question.eligibility else None
+        if eligibility_expression and not evaluate(eligibility_expression, submission_helper.cached_evaluation_context):
+            return redirect(url_for("access_grant_funding.public_sign_up_ineligible", collection_id=collection.id))
+
+        next_question = submission_helper.get_next_question(question.id)
+        if next_question:
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_eligibility_question",
+                    collection_id=collection.id,
+                    question_id=next_question.id,
+                )
+            )
+
+        submission_helper.toggle_form_completed(eligibility_collection.forms[0], user, is_complete=True)
+        submission_helper.add_submission_event(
+            SubmissionEventType.SUBMISSION_SUBMITTED, user, related_entity_id=submission_helper.submission.id
+        )
+        return redirect(url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id))
+
+    previous_question = submission_helper.get_previous_question(question.id)
+    back_url = (
+        url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            collection_id=collection.id,
+            question_id=previous_question.id,
+        )
+        if previous_question
+        else None
+    )
+
+    return _render_sign_up_page(
+        "access_grant_funding/public_sign_up/eligibility_question.html",
+        collection,
+        form=form,
+        question=question,
+        back_url=back_url,
+        interpolator=SubmissionHelper.get_interpolator(eligibility_collection, submission_helper),
+    )
+
+
+@access_grant_funding_blueprint.route("/sign-up/<uuid:collection_id>/ineligible", methods=["GET"])
+def public_sign_up_ineligible(collection_id: uuid.UUID) -> ResponseReturnValue:
+    collection = _check_sign_up_page_available(get_collection(collection_id))
+
+    prospectus_html = (
+        convert_text_to_govuk_markup(collection.prospectus_markdown) if collection.prospectus_markdown else None
+    )
+    return _render_sign_up_page(
+        "access_grant_funding/public_sign_up/ineligible.html", collection, prospectus_html=prospectus_html
     )
 
 

@@ -167,6 +167,18 @@ class TestCreateCollection:
         with pytest.raises(DuplicateValueError):
             create_collection(name="test_collection", user=u, grant=grants[0], type_=CollectionType.MONITORING_REPORT)
 
+    def test_create_eligibility_check_collection(self, db_session, factories):
+        g = factories.grant.create()
+        u = factories.user.create()
+
+        collection = create_collection(
+            name="test eligibility check", user=u, grant=g, type_=CollectionType.ELIGIBILITY_CHECK
+        )
+
+        assert collection.requires_certification is False
+        assert len(collection.forms) == 1
+        assert collection.forms[0].title == "Eligibility"
+
 
 class TestUpdateCollection:
     def test_update_collection_name(self, db_session, factories):

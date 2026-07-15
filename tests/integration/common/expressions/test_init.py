@@ -17,7 +17,7 @@ from app.common.data.types import (
     QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
-from app.common.expressions.managed import BetweenDates, GreaterThan
+from app.common.expressions.managed import BetweenDates, GreaterThan, IsYes
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
@@ -555,6 +555,22 @@ class TestEvaluatingManagedExpressions:
             )
             is expected_result
         )
+
+    def test_eligibility_expression(self, factories):
+        user = factories.user.create()
+        question = factories.question.create(data_type=QuestionDataType.YES_NO)
+        question.expressions.append(
+            Expression.from_evaluatable_expression(
+                IsYes(subject_reference=ExpressionReference.from_question(question)),
+                ExpressionType.ELIGIBILITY,
+                user,
+            )
+        )
+
+        expr = question.expressions[0]
+
+        assert evaluate(expr, ExpressionContext({question.safe_qid: True})) is True
+        assert evaluate(expr, ExpressionContext({question.safe_qid: False})) is False
 
 
 class TestEvaluatingManagedExpressionsWithRequiredFunctions:

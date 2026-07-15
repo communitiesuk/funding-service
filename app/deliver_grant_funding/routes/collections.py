@@ -44,6 +44,7 @@ from app.common.data.interfaces.collections import (
     get_expression_by_id,
     get_form_by_id,
     get_group_by_id,
+    get_or_create_eligibility_collection,
     get_question_by_id,
     get_submission_list_for_collection,
     move_component_down,
@@ -106,7 +107,11 @@ from app.common.expressions.forms import (
     build_managed_expression_form,
 )
 from app.common.expressions.references import ExpressionReference, InterpolationStatement
-from app.common.expressions.registry import get_managed_validators_by_data_type, lookup_managed_expression
+from app.common.expressions.registry import (
+    get_managed_conditions_by_data_type,
+    get_managed_validators_by_data_type,
+    lookup_managed_expression,
+)
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
@@ -500,10 +505,20 @@ def collection_configure_public_sign_up(
         if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
             form.form_errors.append("You cannot change this setting as the collection is not currently editable")
         else:
+            requires_eligibility_check = form.requires_eligibility_check.data == "True"
+            depends_on_collection_eligibility_id = collection.depends_on_collection_eligibility_id
+            if requires_eligibility_check and not collection.depends_on_collection_eligibility:
+                eligibility_collection = get_or_create_eligibility_collection(
+                    collection=collection, user=get_current_user()
+                )
+                depends_on_collection_eligibility_id = eligibility_collection.id
+
             update_collection(
                 collection,
                 allow_public_sign_up=form.allow_public_sign_up.data == "True",
                 prospectus_markdown=form.prospectus_markdown.data or None,
+                requires_eligibility_check=requires_eligibility_check,
+                depends_on_collection_eligibility_id=depends_on_collection_eligibility_id,
             )
             return redirect(
                 url_for(
@@ -627,6 +642,12 @@ def list_collection_sections(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True)
+
+    if collection.type == CollectionType.ELIGIBILITY_CHECK:
+        return redirect(
+            url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=collection.forms[0].id)
+        )
+
     previews = get_all_submissions_with_mode_for_collection(
         collection_id=collection.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False, with_users=True
     )
@@ -1341,7 +1362,14 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
 @collection_is_editable()
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
-    wt_form = QuestionTypeForm(question_data_type=request.args.get("question_data_type", None))
+    allowed_data_types = (
+        {QuestionDataType.YES_NO, QuestionDataType.NUMBER, QuestionDataType.DATE}
+        if db_form.collection.type == CollectionType.ELIGIBILITY_CHECK
+        else None
+    )
+    wt_form = QuestionTypeForm(
+        question_data_type=request.args.get("question_data_type", None), allowed_data_types=allowed_data_types
+    )
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
@@ -2187,6 +2215,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
         form=wt_form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         managed_validation_available=get_managed_validators_by_data_type(question.data_type),
+        managed_eligibility_available=get_managed_conditions_by_data_type(question.data_type),
         interpolate=SubmissionHelper.get_interpolator(collection=question.form.collection),
         context_keys_and_labels=ExpressionContext.get_context_keys_and_labels(
             collection=question.form.collection, expression_context_end_point=question
@@ -2953,6 +2982,106 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
 
     return render_template(
         "deliver_grant_funding/collections/manage_question_validation.html",
+        question=question,
+        grant=question.form.collection.grant,
+        form=form,
+        confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
+        expression=expression,
+        QuestionDataType=QuestionDataType,
+        interpolate=SubmissionHelper.get_interpolator(question.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/question/<uuid:question_id>/add-eligibility",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def add_question_eligibility(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
+    question = get_question_by_id(question_id)
+
+    if question.eligibility:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility",
+                grant_id=grant_id,
+                expression_id=question.eligibility[0].id,
+            )
+        )
+
+    EligibilityForm = build_managed_expression_form(
+        ExpressionType.ELIGIBILITY,
+        ExpressionReference.from_question(question),
+    )
+    form = EligibilityForm() if EligibilityForm else None
+
+    if form and form.validate_on_submit():
+        expression = form.get_expression(ExpressionReference.from_question(question))
+        interfaces.collections.add_component_eligibility(question, interfaces.user.get_current_user(), expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant_id,
+                question_id=question.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/manage_question_eligibility.html",
+        question=question,
+        grant=question.form.collection.grant,
+        form=form,
+        QuestionDataType=QuestionDataType,
+        interpolate=SubmissionHelper.get_interpolator(question.form.collection),
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/eligibility/<uuid:expression_id>",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def edit_question_eligibility(grant_id: UUID, expression_id: UUID) -> ResponseReturnValue:
+    expression = get_expression_by_id(expression_id)
+    question = expression.question
+
+    confirm_deletion_form = GenericConfirmDeletionForm()
+    if (
+        "delete" in request.args
+        and confirm_deletion_form.validate_on_submit()
+        and confirm_deletion_form.confirm_deletion.data
+    ):
+        remove_question_expression(question=question, expression=expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant_id,
+                question_id=question.id,
+            )
+        )
+
+    EligibilityForm = build_managed_expression_form(
+        ExpressionType.ELIGIBILITY, ExpressionReference.from_question(cast("Question", question)), expression
+    )
+    form = EligibilityForm() if EligibilityForm else None
+
+    if form and form.validate_on_submit():
+        updated_managed_expression = form.get_expression(ExpressionReference.from_question(cast("Question", question)))
+        interfaces.collections.update_question_expression(expression, updated_managed_expression)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=grant_id,
+                question_id=question.id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/manage_question_eligibility.html",
         question=question,
         grant=question.form.collection.grant,
         form=form,

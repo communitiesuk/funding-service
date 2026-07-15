@@ -281,6 +281,13 @@ class QuestionTypeForm(FlaskForm):
     )
     submit = SubmitField(widget=GovSubmitInput())
 
+    def __init__(self, *args: Any, allowed_data_types: set[QuestionDataType] | None = None, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        if allowed_data_types is not None:
+            self.question_data_type.choices = [
+                (qdt.name, qdt.value) for qdt in QuestionDataType if qdt in allowed_data_types
+            ]
+
 
 class GroupForm(FlaskForm):
     name = StringField(
@@ -1032,6 +1039,12 @@ class PublicSignUpSettingsForm(FlaskForm):
         "Should this collection allow public self sign up?",
         choices=[(True, "Yes"), (False, "No")],
         validators=[DataRequired("Select whether the collection should allow public sign up")],
+        widget=GovRadioInput(),
+    )
+    requires_eligibility_check = RadioField(
+        "Eligibility check",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether applicants must pass an eligibility check")],
         widget=GovRadioInput(),
     )
     prospectus_markdown = TextAreaField(

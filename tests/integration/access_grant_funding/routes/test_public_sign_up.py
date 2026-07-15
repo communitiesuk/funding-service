@@ -7,10 +7,14 @@ from app.common.data.models_user import MagicLink
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
+    ExpressionType,
     GrantRecipientStatusEnum,
     GrantStatusEnum,
+    ManagedExpressionsEnum,
+    QuestionDataType,
     RoleEnum,
 )
+from app.common.expressions.references import ExpressionReference
 from tests.utils import get_h1_text, page_has_error
 
 TRUSTED_DOMAIN = "barnsley.gov.uk"
@@ -33,6 +37,29 @@ def application(factories):
     )
 
 
+@pytest.fixture()
+def application_with_eligibility_check(application, factories, db_session):
+    """The `application` fixture, gated behind a single yes/no eligibility question."""
+    eligibility_collection = factories.collection.create(grant=application.grant, type=CollectionType.ELIGIBILITY_CHECK)
+    eligibility_form = factories.form.create(collection=eligibility_collection, title="Eligibility")
+    question = factories.question.create(
+        form=eligibility_form, text="Are you a registered charity?", data_type=QuestionDataType.YES_NO
+    )
+    factories.expression.create(
+        question=question,
+        type_=ExpressionType.ELIGIBILITY,
+        context={"subject_reference": ExpressionReference.from_question(question)},
+        statement=f"{question.safe_qid} is True",
+        managed_name=ManagedExpressionsEnum.IS_YES,
+    )
+
+    application.requires_eligibility_check = True
+    application.depends_on_collection_eligibility = eligibility_collection
+    db_session.commit()
+
+    return application, question
+
+
 class TestPublicSignUpStart:
     def test_shows_the_grant_and_deadline(self, anonymous_client, application, factories):
         response = anonymous_client.get(
@@ -45,7 +72,8 @@ class TestPublicSignUpStart:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Cheeseboards in parks"
+        assert get_h1_text(soup) == "Check your eligibility"
+        assert "Cheeseboards in parks" in soup.text
         assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
 
     def test_404s_for_the_public_when_the_grant_is_not_live(self, anonymous_client, application, db_session):
@@ -314,6 +342,74 @@ class TestPublicSignUpName:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter your full name")
+
+
+@pytest.mark.authenticate_as(APPLICANT_EMAIL)
+class TestPublicSignUpEligibilityQuestion:
+    def test_eligible_redirects_to_the_first_eligibility_question_when_not_yet_submitted(
+        self, authenticated_no_role_client, application_with_eligibility_check
+    ):
+        application, question = application_with_eligibility_check
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id)
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            collection_id=application.id,
+            question_id=question.id,
+        )
+
+    def test_a_disqualifying_answer_redirects_to_the_ineligible_page(
+        self, authenticated_no_role_client, application_with_eligibility_check
+    ):
+        application, question = application_with_eligibility_check
+
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                collection_id=application.id,
+                question_id=question.id,
+            ),
+            data={question.safe_qid: "0", "submit": "Continue"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_ineligible", collection_id=application.id
+        )
+
+        response = authenticated_no_role_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "You are not eligible to apply"
+
+    def test_a_passing_answer_completes_the_check_and_reaches_the_eligible_page(
+        self, authenticated_no_role_client, application_with_eligibility_check, factories
+    ):
+        application, question = application_with_eligibility_check
+        factories.organisation.create(name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN])
+
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                collection_id=application.id,
+                question_id=question.id,
+            ),
+            data={question.safe_qid: "1", "submit": "Continue"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligible", collection_id=application.id
+        )
+
+        response = authenticated_no_role_client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "You are eligible to apply"
 
     def test_redirects_back_to_eligible_page_if_you_already_have_a_name(
         self, authenticated_no_role_client, application, factories

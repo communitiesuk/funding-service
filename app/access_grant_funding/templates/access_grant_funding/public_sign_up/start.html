@@ -1,11 +1,16 @@
 {% extends "access_grant_funding/public_sign_up/base.html" %}
 
-{% set page_title = grant.name %}
+{% set page_title = "Check your eligibility - " ~ grant.name %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <h1 class="govuk-heading-xl">{{ grant.name }}</h1>
+      {% if collection.requires_eligibility_check %}
+        <span class="govuk-caption-xl">{{ grant.name }}</span>
+        <h1 class="govuk-heading-xl">Check if you're eligible to apply</h1>
+      {% else %}
+        <h1 class="govuk-heading-xl">{{ grant.name }}</h1>
+      {% endif %}
 
       {% if collection.submission_period_end_date %}
         <p class="govuk-body">The deadline for applications is {{ format_date(collection.submission_period_end_date) }}.</p>
@@ -15,7 +20,11 @@
         {{ prospectus_html }}
       {% endif %}
 
-      <p class="govuk-body">You'll be able to access the application form by either:</p>
+      {% if collection.requires_eligibility_check %}
+        <p class="govuk-body">To be able to apply for {{ grant.name }}, you must meet the eligibility criteria.</p>
+      {% endif %}
+
+      <p class="govuk-body">You'll be able to access the {{ collection.type.constants.plural }} by either:</p>
       <ul class="govuk-list govuk-list--bullet">
         <li>signing in with an existing account if your organisation is already registered</li>
         <li>creating a new account by registering your organisation</li>
