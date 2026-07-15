@@ -131,7 +131,7 @@
         <h3 class="govuk-heading-s" id="{{ add_another_context.container.id }}-answers">{{ add_another_context.container.name }}</h3>
 
         {% for i in range(add_another_context.count) %}
-          {{ answers_summary_list(helper, add_another_context.container, add_another_index=i, summary_title=add_another_context.summaries[i].summary_text_line) }}
+          {{ answers_summary_list(helper, add_another_context.container, add_another_index=i, summary_title=add_another_context.summaries[i].summary_text_line, should_show_answers_diff=should_show_answers_diff) }}
         {% endfor %}
       </div>
     {% endif %}
