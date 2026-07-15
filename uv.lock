@@ -694,7 +694,7 @@ requires-dist = [
     { name = "simpleeval", specifier = "==1.0.7" },
     { name = "sqlalchemy", specifier = "==2.0.51" },
     { name = "sqlalchemy-json", specifier = "==0.7.0" },
-    { name = "types-boto3", extras = ["s3"], specifier = "==1.43.41" },
+    { name = "types-boto3", extras = ["s3"], specifier = "==1.43.42" },
     { name = "wtforms", extras = ["email"], specifier = "==3.2.2" },
     { name = "xgovuk-flask-admin", specifier = "==0.1.7" },
 ]
@@ -1770,15 +1770,15 @@ wheels = [
 
 [[package]]
 name = "types-boto3"
-version = "1.43.41"
+version = "1.43.42"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
     { name = "types-s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d3/83/9eaf0019009fd6d44334f725947a37e039aea8db1cd631010076a21d312b/types_boto3-1.43.41.tar.gz", hash = "sha256:d6929d0524fa5867754f2ac135336cbbf7832220e3e2a37940bb8a51ea1a53f4", size = 103142, upload-time = "2026-07-06T21:04:28.174Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bc/38/848dec870f4b12c3ef4aa1046744e6c1f5438c00457d26833a200247eb3c/types_boto3-1.43.42.tar.gz", hash = "sha256:8a21ea19e2a6ce10f0631881dbb2013a36e4531798bbda36a2d5b57fe00019da", size = 103541, upload-time = "2026-07-07T21:10:04.191Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d6/91/2bc77f0ea98349da02964cff9c7f8379a1ca705a48365f5fd7da86ad372f/types_boto3-1.43.41-py3-none-any.whl", hash = "sha256:dbaad4ef05237b8bde5a83cd7c6115750b2986271e3e4c7344eb806deb14ec23", size = 70671, upload-time = "2026-07-06T21:04:23.527Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/55/af8ae71da42a3c16d2c2a26ea56339e96495c8b616486d99deeb8dbe8ea6/types_boto3-1.43.42-py3-none-any.whl", hash = "sha256:10218c71ab43e36f68d6d05b0f06f5fcfd1b0be01c262993a45377bfb3bbe8e1", size = 70875, upload-time = "2026-07-07T21:09:59.317Z" },
 ]
 
 [package.optional-dependencies]
