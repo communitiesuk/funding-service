@@ -4205,14 +4205,17 @@ def confirm_data_set(  # noqa: C901
             data_source_id=data_source.id,
         )
         session.pop(SESSION_DATA_SET_UPLOAD, None)
-        # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
         flash(
             Markup(
-                f"You can now reference {escape(data_set_data.name)} data "
-                + f"in the {escape(collection.name)} grant form. "
-                + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
-            )
+                (
+                    f"You can now reference {escape(data_source.name)} data "
+                    + f"in the {escape(collection.name)} grant form. "
+                    + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+                )
+            ),
+            FlashMessageType.DATA_SOURCE_UPLOADED_SUCCESS.value,
         )
+
         return redirect(
             url_for(
                 "deliver_grant_funding.list_collection_data_sets",
@@ -4440,7 +4443,7 @@ def view_data_source(
             if delete_wtform.validate_on_submit():
                 name = data_source.name
                 delete_data_source(data_source)
-                flash(Markup(f"'{escape(name)}' data set has been deleted."))
+                flash(Markup(f"'{escape(name)}' data set has been deleted."), FlashMessageType.DATA_SOURCE_DELETED)
                 return redirect(
                     url_for(
                         "deliver_grant_funding.list_collection_data_sets",

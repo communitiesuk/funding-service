@@ -20,6 +20,8 @@ class FlashMessageType(StrEnum):
     DATA_SOURCE_ITEM_DEPENDENCY_ERROR = "data_source_item_dependency_error"
     DATA_SOURCE_REFERENCE_ERROR = "data_source_reference_error"
     DATA_SOURCE_REPLACED_SUCCESS = "data_source_replaced_success"
+    DATA_SOURCE_UPLOADED_SUCCESS = "data_source_uploaded_success"
+    DATA_SOURCE_DELETED = "data_source_deleted"
     SUBMISSION_TESTING_COMPLETE = "submission_testing_complete"
     QUESTION_CREATED = "question_created"
     NESTED_GROUP_ERROR = "nested_group_error"
