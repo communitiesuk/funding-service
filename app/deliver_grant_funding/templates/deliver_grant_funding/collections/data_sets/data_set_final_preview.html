@@ -10,7 +10,7 @@
 {% set page_title = "Confirm " ~ session_data.name ~ " data" %}
 
 {% block beforeContent %}
-  {% if session_data.has_columns_requiring_manual_formatting() == True %}
+  {% if session_data.has_columns_requiring_manual_formatting() == True and session_data.column_mappings|length > 0 %}
     {% set back_link = url_for("deliver_grant_funding.map_data_set_number_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
   {% elif session_data.column_mappings|length > 0 %}
     {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}

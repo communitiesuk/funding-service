@@ -1239,11 +1239,12 @@ class UploadDataSetForm(FlaskForm):
         fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
 
         errors = []
+
         for dependent_reference in existing_datasource.depended_on_by_columns:
             if dependent_reference.depends_on_column_name not in fieldnames_to_safe_ids.values():
                 column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[unresolved-attribute, invalid-argument-type]
                 col_name = column.original_column_name
-                q_text = dependent_reference.component.text
+                q_text = dependent_reference.component.name
                 usage_text = "used in "
                 if dependent_reference.expression:
                     match dependent_reference.expression.type_:
