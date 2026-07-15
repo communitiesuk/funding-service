@@ -236,7 +236,7 @@ def get_data_source_list_for_collection(collection_id: uuid.UUID) -> Sequence[Li
             DataSource.name,
             DataSource.updated_at_utc,
             func.coalesce(user_updated.name, user_created.name).label("uploaded_by_name"),
-            DataSource.has_missing_data.label("has_missing_data"),
+            DataSource.has_missing_data().label("has_missing_data"),  # ty:ignore[unresolved-attribute]
         )
         .outerjoin(user_created, DataSource.created_by_id == user_created.id)
         .outerjoin(user_updated, DataSource.updated_by_id == user_updated.id)
@@ -265,7 +265,7 @@ def get_collection_ids_with_missing_data_data_sets(grant_id: uuid.UUID) -> set[u
             DataSource.grant_id == grant_id,
             DataSource.type == DataSourceType.GRANT_RECIPIENT,
             DataSource.collection_id.is_not(None),
-            DataSource.has_missing_data,
+            DataSource.has_missing_data(),
         )
         .distinct()
     )

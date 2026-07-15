@@ -23,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, aliased, column_property, foreign, mapped_column, relationship, remote
 from sqlalchemy_json import mutable_json_type
@@ -1309,6 +1309,41 @@ class DataSource(BaseModel, SafeDidMixin):
             filter(lambda org_item: org_item.external_id == organisation_external_id, self.organisation_items), None
         )
 
+    def get_organisation_items_by_external_id(self) -> dict[str, DataSourceOrganisationItem]:
+        return {item.external_id: item for item in self.organisation_items}
+
+    def get_missing_data_organisations(self, grant_recipients: Sequence[GrantRecipient]) -> list[Organisation]:
+        """
+        Organisations, from the given grant recipients, that are missing from this data source's organisation items or
+        have incomplete data in their organisation item.
+
+        `grant_recipients` must already be loaded with their organisations (eg via
+        `get_grant_recipients(grant, with_organisations=True)`) to avoid N+1 issues.
+        """
+        if self.type != DataSourceType.GRANT_RECIPIENT:
+            return []
+
+        assert self.schema, f"DataSource {self.id} has type {self.type} but no schema"
+
+        schema_columns = set(self.schema.root.keys())
+        items_by_external_id = self.get_organisation_items_by_external_id()
+        missing_organisations = []
+        for grant_recipient in grant_recipients:
+            item = items_by_external_id.get(grant_recipient.organisation.external_id)
+            if item is None or any(item._data.get(col) is None for col in schema_columns):
+                missing_organisations.append(grant_recipient.organisation)
+        return missing_organisations
+
+    def get_removed_organisation_external_ids(self, grant_recipients: Sequence[GrantRecipient]) -> list[str]:
+        """
+        External IDs of organisation items on this data source that no longer belong to a live grant recipient.
+
+        `grant_recipients` must already be loaded with their organisations (eg via
+        `get_grant_recipients(grant, with_organisations=True)`) to avoid N+1 issues.
+        """
+        current_external_ids = {gr.organisation.external_id for gr in grant_recipients}
+        return [item.external_id for item in self.organisation_items if item.external_id not in current_external_ids]
+
     __table_args__ = (
         CheckConstraint(
             (
@@ -1424,22 +1459,30 @@ class DataSource(BaseModel, SafeDidMixin):
             return None
         return f"{column.original_column_name} from {self.name} data set"
 
-    @hybrid_property
-    def has_missing_data(self) -> bool:
-        if self.type == DataSourceType.CUSTOM:
-            return False
+    @hybrid_method
+    def has_missing_data(self, grant_recipients: Sequence[GrantRecipient] | None = None) -> bool:
+        """
+        Whether any of the given grant recipients are missing from this data source, or have incomplete data.
 
-        assert self.schema, f"DataSource {self.id} has type {self.type} but no schema"
+        `grant_recipients` must already be the grant's current live grant recipients, loaded with their
+        organisations (eg via `get_grant_recipients(grant, with_organisations=True)`), and is required when called
+        in Python to avoid N+1 issues. See `get_missing_data_organisations` for the underlying list of organisations
+        rather than just a bool.
 
-        if not self.organisation_items:
-            return True
-
-        schema_columns = set(self.schema.root.keys())
-        return any(item._data.get(col) is None for item in self.organisation_items for col in schema_columns)
+        The SQL expression below checks the same two conditions (an empty column value, or a live grant
+        recipient with no matching organisation item) directly, for use in interface queries eg.
+        `select(DataSource).where(DataSource.has_missing_data())` - it ignores `grant_recipients`, which
+        only exists here so this method's Python and SQL forms share a signature.
+        """
+        if grant_recipients is None:
+            raise TypeError("has_missing_data() requires grant_recipients when called in Python")
+        return bool(self.get_missing_data_organisations(grant_recipients))
 
     @has_missing_data.inplace.expression
     @classmethod
-    def _has_missing_data_expression(cls) -> ColumnElement[bool]:
+    def _has_missing_data_expression(
+        cls, grant_recipients: Sequence[GrantRecipient] | None = None
+    ) -> ColumnElement[bool]:
         has_null_value = (
             select(DataSourceOrganisationItem.data_source_id)
             .where(
@@ -1456,16 +1499,29 @@ class DataSource(BaseModel, SafeDidMixin):
             .exists()
         )
 
-        has_no_org_items = not_(
-            select(DataSourceOrganisationItem.data_source_id)
-            .where(DataSourceOrganisationItem.data_source_id == cls.id)
+        has_missing_grant_recipient = (
+            select(GrantRecipient.id)
+            .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
+            .outerjoin(
+                DataSourceOrganisationItem,
+                and_(
+                    DataSourceOrganisationItem.data_source_id == cls.id,
+                    DataSourceOrganisationItem.external_id == Organisation.external_id,
+                ),
+            )
+            .where(
+                GrantRecipient.grant_id == cls.grant_id,
+                GrantRecipient.mode == GrantRecipientModeEnum.LIVE,
+                Organisation.mode == OrganisationModeEnum.LIVE,
+                DataSourceOrganisationItem.id.is_(None),
+            )
             .correlate(cls)
             .exists()
         )
 
         return and_(
             cls.type != DataSourceType.CUSTOM,
-            has_null_value | has_no_org_items,
+            has_null_value | has_missing_grant_recipient,
         )
 
 
