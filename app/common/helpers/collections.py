@@ -498,10 +498,6 @@ class SubmissionHelper:
         return self.events.submission_state.changes_requested_reason
 
     @property
-    def changes_requested_by(self) -> User | None:
-        return self.events.submission_state.changes_requested_by
-
-    @property
     def changes_requested_at_utc(self) -> datetime | None:
         return self.events.submission_state.changes_requested_at_utc
 
@@ -510,8 +506,16 @@ class SubmissionHelper:
         return self.events.submission_state.section_ids
 
     @property
-    def reopened_by(self) -> User | None:
-        return self.events.submission_state.reopened_by
+    def is_reopened(self) -> bool:
+        return self.events.submission_state.is_reopened
+
+    @property
+    def is_changes_requested(self) -> bool:
+        return self.events.submission_state.is_changes_requested
+
+    @property
+    def requested_or_allowed_changes_by(self) -> User | None:
+        return self.events.submission_state.requested_or_allowed_changes_by
 
     @property
     def timeline_events(self) -> list[TimelineEvent]:
@@ -1095,7 +1099,7 @@ class SubmissionHelper:
 
         return self.submission.grant_recipient.certifiers
 
-    def submit(self, user: User) -> None:
+    def submit(self, user: User) -> None:  # noqa: C901
         if self.is_submitted:
             return
 
@@ -1135,7 +1139,8 @@ class SubmissionHelper:
 
         SubmissionValidator(self).validate_all_reachable_questions()
 
-        was_changes_requested = self.events.submission_state.is_changes_requested
+        # Check submission's is_changes_requested or is_reopened before SUBMISSION_SUBMITTED event resets it
+        was_changes_requested_or_reopened = self.is_changes_requested or self.is_reopened
 
         self.add_submission_event(
             event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
@@ -1152,11 +1157,17 @@ class SubmissionHelper:
                 submission_helper=self,
             )
 
-        if was_changes_requested and self.changes_requested_by:
-            notification_service.send_submission_with_changes_notify_requester(
-                user=self.changes_requested_by,
-                submission_helper=self,
-            )
+        if was_changes_requested_or_reopened:
+            if self.requested_or_allowed_changes_by:
+                notification_service.send_submission_with_changes_notify_requester(
+                    user=self.requested_or_allowed_changes_by,
+                    submission_helper=self,
+                )
+            else:
+                current_app.logger.error(
+                    "Submission %(submission_id)s has no requested_or_allowed_changes_by in the SubmissionState",
+                    dict(submission_id=self.id),
+                )
 
     def mark_as_sent_for_certification(self, user: User) -> None:
         if not self.collection.requires_certification:

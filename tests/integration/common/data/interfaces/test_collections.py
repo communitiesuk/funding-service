@@ -3125,7 +3125,7 @@ class TestAddSubmissionEvent:
         event_helper = SubmissionEventHelper(submission)
         state = event_helper.submission_state
         assert state.reopened_reason == "Test reason"
-        assert state.reopened_by == user
+        assert state.requested_or_allowed_changes_by == user
 
     @pytest.mark.parametrize(
         "event_type,is_form_event,exp_metric",

@@ -1771,7 +1771,6 @@ class TestSubmissionHelper:
             submission_submitted,
             grant_team_user,
             data_provider_user,
-            factories,
             mock_notification_service_calls,
         ):
             submission_submitted.collection.requires_certification = False
@@ -1794,30 +1793,24 @@ class TestSubmissionHelper:
             # clear the mock calls so we can check the next email
             mock_notification_service_calls.clear()
 
+            # Flush the snapshot stored in the reopen event before mutating answers,
+            # so the subsequent set() call doesn't corrupt the snapshot dict in-place.
+            update_submission_data(submission_submitted)
+
             # Change the answer of the form's question CHANGES_MADE
             question = form.cached_questions[0]
             submission_submitted.data_manager.set(question, TextSingleLineAnswer("Updated answer"))
 
-            # Mark the form as completed
-            factories.submission_event.create(
-                submission=submission_submitted,
-                related_entity_id=form.id,
-                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                created_by=data_provider_user,
-                created_at_utc=datetime(2026, 4, 12, 0, 0, 0),
-            )
-
-            form_status = helper.get_status_for_form(form)
-
-            # Form changes status to CHANGES_MADE
-            assert form_status == TasklistSectionStatusEnum.CHANGES_MADE
-
-            # Refresh the Submission status
-            helper._update_submission_status()
+            # Complete the form so the submission status goes to READY_TO_SUBMIT
+            helper.toggle_form_completed(form=form, user=data_provider_user, is_complete=True)
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
-            helper.submit(user=data_provider_user)
+            # Form changes status to CHANGES_MADE
+            form_status = helper.get_status_for_form(form)
+            assert form_status == TasklistSectionStatusEnum.CHANGES_MADE
 
+            # Submitting the submission sets the status to SUBMITTED_WITH_CHANGES
+            helper.submit(user=data_provider_user)
             assert helper.status == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
 
             submission_with_changes_emails = [
@@ -1829,6 +1822,57 @@ class TestSubmissionHelper:
             # email with GOVUK_NOTIFY_SUBMISSION_WITH_CHANGES_NOTIFY_REQUESTER_TEMPLATE_ID was sent
             assert len(submission_with_changes_emails) == 1
             # We email only the grant team user who requested the changes
+            assert submission_with_changes_emails[0].kwargs["email_address"] == grant_team_user.email
+
+        @pytest.mark.freeze_time("2026-03-09 12:00:00")
+        def test_submit_after_reopen_sends_email_to_reopener(
+            self,
+            submission_submitted,
+            grant_team_user,
+            data_provider_user,
+            mock_notification_service_calls,
+        ):
+            submission_submitted.collection.requires_certification = False
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            # Reopen submission so it goes into IN_PROGRESS state
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Please update the answers")
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert len(mock_notification_service_calls) == 1
+
+            # email with GOVUK_NOTIFY_ACCESS_SUBMISSION_REOPENED_TEMPLATE_ID was sent
+            assert mock_notification_service_calls[0].kwargs["template_id"] == "ad07a53a-d930-4cb3-ad57-595a1c104e61"
+
+            # clear the mock calls so we can check the next email
+            mock_notification_service_calls.clear()
+
+            # Flush the snapshot stored in the reopen event before mutating answers,
+            # so the subsequent set() call doesn't corrupt the snapshot dict in-place.
+            update_submission_data(submission_submitted)
+
+            # Change the answer of the form's question CHANGES_MADE
+            form = submission_submitted.collection.forms[0]
+            question = form.cached_questions[0]
+            submission_submitted.data_manager.set(question, TextSingleLineAnswer("Updated answer"))
+
+            # Complete the form so the submission status goes to READY_TO_SUBMIT
+            helper.toggle_form_completed(form=form, user=data_provider_user, is_complete=True)
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+            # Submitting the submission sets the status to SUBMITTED_WITH_CHANGES
+            helper.submit(user=data_provider_user)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
+
+            submission_with_changes_emails = [
+                call
+                for call in mock_notification_service_calls
+                if "template_id" in call.kwargs and call.kwargs["template_id"] == "8ee3b678-d69f-4f50-bcc2-87dcd6ad4d43"
+            ]
+
+            # email with GOVUK_NOTIFY_SUBMISSION_WITH_CHANGES_NOTIFY_REQUESTER_TEMPLATE_ID was sent
+            assert len(submission_with_changes_emails) == 1
+            # We email only the grant team user who reopened the submission
             assert submission_with_changes_emails[0].kwargs["email_address"] == grant_team_user.email
 
     class TestSentForCertification:
@@ -2056,7 +2100,7 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.reopened_reason == "Test reason"
-            assert helper.reopened_by == grant_team_user
+            assert helper.requested_or_allowed_changes_by == grant_team_user
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
 
@@ -2068,7 +2112,7 @@ class TestSubmissionHelper:
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
             assert helper.reopened_reason == "Test reason"
-            assert helper.reopened_by == platform_admin_user
+            assert helper.requested_or_allowed_changes_by == platform_admin_user
 
         @pytest.mark.parametrize("status", [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT])
         def test_submission_reopened_when_collection_open_or_draft(
@@ -2180,6 +2224,37 @@ class TestSubmissionHelper:
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.IN_PROGRESS
 
+        def test_requested_or_allowed_changes_by_updated_after_reopen(
+            self,
+            submission_changes_requested,
+            grant_team_user,
+            platform_admin_user,
+            data_provider_user,
+            mock_notification_service_calls,
+        ):
+            submission_changes_requested.collection.requires_certification = False
+            helper = SubmissionHelper(submission_changes_requested)
+            assert helper.requested_or_allowed_changes_by == grant_team_user
+
+            form = submission_changes_requested.collection.forms[0]
+            assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
+            assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.CHANGES_REQUESTED
+
+            # Complete the form so the submission status goes to READY_TO_SUBMIT
+            helper.toggle_form_completed(form=form, user=data_provider_user, is_complete=True)
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+            assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.COMPLETED
+
+            helper.submit(user=data_provider_user)
+            assert helper.status == SubmissionStatusEnum.SUBMITTED
+
+            helper.reopen_submission(user=platform_admin_user, reopened_reason="Please also update this")
+            assert helper.status == SubmissionStatusEnum.IN_PROGRESS
+            assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+            # requested_or_allowed_changes_by changes after reopen event
+            assert helper.requested_or_allowed_changes_by == platform_admin_user
+
     class TestSubmissionChangesRequested:
         def test_request_changes_stores_reason_and_section_ids(self, grant_team_user, submission_submitted) -> None:
             form = submission_submitted.collection.forms[0]
@@ -2195,7 +2270,7 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
             assert helper.changes_requested_reason == "Please fix section 1"
             assert helper.section_ids == [str(form.id)]
-            assert helper.changes_requested_by == grant_team_user
+            assert helper.requested_or_allowed_changes_by == grant_team_user
 
         @pytest.mark.parametrize("status", [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT])
         def test_request_changes_succeeds_when_collection_open_or_draft(
