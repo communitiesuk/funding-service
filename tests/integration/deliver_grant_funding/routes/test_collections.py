@@ -12369,11 +12369,13 @@ class TestViewDataSource:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Data missing" in soup.text
         assert (
-            "Grant recipients with missing data will not be able to complete the report"
-            " until their missing data is uploaded" in soup.text
+            "Grant recipients with missing data will not be able to complete the report until their missing data"
+            " is uploaded." in soup.text
         )
+        assert "Grant recipients have been updated for this grant" not in soup.text
+        assert "to update and replace this data set." not in soup.text
 
-    def test_get_shows_missing_grant_recipient_tag_for_not_set_up_grant_recipient(
+    def test_get_shows_no_warning_or_extra_content_when_data_is_complete_and_no_changes(
         self, authenticated_grant_member_client, factories
     ):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
@@ -12381,11 +12383,8 @@ class TestViewDataSource:
             collection=collection,
             grant=authenticated_grant_member_client.grant,
             type=DataSourceType.GRANT_RECIPIENT,
-        )
-        factories.data_source_organisation_item.create(
-            data_source=data_source,
-            external_id="E06000123",
-            _data={"c_allocation": None},
+            create_gr_org_items=True,
+            create_gr_org_items__data=[500_000],
         )
 
         response = authenticated_grant_member_client.get(
@@ -12400,7 +12399,162 @@ class TestViewDataSource:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Grant recipient not set up" in soup.text
+        assert "Data missing" not in soup.text
+        assert "Grant recipient missing" not in soup.text
+        assert soup.find(class_="govuk-warning-text") is None
+        assert "Grant recipients have been updated for this grant" not in soup.text
+        assert "to update and replace this data set." not in soup.text
+
+    def test_get_shows_removed_grant_recipient_in_details_panel_and_excludes_it_from_table(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        organisation = factories.organisation.create(external_id="E06000123", name="Rivendell Council")
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=authenticated_grant_member_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=organisation.external_id,
+            _data={"c_allocation": 1234},
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Grant recipients have been updated for this grant since the latest file was uploaded." in soup.text
+        assert "Grant recipients removed:" in soup.text
+        assert organisation.name in soup.text
+
+        table = soup.find("table")
+        assert organisation.external_id not in table.text
+
+        assert soup.find(class_="govuk-warning-text") is None
+        assert "Download the latest data set template (CSV)" in soup.text
+        template_href = url_for(
+            "deliver_grant_funding.download_latest_data_set_template",
+            grant_id=authenticated_grant_member_client.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+            data_source_id=data_source.id,
+        )
+        assert [a for a in soup.find_all("a") if a.get("href") == template_href]
+
+    def test_get_shows_added_grant_recipient_in_details_panel_table_and_warning(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=authenticated_grant_member_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[500_000],
+        )
+
+        new_organisation = factories.organisation.create(external_id="E06000456", name="Shire Council")
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation=new_organisation,
+            mode=GrantRecipientModeEnum.LIVE,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Grant recipients have been updated for this grant since the latest file was uploaded." in soup.text
+        assert "Grant recipients added:" in soup.text
+        assert (
+            "Grant recipients not in the data set and missing data will not be able to access their report until"
+            " their missing data is uploaded." in soup.text
+        )
+        template_href = url_for(
+            "deliver_grant_funding.download_latest_data_set_template",
+            grant_id=authenticated_grant_member_client.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+            data_source_id=data_source.id,
+        )
+        matching_links = [a for a in soup.find_all("a") if a.get("href") == template_href]
+        assert "to update and replace this data set." not in soup.text
+        assert len(matching_links) == 1
+
+        table = soup.find("table")
+        assert "Grant recipient missing" in table.text
+        assert new_organisation.name in table.text
+
+    def test_get_shows_warning_but_no_extra_line_when_missing_data_and_recipients_added_and_removed(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        removed_organisation = factories.organisation.create(external_id="E06000999", name="Removed Council")
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=authenticated_grant_member_client.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=removed_organisation.external_id,
+            _data={"c_allocation": 1234},
+        )
+        new_organisation = factories.organisation.create(external_id="E06000456", name="Shire Council")
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation=new_organisation,
+            mode=GrantRecipientModeEnum.LIVE,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_data_source",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                data_source_id=data_source.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (
+            "Grant recipients not in the data set and missing data will not be able to access their report until"
+            " their missing data is uploaded." in soup.text
+        )
+        assert "Grant recipients added:" in soup.text
+        assert "Grant recipients removed:" in soup.text
+        template_href = url_for(
+            "deliver_grant_funding.download_latest_data_set_template",
+            grant_id=authenticated_grant_member_client.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+            data_source_id=data_source.id,
+        )
+        matching_links = [a for a in soup.find_all("a") if a.get("href") == template_href]
+        assert len(matching_links) == 1
 
     def test_get_excludes_test_grant_recipients_from_name_lookup(self, authenticated_grant_member_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)

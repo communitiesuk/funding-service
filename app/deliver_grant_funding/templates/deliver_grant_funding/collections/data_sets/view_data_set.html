@@ -5,6 +5,7 @@
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "govuk_frontend_jinja/components/warning-text/macro.html" import govukWarningText %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
@@ -62,8 +63,8 @@
               <a
                 class="govuk-link govuk-link--no-visited-state govuk-!-margin-bottom-0"
                 href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=data_source.id) }}"
-                >Cancel</a
-              >
+                >Cancel
+              </a>
             </div>
           </form>
         {% endset %}
@@ -110,8 +111,58 @@
 
       {{ govukSummaryList({"rows": summary_rows}) }}
 
-      {% if data_source.has_missing_data %}
+      {% if has_missing_data and not added_grant_recipient_names %}
         {{ govukWarningText({"text": ("Grant recipients with missing data will not be able to complete the report until their missing data is uploaded.")}) }}
+      {% elif has_missing_data and added_grant_recipient_names %}
+        {% set missing_data_added_recipients_html %}
+          Grant recipients not in the data set and missing data will not be able to access their report until their missing data is uploaded.
+          <a
+            class="govuk-link govuk-link--no-visited-state"
+            href="{{ url_for('deliver_grant_funding.download_latest_data_set_template', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=data_source.id) }}"
+            >Download the latest data set template (CSV)</a
+          >
+          to replace this data set.
+        {% endset %}
+        {{ govukWarningText({"html": missing_data_added_recipients_html}) }}
+      {% endif %}
+
+      {% if removed_grant_recipient_names and not has_missing_data %}
+        <div class="govuk-body">
+          <a
+            class="govuk-link govuk-link--no-visited-state"
+            href="{{ url_for('deliver_grant_funding.download_latest_data_set_template', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=data_source.id) }}"
+            >Download the latest data set template (CSV)</a
+          >
+          to update and replace this data set.
+        </div>
+      {% endif %}
+
+      {% if added_grant_recipient_names or removed_grant_recipient_names %}
+        {% set grant_recipient_changes_html %}
+          <p class="govuk-body">Grant recipients have been updated for this grant since the latest file was uploaded.</p>
+          {% if added_grant_recipient_names %}
+            <p class="govuk-body">Grant recipients added:</p>
+            <ul class="govuk-list govuk-list--bullet">
+              {% for name in added_grant_recipient_names %}
+                <li>{{ name }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if removed_grant_recipient_names %}
+            <p class="govuk-body">Grant recipients removed:</p>
+            <ul class="govuk-list govuk-list--bullet">
+              {% for name in removed_grant_recipient_names %}
+                <li>{{ name }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endset %}
+        {{
+          govukDetails({
+            "summaryText": "Grant recipient changes",
+            "html": grant_recipient_changes_html,
+          })
+        }}
       {% endif %}
 
       <div class="govuk-button-group">
@@ -139,19 +190,18 @@
       {% endfor %}
 
       {% set rows = [] %}
-      {% for item in data_source.organisation_items %}
-        {% set gr_name = grant_recipient_name_by_external_id.get(item.external_id) %}
-        {% set row = [{"text": item.external_id}] %}
+      {% for current_row in current_rows %}
+        {% set row = [{"text": current_row.external_id}] %}
 
-        {% if gr_name is none %}
-          {% do row.append({"html":govukTag({"text": "Grant recipient not set up", "classes": "govuk-tag--orange"})}) %}
+        {% if current_row.organisation_item is none %}
+          {% do row.append({"html": govukTag({"text": "Grant recipient missing", "classes": "govuk-tag--red app-status-tag"}) ~ " " ~ current_row.grant_recipient_name}) %}
         {% else %}
-          {% do row.append({"text": gr_name}) %}
+          {% do row.append({"text": current_row.grant_recipient_name}) %}
         {% endif %}
 
-        {% set typed_row = item.data %}
+        {% set typed_row = current_row.organisation_item.data if current_row.organisation_item else {} %}
         {% for slug, col_schema in data_source.schema.root.items() %}
-          {% set answer = typed_row[slug] %}
+          {% set answer = typed_row.get(slug) %}
           {% if answer is none %}
             {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--orange"})}) %}
           {% else %}
