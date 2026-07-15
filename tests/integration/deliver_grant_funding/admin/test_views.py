@@ -5353,38 +5353,21 @@ class TestPlatformAdminSubmissionsView:
         )
         assert response.status_code == 302
 
-    def test_details_renders_events_and_synthetic_creation(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    def test_details_renders_timeline(
+        self, authenticated_platform_grant_lifecycle_manager_client, submission_submitted
     ):
-        creator = factories.user.create(name="Alice Creator", email="alice@example.org")
-        certifier = factories.user.create(name="Bob Certifier", email="bob@example.org")
-        collection = factories.collection.create()
-        form = factories.form.create(collection=collection, title="Applicant details")
-        submission = factories.submission.create(
-            collection=collection,
-            created_by=creator,
-            created_at_utc=datetime.datetime(2026, 6, 1, 10, 0, 0),
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/submission/details/?id={submission_submitted.id}"
         )
-        factories.submission_event.create(
-            submission=submission,
-            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-            related_entity_id=form.id,
-            created_by=creator,
-            created_at_utc=datetime.datetime(2025, 6, 1, 10, 30, 0),
-        )
-        factories.submission_event.create(
-            submission=submission,
-            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-            created_by=creator,
-            created_at_utc=datetime.datetime(2025, 6, 2, 9, 15, 0),
-        )
-        factories.submission_event.create(
-            submission=submission,
-            event_type=SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
-            created_by=certifier,
-            created_at_utc=datetime.datetime(2025, 6, 3, 14, 0, 0),
-            data={"declined_reason": "Missing evidence"},
-        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        timeline = soup.find(class_="moj-timeline")
+        assert timeline is not None
+        assert len(timeline.find_all(class_="moj-timeline__item")) > 0
+
+    def test_details_renders_empty_timeline(self, authenticated_platform_grant_lifecycle_manager_client, factories):
+        submission = factories.submission.create(mode=SubmissionModeEnum.LIVE)
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
             f"/deliver/admin/submission/details/?id={submission.id}"
@@ -5394,28 +5377,7 @@ class TestPlatformAdminSubmissionsView:
         soup = BeautifulSoup(response.data, "html.parser")
         timeline = soup.find(class_="moj-timeline")
         assert timeline is not None
-
-        items = timeline.find_all(class_="moj-timeline__item")
-        titles = [item.find(class_="moj-timeline__title").get_text(strip=True) for item in items]
-        bylines = [item.find(class_="moj-timeline__byline").get_text(strip=True) for item in items]
-
-        assert titles == [
-            "Submission declined by certifier",
-            "Submission sent for certification",
-            "Form completed: Applicant details",
-            "Submission created",
-        ]
-        assert bylines == [
-            "by Bob Certifier",
-            "by Alice Creator",
-            "by Alice Creator",
-            "by Alice Creator",
-        ]
-
-        page_text = soup.get_text()
-        assert "Missing evidence" in page_text
-        assert f"Reference: {submission.reference}" in page_text
-        assert "3 Jun 2025 at 3pm" in page_text
+        assert len(timeline.find_all(class_="moj-timeline__item")) == 0
 
 
 class TestPlatformAdminSubmissionEventView:

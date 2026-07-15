@@ -2,13 +2,26 @@ from datetime import datetime
 
 import pytest
 from bs4 import BeautifulSoup
-from flask import render_template_string
+from flask import Flask, render_template_string
 
 from app.common.data.types import CollectionType, SubmissionEventType, SubmissionModeEnum
 from app.common.helpers.timeline import from_submission_event
 
 GRANT_ORG = "MHCLG"
 RECIPIENT_ORG = "Recipient Council"
+
+
+class TestTimelineTemplates:
+    @pytest.mark.parametrize("event_type", list(SubmissionEventType))
+    def test_every_event_type_has_a_timeline_partial(self, app: Flask, event_type: SubmissionEventType):
+        # `timeline.html` resolves the partial for an event dynamically at render time
+        # (`common/macros/timeline/" + item.type.name.lower() + ".html"`), so a missing partial
+        # only surfaces as a jinja2.exceptions.TemplateNotFound in production. This test forces
+        # that lookup for every SubmissionEventType member so a newly added type without a
+        # matching partial fails in CI instead.
+        template_name = f"common/macros/timeline/{event_type.name.lower()}.html"
+
+        app.jinja_env.get_template(template_name)
 
 
 @pytest.mark.parametrize(

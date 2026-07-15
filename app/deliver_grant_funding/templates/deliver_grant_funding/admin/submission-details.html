@@ -1,4 +1,5 @@
 {% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/timeline.html" import timeline with context %}
 {% extends 'admin/model/details.html' %}
 
 {% block details_table %}
@@ -48,22 +49,9 @@
     <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}</dd>
   </dl>
 
-  <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />
+  {% if not helper.is_preview %}
+    <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />
 
-  <div class="moj-timeline">
-    {% for item in timeline_items %}
-      <div class="moj-timeline__item">
-        <div class="moj-timeline__header">
-          <h2 class="moj-timeline__title">{{ item.title }}</h2>
-          <p class="moj-timeline__byline">by {{ item.byline }}</p>
-        </div>
-        <p class="moj-timeline__date">
-          <time datetime="{{ iso_utc(item.datetime) }}">{{ format_datetime_short(item.datetime) }}</time>
-        </p>
-        {% if item.description %}
-          <div class="moj-timeline__description">{{ item.description }}</div>
-        {% endif %}
-      </div>
-    {% endfor %}
-  </div>
+    {{ timeline(helper.timeline_events, timeline_event_types) }}
+  {% endif %}
 {% endblock %}
