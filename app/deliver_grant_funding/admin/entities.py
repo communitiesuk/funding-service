@@ -1,6 +1,5 @@
 import datetime
 import uuid
-from collections import namedtuple
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
@@ -645,58 +644,6 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         return query, count_query, joins, count_joins
 
 
-MoJTimelineEvent = namedtuple(
-    "MoJTimelineEvent",
-    [
-        "title",
-        "byline",
-        "datetime",
-        "description",
-    ],
-)
-
-
-def _build_submission_timeline_items(submission: Submission) -> list[MoJTimelineEvent]:
-    form_titles = {form.id: form.title for form in submission.collection.forms}
-
-    items: list[MoJTimelineEvent] = []
-    for event in submission.events:
-        actor = event.created_by
-        title = str(event.event_type)
-        description = ""
-
-        if event.event_type in {
-            SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-            SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
-            SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
-        }:
-            title += f": {form_titles.get(event.related_entity_id, '(form no longer exists)')}"
-        elif event.event_type == SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
-            description = event.data.get("declined_reason") or ""
-        elif event.event_type == SubmissionEventType.SUBMISSION_REOPENED:
-            for line in cast(str, event.data.get("reopened_reason", "")).split("\n"):
-                description += f"<p>{markupsafe.escape(line)}</p>"
-        items.append(
-            MoJTimelineEvent(
-                title=title,
-                byline=actor.name or actor.email,
-                datetime=event.created_at_utc,
-                description=markupsafe.Markup(description),
-            )
-        )
-
-    creator = submission.created_by
-    items.append(
-        MoJTimelineEvent(
-            title="Submission created",
-            byline=creator.name or creator.email,
-            datetime=submission.created_at_utc,
-            description=f"Reference: {submission.reference}",
-        )
-    )
-    return items
-
-
 class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = Submission
 
@@ -731,8 +678,18 @@ class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
     def render(self, template: str, **kwargs: Any) -> Any:
         if (model := kwargs.get("model")) is not None:
             if template == self.details_template:
-                kwargs["timeline_items"] = _build_submission_timeline_items(cast("Submission", model))
                 kwargs["helper"] = SubmissionHelper(cast("Submission", model))
+                kwargs["timeline_event_types"] = [
+                    SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
+                    SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
+                    SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                    SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
+                    SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
+                    SubmissionEventType.SUBMISSION_SUBMITTED,
+                    SubmissionEventType.SUBMISSION_REOPENED,
+                    SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+                ]
 
         return super().render(template, **kwargs)
 
