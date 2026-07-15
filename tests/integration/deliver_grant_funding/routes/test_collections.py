@@ -21,6 +21,7 @@ from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     add_component_validation,
+    update_submission_data,
 )
 from app.common.data.interfaces.data_sets import get_data_source
 from app.common.data.models import (
@@ -9306,6 +9307,59 @@ class TestViewSubmission:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Changed" in soup.text
+        assert "Original response" in soup.text
+        assert "original answer" in soup.text
+        assert "updated answer" in soup.text
+
+    def test_shows_changed_tag_and_original_response_for_resubmitted_answers_in_add_another_group(
+        self, authenticated_grant_admin_client, factories, mock_notification_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        user = authenticated_grant_admin_client.user
+        group = factories.group.create(form__collection__grant=grant, add_another=True)
+        question = factories.question.create(form=group.form, parent=group)
+
+        # Create a submission with Question group
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            mode=SubmissionModeEnum.TEST,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("original answer"), add_another_index=0)],
+        )
+
+        helper = SubmissionHelper(submission)
+
+        # Complete the form
+        helper.toggle_form_completed(form=group.form, user=user, is_complete=True)
+        # Submit the submission
+        helper.submit(user=user)
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+        # Request changes on the submission
+        helper.request_changes_submission(user=user, changes_requested_reason="Please fix", section_ids=[])
+        assert helper.status == SubmissionStatusEnum.CHANGES_REQUESTED
+
+        # Flush the snapshot stored in the changes-requested event before mutating answers,
+        # so the subsequent set() call doesn't corrupt the snapshot dict in-place.
+        update_submission_data(submission)
+        submission.data_manager.set(question, TextSingleLineAnswer("updated answer"), add_another_index=0)
+
+        # Complete the form again and submit the submission
+        helper.toggle_form_completed(form=group.form, user=user, is_complete=True)
+        helper.submit(user=user)
+        assert helper.status == SubmissionStatusEnum.SUBMITTED_WITH_CHANGES
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert "Changed" in tag_texts
+        assert len(tag_texts) == 1
         assert "Original response" in soup.text
         assert "original answer" in soup.text
         assert "updated answer" in soup.text
