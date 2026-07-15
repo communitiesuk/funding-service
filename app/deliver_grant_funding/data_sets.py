@@ -1,6 +1,7 @@
 import csv
 import io
 import uuid
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from io import StringIO
 from typing import TYPE_CHECKING, Sequence
@@ -30,7 +31,7 @@ from app.deliver_grant_funding.session_models import DataSetColumnMapping, DataS
 from app.extensions import s3_service
 
 if TYPE_CHECKING:
-    from app.common.data.models import DataSource, GrantRecipient
+    from app.common.data.models import DataSource, DataSourceOrganisationItem, GrantRecipient
 
 
 class CellError(BaseModel):
@@ -273,6 +274,47 @@ def build_missing_data_display_rows(
             )
 
     return sorted(display_rows, key=lambda r: r.grant_recipient_name)
+
+
+@dataclass
+class CurrentDataSetRow:
+    external_id: str
+    grant_recipient_name: str
+    organisation_item: DataSourceOrganisationItem | None
+
+
+@dataclass
+class CurrentDataSetView:
+    rows: list[CurrentDataSetRow]
+    added_grant_recipient_names: list[str]
+    removed_external_ids: list[str]
+
+
+def build_current_data_set_view(
+    data_source: DataSource, grant_recipients: Sequence[GrantRecipient]
+) -> CurrentDataSetView:
+    """
+    Reflects a data source's organisation items against the grant's current live grant recipients.
+
+    A grant recipient added to the grant since the data set was uploaded has no organisation item yet and
+    appears as a row with no data. An organisation item belonging to a grant recipient who's since been removed
+    from the grant is excluded from `rows` and reported via `removed_external_ids` instead.
+    """
+    items_by_external_id = data_source.get_organisation_items_by_external_id()
+    rows = [
+        CurrentDataSetRow(
+            external_id=gr.organisation.external_id,
+            grant_recipient_name=gr.organisation.name,
+            organisation_item=items_by_external_id.get(gr.organisation.external_id),
+        )
+        for gr in sorted(grant_recipients, key=lambda gr: gr.organisation.name)
+    ]
+
+    return CurrentDataSetView(
+        rows=rows,
+        added_grant_recipient_names=sorted(row.grant_recipient_name for row in rows if row.organisation_item is None),
+        removed_external_ids=sorted(data_source.get_removed_organisation_external_ids(grant_recipients)),
+    )
 
 
 def generate_latest_csv_template(data_source: DataSource) -> StringIO:

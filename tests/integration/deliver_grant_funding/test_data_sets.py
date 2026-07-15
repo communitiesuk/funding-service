@@ -20,6 +20,7 @@ from app.constants import (
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
+    build_current_data_set_view,
     build_missing_data_display_rows,
     find_grant_recipient_mismatches,
     generate_latest_csv_template,
@@ -636,6 +637,158 @@ class TestFindGrantRecipientMismatches:
         assert mismatches[1].external_id == gr2.organisation.external_id
         assert mismatches[1].csv_organisation_name == "Leeds CC"
         assert mismatches[1].service_organisation_name == "Leeds City Council"
+
+
+class TestBuildCurrentDataSetView:
+    def test_returns_rows_sorted_alphabetically_with_no_changes(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        gr_b = factories.grant_recipient.create(grant=grant, organisation__name="BBBB Council")
+        gr_a = factories.grant_recipient.create(grant=grant, organisation__name="AAAA Council")
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222],
+        )
+
+        view = build_current_data_set_view(data_source, [gr_b, gr_a])
+
+        assert [row.grant_recipient_name for row in view.rows] == ["AAAA Council", "BBBB Council"]
+        assert [row.external_id for row in view.rows] == [
+            gr_a.organisation.external_id,
+            gr_b.organisation.external_id,
+        ]
+        assert all(row.organisation_item is not None for row in view.rows)
+        assert view.added_grant_recipient_names == []
+        assert view.removed_external_ids == []
+
+    def test_grant_recipient_added_since_upload_has_no_organisation_item(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        existing_gr = factories.grant_recipient.create(grant=grant, organisation__name="Existing Council")
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        new_gr = factories.grant_recipient.create(grant=grant, organisation__name="New Council")
+
+        view = build_current_data_set_view(data_source, [existing_gr, new_gr])
+
+        new_row = next(row for row in view.rows if row.external_id == new_gr.organisation.external_id)
+        existing_row = next(row for row in view.rows if row.external_id == existing_gr.organisation.external_id)
+        assert new_row.organisation_item is None
+        assert existing_row.organisation_item is not None
+        assert view.added_grant_recipient_names == ["New Council"]
+        assert view.removed_external_ids == []
+
+    def test_multiple_added_grant_recipients_sorted_by_name(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        gr_z = factories.grant_recipient.create(grant=grant, organisation__name="ZZZZ Council")
+        gr_a = factories.grant_recipient.create(grant=grant, organisation__name="AAAA Council")
+
+        view = build_current_data_set_view(data_source, [gr_z, gr_a])
+
+        assert view.added_grant_recipient_names == ["AAAA Council", "ZZZZ Council"]
+
+    def test_organisation_item_without_current_grant_recipient_is_removed(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id=gr.organisation.external_id, _data={"c_allocation": 100}
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="REMOVED-ID", _data={"c_allocation": 200}
+        )
+
+        view = build_current_data_set_view(data_source, [gr])
+
+        assert [row.external_id for row in view.rows] == [gr.organisation.external_id]
+        assert view.removed_external_ids == ["REMOVED-ID"]
+        assert view.added_grant_recipient_names == []
+
+    def test_multiple_removed_external_ids_sorted(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id=gr.organisation.external_id, _data={"c_allocation": 100}
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="ZZZZ-REMOVED", _data={"c_allocation": 200}
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="AAAA-REMOVED", _data={"c_allocation": 300}
+        )
+
+        view = build_current_data_set_view(data_source, [gr])
+
+        assert view.removed_external_ids == ["AAAA-REMOVED", "ZZZZ-REMOVED"]
+
+    def test_handles_added_and_removed_simultaneously(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        gr_existing = factories.grant_recipient.create(grant=grant, organisation__name="Existing Council")
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="REMOVED-ID", _data={"c_allocation": 999}
+        )
+        gr_new = factories.grant_recipient.create(grant=grant, organisation__name="New Council")
+
+        view = build_current_data_set_view(data_source, [gr_existing, gr_new])
+
+        assert view.added_grant_recipient_names == ["New Council"]
+        assert view.removed_external_ids == ["REMOVED-ID"]
+        assert [row.external_id for row in view.rows] == [
+            gr_existing.organisation.external_id,
+            gr_new.organisation.external_id,
+        ]
+
+    def test_returns_empty_rows_and_all_removed_when_no_grant_recipients_passed(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="AAA", _data={"c_allocation": 1}
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source, external_id="BBB", _data={"c_allocation": 2}
+        )
+
+        view = build_current_data_set_view(data_source, [])
+
+        assert view.rows == []
+        assert view.added_grant_recipient_names == []
+        assert view.removed_external_ids == ["AAA", "BBB"]
 
 
 class TestGenerateLatestCsvTemplate:
