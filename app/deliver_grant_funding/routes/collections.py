@@ -66,12 +66,14 @@ from app.common.data.interfaces.data_sets import (
     delete_data_source,
     get_data_source,
     get_data_source_list_for_collection,
+    replace_uploaded_data_source,
 )
 from app.common.data.interfaces.exceptions import (
     DuplicateDataSourceItemError,
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
+from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_collection_with_submitted_submissions
 from app.common.data.interfaces.grants import get_all_deliver_grants_by_user, get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import (
@@ -122,6 +124,9 @@ from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
+    DATA_SET_PREVIEW_LENGTH,
+    SESSION_DATA_SET_REPLACE,
+    SESSION_DATA_SET_UPLOAD,
 )
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
@@ -177,7 +182,7 @@ from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, FlashMessageType, TNotProvided
 
 if TYPE_CHECKING:
-    from app.common.data.models import Expression, Group, Question
+    from app.common.data.models import Collection, DataSource, Expression, Group, Question
 
 SessionModelType = (
     AddConditionDependsOnSessionModel
@@ -3565,8 +3570,8 @@ def list_collection_data_sets(
     form = GenericSubmitForm()
 
     if form.validate_on_submit():
-        if "data_set_upload" in session:
-            del session["data_set_upload"]
+        if SESSION_DATA_SET_UPLOAD in session:
+            del session[SESSION_DATA_SET_UPLOAD]
 
         return redirect(
             url_for(
@@ -3676,15 +3681,42 @@ def _load_and_validate_data_set(
     return rows, validate_data_set(data_set_data, rows)
 
 
-def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
-    if session_data := session.get("data_set_upload"):
+def _extract_data_set_data_from_session(data_source_id: uuid.UUID | None = None) -> DataSetUploadSessionModel | None:
+    session_data_name = SESSION_DATA_SET_REPLACE if data_source_id else SESSION_DATA_SET_UPLOAD
+    if session_data := session.get(session_data_name):
         try:
             upload_data = DataSetUploadSessionModel(**session_data)
             return upload_data
         except ValidationError:
-            del session["data_set_upload"]
+            del session[session_data_name]
             return None
     return None
+
+
+def _upload_data_set_file(
+    grant_id: UUID, collection_id: UUID, data_source_id: UUID, file: FileStorage
+) -> tuple[str, str]:
+    if not file.filename:
+        raise ValueError("No filename supplied")
+    s3_key = build_data_set_upload_s3_key(grant_id=grant_id, collection_id=collection_id, data_source_id=data_source_id)
+    file.stream.seek(0)
+    s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
+    return s3_key, secure_filename(file.filename)
+
+
+def _build_upload_data_set_preview_data(data_columns: list[str], rows: list[dict[str, str]]) -> dict[str, list[str]]:
+
+    preview_data: dict[str, list[str]] = {}
+    for column in data_columns:
+        values = []
+        for row in rows:
+            val = row.get(column, "")
+            if val:
+                values.append(str(escape(val)))
+            if len(values) == DATA_SET_PREVIEW_LENGTH:
+                break
+        preview_data[column] = values
+    return preview_data
 
 
 @deliver_grant_funding_blueprint.route(
@@ -3695,7 +3727,7 @@ def _extract_data_set_data_from_session() -> DataSetUploadSessionModel | None:
 def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = _extract_data_set_data_from_session()
+    data_set_data = _extract_data_set_data_from_session(None)
 
     form = UploadDataSetForm(existing_data_source_names=[ds.name for ds in collection.data_sources], obj=data_set_data)
 
@@ -3708,32 +3740,21 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
         data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
 
         data_source_id = uuid.uuid4()
-        s3_key = build_data_set_upload_s3_key(
-            grant_id=grant_id, collection_id=collection_id, data_source_id=data_source_id
-        )
-        file.stream.seek(0)
-        s3_service.upload_file(file, s3_key, {"status": DataSourceFileTagEnum.PENDING})
+        file_metadata = _upload_data_set_file(grant_id, collection_id, data_source_id, file)
 
-        preview_data: dict[str, list[str]] = {}
-        for column in data_columns:
-            values = []
-            for row in rows:
-                val = row.get(column, "")
-                if val and len(values) < 3:
-                    values.append(str(escape(val)))
-            preview_data[column] = values
+        preview_data = _build_upload_data_set_preview_data(data_columns, rows)
 
         session_data = DataSetUploadSessionModel(
             name=cast(str, form.name.data),
             data_source_type=DataSourceType.GRANT_RECIPIENT,
             data_columns=data_columns,
             preview_data=preview_data,
-            s3_key=s3_key,
-            original_filename=secure_filename(cast(str, file.filename)),
+            s3_key=file_metadata[0],
+            original_filename=file_metadata[1],
             data_source_id=data_source_id,
         )
 
-        session["data_set_upload"] = session_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_UPLOAD] = session_data.model_dump(mode="json")
 
         grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
         gr_errors = validate_data_set_grant_recipients(session_data, grant_recipients, all_rows=rows)
@@ -3765,27 +3786,184 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-sets/<uuid:data_source_id>/replace",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+def replace_data_set(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    data_source = get_data_source(data_source_id)
+
+    if (
+        data_source.collection_id != collection_id
+        or data_source.grant_id != grant_id
+        or collection.grant_id != grant_id
+    ):
+        abort(404)
+    form = UploadDataSetForm(
+        existing_data_source_names=[ds.name for ds in collection.data_sources if ds.id != data_source_id],
+        existing_datasource=data_source,
+        data={"name": data_source.name},
+        submitted_orgs=[
+            gr.organisation
+            for gr in get_grant_recipients_for_collection_with_submitted_submissions(
+                collection.grant, collection_id=collection_id, submission_mode=SubmissionModeEnum.LIVE
+            )
+        ],
+    )
+    gr_errors = []
+    if form.validate_on_submit():
+        file: FileStorage = form.file.data
+        columns, rows = _parse_data_set_csv(form.file.data)
+        file_metadata = _upload_data_set_file(grant_id, collection_id, data_source_id, file)
+
+        data_columns = [col for col in columns if col not in DATA_SET_IDENTIFIER_COLUMN_HEADERS]
+        preview_data = _build_upload_data_set_preview_data(data_columns, rows)
+        data_set_session_data = DataSetUploadSessionModel(
+            name=form.name.data,  # ty:ignore[invalid-argument-type]
+            data_source_id=data_source_id,
+            s3_key=file_metadata[0],
+            original_filename=file_metadata[1],
+            data_source_type=data_source.type,
+            preview_data=preview_data,
+            data_columns=data_columns,
+            is_replace=True,
+        )
+        grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
+        gr_errors = validate_data_set_grant_recipients(data_set_session_data, grant_recipients, all_rows=rows)
+        if not gr_errors:
+            session[SESSION_DATA_SET_REPLACE] = data_set_session_data.model_dump(mode="json")
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.confirm_data_set_grant_recipients",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
+            )
+
+    removed_columns = []
+    removed_column_orgs = set()
+
+    if form.removed_column_errors:
+        removed_columns = form.removed_column_errors.keys()
+        for _, orgs in form.removed_column_errors.items():
+            for org in orgs:
+                removed_column_orgs.add(org)
+
+    changed_columns = []
+    changed_column_orgs = set()
+
+    if form.changed_column_errors:
+        changed_columns = form.changed_column_errors.keys()
+        for _, orgs in form.changed_column_errors.items():
+            for org in orgs:
+                changed_column_orgs.add(org)
+    return render_template(
+        "deliver_grant_funding/collections/data_sets/replace_dataset.html",
+        grant=collection.grant,
+        collection=collection,
+        gr_errors=gr_errors,
+        form=form,
+        data_source=data_source,
+        removed_column_submitted_errors=removed_columns,
+        removed_column_org_submitted_errors=removed_column_orgs,
+        changed_column_submitted_errors=changed_columns,
+        changed_column_org_submitted_errors=changed_column_orgs,
+    )
+
+
+def _save_replaced_data_set_and_redirect(
+    existing_datasource: DataSource,
+    grant_id: UUID,
+    collection: Collection,
+    data_set_data: DataSetUploadSessionModel,
+    rows: TUnvalidatedDataSetRows | None = None,
+) -> ResponseReturnValue:
+    replace_uploaded_data_source(
+        data_source=existing_datasource,
+        new_columns=data_set_data.column_mappings,
+        all_headers=data_set_data.data_columns,
+        all_rows=rows or [],
+        s3_key=data_set_data.s3_key,
+        original_filename=data_set_data.original_filename,
+        user=get_current_user(),
+        name=data_set_data.name if data_set_data.name != existing_datasource.name else NOT_PROVIDED,
+    )
+
+    del session[SESSION_DATA_SET_REPLACE]
+    s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+    flash(
+        Markup(
+            f"You can now reference {escape(existing_datasource.name)} data "
+            + f"in the {escape(collection.name)} form. "
+        ),
+        FlashMessageType.DATA_SOURCE_REPLACED_SUCCESS,
+    )
+    return redirect(
+        url_for(
+            "deliver_grant_funding.view_data_source",
+            grant_id=grant_id,
+            collection_id=collection.id,
+            collection_type=collection.type,
+            data_source_id=existing_datasource.id,
+        )
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/map-columns",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-columns",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+def map_data_set_columns(  # noqa: C901
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
+) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = _extract_data_set_data_from_session()
-    if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
-            )
-        )
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
 
-    form = MapDataSetColumnsForm(data_columns=data_set_data.data_columns)
+    if not data_set_data:
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
+            )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    if data_set_data.is_replace:
+        existing_datasource = get_data_source(data_set_data.data_source_id, with_organisation_items=True)
+        existing_column_names = [col_def.original_column_name for _, col_def in existing_datasource.schema.root.items()]  # ty:ignore[unresolved-attribute]
+        columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
+        if not columns_to_map:  # no new columns
+            rows = _load_rows(data_set_data)
+            return _save_replaced_data_set_and_redirect(existing_datasource, grant_id, collection, data_set_data, rows)
+    else:
+        columns_to_map = data_set_data.data_columns
+
+    form = MapDataSetColumnsForm(data_columns=columns_to_map)
 
     if not form.is_submitted() and data_set_data.column_mappings:
         for idx, mapping in enumerate(data_set_data.column_mappings):
@@ -3793,7 +3971,9 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
 
     if form.validate_on_submit():
         data_set_data.column_mappings = form.get_column_mappings()
-        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
+            data_set_data.model_dump(mode="json")
+        )
 
         rows: TUnvalidatedDataSetRows | None = None
         validation_result: DataSetValidationResult | None = None
@@ -3820,12 +4000,15 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
                     grant_id=grant_id,
                     collection_type=collection_type,
                     collection_id=collection_id,
+                    data_source_id=data_source_id,
                 )
             )
 
         if validation_result is None:
             rows, validation_result = _load_and_validate_data_set(data_set_data)
 
+        if data_set_data.is_replace:
+            return _save_replaced_data_set_and_redirect(existing_datasource, grant_id, collection, data_set_data, rows)
         try:
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
@@ -3848,7 +4031,7 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
                 collection_id=collection_id,
                 data_source_id=data_source.id,
             )
-            session.pop("data_set_upload", None)
+            session.pop(SESSION_DATA_SET_UPLOAD, None)
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in route
             flash(
                 Markup(
@@ -3878,27 +4061,42 @@ def map_data_set_columns(grant_id: UUID, collection_type: CollectionType, collec
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/map-number-columns",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/map-number-columns",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
 def map_data_set_number_columns(
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
     user = get_current_user()
 
-    data_set_data = _extract_data_set_data_from_session()
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     number_columns = [mapping for mapping in data_set_data.column_mappings if mapping.requires_manual_formatting]
 
@@ -3920,7 +4118,9 @@ def map_data_set_number_columns(
                 mapping.suffix = settings[mapping.column_name]["suffix"]
                 if mapping.number_type == NumberTypeEnum.DECIMAL:
                     mapping.max_decimal_places = settings[mapping.column_name]["max_decimal_places"]
-        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
+            data_set_data.model_dump(mode="json")
+        )
 
         rows, validation_result = _load_and_validate_data_set(data_set_data)
 
@@ -3929,6 +4129,14 @@ def map_data_set_number_columns(
             column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
             form.columns.errors = form.build_number_column_form_errors(column_errors)
         else:
+            if data_set_data.is_replace:
+                return _save_replaced_data_set_and_redirect(
+                    grant_id=grant_id,
+                    collection=collection,
+                    data_set_data=data_set_data,
+                    existing_datasource=get_data_source(data_set_data.data_source_id, with_organisation_items=True),
+                    rows=rows,
+                )
             data_source = create_uploaded_data_source(
                 name=data_set_data.name,
                 data_source_type=data_set_data.data_source_type,
@@ -3951,7 +4159,7 @@ def map_data_set_number_columns(
                 collection_id=collection_id,
                 data_source_id=data_source.id,
             )
-            session.pop("data_set_upload", None)
+            session.pop(SESSION_DATA_SET_UPLOAD, None)
             # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
             flash(
                 Markup(
@@ -3979,25 +4187,40 @@ def map_data_set_number_columns(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/confirm-grant-recipients",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/confirm-grant-recipients",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 def confirm_data_set_grant_recipients(
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = _extract_data_set_data_from_session()
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     rows = _load_rows(data_set_data)
     grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
@@ -4010,6 +4233,7 @@ def confirm_data_set_grant_recipients(
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
@@ -4017,13 +4241,17 @@ def confirm_data_set_grant_recipients(
 
     if form.validate_on_submit():
         data_set_data.has_grant_recipient_mismatches = True
-        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
+            data_set_data.model_dump(mode="json")
+        )
+
         return redirect(
             url_for(
                 "deliver_grant_funding.data_set_missing_data",
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
@@ -4038,24 +4266,41 @@ def confirm_data_set_grant_recipients(
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/missing-data",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/missing-data",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
 @auto_commit_after_request
-def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+def data_set_missing_data(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
+) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    data_set_data = _extract_data_set_data_from_session()
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     rows = _load_rows(data_set_data)
 
@@ -4069,6 +4314,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 
@@ -4076,7 +4322,9 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
 
     if form.validate_on_submit():
         data_set_data.has_missing_data = True
-        session["data_set_upload"] = data_set_data.model_dump(mode="json")
+        session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
+            data_set_data.model_dump(mode="json")
+        )
 
         return redirect(
             url_for(
@@ -4084,6 +4332,7 @@ def data_set_missing_data(grant_id: UUID, collection_type: CollectionType, colle
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
+                data_source_id=data_source_id,
             )
         )
 

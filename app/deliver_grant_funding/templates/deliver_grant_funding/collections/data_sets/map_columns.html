@@ -9,11 +9,15 @@
 
 {% block beforeContent %}
   {% if session_data.has_missing_data %}
-    {% set back_link = url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+    {% set back_link = url_for("deliver_grant_funding.data_set_missing_data", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
   {% elif session_data.has_grant_recipient_mismatches %}
-    {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+    {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
   {% else %}
-    {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+    {% if session_data.is_replace %}
+      {% set back_link = url_for("deliver_grant_funding.replace_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id) %}
+    {% else %}
+      {% set back_link = url_for("deliver_grant_funding.upload_data_set", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+    {% endif %}
   {% endif %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
 {% endblock beforeContent %}
@@ -32,7 +36,7 @@
         {{ form.csrf_token }}
 
         {% set rows = [] %}
-        {% for column in session_data.data_columns %}
+        {% for column in form.data_columns %}
           {% set idx = loop.index0 %}
           {% set preview_html = session_data.preview_data[column] | join('<br>') %}
           {% set select_html %}

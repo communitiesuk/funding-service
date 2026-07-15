@@ -229,6 +229,7 @@ class DataSetUploadSessionModel(BaseModel):
     column_mappings: list[DataSetColumnMapping] = Field(default_factory=list)
     has_missing_data: bool = False
     has_grant_recipient_mismatches: bool = False
+    is_replace: bool = False
 
     @classmethod
     def from_session(cls, session_data: dict[str, Any]) -> DataSetUploadSessionModel:

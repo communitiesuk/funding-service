@@ -1,0 +1,116 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+
+{% set type_constants = collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% set page_title = "Replace " + data_source.name + " data set " %}
+
+{% block beforeContent %}
+  {% set back_link = url_for("deliver_grant_funding.list_collection_data_sets", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+  {{ govukBackLink({ "text": "Back", "href": back_link }) }}
+{% endblock beforeContent %}
+
+{% block errorSummary %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% set error_list = [] %}
+      {% for e in form.name.errors %}
+        {% do error_list.append({"text":e,"href":"#name"}) %}
+      {% endfor %}
+      {% for e in form.file.errors %}
+        {% if e not in form.data_errors %}
+          {% do error_list.append({"text":e,"href":"#file"}) %}
+        {% endif %}
+      {% endfor %}
+      {% if gr_errors %}
+        {% for error in gr_errors %}
+          {% do error_list.append({"text": error, "href": "#file"}) %}
+        {% endfor %}
+      {% endif %}
+      {% if form.data_errors %}
+        {% for error in form.data_errors %}
+          {% do error_list.append({"text": error, "href": "#file"}) %}
+        {% endfor %}
+      {% endif %}
+      {% if removed_column_submitted_errors %}
+        {% set error_html %}
+          {% trans count = removed_column_submitted_errors| length %}Column{% pluralize %}{{ count }}Columns{% endtrans %}
+          {{ removed_column_submitted_errors | comma_join_items("and") }}
+          cannot be removed for grant recipients who have already submitted:
+          <ul class="govuk-list--bullet">
+            {% for org in removed_column_org_submitted_errors %}
+              <li>{{ org }}</li>
+            {% endfor %}
+          </ul>
+        {% endset %}
+        {% do error_list.append({"html": error_html, "href": "#file"}) %}
+      {% endif %}
+      {% if changed_column_submitted_errors %}
+        {% set error_html %}
+          Data in {% trans count = changed_column_submitted_errors| length %}column{% pluralize %}{{ count }}columns{% endtrans %} {{ changed_column_submitted_errors | comma_join_items("and") }} cannot be changed for grant recipients who
+          have already submitted:
+          <ul class="govuk-list--bullet">
+            {% for org in changed_column_org_submitted_errors %}
+              <li>{{ org }}</li>
+            {% endfor %}
+          </ul>
+        {% endset %}
+        {% do error_list.append({"html": error_html, "href": "#file"}) %}
+      {% endif %}
+      {% if error_list %}
+        {{
+          govukErrorSummary({
+            "titleText": "There is a problem",
+            "errorList": error_list
+          })
+        }}
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ collection.name }}</span>
+        {{ page_title }}
+      </h1>
+      <p class="govuk-body">
+        Use the
+        <a
+          class="govuk-link govuk-link--no-visited-state"
+          href="{{ url_for('deliver_grant_funding.download_latest_data_set_template', grant_id=grant.id,collection_type=collection.type, collection_id=collection.id,data_source_id=data_source.id) }}">
+          latest data set template (CSV)
+        </a>
+        for the latest uploaded data and grant recipients.
+      </p>
+      <p class="govuk-body">Upload a file to replace the existing data set.</p>
+      {% set change_columns_html %}
+        <p class="govuk-body">If replacing the file will remove an existing column in the data set, first make sure the column is not being referenced in a form. For example, in guidance, questions, conditions and validations.</p>
+        <p class="govuk-body">To change existing column names, data types or formatting, you need to delete the data set instead and upload the file as a new data set.</p>
+      {% endset %}
+      {{
+        govukDetails({
+          "summaryText": "If you are removing or changing columns",
+          "text": change_columns_html,
+        })
+      }}
+      <form method="POST" enctype="multipart/form-data" novalidate>
+        {{ form.csrf_token }}
+        {{ form.name }}
+        {{ form.file(params={"javascript": true}) }}
+        <p class="govuk-body">Only CSV (.csv) files can be uploaded for data sets.</p>
+        <div class="govuk-button-group">
+          {{ form.submit(params={"text": "Check and replace data set" }) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_data_source', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id,data_source_id=data_source.id) }}"
+            >Cancel</a
+          >
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

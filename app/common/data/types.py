@@ -619,6 +619,13 @@ TUnvalidatedDataSetRows = list[TUnvalidatedDataSetRow]
 TDataSetPreviewData = dict[str, list[str]]
 
 
+class GrantRecipientMismatch(BaseModel):
+    row_number: int
+    external_id: str
+    csv_organisation_name: str
+    service_organisation_name: str
+
+
 class DataSourceFileMetadataPostgresType(TypeDecorator):
     impl = JSONB
     cache_ok = False

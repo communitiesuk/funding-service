@@ -26,6 +26,7 @@ from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAr
 from wtforms.validators import DataRequired, Email, Optional, Regexp, StopValidation, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.collections.types import DecimalAnswer, IntegerAnswer
 from app.common.data.interfaces.collections import (
     group_name_exists,
 )
@@ -55,7 +56,7 @@ from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
 from app.common.utils import uppercase_first
-from app.constants import DATA_SET_IDENTIFIER_COLUMN_HEADERS
+from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     CellError,
@@ -68,7 +69,17 @@ from app.deliver_grant_funding.data_sets import (
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Component, DataSource, Form, Grant, GrantRecipient, Group, Question
+    from app.common.data.models import (
+        Collection,
+        Component,
+        DataSource,
+        Form,
+        Grant,
+        GrantRecipient,
+        Group,
+        Organisation,
+        Question,
+    )
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
 
 
@@ -1088,6 +1099,7 @@ class UploadDataSetForm(FlaskForm):
     name = StringField(
         "Data set name",
         widget=GovTextInput(),
+        filters=[strip_string_if_not_empty],
         validators=[DataRequired("Enter the name for this data set")],
     )
 
@@ -1108,12 +1120,16 @@ class UploadDataSetForm(FlaskForm):
         *args: Any,
         existing_data_source_names: list[str | None],
         existing_datasource: DataSource | None = None,
+        submitted_orgs: list[Organisation] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self._existing_data_source_names = existing_data_source_names or []
         self.existing_datasource = existing_datasource
         self.data_errors = []
+        self.submitted_orgs = submitted_orgs or []
+        self.removed_column_errors = {}
+        self.changed_column_errors = {}
 
     def validate_name(self, field: StringField) -> None:
         if field.data and field.data in self._existing_data_source_names:
@@ -1162,6 +1178,63 @@ class UploadDataSetForm(FlaskForm):
         if row_count > 10000:
             raise ValidationError("The file must contain no more than 10,000 rows")
 
+    def _validate_data_for_existing_submissions(  # noqa: C901
+        self, existing_datasource: DataSource, rows: list[dict[str, str]]
+    ) -> None:
+        removed_column_errors = {}
+        changed_column_errors = {}
+        for org in self.submitted_orgs:
+            existing_org_item = existing_datasource.get_filtered_organisation_item(org.external_id)
+            if not existing_org_item:
+                # Nothing to validate if there was no data for this org in the first place
+                return
+            new_org_item_row = next(
+                (row for row in rows if row[DATA_SET_EXTERNAL_ID_COLUMN_HEADER] == org.external_id), None
+            )
+            if not new_org_item_row:
+                raise ValidationError(f"The file does not contain a row for grant recipient {org.name}")
+
+            for column_id, column_def in existing_datasource.schema.root.items():  # ty:ignore[unresolved-attribute]
+                orig_col_name = column_def.original_column_name
+                existing_value_answer = (
+                    existing_org_item.data[column_id] if column_id in existing_org_item.data else None
+                )
+                if not existing_value_answer:
+                    continue
+                if orig_col_name not in new_org_item_row:
+                    orgs_with_errors_in_this_column = removed_column_errors.get(orig_col_name, [])
+                    orgs_with_errors_in_this_column.append(org.name)
+                    removed_column_errors[orig_col_name] = orgs_with_errors_in_this_column
+                    continue
+
+                org_has_error = False
+                new_value = new_org_item_row[orig_col_name]
+                if not new_value:
+                    org_has_error = True
+
+                # This allows matches for values with prefix or suffix, eg 100 == £100
+                if not org_has_error:
+                    if isinstance(existing_value_answer, IntegerAnswer) or isinstance(
+                        existing_value_answer, DecimalAnswer
+                    ):
+                        if not (
+                            str(existing_value_answer.value) == new_value.strip()  # ty:ignore[unresolved-attribute]
+                            or existing_value_answer.get_value_for_text_export() == new_value.strip()
+                        ):
+                            org_has_error = True
+                    else:
+                        if existing_value_answer.get_value_for_text_export() != new_value.strip():
+                            org_has_error = True
+                if org_has_error:
+                    orgs_with_errors_in_this_column = changed_column_errors.get(orig_col_name, [])
+                    orgs_with_errors_in_this_column.append(org.name)
+                    changed_column_errors[orig_col_name] = orgs_with_errors_in_this_column
+
+        self.removed_column_errors = removed_column_errors
+        self.changed_column_errors = changed_column_errors
+        if removed_column_errors or changed_column_errors:
+            raise StopValidation("There is a problem")
+
     def _validate_existing_references(self, existing_datasource: DataSource, fieldnames: list) -> list[str]:
         fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
 
@@ -1181,7 +1254,7 @@ class UploadDataSetForm(FlaskForm):
                         case _:
                             raise ValueError(
                                 (
-                                    "Reference checking not implemented to expression of type "
+                                    "Reference checking not implemented for expression of type "
                                     + f"{dependent_reference.expression.type_}"
                                 )
                             )
@@ -1265,14 +1338,14 @@ class UploadDataSetForm(FlaskForm):
             UploadDataSetForm._validate_max_rows(rows)
 
             if self.existing_datasource:
+                self._validate_data_for_existing_submissions(self.existing_datasource, rows)
                 errors = self._validate_existing_references(self.existing_datasource, fieldnames)
 
                 errors.extend(self._validate_data_for_existing_columns(self.existing_datasource, fieldnames, rows))
 
                 if errors:
                     self.data_errors = errors
-                    raise StopValidation("There is a problem")
-
+                    raise ValidationError(errors[0])
         finally:
             field.data.stream.seek(0)
 
