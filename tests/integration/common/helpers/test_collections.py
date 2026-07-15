@@ -2078,6 +2078,31 @@ class TestSubmissionHelper:
             assert len(data_provider_emails) == expected_data_provider_emails
             assert len(certifier_emails) == expected_certifier_emails
 
+        def test_decline_does_not_reset_forms_managed_by_service(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            collection = submission_awaiting_sign_off.collection
+            managed_form = collection.forms[0]
+            collection.allow_multiple_submissions = True
+            collection.multiple_submissions_are_managed_by_service = True
+            collection.submission_name_question_id = managed_form.cached_questions[0].id
+
+            unmanaged_form = factories.form.create(collection=collection)
+            factories.question.create(form=unmanaged_form)
+
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            assert helper.form_is_managed_by_service(managed_form) is True
+
+            helper.decline_certification(user=certifier_user, declined_reason="Test reason")
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_awaiting_sign_off.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER
+            ]
+            assert managed_form.id not in reset_form_ids
+            assert unmanaged_form.id in reset_form_ids
+
         def test_decline_when_collection_closed(
             self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
         ):
@@ -2224,6 +2249,31 @@ class TestSubmissionHelper:
             assert helper_1.status == SubmissionStatusEnum.SUBMITTED
             assert helper_2.status == SubmissionStatusEnum.IN_PROGRESS
 
+        def test_reopen_does_not_reset_forms_managed_by_service(
+            self, factories, submission_submitted, grant_team_user, mock_notification_service_calls
+        ):
+            collection = submission_submitted.collection
+            managed_form = collection.forms[0]
+            collection.allow_multiple_submissions = True
+            collection.multiple_submissions_are_managed_by_service = True
+            collection.submission_name_question_id = managed_form.cached_questions[0].id
+
+            unmanaged_form = factories.form.create(collection=collection)
+            factories.question.create(form=unmanaged_form)
+
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.form_is_managed_by_service(managed_form) is True
+
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+            assert managed_form.id not in reset_form_ids
+            assert unmanaged_form.id in reset_form_ids
+
         def test_requested_or_allowed_changes_by_updated_after_reopen(
             self,
             submission_changes_requested,
@@ -2365,6 +2415,33 @@ class TestSubmissionHelper:
             assert first_form.id in event_ids
             assert helper.get_status_for_form(first_form) == TasklistSectionStatusEnum.IN_PROGRESS
             assert helper._calculate_submission_status() == SubmissionStatusEnum.CHANGES_REQUESTED
+
+        def test_request_changes_does_not_reset_forms_managed_by_service(
+            self, factories, submission_submitted, grant_team_user, mock_notification_service_calls
+        ):
+            collection = submission_submitted.collection
+            managed_form = collection.forms[0]
+            collection.allow_multiple_submissions = True
+            collection.multiple_submissions_are_managed_by_service = True
+            collection.submission_name_question_id = managed_form.cached_questions[0].id
+
+            unmanaged_form = factories.form.create(collection=collection)
+            factories.question.create(form=unmanaged_form)
+
+            helper = SubmissionHelper(submission_submitted)
+            assert helper.form_is_managed_by_service(managed_form) is True
+
+            helper.request_changes_submission(
+                user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
+            )
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+            assert managed_form.id not in reset_form_ids
+            assert unmanaged_form.id in reset_form_ids
 
         def test_request_changes_sends_notifications(
             self,
