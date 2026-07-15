@@ -679,17 +679,7 @@ class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         if (model := kwargs.get("model")) is not None:
             if template == self.details_template:
                 kwargs["helper"] = SubmissionHelper(cast("Submission", model))
-                kwargs["timeline_event_types"] = [
-                    SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-                    SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
-                    SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
-                    SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
-                    SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER,
-                    SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
-                    SubmissionEventType.SUBMISSION_SUBMITTED,
-                    SubmissionEventType.SUBMISSION_REOPENED,
-                    SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
-                ]
+                kwargs["timeline_event_types"] = list(SubmissionEventType)
 
         return super().render(template, **kwargs)
 
