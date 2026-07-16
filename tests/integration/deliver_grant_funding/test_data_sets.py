@@ -21,7 +21,7 @@ from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
     build_current_data_set_view,
-    build_missing_data_display_rows,
+    build_data_display_rows_with_missing_tags,
     find_grant_recipient_mismatches,
     generate_latest_csv_template,
     upload_header_only_data_set_files,
@@ -249,7 +249,7 @@ class TestValidateDataSet:
         assert sum(isinstance(e, DataTypeError) for e in result.blocking_errors) == 1
 
 
-class TestBuildMissingDataDisplayRows:
+class TestBuildDisplayRowsWithMissingTags:
     def test_returns_empty_list_when_no_missing_data(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
@@ -270,7 +270,7 @@ class TestBuildMissingDataDisplayRows:
             },
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr, gr2])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr, gr2])
 
         assert display_rows == []
 
@@ -292,7 +292,7 @@ class TestBuildMissingDataDisplayRows:
             }
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr])
 
         assert len(display_rows) == 1
         row = display_rows[0]
@@ -320,7 +320,7 @@ class TestBuildMissingDataDisplayRows:
             }
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr])
 
         assert len(display_rows) == 1
         assert display_rows[0].missing_columns == ["Notes", "Summary"]
@@ -341,7 +341,7 @@ class TestBuildMissingDataDisplayRows:
                 "Notes": "",
             }
         ]
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr])
 
         assert len(display_rows) == 1
         assert display_rows[0].grant_recipient_name == gr.organisation.name
@@ -361,7 +361,7 @@ class TestBuildMissingDataDisplayRows:
             },
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr, gr2])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr, gr2])
 
         assert len(display_rows) == 1
         row = display_rows[0]
@@ -392,7 +392,7 @@ class TestBuildMissingDataDisplayRows:
             },
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr_a, gr_b, gr_c])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr_a, gr_b, gr_c])
 
         assert [row.grant_recipient_name for row in display_rows] == [
             "AAAA Council",
@@ -400,6 +400,46 @@ class TestBuildMissingDataDisplayRows:
             "CCCC Council",
         ]
         assert display_rows[1].grant_recipient_entirely_missing is True
+
+    def test_respects_include_all_grant_recipients(self, factories):
+        gr_a = factories.grant_recipient.create(organisation__name="AAAA Council")
+        gr_b = factories.grant_recipient.create(organisation__name="BBBB Council")
+        gr_c = factories.grant_recipient.create(organisation__name="CCCC Council")
+        data_set = _make_data_set(
+            data_columns=["Notes"],
+            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr_a.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr_a.organisation.name,
+                "Notes": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr_c.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr_c.organisation.name,
+                "Notes": "some info",
+            },
+        ]
+
+        display_rows = build_data_display_rows_with_missing_tags(
+            data_set.data_columns, all_rows, [gr_a, gr_b, gr_c], include_all_grant_recipients=True
+        )
+
+        assert [row.grant_recipient_name for row in display_rows] == [
+            "AAAA Council",
+            "BBBB Council",
+            "CCCC Council",
+        ]
+
+        display_rows = build_data_display_rows_with_missing_tags(
+            data_set.data_columns, all_rows, [gr_a, gr_b, gr_c], include_all_grant_recipients=False
+        )
+
+        assert [row.grant_recipient_name for row in display_rows] == [
+            "AAAA Council",
+            "BBBB Council",
+        ]
 
 
 class TestValidateDataSetGrantRecipients:

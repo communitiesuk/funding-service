@@ -232,10 +232,11 @@ def _get_grant_recipient_name_for_row(
     return organisation_name
 
 
-def build_missing_data_display_rows(
+def build_data_display_rows_with_missing_tags(
     data_columns: list[str],
     all_rows: TUnvalidatedDataSetRows,
     grant_recipients: Sequence[GrantRecipient],
+    include_all_grant_recipients: bool = False,
 ) -> list[MissingDataDisplayRow]:
     seen_external_ids: set[str] = set()
     display_rows: list[MissingDataDisplayRow] = []
@@ -245,7 +246,7 @@ def build_missing_data_display_rows(
         seen_external_ids.add(external_id)
 
         missing_columns = [col for col in data_columns if not row.get(col, "").strip()]
-        if not missing_columns:
+        if not missing_columns and not include_all_grant_recipients:
             continue
 
         name = _get_grant_recipient_name_for_row(row, grant_recipients) or row.get(
