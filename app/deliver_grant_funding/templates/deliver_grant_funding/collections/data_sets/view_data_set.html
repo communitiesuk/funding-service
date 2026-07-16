@@ -181,8 +181,8 @@
       <h2 class="govuk-heading-m">Data columns</h2>
       {%
         set head = [
-          {"text": "External ID"},
-          {"text": "Grant recipient"}
+          {"text": constants.data_set_external_id_column_header},
+          {"text": constants.data_set_grant_recipient_column_header}
         ]
       %}
       {% for slug, col_schema in data_source.schema.root.items() %}
