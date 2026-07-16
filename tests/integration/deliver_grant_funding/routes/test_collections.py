@@ -11165,7 +11165,7 @@ class TestDataSetConfirmData:
                 column_mappings=[
                     DataSetColumnMapping(column_name="Area description", column_type="TEXT"),
                     DataSetColumnMapping(
-                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2
+                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=1
                     ),
                 ],
                 data_source_id=data_source.id,
@@ -11193,7 +11193,7 @@ class TestDataSetConfirmData:
         assert get_summary_list_value_by_key(soup, "Area description").text.strip() == "Text"
         assert (
             get_summary_list_value_by_key(soup, "Council tax band A cost").text.strip()
-            == "Decimal number, 2 decimal places"
+            == "Decimal number, 1 decimal place"
         )
         # check removed columns are not there
         assert get_summary_list_value_by_key(soup, "Whole number suffix") is None
