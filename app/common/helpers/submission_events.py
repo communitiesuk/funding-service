@@ -3,13 +3,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, TypedDict, Unpack, overload
 from uuid import UUID
 
+from pydantic import ConfigDict
+from pydantic.dataclasses import dataclass as pydantic_dataclass
+from pydantic_core import to_jsonable_python
+
+from app.common.data.models_user import User
 from app.common.data.types import SubmissionEventType
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
     from app.common.data.models import Submission, SubmissionEvent
-    from app.common.data.models_user import User
 
 
 # Mixins - schema protocol used to guarantee that the properties we're tracking using events
@@ -101,7 +105,7 @@ class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, Changes
     is_approved: bool = False
     is_submitted: bool = False
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
-    section_ids: list[str] = field(default_factory=list, metadata={"stored": True})
+    section_ids: list[UUID] = field(default_factory=list, metadata={"stored": True})
     is_changes_requested: bool = True
 
 
@@ -122,7 +126,7 @@ class ReopenedKwargs(TypedDict, total=False):
 class ChangesRequestedKwargs(TypedDict, total=False):
     changes_requested_reason: str | None
     submission_data: dict[str, Any] | None
-    section_ids: list[str]
+    section_ids: list[UUID]
 
 
 @dataclass
@@ -178,7 +182,7 @@ class ChangesRequestedMetadata:
     requested_or_allowed_changes_by: User | None = None
 
 
-@dataclass
+@pydantic_dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class SubmissionState(
     SentForCertificationMetadata,
     SubmittedMetadata,
@@ -203,9 +207,6 @@ class SubmissionState(
     is_changes_requested: bool = False
     is_reopened: bool = False
 
-    def __post_init__(self) -> None:
-        self.section_ids = [UUID(s) if isinstance(s, str) else s for s in self.section_ids]
-
 
 @dataclass
 class FormState(CompletedMixin):
@@ -228,14 +229,6 @@ def _get_stored_field_names(event_class: type[SubmissionEventBase]) -> set[str]:
 def _get_static_data(event_class: type[SubmissionEventBase]) -> dict[str, Any]:
     stored = _get_stored_field_names(event_class)
     return {f.name: f.default for f in fields(event_class) if f.name not in stored}
-
-
-def _coerce_for_json(value: Any) -> Any:
-    if isinstance(value, UUID):
-        return str(value)
-    if isinstance(value, list):
-        return [_coerce_for_json(item) for item in value]
-    return value
 
 
 class SubmissionEventHelper:
@@ -367,7 +360,7 @@ class SubmissionEventHelper:
     def event_from(event_type: SubmissionEventType, **kwargs: Any) -> dict[str, Any]:
         event_class = _get_event_class(event_type)
         stored_field_names = _get_stored_field_names(event_class)
-        return {k: _coerce_for_json(v) for k, v in kwargs.items() if k in stored_field_names}
+        return to_jsonable_python({k: v for k, v in kwargs.items() if k in stored_field_names})
 
 
 def shallow_asdict(obj: DataclassInstance) -> dict[str, Any]:

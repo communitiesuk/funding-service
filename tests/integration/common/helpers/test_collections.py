@@ -3110,7 +3110,7 @@ class TestFormResetOnAnswerChange:
                 SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
                 changes_requested_reason="Fix this",
                 submission_data=previous_data,
-                section_ids=[str(question.form.id)],
+                section_ids=[question.form.id],
             ),
         )
 
