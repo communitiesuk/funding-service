@@ -10,6 +10,7 @@ from flask import current_app
 from pydantic import BaseModel, Field
 from werkzeug.datastructures import FileStorage
 
+from app.common.collections.types import DecimalAnswer, IntegerAnswer
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.data.types import (
     DataSourceFileMetadata,
@@ -23,6 +24,7 @@ from app.common.data.types import (
     TUnvalidatedDataSetRows,
 )
 from app.constants import (
+    BRITISH_POUNDS_PREFIX,
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
     DATA_SET_IDENTIFIER_COLUMN_HEADERS,
@@ -275,6 +277,49 @@ def build_data_display_rows_with_missing_tags(
             )
 
     return sorted(display_rows, key=lambda r: r.grant_recipient_name)
+
+
+def format_data_set_csv_data_for_column_type(column_mapping: DataSetColumnMapping, raw_data: str) -> str | None:
+    """
+    Function for displaying raw csv data in a dataset upload using the format selected in the column mapping.
+
+    NOTE: This does no validation on the actual data and whether it is valid for the chosen format. Assumes that
+    has already been done, and if any errors are encountered it just returns the raw value.
+
+    Example:
+        format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="Number of FTEs", column_type="INTEGER", suffix="km"), "10"
+        )
+        '10km'
+    """
+
+    stripped_data = raw_data.strip()
+    if column_mapping.prefix:
+        stripped_data = stripped_data.removeprefix(column_mapping.prefix)
+    if column_mapping.suffix:
+        stripped_data = stripped_data.removesuffix(column_mapping.suffix)
+    if column_mapping.column_type != "TEXT":
+        stripped_data = stripped_data.replace(",", "")
+
+    try:
+        match column_mapping.column_type:
+            case "TEXT":
+                return stripped_data
+            case "DECIMAL":
+                return DecimalAnswer(
+                    value=Decimal(stripped_data), prefix=column_mapping.prefix, suffix=column_mapping.suffix
+                ).get_value_for_text_export()
+            case "INTEGER":
+                return IntegerAnswer(
+                    value=int(stripped_data), prefix=column_mapping.prefix, suffix=column_mapping.suffix
+                ).get_value_for_text_export()
+            case "BRITISH_POUNDS":
+                return DecimalAnswer(
+                    value=Decimal(stripped_data),
+                    prefix=BRITISH_POUNDS_PREFIX,
+                ).get_value_for_text_export()
+    except ValueError, InvalidOperation:
+        return stripped_data
 
 
 @dataclass

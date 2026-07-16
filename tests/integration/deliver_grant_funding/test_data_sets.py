@@ -23,6 +23,7 @@ from app.deliver_grant_funding.data_sets import (
     build_current_data_set_view,
     build_data_display_rows_with_missing_tags,
     find_grant_recipient_mismatches,
+    format_data_set_csv_data_for_column_type,
     generate_latest_csv_template,
     upload_header_only_data_set_files,
     validate_data_set,
@@ -1181,3 +1182,93 @@ class TestUploadHeaderOnlyDataSetFiles:
 
         with pytest.raises(ValueError, match="Cannot upload a non-grant-recipient data set"):
             upload_header_only_data_set_files(data_source)
+
+
+class TestFormatCsvData:
+    def test_format_csv_data_text(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="TEXT"), "hello"
+        )
+        assert result == "hello"
+
+    def test_format_csv_data_integer(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER"), "123456"
+        )
+        assert result == "123,456"
+
+    def test_format_csv_data_integer_prefix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", prefix="$"), "$0"
+        )
+        assert result == "$0"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", prefix="$"), "0"
+        )
+        assert result == "$0"
+
+    def test_format_csv_data_integer_suffix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", suffix="fte"), "10"
+        )
+        assert result == "10fte"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", suffix="fte"), "10fte"
+        )
+        assert result == "10fte"
+
+    def test_format_csv_data_decimal(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL"), "123456.789"
+        )
+        assert result == "123,456.789"
+
+    def test_format_csv_data_decimal_prefix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", prefix="$"), "$0.89"
+        )
+        assert result == "$0.89"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", prefix="$"), "0.89"
+        )
+        assert result == "$0.89"
+
+    def test_format_csv_data_decimal_suffix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", suffix="fte"), "10.4"
+        )
+        assert result == "10.4fte"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", suffix="fte"), "10.4fte"
+        )
+        assert result == "10.4fte"
+
+    def test_format_csv_data_british_pounds(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="BRITISH_POUNDS"), "123456.78"
+        )
+        assert result == "£123,456.78"
+
+    def test_format_csv_data_british_pounds_prefix_in_data(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="BRITISH_POUNDS"), "£123456.78"
+        )
+        assert result == "£123,456.78"
+
+    def test_bad_data_for_column_type(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="BRITISH_POUNDS"), "some text"
+        )
+        assert result == "some text"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER"), "some text"
+        )
+        assert result == "some text"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER"), "3.142"
+        )
+        assert result == "3.142"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL"), "some text"
+        )
+        assert result == "some text"

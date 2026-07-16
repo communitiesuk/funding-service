@@ -1,8 +1,6 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
-{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "deliver_grant_funding/macros/data_sets.html" import render_data_set_data_with_missing_data_grant_recipients with context %}
 
@@ -78,6 +76,6 @@
     </div>
   </div>
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">{{ render_data_set_data_with_missing_data_grant_recipients(session_data.data_columns,missing_data_rows,all_rows) }}</div>
+    <div class="govuk-grid-column-full">{{ render_data_set_data_with_missing_data_grant_recipients(session_data.data_columns,missing_data_rows,formatted_data_rows) }}</div>
   </div>
 {% endblock content %}
