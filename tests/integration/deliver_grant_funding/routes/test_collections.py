@@ -11213,6 +11213,9 @@ class TestDataSetConfirmData:
         grant_recipient_2 = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
         )
+        missing_gr = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000999"
+        )
         data_source_id = uuid.uuid4()
         with authenticated_grant_admin_client.session_transaction() as session:
             session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
@@ -11280,13 +11283,18 @@ class TestDataSetConfirmData:
                 assert table_row.find_all("td")[col_index].text.strip() == row[col_name], (
                     f"Incorrect value for {col_name} for {row[DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER]}"
                 )
+        table_row = get_table_row_by_first_column_value(data_table, missing_gr.organisation.external_id)
+        assert table_row is not None
+        for _, col_index in column_ordering.items():
+            if col_index > 1:
+                assert table_row.find_all("td")[col_index].text.strip() == "Data missing"
 
     def test_get_shows_correct_data_replace(
         self, factories, mocker, mock_s3_service_calls, authenticated_grant_admin_client, db_session
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
-        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=grant)
+        gr1, gr2, missing_gr = factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(
             collection=collection,
             grant=grant,
@@ -11299,6 +11307,7 @@ class TestDataSetConfirmData:
             external_id=gr1.organisation.external_id,
             _data={"c_british_pounds": 1234},
         )
+
         with authenticated_grant_admin_client.session_transaction() as session:
             session[SESSION_DATA_SET_REPLACE] = DataSetUploadSessionModel(
                 name="Updated name",
@@ -11364,6 +11373,11 @@ class TestDataSetConfirmData:
                 assert table_row.find_all("td")[col_index].text.strip() == row[col_name], (
                     f"Incorrect value for {col_name} for {row[DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER]}"
                 )
+        table_row = get_table_row_by_first_column_value(data_table, missing_gr.organisation.external_id)
+        assert table_row is not None
+        for _, col_index in column_ordering.items():
+            if col_index > 1:
+                assert table_row.find_all("td")[col_index].text.strip() == "Data missing"
 
 
 class TestMapDataSetNumberColumns:

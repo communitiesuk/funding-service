@@ -4219,6 +4219,11 @@ def confirm_data_set(  # noqa: C901
                 [DataSetColumnMapping.build_from_data_source_schema_column(col) for col in existing_columns]
             )
 
+        grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
+        missing_data_rows = build_data_display_rows_with_missing_tags(
+            data_set_data.data_columns, rows, grant_recipients, include_all_grant_recipients=True
+        )
+
     if form.validate_on_submit():
         if data_set_data.is_replace:
             return _save_replaced_data_set_and_redirect(
@@ -4278,6 +4283,7 @@ def confirm_data_set(  # noqa: C901
         form=form,
         columns_to_display_in_formatting=columns_to_display_in_formatting,
         all_rows=rows,
+        missing_data_rows=missing_data_rows,
     )
 
 
