@@ -785,7 +785,7 @@ def submission_changes_requested(
             SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
             changes_requested_reason="Please fix this",
             submission_data=submission_submitted.data_manager.data,
-            section_ids=[str(submission_submitted.collection.forms[0].id)],
+            section_ids=[submission_submitted.collection.forms[0].id],
         ),
     )
     factories.submission_event.create(
