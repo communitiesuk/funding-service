@@ -226,6 +226,21 @@ class AuthorisationHelper:
         return has_deliver_grant_role and not is_deliver_org_member
 
     @staticmethod
+    def can_validate_submission(user: User, submission: "Submission | UUID") -> bool:
+        if isinstance(submission, UUID):
+            submission = get_submission(submission)
+
+        if AuthorisationHelper.is_platform_admin(user):
+            return True
+
+        has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(
+            submission.collection.grant.id, RoleEnum.MEMBER, user
+        )
+        is_deliver_org_member = AuthorisationHelper.is_deliver_org_member(user)
+
+        return has_deliver_grant_role and not is_deliver_org_member
+
+    @staticmethod
     def has_access_org_access(user: User | AnonymousUserMixin, organisation_id: UUID) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

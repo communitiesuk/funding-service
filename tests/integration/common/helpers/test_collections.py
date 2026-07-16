@@ -34,6 +34,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -2461,6 +2462,92 @@ class TestSubmissionHelper:
             recipients = [call.kwargs["email_address"] for call in mock_notification_service_calls]
             assert data_provider_user.email in recipients
             assert certifier_user.email in recipients
+
+    class TestAssessmentStatus:
+        def test_no_assessment_events_returns_not_started(self, factories):
+            submission = factories.submission.build()
+            helper = SubmissionHelper(submission)
+
+            assert helper._calculate_assessment_status() == SubmissionAssessmentStatusEnum.NOT_STARTED
+
+        def test_approved_event_returns_marked_as_approved(self, factories):
+            submission = factories.submission.build()
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+                ),
+            ]
+            helper = SubmissionHelper(submission)
+
+            assert helper._calculate_assessment_status() == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+
+        def test_rejected_event_returns_marked_as_rejected(self, factories):
+            submission = factories.submission.build()
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
+                ),
+            ]
+            helper = SubmissionHelper(submission)
+
+            assert helper._calculate_assessment_status() == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+
+        def test_latest_event_wins(self, factories):
+            submission = factories.submission.build()
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+                ),
+                factories.submission_event.build(
+                    submission=submission,
+                    event_type=SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
+                ),
+            ]
+            helper = SubmissionHelper(submission)
+
+            assert helper._calculate_assessment_status() == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+
+    class TestValidateSubmission:
+        def test_raises_when_user_not_authorised(self, data_provider_user, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+
+            with pytest.raises(SubmissionAuthorisationError):
+                helper.validate_submission(user=data_provider_user, is_approved=True)
+
+        def test_raises_when_submission_not_submitted(self, grant_team_user, submission_changes_requested):
+            helper = SubmissionHelper(submission_changes_requested)
+
+            with pytest.raises(SubmissionIsNotSubmittedError):
+                helper.validate_submission(user=grant_team_user, is_approved=True)
+
+        def test_raises_when_collection_not_open(self, grant_team_user, submission_submitted):
+            submission_submitted.collection.status = CollectionStatusEnum.CLOSED
+            helper = SubmissionHelper(submission_submitted)
+
+            with pytest.raises(CollectionIsNotOpenError):
+                helper.validate_submission(user=grant_team_user, is_approved=True)
+
+        def test_approve_sets_assessment_status(self, grant_team_user, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+
+            helper.validate_submission(user=grant_team_user, is_approved=True)
+
+            assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+            assert helper.is_assessment_approved is True
+            assert helper.assessed_by == grant_team_user
+
+        def test_reject_sets_assessment_status_and_reason(self, grant_team_user, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+
+            helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
+
+            assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+            assert helper.is_assessment_approved is False
+            assert helper.assessment_rejected_reason == "Missing data"
+            assert helper.assessed_by == grant_team_user
 
     class TestLastUpdatedAt:
         @pytest.mark.freeze_time("2026-03-09 12:00:00")

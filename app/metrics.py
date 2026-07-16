@@ -52,6 +52,8 @@ class MetricEventName(StrEnum):
     SUBMISSION_BLOCKED_BY_INVALID_ANSWERS = "submission-blocked-by-invalid-answers"
     SUBMISSION_REOPENED = "submission-reopened"
     SUBMISSION_CHANGES_REQUESTED = "submission-changes-requested"
+    SUBMISSION_ASSESSOR_MARKED_AS_APPROVED = "submission-assessor-marked-as-approved"
+    SUBMISSION_ASSESSOR_MARKED_AS_REJECTED = "submission-assessor-marked-as-rejected"
 
     SUBMISSION_MANAGED_VALIDATION_ERROR = "submission-managed-validation-error"
     SUBMISSION_CUSTOM_VALIDATION_ERROR = "submission-custom-validation-error"

@@ -46,6 +46,14 @@ class ChangesRequestedMixin(Protocol):
     changes_requested_reason: str | None
 
 
+class AssessorMarkedMixin(Protocol):
+    is_assessment_approved: bool
+
+
+class AssessmentRejectedMixin(Protocol):
+    assessment_rejected_reason: str | None
+
+
 @dataclass
 class SubmissionEventBase:
     """Base class for all submission event dataclasses."""
@@ -107,6 +115,23 @@ class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, Changes
     submission_data: dict[str, Any] = field(default_factory=dict, metadata={"stored": True})
     section_ids: list[UUID] = field(default_factory=list, metadata={"stored": True})
     is_changes_requested: bool = True
+
+
+@dataclass
+class AssessorMarkedAsApprovedEvent(SubmissionEventBase, AssessorMarkedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED
+    is_assessment_approved: bool = True
+
+
+@dataclass
+class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessorMarkedMixin, AssessmentRejectedMixin):
+    event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED
+    is_assessment_approved: bool = False
+    assessment_rejected_reason: str | None = field(default=None, metadata={"stored": True})
+
+
+class AssessmentRejectedKwargs(TypedDict, total=False):
+    assessment_rejected_reason: str | None
 
 
 class DeclinedByCertifierKwargs(TypedDict, total=False):
@@ -182,6 +207,12 @@ class ChangesRequestedMetadata:
     requested_or_allowed_changes_by: User | None = None
 
 
+@dataclass
+class AssessmentMetadata:
+    assessed_by: User | None = None
+    assessed_at_utc: datetime | None = None
+
+
 @pydantic_dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class SubmissionState(
     SentForCertificationMetadata,
@@ -195,6 +226,9 @@ class SubmissionState(
     ReopenedMixin,
     ChangesRequestedMixin,
     ChangesRequestedMetadata,
+    AssessorMarkedMixin,
+    AssessmentRejectedMixin,
+    AssessmentMetadata,
 ):
     is_awaiting_sign_off: bool | None = None
     is_submitted: bool = False
@@ -206,6 +240,8 @@ class SubmissionState(
     section_ids: list[UUID] = field(default_factory=list)
     is_changes_requested: bool = False
     is_reopened: bool = False
+    is_assessment_approved: bool | None = None
+    assessment_rejected_reason: str | None = None
 
 
 @dataclass
@@ -326,6 +362,13 @@ class SubmissionEventHelper:
                         requested_or_allowed_changes_by=event.created_by,
                     )
                 )
+            case SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED | SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED:
+                return shallow_asdict(
+                    AssessmentMetadata(
+                        assessed_by=event.created_by,
+                        assessed_at_utc=event.created_at_utc,
+                    )
+                )
             case _:
                 return {}
 
@@ -348,6 +391,13 @@ class SubmissionEventHelper:
     def event_from(
         event_type: Literal[SubmissionEventType.SUBMISSION_CHANGES_REQUESTED],
         **kwargs: Unpack[ChangesRequestedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED],
+        **kwargs: Unpack[AssessmentRejectedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

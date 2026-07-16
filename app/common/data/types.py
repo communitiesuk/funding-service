@@ -179,6 +179,12 @@ class SubmissionStatusEnum(enum.StrEnum):
     SUBMITTED_WITH_CHANGES = "Submitted with changes"
 
 
+class SubmissionAssessmentStatusEnum(enum.StrEnum):
+    NOT_STARTED = "Not started"
+    MARKED_AS_APPROVED = "Marked as approved"
+    MARKED_AS_REJECTED = "Marked as rejected"
+
+
 SUBMITTED_STATUSES = (SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES)
 IN_PROGRESS_STATUSES = (SubmissionStatusEnum.IN_PROGRESS, SubmissionStatusEnum.CHANGES_REQUESTED)
 
@@ -216,6 +222,8 @@ class SubmissionEventType(enum.StrEnum):
     SUBMISSION_SUBMITTED = "Submission submitted"
     SUBMISSION_REOPENED = "Submission reopened"
     SUBMISSION_CHANGES_REQUESTED = "Submission changes requested"
+    ASSESSOR_MARKED_AS_APPROVED = "Assessor marked as approved"
+    ASSESSOR_MARKED_AS_REJECTED = "Assessor marked as rejected"
 
 
 class CollectionTypeConstants(typing.NamedTuple):
