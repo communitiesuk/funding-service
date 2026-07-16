@@ -116,7 +116,7 @@ class TestUploadDataSetForm:
         if is_existing:
             assert form.validate() is False
             assert "Column 'Allocation' is missing from the selected file" in form.data_errors[0]
-            assert f"is being used in '{question.text}'" in form.data_errors[0]
+            assert f"is being used in '{question.name}'" in form.data_errors[0]
         else:
             assert form.validate() is True
 
@@ -152,11 +152,11 @@ class TestUploadDataSetForm:
         assert form.validate() is False
         assert len(form.data_errors) == 2
         assert (
-            f"Column 'British pounds' is missing from the selected file but is being used in '{question_1.text}' "
+            f"Column 'British pounds' is missing from the selected file but is being used in '{question_1.name}' "
             + "Add the column to the file or remove the form reference"
         ) in form.data_errors
         assert (
-            f"Column 'Just text' is missing from the selected file but is being used in '{question_2.text}' "
+            f"Column 'Just text' is missing from the selected file but is being used in '{question_2.name}' "
             + "Add the column to the file or remove the form reference"
         ) in form.data_errors
 
@@ -213,16 +213,16 @@ class TestUploadDataSetForm:
         assert form.validate() is False
         assert len(form.data_errors) == 3
         assert (
-            f"Column 'Just text' is missing from the selected file but is being used in '{question_1.text}' "
+            f"Column 'Just text' is missing from the selected file but is being used in '{question_1.name}' "
             + "Add the column to the file or remove the form reference"
         ) in form.data_errors
         assert (
             "Column 'British pounds' is missing from the selected file but is being used in a condition for "
-            + f"'{question_2.text}' Add the column to the file or remove the form reference"
+            + f"'{question_2.name}' Add the column to the file or remove the form reference"
         ) in form.data_errors
         assert (
             "Column 'Decimal number' is missing from the selected file but is being referenced in validation for "
-            + f"'{question_3.text}' Add the column to the file or remove the form reference"
+            + f"'{question_3.name}' Add the column to the file or remove the form reference"
         ) in form.data_errors
 
     def test_same_column_referenced_in_multiple_places_raises_all_errors(
@@ -281,16 +281,16 @@ class TestUploadDataSetForm:
         assert form.validate() is False
         assert len(form.data_errors) == 3
         assert (
-            f"Column 'Allocation' is missing from the selected file but is being used in '{question_1.text}' "
+            f"Column 'Allocation' is missing from the selected file but is being used in '{question_1.name}' "
             + "Add the column to the file or remove the form reference"
         ) in form.data_errors
         assert (
             "Column 'Allocation' is missing from the selected file but is being used in a condition for "
-            + f"'{question_2.text}' Add the column to the file or remove the form reference"
+            + f"'{question_2.name}' Add the column to the file or remove the form reference"
         ) in form.data_errors
         assert (
             "Column 'Allocation' is missing from the selected file but is being referenced in validation for "
-            + f"'{question_3.text}' Add the column to the file or remove the form reference"
+            + f"'{question_3.name}' Add the column to the file or remove the form reference"
         ) in form.data_errors
 
     @pytest.mark.parametrize("bad_value", ["£twelve", "abc", "$100", "£1oo"])

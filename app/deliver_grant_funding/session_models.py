@@ -217,6 +217,30 @@ class DataSetColumnMapping(BaseModel):
     def requires_manual_formatting(self) -> bool:
         return self.column_type in ["INTEGER", "DECIMAL"]
 
+    @property
+    def text_description(self) -> str | None:
+        match self.column_type:
+            case "TEXT":
+                return "Text"
+            case "BRITISH_POUNDS":
+                return "British pounds"
+            case "DECIMAL":
+                desc = f"Decimal number, {self.max_decimal_places} decimal places"
+                if self.prefix:
+                    desc += f", prefix: {self.prefix}"
+                if self.suffix:
+                    desc += f", suffix: {self.suffix}"
+                return desc
+            case "INTEGER":
+                desc = "Whole number"
+                if self.prefix:
+                    desc += f", prefix: {self.prefix}"
+                if self.suffix:
+                    desc += f", suffix: {self.suffix}"
+                return desc
+            case _:
+                return None
+
 
 class DataSetUploadSessionModel(BaseModel):
     name: str

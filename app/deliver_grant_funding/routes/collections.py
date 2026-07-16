@@ -69,7 +69,6 @@ from app.common.data.interfaces.data_sets import (
     replace_uploaded_data_source,
 )
 from app.common.data.interfaces.exceptions import (
-    DuplicateDataSourceItemError,
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
@@ -177,6 +176,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
 from app.extensions import auto_commit_after_request, notification_service, s3_service
@@ -3930,7 +3930,6 @@ def map_data_set_columns(  # noqa: C901
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
-    user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session(data_source_id)
 
@@ -3960,8 +3959,15 @@ def map_data_set_columns(  # noqa: C901
         existing_column_names = [col_def.original_column_name for _, col_def in existing_datasource.schema.root.items()]  # ty:ignore[unresolved-attribute]
         columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
         if not columns_to_map:  # no new columns
-            rows = _load_rows(data_set_data)
-            return _save_replaced_data_set_and_redirect(existing_datasource, grant_id, collection, data_set_data, rows)
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.confirm_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
+            )
     else:
         columns_to_map = data_set_data.data_columns
 
@@ -3976,9 +3982,6 @@ def map_data_set_columns(  # noqa: C901
         session[SESSION_DATA_SET_REPLACE if data_set_data.is_replace else SESSION_DATA_SET_UPLOAD] = (
             data_set_data.model_dump(mode="json")
         )
-
-        rows: TUnvalidatedDataSetRows | None = None
-        validation_result: DataSetValidationResult | None = None
 
         if form.has_british_pounds_columns():
             rows, validation_result = _load_and_validate_data_set(data_set_data)
@@ -4006,52 +4009,15 @@ def map_data_set_columns(  # noqa: C901
                 )
             )
 
-        if validation_result is None:
-            rows, validation_result = _load_and_validate_data_set(data_set_data)
-
-        if data_set_data.is_replace:
-            return _save_replaced_data_set_and_redirect(existing_datasource, grant_id, collection, data_set_data, rows)
-        try:
-            data_source = create_uploaded_data_source(
-                name=data_set_data.name,
-                data_source_type=data_set_data.data_source_type,
-                grant_id=grant_id,
-                collection_id=collection.id,
-                column_mappings=data_set_data.column_mappings,
-                all_rows=rows,
-                user=user,
-                s3_key=data_set_data.s3_key,
-                original_filename=data_set_data.original_filename,
-                data_source_id=data_set_data.data_source_id,
-            )
-            s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
-
-            data_source_url = url_for(
-                "deliver_grant_funding.view_data_source",
+        return redirect(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
                 grant_id=grant_id,
                 collection_type=collection_type,
                 collection_id=collection_id,
-                data_source_id=data_source.id,
+                data_source_id=data_source_id,
             )
-            session.pop(SESSION_DATA_SET_UPLOAD, None)
-            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in route
-            flash(
-                Markup(
-                    f"You can now reference {escape(data_set_data.name)} data "
-                    + f"in the {escape(collection.name)} grant form. "
-                    + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
-                )
-            )
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.list_collection_data_sets",
-                    grant_id=grant_id,
-                    collection_type=collection_type,
-                    collection_id=collection_id,
-                )
-            )
-        except DuplicateDataSourceItemError:
-            form.form_errors.append("The file contains duplicate values in the first column")
+        )
 
     return render_template(
         "deliver_grant_funding/collections/data_sets/map_columns.html",
@@ -4076,7 +4042,6 @@ def map_data_set_number_columns(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
-    user = get_current_user()
 
     data_set_data = _extract_data_set_data_from_session(data_source_id)
     if not data_set_data:
@@ -4131,51 +4096,13 @@ def map_data_set_number_columns(
             column_errors = {col: list(errs) for col, errs in groupby(errors, key=lambda e: e.column)}
             form.columns.errors = form.build_number_column_form_errors(column_errors)
         else:
-            if data_set_data.is_replace:
-                return _save_replaced_data_set_and_redirect(
-                    grant_id=grant_id,
-                    collection=collection,
-                    data_set_data=data_set_data,
-                    existing_datasource=get_data_source(data_set_data.data_source_id, with_organisation_items=True),
-                    rows=rows,
-                )
-            data_source = create_uploaded_data_source(
-                name=data_set_data.name,
-                data_source_type=data_set_data.data_source_type,
-                grant_id=grant_id,
-                collection_id=collection.id,
-                column_mappings=data_set_data.column_mappings,
-                all_rows=rows,
-                user=user,
-                s3_key=data_set_data.s3_key,
-                original_filename=data_set_data.original_filename,
-                data_source_id=data_set_data.data_source_id,
-            )
-
-            s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
-
-            data_source_url = url_for(
-                "deliver_grant_funding.view_data_source",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
-                data_source_id=data_source.id,
-            )
-            session.pop(SESSION_DATA_SET_UPLOAD, None)
-            # TODO: This should be a nicely repeatable kind of flash message rather than a bespoke flash in the route
-            flash(
-                Markup(
-                    f"You can now reference {escape(data_set_data.name)} data "
-                    + f"in the {escape(collection.name)} grant form. "
-                    + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
-                )
-            )
             return redirect(
                 url_for(
-                    "deliver_grant_funding.list_collection_data_sets",
+                    "deliver_grant_funding.confirm_data_set",
                     grant_id=grant_id,
                     collection_type=collection_type,
                     collection_id=collection_id,
+                    data_source_id=data_source_id,
                 )
             )
 
@@ -4185,6 +4112,126 @@ def map_data_set_number_columns(
         collection=collection,
         form=form,
         session_data=data_set_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/<uuid:data_source_id>/replace/confirm",
+    methods=["GET", "POST"],
+)
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/data-set/confirm",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def confirm_data_set(  # noqa: C901
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID, data_source_id: UUID | None = None
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    existing_datasource = get_data_source(data_source_id, with_organisation_items=True) if data_source_id else None
+    user = get_current_user()
+    form = GenericSubmitForm()
+
+    if collection.grant_id != grant_id or (
+        existing_datasource is not None
+        and (existing_datasource.collection_id != collection_id or existing_datasource.grant_id != grant_id)
+    ):
+        abort(404)
+    data_set_data = _extract_data_set_data_from_session(data_source_id)
+    if not data_set_data:
+        if data_source_id:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.replace_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                    data_source_id=data_source_id,
+                )
+            )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    rows = _load_rows(data_set_data)
+    if not form.is_submitted():
+        columns_to_display_in_formatting = []
+        columns_to_display_in_formatting.extend(data_set_data.column_mappings)
+        if data_set_data.is_replace:
+            existing_columns = [
+                v
+                for k, v in existing_datasource.schema.root.items()  # ty:ignore[unresolved-attribute]
+                if v.original_column_name in data_set_data.data_columns
+            ]
+            columns_to_display_in_formatting.extend(
+                [DataSetColumnMapping.build_from_data_source_schema_column(col) for col in existing_columns]
+            )
+    if form.validate_on_submit():
+        if data_set_data.is_replace:
+            return _save_replaced_data_set_and_redirect(
+                grant_id=grant_id,
+                collection=collection,
+                data_set_data=data_set_data,
+                existing_datasource=existing_datasource,  # ty:ignore[invalid-argument-type]
+                rows=rows,
+            )
+        data_source = create_uploaded_data_source(
+            name=data_set_data.name,
+            data_source_type=data_set_data.data_source_type,
+            grant_id=grant_id,
+            collection_id=collection.id,
+            column_mappings=data_set_data.column_mappings,
+            all_rows=rows,
+            user=user,
+            s3_key=data_set_data.s3_key,
+            original_filename=data_set_data.original_filename,
+            data_source_id=data_set_data.data_source_id,
+        )
+
+        s3_service.update_file_tags(data_set_data.s3_key, {"status": DataSourceFileTagEnum.IN_USE})
+
+        data_source_url = url_for(
+            "deliver_grant_funding.view_data_source",
+            grant_id=grant_id,
+            collection_type=collection_type,
+            collection_id=collection_id,
+            data_source_id=data_source.id,
+        )
+        session.pop(SESSION_DATA_SET_UPLOAD, None)
+        flash(
+            Markup(
+                (
+                    f"You can now reference {escape(data_source.name)} data "
+                    + f"in the {escape(collection.name)} grant form. "
+                    + f"<a class='govuk-link govuk-link--no-visited-state' href='{data_source_url}'>View data set</a>"
+                )
+            ),
+            FlashMessageType.DATA_SOURCE_UPLOADED_SUCCESS.value,
+        )
+
+        return redirect(
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+    return render_template(
+        "deliver_grant_funding/collections/data_sets/data_set_final_preview.html",
+        grant=collection.grant,
+        collection=collection,
+        session_data=data_set_data,
+        form=form,
+        columns_to_display_in_formatting=columns_to_display_in_formatting,
+        all_rows=rows,
     )
 
 
@@ -4396,7 +4443,7 @@ def view_data_source(
             if delete_wtform.validate_on_submit():
                 name = data_source.name
                 delete_data_source(data_source)
-                flash(Markup(f"'{escape(name)}' data set has been deleted."))
+                flash(Markup(f"'{escape(name)}' data set has been deleted."), FlashMessageType.DATA_SOURCE_DELETED)
                 return redirect(
                     url_for(
                         "deliver_grant_funding.list_collection_data_sets",

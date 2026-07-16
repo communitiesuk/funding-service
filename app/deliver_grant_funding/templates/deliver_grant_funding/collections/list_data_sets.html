@@ -17,20 +17,20 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      {% with flashes = get_flashed_messages() %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DATA_SOURCE_UPLOADED_SUCCESS,enum.flash_message_type.DATA_SOURCE_DELETED]) %}
         {% if flashes %}
-          {% set action = "deleted" if "deleted" in flashes[0] else "uploaded" %}
-          {% set user_add_success_message %}
-            <h3 class="govuk-notification-banner__heading">Data set {{ action }}</h3>
+          {% set message %}
+            <h3 class="govuk-notification-banner__heading">Data set {{ "deleted" if "deleted" in flashes[0] else "uploaded" }}</h3>
             <p class="govuk-body">{{ flashes[0] }}</p>
           {% endset %}
           {{
             govukNotificationBanner({
-              "html": user_add_success_message, "type": "success"
+              "html": message, "type": "success"
             })
           }}
         {% endif %}
       {% endwith %}
+
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ collection.name }}</span>
         Uploaded data sets
