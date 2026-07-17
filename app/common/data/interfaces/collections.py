@@ -21,7 +21,6 @@ from app.common.data.interfaces.exceptions import (
     flush_and_rollback_on_exceptions,
 )
 from app.common.data.interfaces.grant_recipients import (
-    all_grant_recipients_have_data_providers,
     get_grant_recipients,
 )
 from app.common.data.models import (
@@ -486,12 +485,6 @@ def update_collection(  # noqa: C901
                 if not get_grant_recipients(collection.grant):
                     raise GrantRecipientUsersRequiredError(
                         f"Grant recipients must be set up before {actioning} a {collection.type.constants.singular}"
-                    )
-
-                if not all_grant_recipients_have_data_providers(collection.grant):
-                    raise GrantRecipientUsersRequiredError(
-                        "All grant recipients must have at least one data "
-                        f"provider set up before {actioning} a {collection.type.constants.singular}"
                     )
 
                 if status == CollectionStatusEnum.OPEN:

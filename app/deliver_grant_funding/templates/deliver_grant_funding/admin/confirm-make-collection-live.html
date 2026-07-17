@@ -31,6 +31,9 @@
         {{ form.csrf_token }}
         {{ form.confirm_grant_recipients }}
         {{ form.confirm_grant_recipient_users }}
+        {% if 'confirm_missing_data_providers' in form %}
+          {{ form.confirm_missing_data_providers }}
+        {% endif %}
         {{ form.confirm_privacy_policy }}
         {{ form.confirm_certification }}
         {{ form.confirm_reporting_dates }}

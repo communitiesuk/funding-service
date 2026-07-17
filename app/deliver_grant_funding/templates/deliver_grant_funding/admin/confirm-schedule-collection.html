@@ -3,6 +3,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
 {% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
+{% from 'govuk_frontend_jinja/components/warning-text/macro.html' import govukWarningText %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
 {% block beforeContent %}
@@ -25,6 +26,15 @@
       <p class="govuk-body">Schedule the {{ collection.type.constants.singular }} when the grant team has signed off on the form. Form designers cannot edit a scheduled {{ collection.type.constants.singular }}.</p>
 
       {{ govukInsetText({ "text": "A scheduled " + collection.type.constants.singular + " will not automatically go live on the first day of the submission period. A platform admin must manually open the " + collection.type.constants.singular + " for submissions and Send emails to data providers." }) }}
+
+      {% if recipients_missing_data_providers | length > 0 %}
+        {{
+          govukWarningText({
+            "text": "There are grant recipients with no data providers set up: " ~ (recipients_missing_data_providers | join(", ") ),
+            "iconFallbackText": "Warning"
+          })
+        }}
+      {% endif %}
 
       {{
         govukSummaryList({

@@ -552,6 +552,10 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     confirm_grant_recipient_users = BooleanField(
         validators=[DataRequired("Confirm the number of grant recipient users")], widget=GovCheckboxInput()
     )
+    confirm_missing_data_providers = BooleanField(
+        validators=[DataRequired("Confirm that it is expected that some recipients are missing data providers")],
+        widget=GovCheckboxInput(),
+    )
     confirm_privacy_policy = BooleanField(
         "The privacy policy has been set up",
         validators=[DataRequired("Confirm the privacy policy has been set up")],
@@ -588,6 +592,7 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
         collection: "Collection",
         grant_recipients_count: int,
         data_providers_count: int,
+        recipients_missing_data_providers: list[str],
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -604,6 +609,14 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
             f"{data_providers_count} grant recipient user{'s' if data_providers_count != 1 else ''}"
             f"</strong> set up and the grant team has reviewed this"
         )
+        if recipients_missing_data_providers:
+            self.confirm_missing_data_providers.label.text = Markup(
+                "It is expected that the following grant recipients do not have any data providers set up: "
+            ) + ", ".join(recipients_missing_data_providers)
+
+        else:
+            del self.confirm_missing_data_providers
+
         certification_status = "enabled" if collection.requires_certification else "disabled"
         self.confirm_certification.label.text = Markup(
             f"It is correct that the {collection.type.constants.singular} has certification "

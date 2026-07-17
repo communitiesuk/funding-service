@@ -561,9 +561,10 @@ class TestGetGrantRecipientDataProvidersCount:
     def test_no_grant_recipient_users(self, db_session, factories):
         grant = factories.grant.create()
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 0
+        assert recipients_missing_data_providers == []
 
     def test_single_grant_recipient_user(self, db_session, factories):
         grant = factories.grant.create()
@@ -576,9 +577,10 @@ class TestGetGrantRecipientDataProvidersCount:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 1
+        assert recipients_missing_data_providers == []
 
     def test_multiple_grant_recipient_users_same_organisation(self, db_session, factories):
         grant = factories.grant.create()
@@ -592,9 +594,10 @@ class TestGetGrantRecipientDataProvidersCount:
                 permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
             )
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 3
+        assert recipients_missing_data_providers == []
 
     def test_multiple_grant_recipient_users_different_organisations(self, db_session, factories):
         grant = factories.grant.create()
@@ -616,13 +619,14 @@ class TestGetGrantRecipientDataProvidersCount:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 2
+        assert recipients_missing_data_providers == []
 
     def test_excludes_grant_team_members(self, db_session, factories):
         grant = factories.grant.create()
-        factories.grant_recipient.create(grant=grant)
+        gr = factories.grant_recipient.create(grant=grant)
 
         grant_team_user = factories.user.create()
         factories.user_role.create(
@@ -632,19 +636,21 @@ class TestGetGrantRecipientDataProvidersCount:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 0
+        assert recipients_missing_data_providers == [gr.organisation.name]
 
     def test_excludes_admin_roles(self, db_session, factories):
         grant = factories.grant.create()
-        factories.grant_recipient.create(grant=grant)
+        gr = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 0
+        assert recipients_missing_data_providers == [gr.organisation.name]
 
     def test_excludes_users_from_different_grant(self, db_session, factories):
         grant1 = factories.grant.create()
@@ -658,9 +664,10 @@ class TestGetGrantRecipientDataProvidersCount:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_data_providers_count(grant1)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant1)
 
         assert count == 0
+        assert recipients_missing_data_providers == [grant_recipient.organisation.name]
 
     def test_deduplicates_users_across_grant_recipients(self, db_session, factories):
         grant = factories.grant.create()
@@ -680,9 +687,10 @@ class TestGetGrantRecipientDataProvidersCount:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        count = get_grant_recipient_data_providers_count(grant)
+        count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         assert count == 1
+        assert recipients_missing_data_providers == []
 
 
 class TestAllGrantRecipientsHaveDataProviders:

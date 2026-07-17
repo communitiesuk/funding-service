@@ -165,8 +165,7 @@
       %}
 
       {% set dates_are_set = collection.submission_period_start_date and collection.submission_period_end_date %}
-      {% set all_recipients_have_users = grant_recipients_count > 0 and grant_recipient_users_count >= grant_recipients_count %}
-      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set and all_recipients_have_users %}
+      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set %}
       {% set scheduledReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
 
       {% if collection.status != enum.collection_status.DRAFT %}
@@ -177,6 +176,7 @@
       {%
         do rows.append({
           "title": {"text": "Sign off and lock " + collection.type.constants.singular, "classes": "govuk-link--no-visited-state"},
+          "hint": {"text": "The grant must be live, submission dates set, and some grant recipients set up"} if not prerequisites_met else {},
           "status": scheduledReportStatus,
           "href": url_for('collection_lifecycle.schedule_collection', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status == enum.collection_status.DRAFT else "",
         })

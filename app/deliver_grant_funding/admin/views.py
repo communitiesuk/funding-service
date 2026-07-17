@@ -219,7 +219,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         organisation_count = get_organisation_count()
         certifiers_count = len(get_users_with_permission(RoleEnum.CERTIFIER, grant_id=None))
         grant_recipients_count = get_grant_recipients_count(grant=grant)
-        grant_recipient_users_count = get_grant_recipient_data_providers_count(grant=grant)
+        grant_recipient_users_count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(
+            grant=grant
+        )
         grant_override_certifiers_count = len(
             get_users_with_permission(
                 RoleEnum.CERTIFIER, grant_id=grant_id, organisation_mode=OrganisationModeEnum.LIVE
@@ -227,7 +229,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         )
 
         # Test entity counts
-        test_users_count = get_grant_recipient_data_providers_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
+        test_users_count, _ = get_grant_recipient_data_providers_count(grant=grant, mode=GrantRecipientModeEnum.TEST)
 
         return self.render(
             "deliver_grant_funding/admin/collection-lifecycle-tasklist.html",
@@ -893,6 +895,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
     def schedule_collection(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
+        _, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         form = PlatformAdminScheduleCollectionForm(collection=collection)
         if form.validate_on_submit():
@@ -917,6 +920,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             form=form,
             grant=grant,
             collection=collection,
+            recipients_missing_data_providers=recipients_missing_data_providers,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/make-collection-live", methods=["GET", "POST"])
@@ -926,12 +930,13 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         collection = get_collection(collection_id, grant_id=grant_id)
 
         grant_recipients_count = get_grant_recipients_count(grant)
-        data_providers_count = get_grant_recipient_data_providers_count(grant)
+        data_providers_count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
         form = PlatformAdminMakeCollectionLiveForm(
             collection=collection,
             grant_recipients_count=grant_recipients_count,
             data_providers_count=data_providers_count,
+            recipients_missing_data_providers=recipients_missing_data_providers,
         )
         if form.validate_on_submit():
             try:
