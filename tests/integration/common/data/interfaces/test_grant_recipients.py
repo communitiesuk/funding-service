@@ -3,7 +3,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.grant_recipients import (
-    all_grant_recipients_have_data_providers,
     create_grant_recipients,
     get_grant_recipient,
     get_grant_recipient_data_provider_roles,
@@ -691,129 +690,6 @@ class TestGetGrantRecipientDataProvidersCount:
 
         assert count == 1
         assert recipients_missing_data_providers == []
-
-
-class TestAllGrantRecipientsHaveDataProviders:
-    def test_returns_false_when_no_grant_recipients(self, db_session, factories):
-        grant = factories.grant.create()
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is False
-
-    def test_returns_false_when_grant_recipient_has_no_users(self, db_session, factories):
-        grant = factories.grant.create()
-        factories.grant_recipient.create(grant=grant)
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is False
-
-    def test_returns_true_when_single_grant_recipient_has_users(self, db_session, factories):
-        grant = factories.grant.create()
-        grant_recipient = factories.grant_recipient.create(grant=grant)
-        user = factories.user.create()
-        factories.user_role.create(
-            user=user,
-            organisation=grant_recipient.organisation,
-            grant=grant,
-            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-        )
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is True
-
-    def test_returns_true_when_all_grant_recipients_have_users(self, db_session, factories):
-        grant = factories.grant.create()
-        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
-
-        for grant_recipient in grant_recipients:
-            user = factories.user.create()
-            factories.user_role.create(
-                user=user,
-                organisation=grant_recipient.organisation,
-                grant=grant,
-                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-            )
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is True
-
-    def test_returns_false_when_some_grant_recipients_have_no_users(self, db_session, factories):
-        grant = factories.grant.create()
-        grant_recipients = factories.grant_recipient.create_batch(3, grant=grant)
-
-        user = factories.user.create()
-        factories.user_role.create(
-            user=user,
-            organisation=grant_recipients[0].organisation,
-            grant=grant,
-            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-        )
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is False
-
-    def test_returns_true_when_grant_recipient_has_multiple_users(self, db_session, factories):
-        grant = factories.grant.create()
-        grant_recipient = factories.grant_recipient.create(grant=grant)
-        users = factories.user.create_batch(3)
-
-        for user in users:
-            factories.user_role.create(
-                user=user,
-                organisation=grant_recipient.organisation,
-                grant=grant,
-                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-            )
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is True
-
-    def test_excludes_admin_roles(self, db_session, factories):
-        grant = factories.grant.create()
-        factories.grant_recipient.create(grant=grant)
-        user = factories.user.create()
-        factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN])
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is False
-
-    def test_excludes_users_from_different_grants(self, db_session, factories):
-        grant1 = factories.grant.create()
-        grant2 = factories.grant.create()
-        grant_recipient = factories.grant_recipient.create(grant=grant1)
-        user = factories.user.create()
-        factories.user_role.create(
-            user=user,
-            organisation=grant_recipient.organisation,
-            grant=grant2,
-            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-        )
-
-        result = all_grant_recipients_have_data_providers(grant1)
-
-        assert result is False
-
-    def test_excludes_grant_team_members(self, db_session, factories):
-        grant = factories.grant.create()
-        factories.grant_recipient.create(grant=grant)
-        grant_team_user = factories.user.create()
-        factories.user_role.create(
-            user=grant_team_user,
-            organisation=grant.organisation,
-            grant=grant,
-            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-        )
-
-        result = all_grant_recipients_have_data_providers(grant)
-
-        assert result is False
 
 
 class TestGetGrantRecipientDataProviderRoles:

@@ -145,13 +145,6 @@ def create_grant_recipients(
     db.session.add_all(grant_recipients)
 
 
-def all_grant_recipients_have_data_providers(grant: Grant) -> bool:
-    grant_recipients = get_grant_recipients(grant, with_data_providers=True)
-
-    if not grant_recipients:
-        return False
-
-    return all(grant_recipient.data_providers for grant_recipient in grant_recipients)
 class GrantRecipientDataProvidersCountData(NamedTuple):
     count: int
     recipients_missing_data_providers: list[str]
