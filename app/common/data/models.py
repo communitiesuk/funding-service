@@ -4,11 +4,13 @@ from collections.abc import Callable, Sequence
 from decimal import Decimal
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo
 
 from flask import current_app, url_for
 from sqlalchemy import (
     CheckConstraint,
     ColumnElement,
+    Date,
     ForeignKey,
     Index,
     Text,
@@ -441,7 +443,8 @@ class Collection(BaseModel):
     def is_overdue(self) -> bool:
         if not self.submission_period_end_date:
             return False
-        return self.submission_period_end_date < datetime.date.today()
+        # ensure BST/ GMT to line up with the hybrid property expected boundary
+        return self.submission_period_end_date < datetime.datetime.now(ZoneInfo("Europe/London")).date()
 
     @property
     def is_monitoring_collection(self) -> bool:
@@ -607,7 +610,9 @@ class Submission(BaseModel):
     def _is_overdue_expression(cls) -> ColumnElement[bool]:
         return (
             Collection.submission_period_end_date.isnot(None)
-            & (Collection.submission_period_end_date < func.timezone("Europe/London", func.now()))
+            # ensure both side are dates, when the date side is coerced to date with timestamp it will default
+            # to 00:00 which will always be less than the same day resulting in an exclusive comparison
+            & (Collection.submission_period_end_date < func.timezone("Europe/London", func.now()).cast(Date))
             & not_(cls.is_submitted)
         )
 
