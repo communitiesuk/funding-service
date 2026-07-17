@@ -445,7 +445,7 @@ class TestCollectionLifecycleTasklist:
         schedule_collection_task = collection_task_items[3]
         task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Sign off and lock report"
+        assert "Sign off and lock report" in task_title.get_text(strip=True)
 
         task_status = schedule_collection_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
@@ -570,7 +570,7 @@ class TestCollectionLifecycleTasklist:
         schedule_collection_task = collection_task_items[2]
         task_title = schedule_collection_task.find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Sign off and lock form"
+        assert "Sign off and lock form" in task_title.get_text(strip=True)
 
         task_status = schedule_collection_task.find("div", {"class": "govuk-task-list__status"})
         assert task_status is not None
@@ -3977,6 +3977,68 @@ class TestScheduleReport:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Test Grant Sign off and lock report"
 
+    def test_get_confirm_page_shows_warning_for_grant_recipients_with_no_data_providers(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient_with_data_provider = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=factories.user.create(),
+            organisation=grant_recipient_with_data_provider.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        grant_recipient_without_data_provider = factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        warning = soup.find("strong", {"class": "govuk-warning-text__text"})
+        assert warning is not None
+        warning_text = warning.get_text(" ", strip=True)
+        assert "There are grant recipients with no data providers set up" in warning_text
+        assert grant_recipient_without_data_provider.organisation.name in warning_text
+        assert grant_recipient_with_data_provider.organisation.name not in warning_text
+
+    def test_get_confirm_page_hides_warning_when_all_grant_recipients_have_data_providers(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=factories.user.create(),
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("strong", {"class": "govuk-warning-text__text"}) is None
+
     def test_post_schedules_collection(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -4012,38 +4074,6 @@ class TestScheduleReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now locked")
-
-    def test_post_fails_when_grant_recipients_have_no_users(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
-        collection = factories.collection.create(
-            grant=grant,
-            name="Q1 Report",
-            status=CollectionStatusEnum.DRAFT,
-            reporting_period_start_date=datetime.date(2024, 1, 1),
-            reporting_period_end_date=datetime.date(2024, 3, 31),
-            submission_period_start_date=datetime.date(2024, 4, 1),
-            submission_period_end_date=datetime.date(2024, 4, 30),
-        )
-        factories.grant_recipient.create(grant=grant)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection",
-            data={"submit": "Schedule report"},
-            follow_redirects=False,
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(
-            soup,
-            "All grant recipients must have at least one data provider set up before scheduling a "
-            f"{collection.type.constants.singular}",
-        )
-
-        db_session.refresh(collection)
-        assert collection.status == CollectionStatusEnum.DRAFT
 
 
 class TestSetCollectionDatesStatusRestriction:
@@ -4392,6 +4422,42 @@ class TestMakeReportLive:
         assert "It is correct that the report has certification enabled" in checkbox_labels
         assert "The submission dates are 1 April 2024 until 30 April 2024" in checkbox_labels
         assert "It is correct that multiple submissions are disabled" in checkbox_labels
+        assert not any("do not have any data providers set up" in label for label in checkbox_labels)
+
+    def test_get_confirm_page_shows_missing_data_providers_checkbox(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient_with_data_provider = factories.grant_recipient.create(grant=grant)
+        factories.user_role.create(
+            user=factories.user.create(),
+            organisation=grant_recipient_with_data_provider.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        grant_recipient_without_data_provider = factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert (
+            "It is expected that the following grant recipients do not have any data providers set up: "
+            f"{grant_recipient_without_data_provider.organisation.name}" in checkbox_labels
+        )
 
     def test_get_confirm_page_shows_conditional_checkboxes_for_managed_multiple_submissions(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -4549,6 +4615,89 @@ class TestMakeReportLive:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now live and grant recipients can start making submissions")
 
+    def test_post_fails_when_missing_data_providers_not_confirmed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        factories.grant_recipient.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_reporting_dates": "y",
+                "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Confirm that it is expected that some recipients are missing data providers")
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    @pytest.mark.freeze_time("2024-04-01 10:00:00")
+    def test_post_makes_collection_open_when_missing_data_providers_confirmed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_missing_data_providers": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_reporting_dates": "y",
+                "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.OPEN
+
     def test_post_fails_when_grant_not_live(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -4637,55 +4786,6 @@ class TestMakeReportLive:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
             soup, f"Grant recipients must be set up before opening a {collection.type.constants.singular}"
-        )
-
-        db_session.refresh(collection)
-        assert collection.status == CollectionStatusEnum.SCHEDULED
-
-    def test_post_fails_when_grant_recipients_have_no_users(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
-    ):
-        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
-        collection = factories.collection.create(
-            grant=grant,
-            name="Q1 Report",
-            status=CollectionStatusEnum.SCHEDULED,
-            reporting_period_start_date=datetime.date(2024, 1, 1),
-            reporting_period_end_date=datetime.date(2024, 3, 31),
-            submission_period_start_date=datetime.date(2024, 4, 1),
-            submission_period_end_date=datetime.date(2024, 4, 30),
-        )
-        grant_recipient = factories.grant_recipient.create(grant=grant)
-        certifier = factories.user.create()
-        factories.user_role.create(
-            user=certifier,
-            organisation=grant_recipient.organisation,
-            grant=None,
-            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
-        )
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
-            data={
-                "confirm_grant_recipients": "y",
-                "confirm_grant_recipient_users": "y",
-                "confirm_privacy_policy": "y",
-                "confirm_certification": "y",
-                "confirm_reporting_dates": "y",
-                "confirm_submission_dates": "y",
-                "confirm_reminder_days": "y",
-                "confirm_multiple_submissions": "y",
-                "submit": "y",
-            },
-            follow_redirects=False,
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(
-            soup,
-            "All grant recipients must have at least one data provider set up before opening a "
-            f"{collection.type.constants.singular}",
         )
 
         db_session.refresh(collection)
