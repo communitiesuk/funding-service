@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from psycopg.errors import ForeignKeyViolation
@@ -104,6 +104,26 @@ class TestSubmissionModel:
     def test_is_overdue_when_before_deadline(self, factories):
         submission = factories.submission.build(collection__submission_period_end_date=date(2030, 1, 1))
         assert submission.is_overdue is False
+
+    @pytest.mark.freeze_time("2026-07-17 12:00:00")
+    @pytest.mark.parametrize(
+        "offset_days, expected_overdue",
+        [
+            pytest.param(-1, True, id="day-after-end-date-is-overdue"),
+            pytest.param(0, False, id="end-date-itself-is-not-overdue"),
+            pytest.param(1, False, id="before-end-date-is-not-overdue"),
+        ],
+    )
+    def test_is_overdue_is_inclusive_of_end_date(self, factories, offset_days, expected_overdue):
+        end_date = date(2026, 7, 17) + timedelta(days=offset_days)
+        submission = factories.submission.build(collection__submission_period_end_date=end_date)
+        assert submission.collection.is_overdue is expected_overdue
+        assert submission.is_overdue is expected_overdue
+
+    @pytest.mark.freeze_time("2026-07-17 23:30:00")
+    def test_is_overdue_uses_europe_london_not_process_timezone(self, factories):
+        submission = factories.submission.build(collection__submission_period_end_date=date(2026, 7, 17))
+        assert submission.collection.is_overdue is True
 
     @pytest.mark.freeze_time("2025-01-10 12:00:00")
     @pytest.mark.parametrize("status", [SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES])

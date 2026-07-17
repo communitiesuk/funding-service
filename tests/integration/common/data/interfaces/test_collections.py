@@ -2,6 +2,7 @@ import datetime
 import uuid
 
 import pytest
+from sqlalchemy import Date, func, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.common.collections.types import EmailAnswer, SingleChoiceFromListAnswer, TextSingleLineAnswer
@@ -5197,6 +5198,34 @@ class TestGetSubmissionListForCollection:
 
         assert {row.submission_id for row in rows} == {first.id, second.id}
         assert all(row.organisation_name == "Acme Corp" for row in rows)
+
+    @pytest.mark.parametrize(
+        "offset_days, expected_overdue",
+        [
+            pytest.param(-1, True, id="day-after-end-date-is-overdue"),
+            pytest.param(0, False, id="end-date-itself-is-not-overdue"),
+            pytest.param(1, False, id="before-end-date-is-not-overdue"),
+        ],
+    )
+    def test_optimised_hybrid_property_is_overdue_is_inclusive_of_end_date(
+        self, db_session, factories, offset_days, expected_overdue
+    ):
+        # uses the actual database under test time to line up and test the hybrid property
+        # note as the test runs in the same transaction it should always be consistent
+        london_today = db_session.scalar(select(func.timezone("Europe/London", func.now()).cast(Date)))
+        collection = factories.collection.create(
+            allow_multiple_submissions=True,
+            submission_period_end_date=london_today + datetime.timedelta(days=offset_days),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
+        submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        row = next(row for row in rows if row.submission_id == submission.id)
+        assert row.is_overdue is expected_overdue
 
     def test_multi_submission_collection_returns_a_row_for_recipients_with_no_submissions(self, db_session, factories):
         collection = factories.collection.create(allow_multiple_submissions=True)
