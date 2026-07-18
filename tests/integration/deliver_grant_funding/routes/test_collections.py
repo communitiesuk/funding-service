@@ -9050,6 +9050,29 @@ class TestViewSubmission:
         else:
             assert button is None
 
+    def test_action_buttons_hidden_when_submission_is_assessed(
+        self, authenticated_grant_member_client, grant_recipient, submission_submitted, db_session
+    ):
+        client = authenticated_grant_member_client
+        grant = grant_recipient.grant
+        grant.allow_pre_award = True
+
+        SubmissionHelper(submission_submitted).validate_submission(user=client.user, is_approved=True)
+        db_session.commit()
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Request or allow changes") is None
+        assert page_has_link(soup, "Approve or reject submission") is None
+
     def test_can_see_download_pdf_button(
         self, authenticated_grant_member_client, grant_recipient, submission_submitted
     ):
@@ -9767,10 +9790,9 @@ class TestApproveOrRejectSubmission:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Submission marked as approved")
-        # TODO (FSPT-1480): update to check for "Marked as approved" assessment tag
-        # tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
-        # assert len(tag_texts) == 1
-        # assert "Marked as approved" in tag_texts
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert len(tag_texts) == 1
+        assert "Marked as approved" in tag_texts
         timeline = soup.find(class_="moj-timeline")
         timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
         assert "Report marked as approved" in timeline_titles
@@ -9798,10 +9820,9 @@ class TestApproveOrRejectSubmission:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Submission marked as rejected")
-        # TODO (FSPT-1480): update to check for "Marked as rejected" assessment tag
-        # tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
-        # assert len(tag_texts) == 1
-        # assert "Marked as rejected" in tag_texts
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        assert len(tag_texts) == 1
+        assert "Marked as rejected" in tag_texts
         timeline = soup.find(class_="moj-timeline")
         timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
         assert "Report marked as rejected" in timeline_titles

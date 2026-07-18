@@ -1,7 +1,7 @@
 {# TODO: replace view_submission.html with this feature flagged implementation when flag is removed #}
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import submissionStatusTag, assessmentStatusTag with context %}
 {% from 'common/govuk/tabs/macro.html' import govukTabs %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
@@ -120,7 +120,11 @@
       <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
       <div class="app-aligned-header-tag govuk-!-margin-bottom-6">
         <h1 class="govuk-heading-l govuk-!-margin-bottom-0">Submission</h1>
-        {{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}
+        {% if helper.submission.is_assessed %}
+          {{ assessmentStatusTag(helper.assessment_status) }}
+        {% else %}
+          {{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}
+        {% endif %}
       </div>
     </div>
   </div>
@@ -152,7 +156,7 @@
     </div>
   </div>
 
-  {% if helper.can_be_assessed_by_user(current_user) or helper.can_be_reopened_by_user(current_user) %}
+  {% if not helper.submission.is_assessed and (helper.can_be_assessed_by_user(current_user) or helper.can_be_reopened_by_user(current_user)) %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
         <div class="govuk-button-group">

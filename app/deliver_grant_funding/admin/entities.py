@@ -664,6 +664,7 @@ class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
     column_filters = [
         "mode",
         "status",
+        "assessment_status",
         "collection.grant.name",
         "grant_recipient.organisation.name",
     ]

@@ -620,6 +620,73 @@ class TestListReports:
 
         assert "Ready to submit (Overdue)" in tag_texts
 
+    def test_assessed_submission_shows_submission_status_tag_not_approved_assessment_tag(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        submission_submitted,
+        grant_team_user,
+        db_session,
+    ):
+        # Validate submission
+        SubmissionHelper(submission_submitted).validate_submission(user=grant_team_user, is_approved=True)
+        db_session.commit()
+
+        grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
+
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.list_collections",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        # "Marked as approved" not on the page
+        assert len(tag_texts) == 0
+        # Make sure we select the span from the table cell
+        span_texts = {span.text.strip() for span in soup.select("table.govuk-table>tbody>tr>td>span.govuk-body")}
+        # Submittes shows as text on the page
+        assert len(span_texts) == 1
+        assert "Submitted" in span_texts
+
+    def test_assessed_submission_shows_submission_status_tag_not_rejected_assessment_tag(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        submission_submitted,
+        grant_team_user,
+        db_session,
+    ):
+        # Validate submission
+        SubmissionHelper(submission_submitted).validate_submission(
+            user=grant_team_user, is_approved=False, rejected_reason="The reason"
+        )
+        db_session.commit()
+
+        grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.list_collections",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        # "Marked as rejected" not on the page
+        assert len(tag_texts) == 0
+        # Make sure we select the span from the table cell
+        span_texts = {span.text.strip() for span in soup.select("table.govuk-table>tbody>tr>td>span.govuk-body")}
+        # Submittes shows as text on the page
+        assert len(span_texts) == 1
+        assert "Submitted" in span_texts
+
 
 class TestListCollectionSubmissions:
     def test_lists_submissions_for_collection(self, authenticated_grant_recipient_member_client, factories):
