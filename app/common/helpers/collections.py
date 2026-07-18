@@ -1350,6 +1350,22 @@ class SubmissionHelper:
             return True
         return False
 
+    def can_be_assessed_by_user(self, user: User) -> bool:
+        if not self.is_submitted:
+            return False
+        if self.is_test:
+            if self.collection.is_closed:
+                return False
+            return True
+
+        if (
+            self.collection.is_open
+            and self.collection.grant.status == GrantStatusEnum.LIVE
+            and AuthorisationHelper.can_validate_submission(user, self.submission)
+        ):
+            return True
+        return False
+
     def reopen_submission(self, user: User, reopened_reason: str | None) -> None:
 
         if not AuthorisationHelper.can_request_or_allow_changes(user, self.submission):

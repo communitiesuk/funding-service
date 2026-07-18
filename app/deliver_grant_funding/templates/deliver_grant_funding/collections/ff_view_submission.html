@@ -63,6 +63,40 @@
           }}
         {% endif %}
       {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_MARKED_AS_APPROVED]) %}
+        {% if flashes %}
+          {% set marked_approved_html %}
+            <h3 class="govuk-notification-banner__heading">Submission marked as approved</h3>
+            <p class="govuk-body">
+              This decision has been saved for internal records and is only visible to users within the {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}.
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": marked_approved_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_MARKED_AS_REJECTED]) %}
+        {% if flashes %}
+          {% set marked_rejected_html %}
+            <h3 class="govuk-notification-banner__heading">Submission marked as rejected</h3>
+            <p class="govuk-body">
+              This decision has been saved for internal records and is only visible to users within the {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}.
+            </p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": marked_rejected_html,
+              "type": "success",
+              "titleText": "Success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
     </div>
   </div>
 
@@ -118,19 +152,31 @@
     </div>
   </div>
 
-  {% if helper.can_be_reopened_by_user(current_user) %}
+  {% if helper.can_be_assessed_by_user(current_user) or helper.can_be_reopened_by_user(current_user) %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
-        <div class="govuk-body">
-          {{
-            govukButton(
-            params={
-              "text": "Request or allow changes",
-              "href": url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id),
-              "classes": "govuk-button--secondary"
-            }
-            )
-          }}
+        <div class="govuk-button-group">
+          {% if helper.can_be_assessed_by_user(current_user) %}
+            {{
+              govukButton(
+              params={
+                "text": "Approve or reject submission",
+                "href": url_for('deliver_grant_funding.approve_or_reject_submission', grant_id=grant.id, submission_id=helper.submission.id)
+              }
+              )
+            }}
+          {% endif %}
+          {% if helper.can_be_reopened_by_user(current_user) %}
+            {{
+              govukButton(
+              params={
+                "text": "Request or allow changes",
+                "href": url_for('deliver_grant_funding.request_or_allow_changes', grant_id=grant.id, submission_id=helper.submission.id),
+                "classes": "govuk-button--secondary"
+              }
+              )
+            }}
+          {% endif %}
         </div>
       </div>
     </div>
