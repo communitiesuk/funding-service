@@ -46,6 +46,7 @@ from app.common.expressions.managed import GreaterThan, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
+    CollectionDoesNotAllowValidationError,
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
@@ -2516,6 +2517,13 @@ class TestSubmissionHelper:
 
             with pytest.raises(SubmissionAuthorisationError):
                 helper.validate_submission(user=data_provider_user, is_approved=True)
+
+        def test_raises_when_collection_does_not_allow_validation(self, grant_team_user, submission_submitted):
+            submission_submitted.collection.allow_validation = False
+            helper = SubmissionHelper(submission_submitted)
+
+            with pytest.raises(CollectionDoesNotAllowValidationError):
+                helper.validate_submission(user=grant_team_user, is_approved=True)
 
         def test_raises_when_submission_not_submitted(self, grant_team_user, submission_changes_requested):
             helper = SubmissionHelper(submission_changes_requested)

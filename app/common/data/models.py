@@ -372,6 +372,7 @@ class Collection(BaseModel):
     requires_certification: Mapped[bool | None]
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
+    allow_validation: Mapped[bool] = mapped_column(default=False)
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
     submission_name_question: Mapped["Question | None"] = relationship(
         "Question", foreign_keys=[submission_name_question_id]
