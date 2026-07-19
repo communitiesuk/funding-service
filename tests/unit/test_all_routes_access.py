@@ -150,6 +150,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.request_or_allow_changes",
     "deliver_grant_funding.reopen_submission",
     "deliver_grant_funding.request_changes_submission",
+    "deliver_grant_funding.approve_or_reject_submission",
     "deliver_grant_funding.download_latest_data_set_template",
 ]
 
