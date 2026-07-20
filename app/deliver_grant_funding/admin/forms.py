@@ -35,7 +35,7 @@ from app.common.data.types import (
 from app.common.filters import format_date_short
 from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
-from app.common.utils import uppercase_first
+from app.common.utils import comma_join_items, uppercase_first
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -585,6 +585,9 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     confirm_managed_submissions_count = BooleanField(
         validators=[DataRequired("Confirm the number of managed submissions")], widget=GovCheckboxInput()
     )
+    confirm_missing_data = BooleanField(
+        validators=[DataRequired("Confirm that data is missing")], widget=GovCheckboxInput()
+    )
     submit = SubmitField("", widget=GovSubmitInput())
 
     def __init__(
@@ -593,6 +596,7 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
         grant_recipients_count: int,
         data_providers_count: int,
         recipients_missing_data_providers: list[str],
+        missing_data_organisation_names: Sequence[str] = (),
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -691,6 +695,18 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
         else:
             del self.confirm_managed_by_service
             del self.confirm_managed_submissions_count
+
+        if missing_data_organisation_names:
+            missing_count = len(missing_data_organisation_names)
+            self.confirm_missing_data.label.text = Markup(
+                f"It is correct that there is missing data for <strong {bold}>"
+                f"{missing_count} grant recipient{'s' if missing_count != 1 else ''}</strong>"
+            )
+            self.confirm_missing_data.render_kw = {
+                "params": {"items": [{"hint": {"text": comma_join_items(missing_data_organisation_names)}}]}
+            }
+        else:
+            del self.confirm_missing_data
 
         self.submit.label.text = f"Open the {collection.type.constants.singular} for submissions"
 

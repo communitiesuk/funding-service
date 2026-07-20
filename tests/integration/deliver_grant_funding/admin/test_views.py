@@ -4585,6 +4585,257 @@ class TestMakeReportLive:
             "It is expected that the following grant recipients do not have any data providers set up: "
             f"{grant_recipient_without_data_provider.organisation.name}" in checkbox_labels
         )
+        assert not any("missing data" in label for label in checkbox_labels)
+        assert soup.find(id="confirm_missing_data-item-hint") is None
+
+    def test_get_confirm_page_hides_missing_data_checkbox_when_referenced_data_set_has_no_missing_data(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(form=form, text=f"Value is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert not any("missing data" in label for label in checkbox_labels)
+        assert soup.find(id="confirm_missing_data-item-hint") is None
+
+    def test_get_confirm_page_shows_missing_data_checkbox_when_referenced_data_set_has_missing_data(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation__name="Shire Council")
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(form=form, text=f"Value is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert "It is correct that there is missing data for 1 grant recipient" in checkbox_labels
+
+        hint = soup.find(id="confirm_missing_data-item-hint")
+        assert hint is not None
+        assert hint.text.strip() == "Shire Council"
+
+    def test_get_confirm_page_missing_data_hint_joins_multiple_org_names_with_and(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        gr1 = factories.grant_recipient.create(grant=grant, organisation__name="AAA Council")
+        factories.grant_recipient.create(grant=grant, organisation__name="BBB Council")
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=gr1.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None, None],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(form=form, text=f"Value is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert "It is correct that there is missing data for 2 grant recipients" in checkbox_labels
+
+        hint = soup.find(id="confirm_missing_data-item-hint")
+        assert hint is not None
+        assert hint.text.strip() == "AAA Council and BBB Council"
+
+    def test_post_fails_when_missing_data_checkbox_not_confirmed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(form=form, text=f"Value is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_reporting_dates": "y",
+                "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        error_summary = soup.find("div", {"class": "govuk-error-summary"})
+        assert error_summary is not None
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    @pytest.mark.freeze_time("2024-04-01 10:00:00")
+    def test_post_makes_collection_open_when_missing_data_checkbox_confirmed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(form=form, text=f"Value is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_missing_data": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_reporting_dates": "y",
+                "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.OPEN
 
     def test_get_confirm_page_shows_conditional_checkboxes_for_managed_multiple_submissions(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

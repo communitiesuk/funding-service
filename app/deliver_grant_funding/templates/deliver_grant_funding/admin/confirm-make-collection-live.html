@@ -49,6 +49,9 @@
         {% if 'confirm_managed_submissions_count' in form %}
           {{ form.confirm_managed_submissions_count }}
         {% endif %}
+        {% if 'confirm_missing_data' in form %}
+          {{ form.confirm_missing_data }}
+        {% endif %}
         {{ form.submit }}
       </form>
     </div>
