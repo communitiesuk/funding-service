@@ -477,13 +477,6 @@ class TestConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.TEST
 
-    # Internal Domains
-    INTERNAL_DOMAINS: tuple[str, ...] = (
-        "@digitalaccessibilitycentre.org",
-        "@test.communities.gov.uk",
-        "@communities.gov.uk",
-    )
-
     PLAYWRIGHT_BROWSERS_PATH: str | None = "ms-playwright-pdf"
 
 
