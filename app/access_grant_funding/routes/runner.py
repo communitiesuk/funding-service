@@ -174,7 +174,7 @@ def tasklist(
 
     if runner.tasklist_form.validate_on_submit():
         if not AuthorisationHelper.is_access_grant_data_provider(
-            grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
+            grant_recipient=grant_recipient, user=interfaces.user.get_current_user()
         ):
             return abort(403, description="Access denied")
 
@@ -293,7 +293,7 @@ def check_your_answers(
 
     if runner.check_your_answers_form.validate_on_submit():
         if AuthorisationHelper.is_access_grant_data_provider(
-            grant_id=grant_id, organisation_id=organisation_id, user=interfaces.user.get_current_user()
+            grant_recipient=grant_recipient, user=interfaces.user.get_current_user()
         ):
             if runner.save_is_form_completed(interfaces.user.get_current_user()):
                 return redirect(runner.next_url)

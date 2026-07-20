@@ -218,6 +218,13 @@ class SubmissionHelper:
         return self.collection.grant
 
     @property
+    def grant_recipient(self) -> GrantRecipient:
+        grant_recipient = self.submission.grant_recipient
+        if grant_recipient is None:
+            raise ValueError(f"Submission id={self.id} has no grant recipient (mode={self.submission.mode}).")
+        return grant_recipient
+
+    @property
     def name(self) -> str:
         return self.collection.name
 
@@ -1106,7 +1113,7 @@ class SubmissionHelper:
             return []
 
         if self.is_test:
-            if user not in self.submission.grant_recipient.data_providers:
+            if user not in self.grant_recipient.data_providers:
                 current_app.logger.error(
                     (
                         "%(user_id)s is not a data provider for "
@@ -1116,14 +1123,14 @@ class SubmissionHelper:
                 )
             return [user]
 
-        return self.submission.grant_recipient.data_providers
+        return self.grant_recipient.data_providers
 
     def _certifiers_for_lifecycle_emails(self, user: User) -> Sequence[User]:
         if self.is_preview:
             return []
 
         if self.is_test:
-            if user not in self.submission.grant_recipient.certifiers:
+            if user not in self.grant_recipient.certifiers:
                 current_app.logger.error(
                     (
                         "%(user_id)s is not a certifier for "
@@ -1133,7 +1140,7 @@ class SubmissionHelper:
                 )
             return [user]
 
-        return self.submission.grant_recipient.certifiers
+        return self.grant_recipient.certifiers
 
     def submit(self, user: User) -> None:  # noqa: C901
         if self.is_submitted:
@@ -1150,9 +1157,7 @@ class SubmissionHelper:
                 if not self.events.submission_state.is_approved:
                     raise ValueError(f"Could not submit submission id={self.id} because it has not been approved.")
 
-                if not AuthorisationHelper.is_access_grant_certifier(
-                    self.grant.id, self.submission.grant_recipient.organisation.id, user
-                ):
+                if not AuthorisationHelper.is_access_grant_certifier(self.grant_recipient, user):
                     raise SubmissionAuthorisationError(
                         f"User does not have certifier permission to submit submission {self.id}",
                         user,
@@ -1160,9 +1165,7 @@ class SubmissionHelper:
                         RoleEnum.CERTIFIER,
                     )
             else:
-                if not AuthorisationHelper.is_access_grant_data_provider(
-                    self.grant.id, self.submission.grant_recipient.organisation.id, user
-                ):
+                if not AuthorisationHelper.is_access_grant_data_provider(self.grant_recipient, user):
                     raise SubmissionAuthorisationError(
                         f"User does not have data provider permission to submit submission {self.id}",
                         user,
@@ -1235,7 +1238,7 @@ class SubmissionHelper:
             if not certifiers and self.is_live:
                 current_app.logger.error(
                     "No certifiers configured for organisation %(organisation_id)s and grant %(grant_id)s",
-                    dict(organisation_id=self.submission.grant_recipient.organisation_id, grant_id=self.grant.id),
+                    dict(organisation_id=self.grant_recipient.organisation_id, grant_id=self.grant.id),
                 )
 
             for certifier in certifiers:
@@ -1255,9 +1258,7 @@ class SubmissionHelper:
                 f"certification."
             )
 
-        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(
-            self.grant.id, self.submission.grant_recipient.organisation.id, user
-        ):
+        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(self.grant_recipient, user):
             raise SubmissionAuthorisationError(
                 f"User does not have certifier permission to decline submission {self.id}",
                 user,
@@ -1310,9 +1311,7 @@ class SubmissionHelper:
                 f"certification."
             )
 
-        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(
-            self.grant.id, self.submission.grant_recipient.organisation.id, user
-        ):
+        if self.is_live and not AuthorisationHelper.is_access_grant_certifier(self.grant_recipient, user):
             raise SubmissionAuthorisationError(
                 f"User does not have certifier permission to certify submission {self.id}",
                 user,
@@ -1686,7 +1685,7 @@ class AllSubmissionsHelper:
             gr.id: None for gr in self.grant_recipients
         }
         self.grant_recipients_submission_helpers.update(
-            {s.grant_recipient.id: self.submission_helpers[s.id] for s in self.submissions}
+            {helper.grant_recipient.id: helper for helper in self.submission_helpers.values()}
         )
 
     @property

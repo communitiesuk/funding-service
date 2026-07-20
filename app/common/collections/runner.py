@@ -260,7 +260,7 @@ class FormRunner:
 
         if self.submission.submission.mode != SubmissionModeEnum.PREVIEW:
             return AuthorisationHelper.is_access_grant_data_provider(
-                self.submission.grant.id, self.submission.submission.grant_recipient.organisation_id, get_current_user()
+                self.submission.grant_recipient, get_current_user()
             )
 
         return True

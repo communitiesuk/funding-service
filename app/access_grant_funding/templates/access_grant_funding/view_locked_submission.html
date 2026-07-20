@@ -25,7 +25,7 @@
   }}
 {% endblock beforeContent %}
 
-{% set should_certify = authorisation_helper.is_access_grant_certifier(submission.grant.id, submission.submission.grant_recipient.organisation_id, current_user) and submission.is_awaiting_sign_off and not submission.in_immutable_state %}
+{% set should_certify = authorisation_helper.is_access_grant_certifier(submission.grant_recipient, current_user) and submission.is_awaiting_sign_off and not submission.in_immutable_state %}
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-one-quarter-from-desktop app-section-nav-container">

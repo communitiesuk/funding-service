@@ -470,7 +470,7 @@ class ExpressionContext(ChainMap[str, Any]):
                 raise ValueError(f"Data source {data_source.name} {data_source.id} has no schema or schema items")
 
             org_item = data_source.get_filtered_organisation_item(
-                submission_helper.submission.grant_recipient.organisation.external_id
+                submission_helper.grant_recipient.organisation.external_id
             )
 
             # TODO: Do we want to set this to None or do we want to raise here when a data source exists for this

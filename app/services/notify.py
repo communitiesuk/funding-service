@@ -182,14 +182,16 @@ class NotificationService:
             personalisation={
                 "grant_name": submission.collection.grant.name,
                 "submission_name": submission_helper.long_collection_name,
-                "organisation_name": submission.grant_recipient.organisation.name,
+                "organisation_name": submission_helper.grant_recipient.organisation.name,
                 "reference": submission.reference,
-                "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                "is_test_data": "yes"
+                if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST
+                else "no",
                 "grant_submission_url": (
                     url_for(
                         "access_grant_funding.view_locked_submission",
-                        organisation_id=submission.grant_recipient.organisation.id,
-                        grant_id=submission.grant_recipient.grant.id,
+                        organisation_id=submission_helper.grant_recipient.organisation.id,
+                        grant_id=submission_helper.grant_recipient.grant.id,
                         collection_type=submission.collection.type,
                         submission_id=submission.id,
                         _external=True,
@@ -213,18 +215,18 @@ class NotificationService:
                 if submission.collection.submission_period_end_date
                 else "(Dates to be confirmed)"
             ),
-            "is_test_data": "yes" if submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+            "is_test_data": "yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             "grant_submission_url": (
                 url_for(
                     "access_grant_funding.view_locked_submission",
-                    organisation_id=submission.grant_recipient.organisation.id,
-                    grant_id=submission.grant_recipient.grant.id,
+                    organisation_id=submission_helper.grant_recipient.organisation.id,
+                    grant_id=submission_helper.grant_recipient.grant.id,
                     collection_type=submission.collection.type,
                     submission_id=submission.id,
                     _external=True,
                 )
             ),
-            "organisation_name": submission.grant_recipient.organisation.name,
+            "organisation_name": submission_helper.grant_recipient.organisation.name,
             "reference": submission.reference,
             "government_department": submission.collection.grant.organisation.name,
             "collection_type_noun": submission.collection.type.constants.singular,
@@ -272,16 +274,14 @@ class NotificationService:
                 if submission_helper.events.submission_state.declined_at_utc
                 else "(Declined date not known)"
             ),
-            "is_test_data": (
-                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
-            ),
-            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "is_test_data": ("yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
+            "organisation_name": submission_helper.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
             "grant_submission_url": (
                 url_for(
                     "access_grant_funding.route_to_submission",
-                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    organisation_id=submission_helper.grant_recipient.organisation.id,
+                    grant_id=submission_helper.grant_recipient.grant.id,
                     collection_id=submission_helper.collection.id,
                     _external=True,
                 )
@@ -320,16 +320,14 @@ class NotificationService:
                 else "(Dates to be confirmed)"
             ),
             "certifier_comments": submission_state.declined_reason,
-            "is_test_data": (
-                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
-            ),
-            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "is_test_data": ("yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
+            "organisation_name": submission_helper.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
             "grant_submission_url": (
                 url_for(
                     "access_grant_funding.route_to_submission",
-                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    organisation_id=submission_helper.grant_recipient.organisation.id,
+                    grant_id=submission_helper.grant_recipient.grant.id,
                     collection_id=submission_helper.collection.id,
                     _external=True,
                 )
@@ -374,20 +372,18 @@ class NotificationService:
             "submitter_name": submitter_name,
             "certifier_name": certifier_name,
             "submission_name": submission_helper.long_collection_name,
-            "organisation_name": submission_helper.submission.grant_recipient.organisation.name,
+            "organisation_name": submission_helper.grant_recipient.organisation.name,
             "reference": submission_helper.reference,
             "date_submitted": (
                 format_datetime(submission_helper.submitted_at_utc)
                 if submission_helper.submitted_at_utc
                 else "(Date submitted not known)"
             ),
-            "is_test_data": (
-                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
-            ),
+            "is_test_data": ("yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
             "grant_submission_url": url_for(
                 "access_grant_funding.view_locked_submission",
-                organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                grant_id=submission_helper.submission.grant_recipient.grant.id,
+                organisation_id=submission_helper.grant_recipient.organisation.id,
+                grant_id=submission_helper.grant_recipient.grant.id,
                 collection_type=submission_helper.collection.type,
                 submission_id=submission_helper.id,
                 _external=True,
@@ -422,9 +418,7 @@ class NotificationService:
             lines_for_email += f"^ {line}\n"
 
         personalisation = {
-            "is_test_data": (
-                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
-            ),
+            "is_test_data": ("yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
             "submission_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
             "reopening_reason": lines_for_email,
@@ -432,8 +426,8 @@ class NotificationService:
             "grant_submission_url": (
                 url_for(
                     "access_grant_funding.route_to_submission",
-                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    organisation_id=submission_helper.grant_recipient.organisation.id,
+                    grant_id=submission_helper.grant_recipient.grant.id,
                     collection_id=submission_helper.collection.id,
                     _external=True,
                 )
@@ -467,9 +461,7 @@ class NotificationService:
             lines_for_email += f"^ {line}\n"
 
         personalisation = {
-            "is_test_data": (
-                "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
-            ),
+            "is_test_data": ("yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),
             "submission_name": submission_helper.long_collection_name,
             "grant_name": submission_helper.collection.grant.name,
             "changes_requested_reason": lines_for_email,
@@ -477,8 +469,8 @@ class NotificationService:
             "grant_submission_url": (
                 url_for(
                     "access_grant_funding.route_to_submission",
-                    organisation_id=submission_helper.submission.grant_recipient.organisation.id,
-                    grant_id=submission_helper.submission.grant_recipient.grant.id,
+                    organisation_id=submission_helper.grant_recipient.organisation.id,
+                    grant_id=submission_helper.grant_recipient.grant.id,
                     collection_id=submission_helper.collection.id,
                     _external=True,
                 )
@@ -518,7 +510,7 @@ class NotificationService:
                 "submission_name": submission_helper.long_collection_name,
                 "collection_type_noun": submission.collection.type.constants.singular,
                 "grant_name": submission.collection.grant.name,
-                "organisation_name": submission.grant_recipient.organisation.name,
+                "organisation_name": submission_helper.grant_recipient.organisation.name,
                 "submitter_name": submitter_name,
                 "requires_certification": "yes" if submission.collection.requires_certification else "no",
                 "certifier_name": certifier_name,
