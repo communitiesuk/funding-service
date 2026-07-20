@@ -15,6 +15,7 @@ from app.common.data.types import (
     AuditEventType,
     CollectionStatusEnum,
     CollectionType,
+    DataSourceType,
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
     GrantStatusEnum,
@@ -3966,7 +3967,10 @@ class TestScheduleReport:
         grant_recipient = factories.grant_recipient.create(grant=grant)
         user = factories.user.create()
         factories.user_role.create(
-            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
@@ -3976,6 +3980,129 @@ class TestScheduleReport:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Test Grant Sign off and lock report"
+        assert soup.find(class_="govuk-warning-text") is None
+
+    def test_get_confirm_page_shows_warning_for_referenced_data_set_with_missing_data(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        data_source = factories.data_source.create(
+            name="Grant allocation",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(form=form, text=f"Your allocation is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        warning = soup.find(class_="govuk-warning-text")
+        assert warning is not None
+        warning_text = " ".join(warning.text.split())
+        assert (
+            "There is missing data in Grant allocation data set referenced in the form. Grant recipients with missing "
+            "data will not be able to complete the report until their missing data is uploaded." in warning_text
+        )
+
+    def test_get_confirm_page_lists_multiple_data_set_names_in_warning(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=grant_recipient.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        form = factories.form.create(collection=collection)
+        for name in ("Allocation data", "Contact details"):
+            data_source = factories.data_source.create(
+                name=name,
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[None],
+            )
+            factories.question.create(form=form, text=f"Value is (({data_source.safe_did}.c_allocation))")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        warning = soup.find(class_="govuk-warning-text")
+        assert warning is not None
+        warning_text = " ".join(warning.text.split())
+        assert (
+            "There is missing data in Allocation data and Contact details data sets referenced in the form."
+            in warning_text
+        )
+
+    def test_get_confirm_page_no_warning_when_data_set_not_referenced(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        factories.data_source.create(
+            name="Grant allocation",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find(class_="govuk-warning-text") is None
 
     def test_get_confirm_page_shows_warning_for_grant_recipients_with_no_data_providers(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
