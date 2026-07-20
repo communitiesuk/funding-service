@@ -3593,8 +3593,6 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
             )
         except SubmissionAuthorisationError:
             form.form_errors.append("You do not have permission to assess this submission")
-        except CollectionIsNotOpenError:
-            form.form_errors.append("You cannot assess this submission because the report is not open")
         except SubmissionIsNotSubmittedError:
             form.form_errors.append("You cannot assess this submission because it has not been submitted")
 

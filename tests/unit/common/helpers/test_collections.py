@@ -1824,21 +1824,16 @@ class TestSubmissionHelper:
 
     class TestCanBeAssessedByUser:
         @pytest.mark.parametrize(
-            "collection_status, grant_status, is_submitted, expected_result",
+            "grant_status, is_submitted, expected_result",
             [
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, True, True),
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.DRAFT, True, True),
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, False, False),
-                (CollectionStatusEnum.CLOSED, GrantStatusEnum.LIVE, False, False),
-                (CollectionStatusEnum.CLOSED, GrantStatusEnum.LIVE, True, False),
+                (GrantStatusEnum.LIVE, True, True),
+                (GrantStatusEnum.DRAFT, True, True),
+                (GrantStatusEnum.LIVE, False, False),
             ],
         )
-        def test_when_in_test_mode(
-            self, factories, collection_status, grant_status, is_submitted, expected_result, mocker
-        ):
+        def test_when_in_test_mode(self, factories, grant_status, is_submitted, expected_result, mocker):
             submission = factories.submission.build(
                 mode=SubmissionModeEnum.TEST,
-                collection__status=collection_status,
                 collection__grant__status=grant_status,
             )
             user = factories.user.build()
@@ -1851,24 +1846,20 @@ class TestSubmissionHelper:
             assert helper.can_be_assessed_by_user(user) == expected_result
 
         @pytest.mark.parametrize(
-            "collection_status, grant_status, is_submitted, user_can_assess, expected_result",
+            "grant_status, is_submitted, user_can_assess, expected_result",
             [
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, True, True, True),
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.DRAFT, True, True, False),
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.ONBOARDING, True, True, False),
-                (CollectionStatusEnum.DRAFT, GrantStatusEnum.LIVE, True, True, False),
-                (CollectionStatusEnum.SCHEDULED, GrantStatusEnum.LIVE, True, True, False),
-                (CollectionStatusEnum.CLOSED, GrantStatusEnum.LIVE, True, True, False),
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, False, True, False),
-                (CollectionStatusEnum.OPEN, GrantStatusEnum.LIVE, True, False, False),
+                (GrantStatusEnum.LIVE, True, True, True),
+                (GrantStatusEnum.DRAFT, True, True, False),
+                (GrantStatusEnum.ONBOARDING, True, True, False),
+                (GrantStatusEnum.LIVE, False, True, False),
+                (GrantStatusEnum.LIVE, True, False, False),
             ],
         )
         def test_when_in_live_mode(
-            self, factories, collection_status, grant_status, is_submitted, user_can_assess, expected_result, mocker
+            self, factories, grant_status, is_submitted, user_can_assess, expected_result, mocker
         ):
             submission = factories.submission.build(
                 mode=SubmissionModeEnum.LIVE,
-                collection__status=collection_status,
                 collection__grant__status=grant_status,
             )
             user = factories.user.build()
