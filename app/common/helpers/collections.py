@@ -55,6 +55,7 @@ from app.common.data.types import (
     NumberTypeEnum,
     QuestionDataType,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -346,7 +347,11 @@ class SubmissionHelper:
 
     def _update_submission_status(self):
         self.clear_caches()
-        update_submission(self.submission, status=self._calculate_submission_status())
+        update_submission(
+            self.submission,
+            status=self._calculate_submission_status(),
+            assessment_status=self._calculate_assessment_status(),
+        )
 
     def add_submission_event(self, event_type: SubmissionEventType, user: User, related_entity_id: UUID, **kwargs: Any):
         interfaces.collections._add_submission_event(
@@ -408,9 +413,40 @@ class SubmissionHelper:
                 else SubmissionStatusEnum.CHANGES_REQUESTED
             )
 
+    def _calculate_assessment_status(self) -> SubmissionAssessmentStatusEnum:
+        if self.is_assessment_approved:
+            return SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+        if self.is_assessment_rejected:
+            return SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+        return SubmissionAssessmentStatusEnum.NOT_STARTED
+
     @property
     def status(self) -> SubmissionStatusEnum:
         return self.submission.status
+
+    @property
+    def assessment_status(self) -> SubmissionAssessmentStatusEnum:
+        return self.submission.assessment_status
+
+    @property
+    def is_assessment_approved(self) -> bool:
+        return self.events.submission_state.is_assessment_approved
+
+    @property
+    def is_assessment_rejected(self) -> bool:
+        return self.events.submission_state.is_assessment_rejected
+
+    @property
+    def assessment_rejected_reason(self) -> str | None:
+        return self.events.submission_state.assessment_rejected_reason
+
+    @property
+    def assessed_by(self) -> User | None:
+        return self.events.submission_state.assessed_by
+
+    @property
+    def assessed_at_utc(self) -> datetime | None:
+        return self.events.submission_state.assessed_at_utc
 
     @property
     def submitted_at_utc(self) -> datetime | None:
@@ -1400,6 +1436,40 @@ class SubmissionHelper:
 
         for recipient in recipients:
             notification_service.send_changes_requested_submission(user=recipient, submission_helper=self)
+
+    def validate_submission(self, user: User, is_approved: bool, rejected_reason: str | None = None) -> None:
+        if not AuthorisationHelper.can_validate_submission(user, self.submission):
+            raise SubmissionAuthorisationError(
+                f"User does not have permission to validate submission id={self.id}",
+                user,
+                self.id,
+                RoleEnum.MEMBER,
+            )
+
+        if not self.collection.is_open_for_changes:
+            raise CollectionIsNotOpenError(
+                f"Could not request changes to submission id={self.id} "
+                "because the collection must have the status OPEN or DRAFT."
+            )
+
+        if not self.is_submitted:
+            raise SubmissionIsNotSubmittedError(
+                f"Could not validate submission id={self.id} because it is not submitted."
+            )
+
+        if is_approved:
+            self.add_submission_event(
+                event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+                user=user,
+                related_entity_id=self.id,
+            )
+        else:
+            self.add_submission_event(
+                event_type=SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
+                user=user,
+                related_entity_id=self.id,
+                assessment_rejected_reason=rejected_reason,
+            )
 
     def toggle_form_completed(self, form: Form, user: User, is_complete: bool) -> None:
         form_complete = self.get_status_for_form(form) in COMPLETE_TASKLIST_SECTION_STATUSES

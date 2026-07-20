@@ -62,6 +62,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -503,6 +504,16 @@ class Submission(BaseModel):
             validate_strings=True,
         ),
         nullable=False,
+    )
+
+    assessment_status: Mapped[SubmissionAssessmentStatusEnum] = mapped_column(
+        SqlEnum(
+            SubmissionAssessmentStatusEnum,
+            name="submission_assessment_status_enum",
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=SubmissionAssessmentStatusEnum.NOT_STARTED,
     )
 
     @hybrid_property

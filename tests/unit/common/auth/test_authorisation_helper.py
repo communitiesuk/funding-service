@@ -468,6 +468,24 @@ class TestAuthorisationHelper:
 
         assert AuthorisationHelper.can_request_or_allow_changes(user, submission_submitted) is True
 
+    @pytest.mark.parametrize("user_fixture", ["platform_member_user", "deliver_org_admin_user"])
+    def test_can_validate_submission_is_false(self, factories, request, user_fixture, submission_submitted, mocker):
+        user = request.getfixturevalue(user_fixture)
+        mocker.patch(
+            "app.common.auth.authorisation_helper.get_grant", return_value=submission_submitted.collection.grant
+        )
+
+        assert AuthorisationHelper.can_validate_submission(user, submission_submitted) is False
+
+    @pytest.mark.parametrize("user_fixture", ["platform_admin_user", "grant_team_member_user"])
+    def test_can_validate_submission_is_true(self, factories, request, user_fixture, submission_submitted, mocker):
+        user = request.getfixturevalue(user_fixture)
+        mocker.patch(
+            "app.common.auth.authorisation_helper.get_grant", return_value=submission_submitted.collection.grant
+        )
+
+        assert AuthorisationHelper.can_validate_submission(user, submission_submitted) is True
+
     @pytest.mark.parametrize(
         "collection_status,exp_can_replace_dataset",
         [

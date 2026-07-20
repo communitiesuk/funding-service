@@ -55,6 +55,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -77,6 +78,7 @@ from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import (
+    AssessmentRejectedKwargs,
     ChangesRequestedKwargs,
     DeclinedByCertifierKwargs,
     ReopenedKwargs,
@@ -567,9 +569,16 @@ def update_submission_data(submission: Submission) -> None:
 
 
 @flush_and_rollback_on_exceptions
-def update_submission(submission: Submission, *, status: SubmissionStatusEnum | TNotProvided = NOT_PROVIDED) -> None:
+def update_submission(
+    submission: Submission,
+    *,
+    status: SubmissionStatusEnum | TNotProvided = NOT_PROVIDED,
+    assessment_status: SubmissionAssessmentStatusEnum | TNotProvided = NOT_PROVIDED,
+) -> None:
     if status is not NOT_PROVIDED:
         submission.status = status
+    if assessment_status is not NOT_PROVIDED:
+        submission.assessment_status = assessment_status
 
 
 def get_all_submissions_with_mode_for_collection(
@@ -1892,6 +1901,17 @@ def _add_submission_event(
 def _add_submission_event(
     submission: Submission,
     *,
+    event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[AssessmentRejectedKwargs],
+) -> None: ...
+
+
+@overload
+def _add_submission_event(
+    submission: Submission,
+    *,
     event_type: SubmissionEventType,
     user: User,
     related_entity_id: UUID | None = None,
@@ -1952,6 +1972,12 @@ def _add_submission_event(
 
         case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
             emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission)
+
+        case SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED:
+            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_APPROVED, submission=submission)
+
+        case SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED:
+            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_REJECTED, submission=submission)
 
         case _:
             current_app.logger.error(
