@@ -29,6 +29,7 @@ from app.common.data.models import (
     ComponentReference,
     DataSource,
     DataSourceItem,
+    DataSourceOrganisationItem,
     Expression,
     Form,
     Grant,
@@ -112,7 +113,7 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     the same serialise -> replace IDs -> rebuild approach as the `export-grants`/`seed-grants` developer commands.
 
     Submissions are not copied and the new collection always starts in draft. Uploaded data sets keep their schema
-    but not their organisation-item rows or the underlying S3 file, as that data may be collection-specific or
+    but not their organisation-item rows' data or the underlying S3 file, as that data may be collection-specific or
     sensitive; callers should give the copies header-only files (see `upload_header_only_data_set_files` in
     deliver_grant_funding).
     """
@@ -220,8 +221,16 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
         if data_source_data["type"] == DataSourceType.GRANT_RECIPIENT:
             upload_header_only_data_set_files(ds)
 
+            for grant_recipient in grant.grant_recipients:
+                db.session.add(
+                    DataSourceOrganisationItem(
+                        data_source_id=ds.id, external_id=grant_recipient.organisation.external_id
+                    )
+                )
+
     for data_source_item_data in remapped["data_source_items"]:
         db.session.add(DataSourceItem(**data_source_item_data))
+
     db.session.flush()
 
     for component_data in remapped["components"]:

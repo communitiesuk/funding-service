@@ -1558,7 +1558,7 @@ class DataSourceOrganisationItem(BaseModel):
     data_source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("data_source.id", ondelete="CASCADE"))
     external_id: Mapped[str]
 
-    _data: Mapped[json_flat_scalars] = mapped_column("data", mutable_json_type(dbtype=JSONB, nested=True))
+    _data: Mapped[json_flat_scalars] = mapped_column("data", mutable_json_type(dbtype=JSONB, nested=True), default=dict)
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="organisation_items")
 
