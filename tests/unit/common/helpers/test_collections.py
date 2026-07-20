@@ -1835,6 +1835,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(
                 mode=SubmissionModeEnum.TEST,
                 collection__grant__status=grant_status,
+                collection__allow_validation=True,
             )
             user = factories.user.build()
             mocker.patch(
@@ -1874,6 +1875,7 @@ class TestSubmissionHelper:
         ):
             submission = factories.submission.build(
                 mode=SubmissionModeEnum.LIVE,
+                collection__allow_validation=True,
                 collection__grant__status=grant_status,
             )
             user = factories.user.build()

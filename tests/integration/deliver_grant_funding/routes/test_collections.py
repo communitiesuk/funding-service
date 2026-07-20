@@ -9051,20 +9051,20 @@ class TestViewSubmission:
             assert button is None
 
     def test_action_buttons_hidden_when_submission_is_assessed(
-        self, authenticated_grant_member_client, grant_recipient, submission_submitted, db_session
+        self, authenticated_grant_member_client, grant_recipient, submission_with_allow_validation, db_session
     ):
         client = authenticated_grant_member_client
         grant = grant_recipient.grant
         grant.allow_pre_award = True
 
-        SubmissionHelper(submission_submitted).validate_submission(user=client.user, is_approved=True)
+        SubmissionHelper(submission_with_allow_validation).validate_submission(user=client.user, is_approved=True)
         db_session.commit()
 
         response = client.get(
             url_for(
                 "deliver_grant_funding.view_submission",
                 grant_id=grant.id,
-                submission_id=submission_submitted.id,
+                submission_id=submission_with_allow_validation.id,
             )
         )
 
@@ -9750,14 +9750,16 @@ class TestApproveOrRejectSubmission:
             ("authenticated_grant_member_client", True),
         ),
     )
-    def test_get_approve_or_reject_submission(self, request, client_fixture, can_access, submission_submitted):
+    def test_get_approve_or_reject_submission(
+        self, request, client_fixture, can_access, submission_with_allow_validation
+    ):
         client = request.getfixturevalue(client_fixture)
 
         response = client.get(
             url_for(
                 "deliver_grant_funding.approve_or_reject_submission",
-                grant_id=submission_submitted.collection.grant.id,
-                submission_id=submission_submitted.id,
+                grant_id=submission_with_allow_validation.collection.grant.id,
+                submission_id=submission_with_allow_validation.id,
             )
         )
 
@@ -9769,7 +9771,7 @@ class TestApproveOrRejectSubmission:
             assert "Would you like to mark this submission as approved or rejected?" in soup.text
             assert page_has_button(soup, "Confirm and submit decision")
 
-    def test_post_approve(self, authenticated_grant_member_client, submission_submitted):
+    def test_post_approve(self, authenticated_grant_member_client, submission_with_allow_validation):
         client = authenticated_grant_member_client
         client.grant.allow_pre_award = True
 
@@ -9778,15 +9780,15 @@ class TestApproveOrRejectSubmission:
         response = client.post(
             url_for(
                 "deliver_grant_funding.approve_or_reject_submission",
-                grant_id=submission_submitted.collection.grant.id,
-                submission_id=submission_submitted.id,
+                grant_id=submission_with_allow_validation.collection.grant.id,
+                submission_id=submission_with_allow_validation.id,
             ),
             data=get_form_data(form),
             follow_redirects=True,
         )
 
         assert response.status_code == 200
-        assert submission_submitted.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+        assert submission_with_allow_validation.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Submission marked as approved")
@@ -9797,7 +9799,7 @@ class TestApproveOrRejectSubmission:
         timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
         assert "Report marked as approved" in timeline_titles
 
-    def test_post_reject(self, authenticated_grant_member_client, submission_submitted):
+    def test_post_reject(self, authenticated_grant_member_client, submission_with_allow_validation):
         client = authenticated_grant_member_client
         client.grant.allow_pre_award = True
 
@@ -9808,15 +9810,15 @@ class TestApproveOrRejectSubmission:
         response = client.post(
             url_for(
                 "deliver_grant_funding.approve_or_reject_submission",
-                grant_id=submission_submitted.collection.grant.id,
-                submission_id=submission_submitted.id,
+                grant_id=submission_with_allow_validation.collection.grant.id,
+                submission_id=submission_with_allow_validation.id,
             ),
             data=get_form_data(form),
             follow_redirects=True,
         )
 
         assert response.status_code == 200
-        assert submission_submitted.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+        assert submission_with_allow_validation.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Submission marked as rejected")

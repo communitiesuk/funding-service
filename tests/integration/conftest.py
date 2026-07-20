@@ -917,6 +917,15 @@ def submission_collection_closed(factories: _Factories, grant_recipient: GrantRe
     return cast(Submission, submission)
 
 
+@pytest.fixture(scope="function")
+def submission_with_allow_validation(db_session, submission_submitted: Submission) -> Submission:
+    collection = submission_submitted.collection
+    collection.allow_validation = True
+    db_session.commit()
+
+    return submission_submitted
+
+
 @pytest.fixture()
 def authenticated_grant_recipient_member_client(
     anonymous_client: FundingServiceTestClient,
