@@ -355,8 +355,8 @@ def generate_latest_csv_template(data_source: DataSource) -> StringIO:
 def upload_header_only_data_set_files(data_set: "DataSource") -> None:
     """Uploads a header-only CSV to S3 for a given data source after it's been copied
 
-    `copy_collection` copies a data set's schema but not its rows or the original uploaded file, as the data may be
-    collection-specific or sensitive. Upload a CSV containing just the column headers under a key owned by the new
+    `copy_collection` copies a data set's schema but not its rows' data or the original uploaded file, as the data may
+    be collection-specific or sensitive. Upload a CSV containing just the column headers under a key owned by the new
     collection, so the copy's file metadata never points at the source collection's data.
     """
     if (

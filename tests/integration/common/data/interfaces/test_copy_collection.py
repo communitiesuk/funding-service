@@ -81,9 +81,13 @@ def source_collection(factories):
         grant=grant,
     )
     factories.data_source_organisation_item.create(
-        data_source=gr_data_source, external_id=grant_recipient.organisation.external_id
+        data_source=gr_data_source,
+        external_id=grant_recipient.organisation.external_id,
+        _data={"c_allocation": 100},
     )
-    factories.data_source_organisation_item.create(data_source=gr_data_source, external_id="other-org")
+    factories.data_source_organisation_item.create(
+        data_source=gr_data_source, external_id="other-org", _data={"c_allocation": 200}
+    )
 
     ds_ref = ExpressionReference.from_data_source_column(gr_data_source, "c_allocation")
     factories.question.create(
@@ -139,7 +143,9 @@ def copy_user(factories):
 
 @pytest.fixture()
 def target_grant(factories):
-    return factories.grant.create()
+    grant = factories.grant.create()
+    factories.grant_recipient.create_batch(2, grant=grant)
+    return grant
 
 
 @pytest.fixture()
@@ -487,12 +493,37 @@ class TestCopyCollectionDataSourceItems:
 
 
 class TestCopyCollectionDataSourceOrganisationItems:
-    def test_does_not_copy_organisation_items(self, db_session, source_collection, copied):
-        source_gr_ds = next(ds for ds in source_collection.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
-        assert len(source_gr_ds.organisation_items) == 2
-
+    def test_creates_empty_rows_for_target_grant_recipients(self, db_session, copied, target_grant):
         copied_gr_ds = next(ds for ds in copied.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
-        assert copied_gr_ds.organisation_items == []
+        target_external_ids = {gr.organisation.external_id for gr in target_grant.grant_recipients}
+        copied_external_ids = {item.external_id for item in copied_gr_ds.organisation_items}
+        assert len(target_external_ids) == 2
+        assert copied_external_ids == target_external_ids
+        assert all(item._data == {} for item in copied_gr_ds.organisation_items)
+
+    def test_does_not_copy_source_organisation_items(self, db_session, source_collection, copied):
+        source_gr_ds = next(ds for ds in source_collection.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
+        copied_gr_ds = next(ds for ds in copied.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
+        source_external_ids = {item.external_id for item in source_gr_ds.organisation_items}
+        copied_external_ids = {item.external_id for item in copied_gr_ds.organisation_items}
+        assert all(item._data for item in source_gr_ds.organisation_items)
+        assert copied_external_ids.isdisjoint(source_external_ids)
+        source_item_ids = {item.id for item in source_gr_ds.organisation_items}
+        copied_item_ids = {item.id for item in copied_gr_ds.organisation_items}
+        assert copied_item_ids.isdisjoint(source_item_ids)
+
+    def test_organisation_items_belong_to_copied_data_source(self, db_session, copied):
+        copied_gr_ds = next(ds for ds in copied.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
+        for item in copied_gr_ds.organisation_items:
+            assert item.data_source_id == copied_gr_ds.id
+
+    def test_original_organisation_items_unchanged(self, db_session, source_collection, copied):
+        source_gr_ds = next(ds for ds in source_collection.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
+        items_by_external_id = source_gr_ds.get_organisation_items_by_external_id()
+        assert len(items_by_external_id) == 2
+        assert items_by_external_id["other-org"]._data == {"c_allocation": 200}
+        for item in source_gr_ds.organisation_items:
+            assert item.data_source_id == source_gr_ds.id
 
     def test_copies_grant_recipient_data_source_with_new_id(self, db_session, source_collection, copied):
         source_gr_ds = next(ds for ds in source_collection.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
