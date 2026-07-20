@@ -226,10 +226,7 @@ class AuthorisationHelper:
         return has_deliver_grant_role and not is_deliver_org_member
 
     @staticmethod
-    def can_validate_submission(user: User, submission: "Submission | UUID") -> bool:
-        if isinstance(submission, UUID):
-            submission = get_submission(submission)
-
+    def can_validate_submission(user: User, submission: Submission) -> bool:
         if AuthorisationHelper.is_platform_admin(user):
             return True
 
