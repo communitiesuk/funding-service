@@ -15,13 +15,19 @@ from app.common.data.models import Expression
 from app.common.data.types import (
     DataSourceType,
     ExpressionType,
+    ManagedExpressionsEnum,
     QuestionDataType,
+    QuestionPresentationOptions,
     SubmissionEventType,
     TasklistSectionStatusEnum,
 )
 from app.common.expressions.managed import GreaterThan, IsYes, LessThan
 from app.common.helpers.collections import SubmissionHelper
-from app.deliver_grant_funding.forms import RequestChangesSubmissionForm, UploadDataSetForm
+from app.deliver_grant_funding.forms import (
+    RequestChangesSubmissionForm,
+    SelectDataSourceQuestionForm,
+    UploadDataSetForm,
+)
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 
 
@@ -39,6 +45,212 @@ def _build_file_upload_form_data(csv_content: str) -> MultiDict:
         ]
     )
     return data
+
+
+def _select_data_source_question_form(
+    *,
+    current_component,
+    subject_reference=None,
+    expression_type=None,
+    managed_expression_name=None,
+) -> SelectDataSourceQuestionForm:
+    return SelectDataSourceQuestionForm(
+        form=current_component.form,
+        interpolate=SubmissionHelper.get_interpolator(collection=current_component.form.collection),
+        subject_reference=subject_reference,
+        current_component=current_component,
+        expression_type=expression_type,
+        managed_expression_name=managed_expression_name,
+    )
+
+
+class TestSelectDataSourceQuestionForm:
+    def test_only_includes_earlier_questions_in_the_form_if_given_a_current_question(self, factories):
+        form = factories.form.create()
+        questions = factories.question.create_batch(5, form=form, data_type=QuestionDataType.NUMBER)
+
+        data_source_form = _select_data_source_question_form(current_component=questions[2])
+
+        assert len(data_source_form.question.choices) == 3
+        # '' is the default "no answer" choice
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(questions[0]),
+            ExpressionReference.from_question(questions[1]),
+        }
+
+    def test_questions_in_a_same_page_group_excluded(self, factories):
+        group = factories.group.create(
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False)
+        )
+        questions = factories.question.create_batch(5, form=group.form, parent=group, data_type=QuestionDataType.NUMBER)
+
+        data_source_form = _select_data_source_question_form(current_component=questions[2])
+
+        assert len(data_source_form.question.choices) == 3
+        # '' is the default "no answer" choice
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(questions[0]),
+            ExpressionReference.from_question(questions[1]),
+        }
+
+        group.presentation_options.show_questions_on_the_same_page = True
+        group.form.clear_caches()
+        group.clear_caches()
+
+        data_source_form = _select_data_source_question_form(current_component=questions[2])
+
+        assert data_source_form.question.choices == []
+
+    def test_show_all_question_datatypes_if_no_expression(self, factories):
+        form = factories.form.create()
+        text_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        yes_no_question = factories.question.create(form=form, data_type=QuestionDataType.YES_NO)
+        date_question = factories.question.create(form=form, data_type=QuestionDataType.DATE)
+        integer_question = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+
+        data_source_form = _select_data_source_question_form(current_component=integer_question)
+
+        assert len(data_source_form.question.choices) == 4
+        # '' is the default "no answer" choice
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            str(ExpressionReference.from_question(text_question)),
+            str(ExpressionReference.from_question(yes_no_question)),
+            str(ExpressionReference.from_question(date_question)),
+        }
+
+    def test_managed_expression_excludes_mismatched_data_types(self, factories):
+        form = factories.form.create()
+        factories.question.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+        factories.question.create(form=form, data_type=QuestionDataType.YES_NO)
+        integer_questions = factories.question.create_batch(4, form=form, data_type=QuestionDataType.NUMBER)
+
+        data_source_form = _select_data_source_question_form(
+            current_component=integer_questions[2],
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        assert len(data_source_form.question.choices) == 3
+        # '' is the default "no answer" choice
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_questions[0]),
+            ExpressionReference.from_question(integer_questions[1]),
+        }
+
+    def test_excludes_same_page_groups_and_unregistered_data_types(self, factories):
+        form = factories.form.create()
+        integer_q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        factories.question.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.create(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        integer_q4 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+
+        data_source_form = _select_data_source_question_form(
+            current_component=integer_q4,
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        assert len(data_source_form.question.choices) == 3
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
+
+    def test_calculated_condition_excludes_unregistered_data_types(self, factories):
+        form = factories.form.create()
+        integer_q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        factories.question.create(form=form, data_type=QuestionDataType.YES_NO)
+        factories.question.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.create(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        text_q4 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        data_source_form = _select_data_source_question_form(
+            current_component=text_q4,
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=None,
+        )
+
+        assert len(data_source_form.question.choices) == 3
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
+
+    def test_managed_condition_with_question_subject_reference(self, factories):
+        form = factories.form.create()
+        integer_q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        factories.question.create(form=form, data_type=QuestionDataType.YES_NO)
+        factories.question.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.create(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        integer_q3 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        text_q4 = factories.question.create(form=form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        data_source_form = _select_data_source_question_form(
+            current_component=text_q4,
+            subject_reference=ExpressionReference.from_question(integer_q3),
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=None,
+        )
+
+        assert len(data_source_form.question.choices) == 3
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
+
+    def test_managed_condition_with_data_set_subject_reference(self, factories):
+        form = factories.form.create()
+        integer_q1 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        integer_q2 = factories.question.create(form=form, data_type=QuestionDataType.NUMBER)
+        factories.question.create(form=form, data_type=QuestionDataType.YES_NO)
+        text_question = factories.question.create(form=form, data_type=QuestionDataType.TEXT_MULTI_LINE)
+
+        group = factories.group.create(
+            form=form, presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True)
+        )
+        factories.question.create(form=form, parent=group, data_type=QuestionDataType.NUMBER)
+        factories.question.create(form=form, parent=group, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        data_set = factories.data_source.create(
+            grant=form.collection.grant,
+            collection=form.collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        data_source_form = _select_data_source_question_form(
+            current_component=text_question,
+            subject_reference=ExpressionReference.from_data_source_column(data_set, "c_allocation"),
+            expression_type=ExpressionType.CONDITION,
+            managed_expression_name=None,
+        )
+
+        assert len(data_source_form.question.choices) == 3
+        assert {q[0] for q in data_source_form.question.choices} == {
+            "",
+            ExpressionReference.from_question(integer_q1),
+            ExpressionReference.from_question(integer_q2),
+        }
 
 
 class TestUploadDataSetForm:
