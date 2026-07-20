@@ -46,8 +46,12 @@ class ChangesRequestedMixin(Protocol):
     changes_requested_reason: str | None
 
 
-class AssessorMarkedMixin(Protocol):
+class AssessorMarkedAsApprovedMixin(Protocol):
     is_assessment_approved: bool
+
+
+class AssessorMarkedAsRejectedMixin(Protocol):
+    is_assessment_rejected: bool | None
 
 
 class AssessmentRejectedMixin(Protocol):
@@ -118,15 +122,18 @@ class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, Changes
 
 
 @dataclass
-class AssessorMarkedAsApprovedEvent(SubmissionEventBase, AssessorMarkedMixin):
+class AssessorMarkedAsApprovedEvent(SubmissionEventBase, AssessorMarkedAsApprovedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED
     is_assessment_approved: bool = True
+    is_assessment_rejected: bool | None = None
+    assessment_rejected_reason: str | None = None
 
 
 @dataclass
-class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessorMarkedMixin, AssessmentRejectedMixin):
+class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessorMarkedAsRejectedMixin, AssessmentRejectedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED
-    is_assessment_approved: bool = False
+    is_assessment_approved: bool | None = None
+    is_assessment_rejected: bool = True
     assessment_rejected_reason: str | None = field(default=None, metadata={"stored": True})
 
 
@@ -226,7 +233,8 @@ class SubmissionState(
     ReopenedMixin,
     ChangesRequestedMixin,
     ChangesRequestedMetadata,
-    AssessorMarkedMixin,
+    AssessorMarkedAsApprovedMixin,
+    AssessorMarkedAsRejectedMixin,
     AssessmentRejectedMixin,
     AssessmentMetadata,
 ):
@@ -241,6 +249,7 @@ class SubmissionState(
     is_changes_requested: bool = False
     is_reopened: bool = False
     is_assessment_approved: bool | None = None
+    is_assessment_rejected: bool | None = None
     assessment_rejected_reason: str | None = None
 
 

@@ -416,7 +416,7 @@ class SubmissionHelper:
     def _calculate_assessment_status(self) -> SubmissionAssessmentStatusEnum:
         if self.is_assessment_approved is True:
             return SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
-        if self.is_assessment_approved is False:
+        if self.is_assessment_rejected is True:
             return SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
         return SubmissionAssessmentStatusEnum.NOT_STARTED
 
@@ -431,6 +431,10 @@ class SubmissionHelper:
     @property
     def is_assessment_approved(self) -> bool | None:
         return self.events.submission_state.is_assessment_approved
+
+    @property
+    def is_assessment_rejected(self) -> bool | None:
+        return self.events.submission_state.is_assessment_rejected
 
     @property
     def assessment_rejected_reason(self) -> str | None:

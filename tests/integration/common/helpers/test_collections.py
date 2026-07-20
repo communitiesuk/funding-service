@@ -2545,8 +2545,27 @@ class TestSubmissionHelper:
             helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
 
             assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
-            assert helper.is_assessment_approved is False
+            assert helper.is_assessment_rejected is True
             assert helper.assessment_rejected_reason == "Missing data"
+            assert helper.assessed_by == grant_team_user
+
+        def test_last_validation_decision_prevails(self, grant_team_user, submission_submitted):
+            helper = SubmissionHelper(submission_submitted)
+
+            helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
+
+            assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+            assert helper.is_assessment_approved is None
+            assert helper.is_assessment_rejected is True
+            assert helper.assessment_rejected_reason == "Missing data"
+            assert helper.assessed_by == grant_team_user
+
+            helper.validate_submission(user=grant_team_user, is_approved=True)
+
+            assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+            assert helper.is_assessment_approved is True
+            assert helper.is_assessment_rejected is None
+            assert helper.assessment_rejected_reason is None
             assert helper.assessed_by == grant_team_user
 
     class TestLastUpdatedAt:
