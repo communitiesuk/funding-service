@@ -1,4 +1,5 @@
 # todo: propose moving common/helper/collections.py to common/collections/submission.py
+from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar, cast
 from uuid import UUID
 
@@ -253,7 +254,7 @@ class FormRunner:
             raise RuntimeError("Confirm remove context not set")
         return self._confirm_remove_form
 
-    @property
+    @cached_property
     def can_edit(self) -> bool:
         if self.submission.in_answers_locked_state:
             return False
@@ -307,6 +308,7 @@ class FormRunner:
                     self.submission.remove_answer_for_question(
                         question_id=self.linked_question.id, add_another_index=self.add_another_index
                     )
+            self.clear_caches()
             return True
         else:
             error = False
@@ -330,8 +332,15 @@ class FormRunner:
                     self.question_form.attach_error_for_question(question, e.message)
                     error = True
 
+            self.clear_caches()
             # Return true if successful
             return not error
+
+    def clear_caches(self):
+        for attr, value in self.__class__.__dict__.items():
+            if isinstance(value, cached_property):
+                if attr in self.__dict__:
+                    del self.__dict__[attr]
 
     def save_add_another(self) -> bool:
         if self.add_another_index is None or not (self.component and self.component.add_another_container):
