@@ -2,6 +2,7 @@ import csv
 import io
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypedDict, cast, overload
 from typing import Optional as TOptional
 from uuid import UUID
@@ -1214,14 +1215,21 @@ class UploadDataSetForm(FlaskForm):
 
                 # This allows matches for values with prefix or suffix, eg 100 == £100
                 if not org_has_error:
-                    if isinstance(existing_value_answer, IntegerAnswer) or isinstance(
-                        existing_value_answer, DecimalAnswer
-                    ):
-                        if not (
-                            str(existing_value_answer.value) == new_value.strip()  # ty:ignore[unresolved-attribute]
-                            or existing_value_answer.get_value_for_text_export() == new_value.strip()
-                        ):
-                            org_has_error = True
+                    if isinstance(existing_value_answer, (IntegerAnswer, DecimalAnswer)):
+                        existing_value_answer = cast(IntegerAnswer | DecimalAnswer, existing_value_answer)
+                        stripped_value = (
+                            new_value.strip()
+                            .removeprefix(existing_value_answer.prefix if existing_value_answer.prefix else "")
+                            .removesuffix(existing_value_answer.suffix if existing_value_answer.suffix else "")
+                            .replace(",", "")
+                        )
+                        typed_new_value = existing_value_answer.model_copy()
+                        if isinstance(existing_value_answer, IntegerAnswer):
+                            cast(IntegerAnswer, typed_new_value).value = int(stripped_value)
+                        else:
+                            cast(DecimalAnswer, typed_new_value).value = Decimal(stripped_value)
+
+                        org_has_error = existing_value_answer != typed_new_value
                     else:
                         if existing_value_answer.get_value_for_text_export() != new_value.strip():
                             org_has_error = True
@@ -1339,14 +1347,12 @@ class UploadDataSetForm(FlaskForm):
             UploadDataSetForm._validate_max_rows(rows)
 
             if self.existing_datasource:
-                self._validate_data_for_existing_submissions(self.existing_datasource, rows)
-                errors = self._validate_existing_references(self.existing_datasource, fieldnames)
-
-                errors.extend(self._validate_data_for_existing_columns(self.existing_datasource, fieldnames, rows))
-
+                errors = self._validate_data_for_existing_columns(self.existing_datasource, fieldnames, rows)
+                errors.extend(self._validate_existing_references(self.existing_datasource, fieldnames))
                 if errors:
                     self.data_errors = errors
                     raise ValidationError(errors[0])
+                self._validate_data_for_existing_submissions(self.existing_datasource, rows)
         finally:
             field.data.stream.seek(0)
 
