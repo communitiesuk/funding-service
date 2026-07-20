@@ -51,10 +51,7 @@ class AssessorMarkedAsApprovedMixin(Protocol):
 
 
 class AssessorMarkedAsRejectedMixin(Protocol):
-    is_assessment_rejected: bool | None
-
-
-class AssessmentRejectedMixin(Protocol):
+    is_assessment_rejected: bool
     assessment_rejected_reason: str | None
 
 
@@ -125,14 +122,14 @@ class SubmissionChangesRequestedEvent(SubmissionEventBase, SignOffMixin, Changes
 class AssessorMarkedAsApprovedEvent(SubmissionEventBase, AssessorMarkedAsApprovedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED
     is_assessment_approved: bool = True
-    is_assessment_rejected: bool | None = None
+    is_assessment_rejected: bool = False
     assessment_rejected_reason: str | None = None
 
 
 @dataclass
-class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessorMarkedAsRejectedMixin, AssessmentRejectedMixin):
+class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessorMarkedAsRejectedMixin):
     event_type: ClassVar[SubmissionEventType] = SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED
-    is_assessment_approved: bool | None = None
+    is_assessment_approved: bool = False
     is_assessment_rejected: bool = True
     assessment_rejected_reason: str | None = field(default=None, metadata={"stored": True})
 
@@ -235,7 +232,6 @@ class SubmissionState(
     ChangesRequestedMetadata,
     AssessorMarkedAsApprovedMixin,
     AssessorMarkedAsRejectedMixin,
-    AssessmentRejectedMixin,
     AssessmentMetadata,
 ):
     is_awaiting_sign_off: bool | None = None
@@ -248,8 +244,8 @@ class SubmissionState(
     section_ids: list[UUID] = field(default_factory=list)
     is_changes_requested: bool = False
     is_reopened: bool = False
-    is_assessment_approved: bool | None = None
-    is_assessment_rejected: bool | None = None
+    is_assessment_approved: bool = False
+    is_assessment_rejected: bool = False
     assessment_rejected_reason: str | None = None
 
 
