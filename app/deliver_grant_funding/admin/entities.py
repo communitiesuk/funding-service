@@ -33,6 +33,7 @@ from app.common.data.models import (
     GrantRecipient,
     Organisation,
     Question,
+    ReleaseNote,
     Submission,
     SubmissionEvent,
 )
@@ -746,4 +747,40 @@ class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, P
     }
     column_formatters_detail = {
         "data": _format_json_data,
+    }
+
+
+class PlatformAdminReleaseNoteView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
+    _model = ReleaseNote
+
+    can_create = True
+    can_edit = True
+    can_delete = True
+
+    column_list = [
+        "title",
+        "release_date",
+        "is_published",
+    ]
+
+    column_default_sort = ("release_date", True)
+
+    form_columns = [
+        "title",
+        "content",
+        "release_date",
+        "is_published",
+    ]
+
+    form_args = {
+        "content": {
+            "widget": GovTextArea(),
+        },
+    }
+
+    column_labels = {
+        "title": "Title",
+        "content": "Description",
+        "release_date": "Release date",
+        "is_published": "Is published",
     }

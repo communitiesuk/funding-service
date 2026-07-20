@@ -1750,3 +1750,12 @@ class GrantRecipient(BaseModel):
     @property
     def submission_mode(self) -> SubmissionModeEnum:
         return SubmissionModeEnum(self.mode.value)
+
+
+class ReleaseNote(BaseModel):
+    __tablename__ = "release_note"
+
+    title: Mapped[str]
+    content: Mapped[str]
+    release_date: Mapped[datetime.date]
+    is_published: Mapped[bool] = mapped_column(default=False)

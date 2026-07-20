@@ -47,6 +47,7 @@ from app.common.data.models import (
     Group,
     Organisation,
     Question,
+    ReleaseNote,
     Submission,
     SubmissionEvent,
 )
@@ -1308,3 +1309,16 @@ class _AuditEventFactory(SQLAlchemyModelFactory):
     user_id = factory.LazyAttribute(lambda o: o.user.id)
     user = factory.SubFactory(_UserFactory)
     data = factory.LazyFunction(lambda: {"model_class": "Grant", "action": "create", "changes": {}})
+
+
+class _ReleaseNoteFactory(SQLAlchemyModelFactory):
+    class Meta:
+        model = ReleaseNote
+        sqlalchemy_session_factory = lambda: db.session  # noqa: E731
+        sqlalchemy_session_persistence = "commit"
+
+    id = factory.LazyFunction(uuid4)
+    title = factory.Sequence(lambda n: f"Release note {n}")
+    content = factory.Faker("text", max_nb_chars=200)
+    release_date = factory.LazyFunction(datetime.date.today)
+    is_published = False
