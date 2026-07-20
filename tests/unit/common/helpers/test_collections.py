@@ -1822,6 +1822,59 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
             assert helper.can_be_reopened_by_user(user) == expected_result
 
+    class TestCanBeAssessedByUser:
+        @pytest.mark.parametrize(
+            "grant_status, is_submitted, expected_result",
+            [
+                (GrantStatusEnum.LIVE, True, True),
+                (GrantStatusEnum.DRAFT, True, True),
+                (GrantStatusEnum.LIVE, False, False),
+            ],
+        )
+        def test_when_in_test_mode(self, factories, grant_status, is_submitted, expected_result, mocker):
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.TEST,
+                collection__grant__status=grant_status,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=is_submitted,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_assessed_by_user(user) == expected_result
+
+        @pytest.mark.parametrize(
+            "grant_status, is_submitted, user_can_assess, expected_result",
+            [
+                (GrantStatusEnum.LIVE, True, True, True),
+                (GrantStatusEnum.DRAFT, True, True, False),
+                (GrantStatusEnum.ONBOARDING, True, True, False),
+                (GrantStatusEnum.LIVE, False, True, False),
+                (GrantStatusEnum.LIVE, True, False, False),
+            ],
+        )
+        def test_when_in_live_mode(
+            self, factories, grant_status, is_submitted, user_can_assess, expected_result, mocker
+        ):
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.LIVE,
+                collection__grant__status=grant_status,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=is_submitted,
+            )
+            mocker.patch(
+                "app.common.helpers.collections.AuthorisationHelper.can_validate_submission",
+                return_value=user_can_assess,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_assessed_by_user(user) == expected_result
+
 
 class TestDeserialiseQuestionType:
     def test_number_integer(self, factories):

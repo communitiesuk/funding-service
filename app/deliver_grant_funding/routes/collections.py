@@ -143,6 +143,7 @@ from app.deliver_grant_funding.forms import (
     AddContextSelectSourceForm,
     AddGuidanceForm,
     AddSectionForm,
+    ApproveOrRejectSubmissionForm,
     CollectionCreationMethodForm,
     CollectionSettingsForm,
     ConditionsOperatorForm,
@@ -3400,6 +3401,8 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER,
         SubmissionEventType.SUBMISSION_REOPENED,
         SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+        SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+        SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
     ]
 
     # we are not displaying SUBMISSION_SUBMITTED events when collection requires certification
@@ -3553,6 +3556,48 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
 
     return render_template(
         "deliver_grant_funding/collections/request_changes_submission.html",
+        form=form,
+        helper=submission_helper,
+        grant=submission_helper.grant,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/approve-or-reject", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
+def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
+    submission_helper = SubmissionHelper.load(submission_id)
+
+    if not AuthorisationHelper.can_validate_submission(get_current_user(), submission_helper.submission):
+        abort(403)
+
+    form = ApproveOrRejectSubmissionForm()
+    if form.validate_on_submit():
+        is_approved = form.is_approved.data == "yes"
+        try:
+            submission_helper.validate_submission(
+                user=get_current_user(),
+                is_approved=is_approved,
+                rejected_reason=form.rejected_reason.data if not is_approved else None,
+            )
+            flash_type = (
+                FlashMessageType.SUBMISSION_MARKED_AS_APPROVED
+                if is_approved
+                else FlashMessageType.SUBMISSION_MARKED_AS_REJECTED
+            )
+            flash("Assessment saved", flash_type)
+            return redirect(
+                url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+            )
+        except SubmissionAuthorisationError:
+            form.form_errors.append("You do not have permission to assess this submission")
+        except SubmissionIsNotSubmittedError:
+            form.form_errors.append("You cannot assess this submission because it has not been submitted")
+
+    return render_template(
+        "deliver_grant_funding/collections/approve_or_reject_submission.html",
         form=form,
         helper=submission_helper,
         grant=submission_helper.grant,

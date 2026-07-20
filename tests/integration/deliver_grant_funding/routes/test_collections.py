@@ -50,6 +50,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionPresentationOptions,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -78,6 +79,7 @@ from app.deliver_grant_funding.data_sets import build_data_set_upload_s3_key
 from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
+    ApproveOrRejectSubmissionForm,
     CollectionCreationMethodForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
@@ -9705,6 +9707,104 @@ class TestRequestChangesSubmission:
 
         # One SUBMISSION_CHANGES_REQUESTED events created
         assert len(submission_events_changes_requests_after) == 1
+
+
+class TestApproveOrRejectSubmission:
+    def test_404(self, authenticated_platform_member_client):
+        response = authenticated_platform_member_client.get(
+            url_for(
+                "deliver_grant_funding.approve_or_reject_submission", grant_id=uuid.uuid4(), submission_id=uuid.uuid4()
+            )
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_org_member_client", False),
+            ("authenticated_grant_member_client", True),
+        ),
+    )
+    def test_get_approve_or_reject_submission(self, request, client_fixture, can_access, submission_submitted):
+        client = request.getfixturevalue(client_fixture)
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.approve_or_reject_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "Would you like to mark this submission as approved or rejected?" in soup.text
+            assert page_has_button(soup, "Confirm and submit decision")
+
+    def test_post_approve(self, authenticated_grant_member_client, submission_submitted):
+        client = authenticated_grant_member_client
+        client.grant.allow_pre_award = True
+
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes"})
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.approve_or_reject_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert submission_submitted.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Submission marked as approved")
+        # TODO (FSPT-1480): update to check for "Marked as approved" assessment tag
+        # tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        # assert len(tag_texts) == 1
+        # assert "Marked as approved" in tag_texts
+        timeline = soup.find(class_="moj-timeline")
+        timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
+        assert "Report marked as approved" in timeline_titles
+
+    def test_post_reject(self, authenticated_grant_member_client, submission_submitted):
+        client = authenticated_grant_member_client
+        client.grant.allow_pre_award = True
+
+        form = ApproveOrRejectSubmissionForm(
+            data={"is_approved": "no", "rejected_reason": "Missing supporting evidence"}
+        )
+
+        response = client.post(
+            url_for(
+                "deliver_grant_funding.approve_or_reject_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert submission_submitted.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Submission marked as rejected")
+        # TODO (FSPT-1480): update to check for "Marked as rejected" assessment tag
+        # tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
+        # assert len(tag_texts) == 1
+        # assert "Marked as rejected" in tag_texts
+        timeline = soup.find(class_="moj-timeline")
+        timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
+        assert "Report marked as rejected" in timeline_titles
 
 
 class TestListCollectionDataSets:

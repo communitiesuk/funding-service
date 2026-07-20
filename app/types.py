@@ -33,6 +33,8 @@ class FlashMessageType(StrEnum):
     SUBMISSION_VALIDATION_ERROR = "submission_validation_error"
     SUBMISSION_REOPENED = "submission_reopened"
     SUBMISSION_CHANGES_REQUESTED = "submission_changes_requested"
+    SUBMISSION_MARKED_AS_APPROVED = "submission_marked_as_approved"
+    SUBMISSION_MARKED_AS_REJECTED = "submission_marked_as_rejected"
     COLLECTION_CREATED = "collection_created"
 
 

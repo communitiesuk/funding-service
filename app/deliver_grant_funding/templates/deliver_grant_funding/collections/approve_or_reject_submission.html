@@ -1,0 +1,73 @@
+{% from "common/partials/mhclg-test-banner.html" import mhclgInlinePageTestDataBanner %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% extends "deliver_grant_funding/grant_base.html" %}
+
+{% set page_title = "Approve or reject submission - " ~ helper.long_collection_name %}
+{% set type_constants = helper.submission.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+  {% if helper.is_test %}
+    {{ mhclgInlinePageTestDataBanner("Test submission") }}
+  {% endif %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id)
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {% set legend_html %}
+          <span class="govuk-caption-l">{{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}</span>
+          Would you like to mark this submission as approved or rejected?
+        {% endset %}
+        {% set hint %}
+          We'll save this for internal records only and won't email anyone at {{ helper.submission.grant_recipient.organisation.name if helper.submission.grant_recipient else helper.submission.created_by.email }}
+        {% endset %}
+        {% set rejectedReasonHtml %}
+          {{
+            form.rejected_reason(params={
+              "label": {
+                "text": form.rejected_reason.label.text,
+                "classes": "govuk-label--s govuk-!-font-weight-bold"
+              },
+              "maxwords": form.REASON_MAX_WORDS
+            })
+          }}
+        {% endset %}
+        {{
+          form.is_approved(params={
+            "hint": {
+              "html": hint
+            },
+            "fieldset": {
+              "legend": {
+                "html": legend_html,
+                "isPageHeading": True,
+                "classes": "govuk-fieldset__legend--l"
+              }
+            },
+            "items": [
+              {},
+              {
+                "conditional": {
+                  "html": rejectedReasonHtml
+                }
+              }
+            ]
+          })
+        }}
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

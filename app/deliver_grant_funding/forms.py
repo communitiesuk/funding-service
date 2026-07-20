@@ -1638,3 +1638,18 @@ class RequestChangesSubmissionForm(FlaskForm):
         self.changes_requested_reason.label.text = (
             f"What changes are needed to this {submission_helper.long_collection_name}?"
         )
+
+
+class ApproveOrRejectSubmissionForm(FlaskForm):
+    REASON_MAX_WORDS = 200
+    is_approved = RadioField(
+        choices=[("yes", "Mark as approved"), ("no", "Mark as rejected")],
+        validators=[DataRequired("Select an option")],
+        widget=GovRadioInput(),
+    )
+    rejected_reason = TextAreaField(
+        "Why are you marking this submission as rejected?",
+        validators=[Optional()],
+        widget=GovCharacterCount(),
+    )
+    submit = SubmitField("Confirm and submit decision", widget=GovSubmitInput())

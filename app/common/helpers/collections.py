@@ -1350,6 +1350,17 @@ class SubmissionHelper:
             return True
         return False
 
+    def can_be_assessed_by_user(self, user: User) -> bool:
+        if not self.is_submitted:
+            return False
+        if self.is_test:
+            return True
+        if self.collection.grant.status == GrantStatusEnum.LIVE and AuthorisationHelper.can_validate_submission(
+            user, self.submission
+        ):
+            return True
+        return False
+
     def reopen_submission(self, user: User, reopened_reason: str | None) -> None:
 
         if not AuthorisationHelper.can_request_or_allow_changes(user, self.submission):
@@ -1444,12 +1455,6 @@ class SubmissionHelper:
                 user,
                 self.id,
                 RoleEnum.MEMBER,
-            )
-
-        if not self.collection.is_open_for_changes:
-            raise CollectionIsNotOpenError(
-                f"Could not request changes to submission id={self.id} "
-                "because the collection must have the status OPEN or DRAFT."
             )
 
         if not self.is_submitted:

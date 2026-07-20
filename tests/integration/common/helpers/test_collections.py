@@ -2523,13 +2523,6 @@ class TestSubmissionHelper:
             with pytest.raises(SubmissionIsNotSubmittedError):
                 helper.validate_submission(user=grant_team_user, is_approved=True)
 
-        def test_raises_when_collection_not_open(self, grant_team_user, submission_submitted):
-            submission_submitted.collection.status = CollectionStatusEnum.CLOSED
-            helper = SubmissionHelper(submission_submitted)
-
-            with pytest.raises(CollectionIsNotOpenError):
-                helper.validate_submission(user=grant_team_user, is_approved=True)
-
         def test_approve_sets_assessment_status(self, grant_team_user, submission_submitted):
             helper = SubmissionHelper(submission_submitted)
 
