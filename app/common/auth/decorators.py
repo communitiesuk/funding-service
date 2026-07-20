@@ -234,9 +234,7 @@ def has_access_grant_role(
             # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
             grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
-            if not AuthorisationHelper.has_access_grant_role(
-                grant_id=grant_recipient.grant_id, organisation_id=grant_recipient.organisation_id, role=role, user=user
-            ):
+            if not AuthorisationHelper.has_access_grant_role(grant_recipient=grant_recipient, role=role, user=user):
                 return abort(403, description="Access denied")
 
             return func(*args, **kwargs)
