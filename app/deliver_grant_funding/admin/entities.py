@@ -1,10 +1,13 @@
 import datetime
+import itertools
 import uuid
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 import markupsafe
-from flask import flash, g, redirect, request, url_for
+from flask import current_app, flash, g, jsonify, redirect, request, url_for
+from flask.typing import ResponseReturnValue
+from flask_admin import expose
 from flask_admin.actions import action
 from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
@@ -53,6 +56,8 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
 )
+from app.deliver_grant_funding.forms import PreviewGuidanceForm
+from app.deliver_grant_funding.types import PreviewGuidanceBadRequestResponse, PreviewGuidanceSuccessResponse
 from app.extensions import db, notification_service
 from app.metrics import MetricEventName, emit_metric_count
 
@@ -757,6 +762,9 @@ class PlatformAdminReleaseNoteView(FlaskAdminPlatformAdminGrantLifecycleManagerA
     can_edit = True
     can_delete = True
 
+    create_template = "deliver_grant_funding/admin/release-note-create.html"
+    edit_template = "deliver_grant_funding/admin/release-note-edit.html"
+
     column_list = [
         "title",
         "release_date",
@@ -778,9 +786,30 @@ class PlatformAdminReleaseNoteView(FlaskAdminPlatformAdminGrantLifecycleManagerA
         },
     }
 
+    form_widget_args = {
+        "title": {
+            "attributes": {"data-preview-title-source": ""},
+        },
+    }
+
     column_labels = {
         "title": "Title",
         "content": "Description",
         "release_date": "Release date",
         "is_published": "Is published",
     }
+
+    @expose("/preview-markdown", methods=["POST"])
+    def preview_markdown(self) -> ResponseReturnValue:
+        form = PreviewGuidanceForm()
+        if form.validate_on_submit():
+            return jsonify(
+                PreviewGuidanceSuccessResponse(
+                    guidance_html=current_app.extensions["govuk_markdown"].convert(form.guidance.data)
+                ).model_dump(mode="json")
+            ), 200
+        return jsonify(
+            PreviewGuidanceBadRequestResponse(
+                errors=[error for error in itertools.chain.from_iterable(form.errors.values())]
+            ).model_dump(mode="json")
+        ), 400

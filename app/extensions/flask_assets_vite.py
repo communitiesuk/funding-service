@@ -12,8 +12,10 @@ from app.config import Environment
 class Asset(BaseModel):
     file: str
     name: str | None = None
-    src: str
-    isEntry: bool
+
+    # Shared chunks emitted by vite (modules imported by more than one entrypoint) have no `src` or `isEntry`.
+    src: str | None = None
+    isEntry: bool = False
 
 
 class Manifest(RootModel[Optional[dict[str, Asset]]]):

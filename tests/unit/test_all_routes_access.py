@@ -301,6 +301,7 @@ routes_with_access_controlled_by_flask_admin = [
     "release_note.edit_view",
     "release_note.export",
     "release_note.index_view",
+    "release_note.preview_markdown",
     "collection_lifecycle.index",
     "collection_lifecycle.select_collection",
     "collection_lifecycle.tasklist",

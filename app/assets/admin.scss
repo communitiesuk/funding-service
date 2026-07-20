@@ -3,10 +3,12 @@
 
 @use "sass:color";
 @use "govuk/base" as govuk with (
-    $govuk-brand-colour: #912b88
+    $govuk-brand-colour: #912b88,
+    $govuk-assets-path: "/static/assets/"
 );
 
 @use "components/big-number";
+@use "components/context-aware-editor";
 @use "components/metadata";
 @use "components/test-data-banner";
 @use "tweaks";

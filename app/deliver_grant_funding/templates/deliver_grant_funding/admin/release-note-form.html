@@ -1,0 +1,54 @@
+{% import 'admin/lib.html' as lib with context %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
+{% from "common/partials/guidance-help.html" import guidanceHelp %}
+
+{# This mirrors `render_form_fields` from admin/lib.html, wrapping the content field in write/preview tabs; it must
+   stay in step with that macro. #}
+{% call lib.form_tag() %}
+  {% if csrf_token %}
+    {# flask-admin's form does no CSRF validation itself; this input is read by the ajax-markdown-preview component
+       to authenticate its preview POSTs. #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  {% endif %}
+  {% for f in form if f.widget.input_type == 'hidden' %}
+    {{ f }}
+  {% endfor %}
+
+  {% for f in form if f.widget.input_type != 'hidden' %}
+    {% if f.short_name == 'content' %}
+      {% set write_release_note_html %}
+        {{ f(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-markdown-toolbar": ""} }) }}
+
+        {{ govukDetails(params={"summaryText": "Formatting help", "html": guidanceHelp(includeHeadings=false) }) }}
+      {% endset %}
+
+
+      {% set preview_release_note_html %}
+        <div class="app-context-aware-editor__preview-intro">
+          <h2 class="govuk-heading-m">Preview your release note below</h2>
+          <p class="govuk-body">Below is a preview of how your release note will be shown to users of the service.</p>
+        </div>
+        <div class="app-context-aware-editor__preview-area">
+          <h2 class="govuk-heading-m" data-preview-title-target {% if not form.title.data %}hidden{% endif %}>{{ form.title.data or "" }}</h2>
+          <div data-ajax-markdown-target="">{{ f.data | govuk_markdown }}</div>
+        </div>
+      {% endset %}
+
+      <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('release_note.preview_markdown') }}">
+        {{
+          govukTabs(params={
+            "items": [
+              {"label": "Write release note", "id": "write-release-note", "panel": {"html": write_release_note_html} },
+              {"label": "Preview release note", "id": "preview-release-note", "panel": {"html": preview_release_note_html} },
+            ],
+          })
+        }}
+      </div>
+    {% else %}
+      {{ f(params=form_opts.widget_args.get(f.short_name, {}) if form_opts else {}) }}
+    {% endif %}
+  {% endfor %}
+
+  {{ lib.render_form_buttons(return_url) }}
+{% endcall %}
