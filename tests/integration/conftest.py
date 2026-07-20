@@ -83,6 +83,9 @@ def db(setup_db_container: PostgresContainer, app: Flask) -> Generator[SQLAlchem
         proc = ctx.Process(target=upgrade)
         proc.start()
         proc.join()
+        assert proc.exitcode == 0
+
+        seed_system_data(app)
 
     yield app.extensions["sqlalchemy"]
 
@@ -227,7 +230,7 @@ def _integration_test_timeout(request: FixtureRequest) -> None:
     )
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def time_freezer(db_session: Session, request: FixtureRequest) -> Generator[TimeFreezer | None, None, None]:
     marker = request.node.get_closest_marker("freeze_time")
     if marker:
@@ -240,6 +243,12 @@ def time_freezer(db_session: Session, request: FixtureRequest) -> Generator[Time
 
 
 @pytest.fixture(scope="function", autouse=True)
+def _freeze_time_for_marked_tests(request: FixtureRequest) -> None:
+    if request.node.get_closest_marker("freeze_time") and "time_freezer" not in request.fixturenames:
+        request.getfixturevalue("time_freezer")
+
+
+@pytest.fixture(scope="function", autouse=True)
 def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
     # Set up a DB session that is fully isolated for each specific test run. We override Flask-SQLAlchemy-Lite's (FSL)
     # sessionmaker configuration to use a connection with a transaction started, and configure FSL to use savepoints
@@ -248,9 +257,6 @@ def db_session(app: Flask, db: SQLAlchemy) -> Generator[Session, None, None]:
     #
     # NOTE: this fixture is automatically used by all integration tests, and provides both an app context and a test
     # request context. So you will not need to manually create these within your integration tests.
-    with app.app_context():
-        seed_system_data(app)
-
     with app.app_context():
         connection = db.engine.connect()
         transaction = connection.begin()
