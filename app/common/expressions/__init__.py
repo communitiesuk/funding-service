@@ -409,7 +409,7 @@ class ExpressionContext(ChainMap[str, Any]):
                         data_source.safe_did,
                         {},
                     )
-                    for column_name, column_schema in data_source.schema.root.items():
+                    for column_name, column_schema in data_source.schema.ordered_items():
                         data_source_context[data_source.safe_did].setdefault(
                             column_name, f"(({data_source.column_reference_label(column_schema)}))"
                         )
@@ -480,7 +480,7 @@ class ExpressionContext(ChainMap[str, Any]):
                     col_name: (
                         None if mode == "evaluation" else f"(({data_source.column_reference_label(col_schema)}))"
                     )
-                    for col_name, col_schema in data_source.schema.root.items()
+                    for col_name, col_schema in data_source.schema.ordered_items()
                 }
                 continue
 

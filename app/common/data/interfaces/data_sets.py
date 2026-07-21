@@ -51,7 +51,7 @@ def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMappin
         raise ValueError("Cannot build a schema from an empty list of column mappings")
 
     schema_dict = {}
-    for mapping in column_mappings:
+    for index, mapping in enumerate(column_mappings):
         if mapping.data_type == QuestionDataType.NUMBER:
             presentation_options = QuestionPresentationOptions(
                 prefix=mapping.prefix if mapping.prefix is not None else "",
@@ -70,8 +70,20 @@ def _build_schema_from_column_mappings(column_mappings: list[DataSetColumnMappin
             presentation_options=presentation_options,
             data_options=data_options,
             original_column_name=mapping.column_name,
+            order=index,
         )
     return DataSourceSchema.model_validate(schema_dict)
+
+
+def _update_schema_column_order(data_source: DataSource, all_headers: list[str]) -> None:
+    if not data_source.schema:
+        return
+
+    header_order = {header: index for index, header in enumerate(all_headers)}
+    for column in data_source.schema.root.values():
+        column.order = header_order.get(column.original_column_name)
+
+    flag_modified(data_source, "schema")
 
 
 def _clean_value(val: str, mapping: DataSetColumnMapping) -> str | int | None:
@@ -191,9 +203,11 @@ def replace_uploaded_data_source(
         data_source.schema.root.pop(removed_column_id)  # ty:ignore[unresolved-attribute]
         flag_modified(data_source, "schema")
 
+    _update_schema_column_order(data_source, all_headers)
+
     all_column_mappings = [
         DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
-        for schema_column in data_source.schema.root.values()  # ty:ignore[unresolved-attribute]
+        for schema_column in data_source.schema.ordered_values()  # ty:ignore[unresolved-attribute]
     ]
 
     # delete all existing data source org items as the IDs aren't referenced, just column names

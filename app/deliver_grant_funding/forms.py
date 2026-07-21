@@ -815,7 +815,7 @@ class SelectDataSourceDataSetColumnForm(FlaskForm):
 
         self.column.label.text = f"Select column in {data_set.name} data set"
 
-        columns = data_set.schema.root.items()
+        columns = data_set.schema.ordered_items()
         if number_columns_only:
             columns = [
                 (safe_column_id, column_schema)

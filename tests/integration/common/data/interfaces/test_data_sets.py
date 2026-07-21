@@ -124,9 +124,11 @@ class TestCreateUploadedDataSourceGrantRecipient:
         assert allocation_column.data_type == QuestionDataType.NUMBER
         assert allocation_column.original_column_name == "Capital allocation"
         assert allocation_column.presentation_options.prefix == "£"
+        assert allocation_column.order == 0
 
         info_column = data_source.schema.root["c_additional_info"]
         assert info_column.data_type == QuestionDataType.TEXT_SINGLE_LINE
+        assert info_column.order == 1
 
     def test_creates_organisation_items_one_per_grant_recipient(self, db_session, factories):
         grant = factories.grant.create()
@@ -1025,6 +1027,42 @@ class TestReplaceUploadedDataSource:
         assert oi_3.data["c_decimal_number"].get_value_for_evaluation() == Decimal("3.2")
         assert oi_3.data["c_just_text"] is None
         assert oi_3.data["c_british_pounds"].get_value_for_interpolation() == "£2.30"
+
+    def test_replace_data_source_updates_column_order(self, factories):
+        collection = factories.collection.create()
+        data_source = factories.data_source.create(
+            collection=collection,
+            grant=collection.grant,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+
+        expected_column_order = [
+            "Column D",
+            "Column C",
+            "Column B",
+            "Column A",
+        ]
+
+        replace_uploaded_data_source(
+            data_source=data_source,
+            new_columns=[
+                DataSetColumnMapping(column_name="Column D", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Column C", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Column B", column_type="TEXT"),
+                DataSetColumnMapping(column_name="Column A", column_type="TEXT"),
+            ],
+            all_headers=expected_column_order,
+            all_rows=[],
+            s3_key="file_key",
+            original_filename="file.csv",
+            user=factories.user.create(),
+        )
+
+        from_db = get_data_source(data_source.id)
+
+        assert expected_column_order != sorted(expected_column_order)
+        assert [column.original_column_name for column in from_db.schema.ordered_values()] == expected_column_order
 
     def test_replace_data_source_remove_grant_recipient(self, factories):
         collection = factories.collection.create()

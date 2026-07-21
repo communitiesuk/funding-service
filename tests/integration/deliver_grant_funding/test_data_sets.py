@@ -6,8 +6,10 @@ import pytest
 
 from app.common.data.interfaces.data_sets import get_data_source
 from app.common.data.types import (
+    DataSourceSchema,
     DataSourceSchemaColumn,
     DataSourceType,
+    NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -1020,6 +1022,50 @@ class TestGenerateLatestCsvTemplate:
         assert rows[1] == ["E06000123", gr.organisation.name, "123", "one"]
         assert rows[2] == ["E06000456", gr2.organisation.name, "456", "two"]
         assert rows[3] == ["E06000789", gr3.organisation.name, "789", "three"]
+
+    def test_generate_columns_uses_schema_order(self, factories, db_session):
+        grant = factories.grant.create()
+        gr = factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Org A"
+        )
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            schema=DataSourceSchema.model_validate(
+                {
+                    "c_allocation": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.NUMBER,
+                        presentation_options=QuestionPresentationOptions(prefix="£"),
+                        data_options=QuestionDataOptions(number_type=NumberTypeEnum.INTEGER),
+                        original_column_name="Allocation",
+                        order=1,
+                    ),
+                    "c_second_column": DataSourceSchemaColumn(
+                        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                        presentation_options=QuestionPresentationOptions(),
+                        data_options=QuestionDataOptions(),
+                        original_column_name="Second column",
+                        order=0,
+                    ),
+                }
+            ),
+        )
+
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=gr.organisation.external_id,
+            _data={"c_allocation": "123", "c_second_column": "shown first"},
+        )
+        db_session.flush()
+
+        csv_content = generate_latest_csv_template(data_source)
+        reader = csv.reader(StringIO(csv_content.getvalue()))
+
+        rows = list(reader)
+        assert rows[0] == ["Organisation ID", "Grant recipient", "Second column", "Allocation"]
+        assert rows[1] == ["E06000123", gr.organisation.name, "shown first", "123"]
 
     def test_generate_columns_added_no_data(self, factories, db_session):
         grant = factories.grant.create()
