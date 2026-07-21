@@ -6,7 +6,7 @@ from flask_login import AnonymousUserMixin
 from pytz import utc
 
 from app import AuthorisationHelper, CollectionStatusEnum
-from app.common.data.types import RoleEnum
+from app.common.data.types import RoleEnum, SubmissionModeEnum
 
 
 class TestAuthorisationHelper:
@@ -485,6 +485,28 @@ class TestAuthorisationHelper:
         )
 
         assert AuthorisationHelper.can_validate_submission(user, submission_submitted) is True
+
+    def test_can_request_or_allow_changes_is_true_for_org_member_on_test_submission(
+        self, factories, deliver_org_admin_user, submission_submitted, mocker
+    ):
+        test_submission = factories.submission.build(
+            mode=SubmissionModeEnum.TEST,
+            collection__grant=submission_submitted.collection.grant,
+        )
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=test_submission.collection.grant)
+
+        assert AuthorisationHelper.can_request_or_allow_changes(deliver_org_admin_user, test_submission) is True
+
+    def test_can_validate_submission_is_true_for_org_member_on_test_submission(
+        self, factories, deliver_org_admin_user, submission_submitted, mocker
+    ):
+        test_submission = factories.submission.build(
+            mode=SubmissionModeEnum.TEST,
+            collection__grant=submission_submitted.collection.grant,
+        )
+        mocker.patch("app.common.auth.authorisation_helper.get_grant", return_value=test_submission.collection.grant)
+
+        assert AuthorisationHelper.can_validate_submission(deliver_org_admin_user, test_submission) is True
 
     @pytest.mark.parametrize(
         "collection_status,exp_can_replace_dataset",

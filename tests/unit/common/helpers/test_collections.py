@@ -1816,7 +1816,7 @@ class TestSubmissionHelper:
                 return_value=is_submitted,
             )
             mocker.patch(
-                "app.common.helpers.collections.AuthorisationHelper.can_request_or_allow_changes",
+                "app.common.helpers.collections.AuthorisationHelper.has_deliver_grant_role",
                 return_value=user_can_reopen,
             )
             helper = SubmissionHelper(submission)
@@ -1885,7 +1885,7 @@ class TestSubmissionHelper:
                 return_value=is_submitted,
             )
             mocker.patch(
-                "app.common.helpers.collections.AuthorisationHelper.can_validate_submission",
+                "app.common.helpers.collections.AuthorisationHelper.has_deliver_grant_role",
                 return_value=user_can_assess,
             )
             helper = SubmissionHelper(submission)
@@ -1904,7 +1904,7 @@ class TestSubmissionHelper:
                 return_value=True,
             )
             mocker.patch(
-                "app.common.helpers.collections.AuthorisationHelper.can_validate_submission",
+                "app.common.helpers.collections.AuthorisationHelper.has_deliver_grant_role",
                 return_value=True,
             )
             helper = SubmissionHelper(submission)
