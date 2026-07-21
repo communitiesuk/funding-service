@@ -18,7 +18,7 @@
         {% if section_names %}
           <p><strong>Sections:</strong> {{ section_names | join(", ") }}</p>
         {% endif %}
-        <p><strong>Comment:</strong> {{ item.source.data.get("changes_requested_reason") }}</p>
+        <p class="app-pre-markdown"><strong>Comment:</strong> {{ item.source.data.get("changes_requested_reason") }}</p>
       </div>
     </details>
   </div>
