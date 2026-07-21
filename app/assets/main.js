@@ -5,7 +5,7 @@ import { initAll } from "govuk-frontend";
 // import { initAll as mojInitAll } from "@ministryofjustice/frontend";
 import accessibleAutocomplete from "accessible-autocomplete";
 import { pasteListener } from "./components/paste-html-to-markdown";
-import ajaxMarkdownPreview from "./components/ajax-markdown-preview";
+import { initAjaxMarkdownPreviews } from "./components/ajax-markdown-preview";
 import textareaNoNewlines from "./components/textarea-no-newlines/index.js";
 import contextAwareEditor from "./components/context-aware-editor/index.js";
 import { initSectionNavScroll } from "./components/submission-section-nav/index.js";
@@ -42,15 +42,7 @@ for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
     });
 }
 
-document
-    .querySelectorAll('[data-module="ajax-markdown-preview"]')
-    .forEach((element) => {
-        ajaxMarkdownPreview(
-            element.querySelector("[data-ajax-markdown-target]"),
-            element.querySelector("[data-ajax-markdown-source]"),
-            element.getAttribute("data-ajax-markdown-endpoint"),
-        );
-    });
+initAjaxMarkdownPreviews();
 
 document
     .querySelectorAll('[data-module="context-aware-editor"]')

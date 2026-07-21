@@ -1,17 +1,9 @@
 // This file contains JS that is only used by the platform admin/flask-admin pages. GOV.UK Frontend components are
 // initialised by the xgovuk-flask-admin bundle, so this entrypoint must only wire up our own components.
-import ajaxMarkdownPreview from "./components/ajax-markdown-preview";
+import { initAjaxMarkdownPreviews } from "./components/ajax-markdown-preview";
 import { createToolbarForTextArea } from "./components/context-aware-editor/toolbar.js";
 
-document
-    .querySelectorAll('[data-module="ajax-markdown-preview"]')
-    .forEach((element) => {
-        ajaxMarkdownPreview(
-            element.querySelector("[data-ajax-markdown-target]"),
-            element.querySelector("[data-ajax-markdown-source]"),
-            element.getAttribute("data-ajax-markdown-endpoint"),
-        );
-    });
+initAjaxMarkdownPreviews();
 
 document.querySelectorAll("[data-markdown-toolbar]").forEach((textarea) => {
     const toolbarContainer = document.createElement("div");
