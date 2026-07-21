@@ -1,4 +1,3 @@
-import itertools
 from uuid import UUID
 
 from flask import current_app, jsonify
@@ -9,13 +8,9 @@ from app.common.data.interfaces.collections import get_collection
 from app.common.data.interfaces.user import get_current_user
 from app.common.expressions.references import InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
-from app.deliver_grant_funding.forms import PreviewGuidanceForm
+from app.deliver_grant_funding.helpers import preview_guidance_response
 from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
-from app.deliver_grant_funding.types import (
-    PreviewGuidanceBadRequestResponse,
-    PreviewGuidanceSuccessResponse,
-    PreviewGuidanceUnauthorisedResponse,
-)
+from app.deliver_grant_funding.types import PreviewGuidanceUnauthorisedResponse
 
 
 @deliver_grant_funding_api_blueprint.post("/<uuid:collection_id>/preview-guidance")
@@ -33,31 +28,14 @@ def preview_guidance(collection_id: UUID) -> ResponseReturnValue:
     if not AuthorisationHelper.is_deliver_grant_member(collection.grant_id, get_current_user()):
         return jsonify(PreviewGuidanceUnauthorisedResponse().model_dump(mode="json")), 401
 
-    form = PreviewGuidanceForm()
-    if form.validate_on_submit():
-        interpolate = SubmissionHelper.get_interpolator(collection)
+    interpolate = SubmissionHelper.get_interpolator(collection)
 
-        try:
-            # NOTE: `interpolate(with_interpolation_highlighting=True)` returns HTML that must be known-good
-            #       (ie escaped) suitable for inserting straight into the DOM.
-            return jsonify(
-                PreviewGuidanceSuccessResponse(
-                    guidance_html=interpolate(
-                        InterpolationStatement(current_app.extensions["govuk_markdown"].convert(form.guidance.data)),
-                        with_interpolation_highlighting=True,
-                    )
-                ).model_dump(mode="json")
-            ), 200
-        except SyntaxError:
-            current_app.logger.warning(
-                "Guidance contains invalid syntax %(guidance_text)s",
-                {"guidance_text": form.guidance.data},
-            )
-            return jsonify(
-                PreviewGuidanceBadRequestResponse(errors=["Guidance contains invalid syntax"]).model_dump(mode="json")
-            ), 400
-    return jsonify(
-        PreviewGuidanceBadRequestResponse(
-            errors=[error for error in itertools.chain.from_iterable(form.errors.values())]
-        ).model_dump(mode="json")
-    ), 400
+    def convert_guidance(guidance: str) -> str:
+        # NOTE: `interpolate(with_interpolation_highlighting=True)` returns HTML that must be known-good
+        #       (ie escaped) suitable for inserting straight into the DOM.
+        return interpolate(
+            InterpolationStatement(current_app.extensions["govuk_markdown"].convert(guidance)),
+            with_interpolation_highlighting=True,
+        )
+
+    return preview_guidance_response(convert_guidance)

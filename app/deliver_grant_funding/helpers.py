@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING
+import itertools
+from typing import TYPE_CHECKING, Callable
 
-from flask import redirect, session, url_for
+from flask import current_app, jsonify, redirect, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.common.data import interfaces
@@ -11,6 +12,8 @@ from app.common.data.interfaces.collections import (
 )
 from app.common.data.types import SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
+from app.deliver_grant_funding.forms import PreviewGuidanceForm
+from app.deliver_grant_funding.types import PreviewGuidanceBadRequestResponse, PreviewGuidanceSuccessResponse
 from app.extensions import s3_service
 
 if TYPE_CHECKING:
@@ -56,3 +59,32 @@ def start_previewing_collection(collection: Collection, form: Form | None = None
             submission_id=helper.submission.id,
         )
     )
+
+
+def preview_guidance_response(convert_guidance: Callable[[str], str]) -> ResponseReturnValue:
+    """Validate a submitted PreviewGuidanceForm and return the converted guidance as a JSON response.
+
+    The JSON contract is shared with the ajax-markdown-preview JS component. `convert_guidance` must return
+    known-good (ie escaped) HTML suitable for inserting straight into the DOM.
+    """
+    form = PreviewGuidanceForm()
+    if form.validate_on_submit():
+        try:
+            return jsonify(
+                PreviewGuidanceSuccessResponse(guidance_html=convert_guidance(form.guidance.data or "")).model_dump(
+                    mode="json"
+                )
+            ), 200
+        except SyntaxError:
+            current_app.logger.warning(
+                "Guidance contains invalid syntax %(guidance_text)s",
+                {"guidance_text": form.guidance.data},
+            )
+            return jsonify(
+                PreviewGuidanceBadRequestResponse(errors=["Guidance contains invalid syntax"]).model_dump(mode="json")
+            ), 400
+    return jsonify(
+        PreviewGuidanceBadRequestResponse(errors=list(itertools.chain.from_iterable(form.errors.values()))).model_dump(
+            mode="json"
+        )
+    ), 400
