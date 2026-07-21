@@ -1,4 +1,4 @@
-{% from "common/macros/status.html" import submissionStatusTag with context %}
+{% from "common/macros/status.html" import submissionStatusTag, assessmentStatusTag with context %}
 {% from "common/macros/timeline.html" import timeline with context %}
 {% extends 'admin/model/details.html' %}
 
@@ -47,6 +47,10 @@
   <dl class="app-metadata">
     <dt class="app-metadata__key">Status:</dt>
     <dd class="app-metadata__value" data-testid="submission-status">{{ submissionStatusTag(helper.status, helper.submission.is_overdue) }}</dd>
+  </dl>
+  <dl class="app-metadata">
+    <dt class="app-metadata__key">Assessment status:</dt>
+    <dd class="app-metadata__value" data-testid="assessment-status">{{ assessmentStatusTag(helper.assessment_status) }}</dd>
   </dl>
 
   {% if not helper.is_preview %}

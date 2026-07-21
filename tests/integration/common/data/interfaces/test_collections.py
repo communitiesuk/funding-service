@@ -103,6 +103,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
@@ -5460,6 +5461,45 @@ class TestGetSubmissionListForCollection:
 
         assert len(rows) == 8
         assert len(iterate_queries) == baseline
+
+    def test_is_assessed_and_assessment_status_default_for_unassessed_submission(self, factories):
+        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert rows[0].is_assessed is False
+        assert rows[0].assessment_status == SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    @pytest.mark.parametrize(
+        "assessment_status",
+        [SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED, SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED],
+    )
+    def test_is_assessed_and_assessment_status_for_assessed_submission(self, db_session, factories, assessment_status):
+        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        submission.assessment_status = assessment_status
+        db_session.flush()
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert rows[0].is_assessed is True
+        assert rows[0].assessment_status == assessment_status
+
+    def test_is_assessed_and_assessment_status_are_none_when_no_submission(self, factories):
+        collection = factories.collection.create()
+        factories.grant_recipient.create(grant=collection.grant)
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert rows[0].is_assessed is None
+        assert rows[0].assessment_status is None
 
 
 class TestResetTestSubmission:

@@ -78,6 +78,14 @@
   {% endif %}
 {% endmacro %}
 
+{% macro assessmentStatusTag(status) %}
+  {% if status == enum.submission_assessment_status.MARKED_AS_APPROVED %}
+    {{ govukTag({"text": status, "classes": "app-status-tag govuk-tag--green"}) }}
+  {% elif status == enum.submission_assessment_status.MARKED_AS_REJECTED %}
+    {{ govukTag({"text": status, "classes": "app-status-tag govuk-tag--red"}) }}
+  {% endif %}
+{% endmacro %}
+
 {% macro submissionStatusTag(status, is_overdue) %}
   {% set show_without_tag = [ enum.submission_status.SUBMITTED, enum.submission_status.SUBMITTED_WITH_CHANGES, enum.submission_status.PARTIALLY_SUBMITTED ] %}
   {%

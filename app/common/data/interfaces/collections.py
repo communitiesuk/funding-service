@@ -657,8 +657,10 @@ class ListSubmissionData:
     name: str | None
     submission_id: UUID | None
     status: SubmissionStatusEnum | None
+    assessment_status: SubmissionAssessmentStatusEnum | None
     last_updated_at_utc: datetime.datetime | None
     is_overdue: bool | None
+    is_assessed: bool | None
 
 
 def get_submission_list_for_collection(
@@ -708,8 +710,10 @@ def get_submission_list_for_collection(
             name_column,
             Submission.id.label("submission_id"),
             Submission.status,
+            Submission.assessment_status,
             last_updated_at_utc,
             Submission.is_overdue.label("is_overdue"),
+            Submission.is_assessed.label("is_assessed"),
         )
         .select_from(GrantRecipient)
         .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
@@ -732,8 +736,10 @@ def get_submission_list_for_collection(
             name=row.name,
             submission_id=row.submission_id,
             status=row.status,
+            assessment_status=row.assessment_status,
             last_updated_at_utc=row.last_updated_at_utc,
             is_overdue=row.is_overdue,
+            is_assessed=row.is_assessed,
         )
         for row in db.session.execute(stmt).all()
     ]

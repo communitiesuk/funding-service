@@ -602,6 +602,15 @@ class Submission(BaseModel):
         )
 
     @hybrid_property
+    def is_assessed(self) -> bool:
+        return self.assessment_status != SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    @is_assessed.inplace.expression
+    @classmethod
+    def _is_assessed_expression(cls) -> ColumnElement[bool]:
+        return cls.assessment_status != SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    @hybrid_property
     def is_submitted(self) -> bool:
         return self.status in SUBMITTED_STATUSES
 
