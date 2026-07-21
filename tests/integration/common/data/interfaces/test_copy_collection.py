@@ -16,6 +16,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     DataSourceType,
     ExpressionType,
+    GrantRecipientModeEnum,
     QuestionDataType,
     SubmissionModeEnum,
 )
@@ -75,6 +76,9 @@ def source_collection(factories):
     )
 
     grant_recipient = factories.grant_recipient.create(grant=grant)
+    grant_recipient = factories.grant_recipient.create(
+        grant=grant, organisation=grant_recipient.organisation, mode=GrantRecipientModeEnum.TEST
+    )
     gr_data_source = factories.data_source.create(
         type=DataSourceType.GRANT_RECIPIENT,
         collection=collection,
@@ -144,7 +148,12 @@ def copy_user(factories):
 @pytest.fixture()
 def target_grant(factories):
     grant = factories.grant.create()
-    factories.grant_recipient.create_batch(2, grant=grant)
+    grs = factories.grant_recipient.create_batch(2, grant=grant)
+
+    for gr in grs:
+        factories.grant_recipient.create_batch(
+            2, grant=grant, organisation=gr.organisation, mode=SubmissionModeEnum.TEST
+        )
     return grant
 
 
