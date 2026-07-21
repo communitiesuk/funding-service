@@ -572,6 +572,30 @@ class TestUploadDataSetForm:
                 ],
             )
 
+        def test_valid_with_formatting_mismatch(self, factories):
+            collection = factories.collection.create()
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=["100000000"],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr1.organisation]
+            )
+            form._validate_data_for_existing_submissions(
+                existing_datasource=data_source,
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "test",
+                        "Allocation": "£1,0000000,0     ",  # same value, but with odd formatting
+                    }
+                ],
+            )
+
         def test_invalid_missing_row_for_submitted_org(self, factories):
             collection = factories.collection.create()
             gr = factories.grant_recipient.create(grant=collection.grant, organisation__external_id="E000123")
