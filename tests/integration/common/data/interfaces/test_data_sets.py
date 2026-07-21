@@ -17,6 +17,7 @@ from app.common.data.interfaces.data_sets import (
     get_collection_ids_with_missing_data_data_sets,
     get_data_source,
     get_data_source_list_for_collection,
+    get_referenced_grant_recipient_data_sources_for_collection,
     replace_uploaded_data_source,
 )
 from app.common.data.models import (
@@ -1503,3 +1504,165 @@ class TestReplaceUploadedDataSource:
         from_db = get_data_source(data_source.id, with_organisation_items=True)
         assert from_db.created_by.email == "user1@test.com"
         assert from_db.updated_by.email == "update_user@test.com"
+
+
+class TestGetReferencedDataSourcesForCollection:
+    def test_returns_referenced_data_source(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id)
+
+        assert result == [data_source]
+
+    def test_excludes_data_source_that_is_not_referenced(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id)
+
+        assert result == []
+
+    def test_excludes_data_sources_from_other_collections(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        other_collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        other_data_source = factories.data_source.create(
+            grant=grant,
+            collection=other_collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        form = factories.form.create(collection=other_collection)
+        factories.question.create(
+            form=form,
+            text=f"Your allocation is (({other_data_source.safe_did}.c_allocation))",
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id)
+
+        assert result == []
+
+    def test_returns_multiple_data_sources_ordered_by_name(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source_b = factories.data_source.create(
+            name="B data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        data_source_a = factories.data_source.create(
+            name="A data set",
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source_b.safe_did}.c_allocation))",
+        )
+        factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source_a.safe_did}.c_allocation))",
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id)
+
+        assert result == [data_source_a, data_source_b]
+
+    def test_returns_empty_list_when_no_data_sources(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id)
+
+        assert result == []
+
+    def test_only_with_missing_data_excludes_referenced_data_source_with_complete_data(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id, only_with_missing_data=True)
+
+        assert result == []
+
+    def test_only_with_missing_data_includes_referenced_data_source_with_missing_data(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+        form = factories.form.create(collection=collection)
+        factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id, only_with_missing_data=True)
+
+        assert result == [data_source]
+
+    def test_only_with_missing_data_still_excludes_data_sources_that_are_not_referenced(self, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, None],
+        )
+
+        result = get_referenced_grant_recipient_data_sources_for_collection(collection.id, only_with_missing_data=True)
+
+        assert result == []

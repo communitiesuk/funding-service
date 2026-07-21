@@ -270,3 +270,34 @@ def get_collection_ids_with_missing_data_data_sets(grant_id: uuid.UUID) -> set[u
         .distinct()
     )
     return {id for id in db.session.scalars(stmt).all() if id is not None}
+
+
+def get_referenced_grant_recipient_data_sources_for_collection(
+    collection_id: uuid.UUID,
+    *,
+    only_with_missing_data: bool = False,
+    with_organisation_items: bool = False,
+) -> Sequence[DataSource]:
+    """
+    Get data sets belonging to a collection that are referenced by a component in its forms.
+
+    Pass `only_with_missing_data=True` to further filter down to those with missing data.
+
+    Pass `with_organisation_items=True` to eager-load `organisation_items` - needed by callers that go on to inspect
+    exactly which organisations have missing data.
+    """
+    stmt = (
+        select(DataSource)
+        .where(
+            DataSource.collection_id == collection_id,
+            DataSource.type == DataSourceType.GRANT_RECIPIENT,
+            DataSource.depended_on_by_columns.any(),
+        )
+        .order_by(DataSource.name)
+    )
+    if only_with_missing_data:
+        stmt = stmt.where(DataSource.has_missing_data())
+    if with_organisation_items:
+        stmt = stmt.options(selectinload(DataSource.organisation_items))
+
+    return db.session.scalars(stmt).all()

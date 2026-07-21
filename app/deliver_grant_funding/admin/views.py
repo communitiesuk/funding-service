@@ -23,6 +23,7 @@ from app.common.data.interfaces.collections import (
     update_collection,
 )
 from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
+from app.common.data.interfaces.data_sets import get_referenced_grant_recipient_data_sources_for_collection
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     GrantMustBeLiveError,
@@ -915,12 +916,20 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             except (GrantMustBeLiveError, GrantRecipientUsersRequiredError, CollectionChronologyError) as e:
                 form.form_errors.append(str(e))
 
+        data_sources_with_missing_data = get_referenced_grant_recipient_data_sources_for_collection(
+            collection.id, only_with_missing_data=True
+        )
+        data_set_names_with_missing_data = [
+            data_source.name for data_source in data_sources_with_missing_data if data_source.name
+        ]
+
         return self.render(
             "deliver_grant_funding/admin/confirm-schedule-collection.html",
             form=form,
             grant=grant,
             collection=collection,
             recipients_missing_data_providers=recipients_missing_data_providers,
+            data_set_names_with_missing_data=data_set_names_with_missing_data,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/make-collection-live", methods=["GET", "POST"])
@@ -932,11 +941,23 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         grant_recipients_count = get_grant_recipients_count(grant)
         data_providers_count, recipients_missing_data_providers = get_grant_recipient_data_providers_count(grant)
 
+        data_sources_with_missing_data = get_referenced_grant_recipient_data_sources_for_collection(
+            collection.id, only_with_missing_data=True, with_organisation_items=True
+        )
+        live_grant_recipients = get_grant_recipients(grant, with_organisations=True)
+        missing_data_organisations = {
+            organisation
+            for data_source in data_sources_with_missing_data
+            for organisation in data_source.get_missing_data_organisations(live_grant_recipients)
+        }
+        missing_data_organisation_names = sorted(organisation.name for organisation in missing_data_organisations)
+
         form = PlatformAdminMakeCollectionLiveForm(
             collection=collection,
             grant_recipients_count=grant_recipients_count,
             data_providers_count=data_providers_count,
             recipients_missing_data_providers=recipients_missing_data_providers,
+            missing_data_organisation_names=missing_data_organisation_names,
         )
         if form.validate_on_submit():
             try:

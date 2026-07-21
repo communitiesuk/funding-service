@@ -2,7 +2,6 @@
 {% import 'admin/layout.html' as layout with context %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
-{% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
 {% from 'govuk_frontend_jinja/components/warning-text/macro.html' import govukWarningText %}
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 
@@ -23,10 +22,20 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Sign off and lock {{ collection.type.constants.singular }}
       </h1>
-      <p class="govuk-body">Schedule the {{ collection.type.constants.singular }} when the grant team has signed off on the form. Form designers cannot edit a scheduled {{ collection.type.constants.singular }}.</p>
+      <p class="govuk-body">Sign off and lock the {{ collection.type.constants.singular }} to prevent further edits once the grant policy team has signed off on the form.</p>
+      <p class="govuk-body">
+        A Platform admin member must manually open the signed off report for submissions on
+        {{ format_date_short(collection.submission_period_start_date) if collection.submission_period_start_date else "the first day of the submission period" }} and send emails to data providers.
+      </p>
 
-      {{ govukInsetText({ "text": "A scheduled " + collection.type.constants.singular + " will not automatically go live on the first day of the submission period. A platform admin must manually open the " + collection.type.constants.singular + " for submissions and Send emails to data providers." }) }}
-
+      {% if data_set_names_with_missing_data %}
+        {% set data_set_or_sets %}{% trans count=data_set_names_with_missing_data|length %}data set{% pluralize %}data sets{% endtrans %}{% endset %}
+        {% set missing_data_warning %}
+          There is missing data in {{ data_set_names_with_missing_data|comma_join_items("and") }} {{ data_set_or_sets }} referenced in the form. Grant recipients with missing data will not be able to complete the report until their missing
+          data is uploaded.
+        {% endset %}
+        {{ govukWarningText({"text": missing_data_warning}) }}
+      {% endif %}
       {% if recipients_missing_data_providers | length > 0 %}
         {{
           govukWarningText({
