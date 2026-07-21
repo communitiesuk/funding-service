@@ -21,8 +21,9 @@ from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataTypeError,
     build_current_data_set_view,
-    build_missing_data_display_rows,
+    build_data_display_rows_with_missing_tags,
     find_grant_recipient_mismatches,
+    format_data_set_csv_data_for_column_type,
     generate_latest_csv_template,
     upload_header_only_data_set_files,
     validate_data_set,
@@ -249,7 +250,7 @@ class TestValidateDataSet:
         assert sum(isinstance(e, DataTypeError) for e in result.blocking_errors) == 1
 
 
-class TestBuildMissingDataDisplayRows:
+class TestBuildDisplayRowsWithMissingTags:
     def test_returns_empty_list_when_no_missing_data(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="E06000123")
         gr2 = factories.grant_recipient.create(organisation__external_id="E06000456")
@@ -270,7 +271,7 @@ class TestBuildMissingDataDisplayRows:
             },
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr, gr2])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr, gr2])
 
         assert display_rows == []
 
@@ -292,7 +293,7 @@ class TestBuildMissingDataDisplayRows:
             }
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr])
 
         assert len(display_rows) == 1
         row = display_rows[0]
@@ -320,7 +321,7 @@ class TestBuildMissingDataDisplayRows:
             }
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr])
 
         assert len(display_rows) == 1
         assert display_rows[0].missing_columns == ["Notes", "Summary"]
@@ -341,7 +342,7 @@ class TestBuildMissingDataDisplayRows:
                 "Notes": "",
             }
         ]
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr])
 
         assert len(display_rows) == 1
         assert display_rows[0].grant_recipient_name == gr.organisation.name
@@ -361,7 +362,7 @@ class TestBuildMissingDataDisplayRows:
             },
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr, gr2])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr, gr2])
 
         assert len(display_rows) == 1
         row = display_rows[0]
@@ -392,7 +393,7 @@ class TestBuildMissingDataDisplayRows:
             },
         ]
 
-        display_rows = build_missing_data_display_rows(data_set.data_columns, all_rows, [gr_a, gr_b, gr_c])
+        display_rows = build_data_display_rows_with_missing_tags(data_set.data_columns, all_rows, [gr_a, gr_b, gr_c])
 
         assert [row.grant_recipient_name for row in display_rows] == [
             "AAAA Council",
@@ -400,6 +401,46 @@ class TestBuildMissingDataDisplayRows:
             "CCCC Council",
         ]
         assert display_rows[1].grant_recipient_entirely_missing is True
+
+    def test_respects_include_all_grant_recipients(self, factories):
+        gr_a = factories.grant_recipient.create(organisation__name="AAAA Council")
+        gr_b = factories.grant_recipient.create(organisation__name="BBBB Council")
+        gr_c = factories.grant_recipient.create(organisation__name="CCCC Council")
+        data_set = _make_data_set(
+            data_columns=["Notes"],
+            column_mappings=[DataSetColumnMapping(column_name="Notes", column_type="TEXT")],
+        )
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr_a.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr_a.organisation.name,
+                "Notes": "",
+            },
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr_c.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr_c.organisation.name,
+                "Notes": "some info",
+            },
+        ]
+
+        display_rows = build_data_display_rows_with_missing_tags(
+            data_set.data_columns, all_rows, [gr_a, gr_b, gr_c], include_all_grant_recipients=True
+        )
+
+        assert [row.grant_recipient_name for row in display_rows] == [
+            "AAAA Council",
+            "BBBB Council",
+            "CCCC Council",
+        ]
+
+        display_rows = build_data_display_rows_with_missing_tags(
+            data_set.data_columns, all_rows, [gr_a, gr_b, gr_c], include_all_grant_recipients=False
+        )
+
+        assert [row.grant_recipient_name for row in display_rows] == [
+            "AAAA Council",
+            "BBBB Council",
+        ]
 
 
 class TestValidateDataSetGrantRecipients:
@@ -1141,3 +1182,93 @@ class TestUploadHeaderOnlyDataSetFiles:
 
         with pytest.raises(ValueError, match="Cannot upload a non-grant-recipient data set"):
             upload_header_only_data_set_files(data_source)
+
+
+class TestFormatCsvData:
+    def test_format_csv_data_text(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="TEXT"), "hello"
+        )
+        assert result == "hello"
+
+    def test_format_csv_data_integer(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER"), "123456"
+        )
+        assert result == "123,456"
+
+    def test_format_csv_data_integer_prefix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", prefix="$"), "$0"
+        )
+        assert result == "$0"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", prefix="$"), "0"
+        )
+        assert result == "$0"
+
+    def test_format_csv_data_integer_suffix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", suffix="fte"), "10"
+        )
+        assert result == "10fte"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER", suffix="fte"), "10fte"
+        )
+        assert result == "10fte"
+
+    def test_format_csv_data_decimal(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL"), "123456.789"
+        )
+        assert result == "123,456.789"
+
+    def test_format_csv_data_decimal_prefix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", prefix="$"), "$0.89"
+        )
+        assert result == "$0.89"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", prefix="$"), "0.89"
+        )
+        assert result == "$0.89"
+
+    def test_format_csv_data_decimal_suffix(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", suffix="fte"), "10.4"
+        )
+        assert result == "10.4fte"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL", suffix="fte"), "10.4fte"
+        )
+        assert result == "10.4fte"
+
+    def test_format_csv_data_british_pounds(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="BRITISH_POUNDS"), "123456.78"
+        )
+        assert result == "£123,456.78"
+
+    def test_format_csv_data_british_pounds_prefix_in_data(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="BRITISH_POUNDS"), "£123456.78"
+        )
+        assert result == "£123,456.78"
+
+    def test_bad_data_for_column_type(self):
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="BRITISH_POUNDS"), "some text"
+        )
+        assert result == "some text"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER"), "some text"
+        )
+        assert result == "some text"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="INTEGER"), "3.142"
+        )
+        assert result == "3.142"
+        result = format_data_set_csv_data_for_column_type(
+            DataSetColumnMapping(column_name="name", column_type="DECIMAL"), "some text"
+        )
+        assert result == "some text"

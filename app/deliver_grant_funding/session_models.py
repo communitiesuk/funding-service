@@ -225,7 +225,8 @@ class DataSetColumnMapping(BaseModel):
             case "BRITISH_POUNDS":
                 return "British pounds"
             case "DECIMAL":
-                desc = f"Decimal number, {self.max_decimal_places} decimal places"
+                desc = f"Decimal number, {self.max_decimal_places} decimal place"
+                desc += "s" if self.max_decimal_places and self.max_decimal_places > 1 else ""
                 if self.prefix:
                     desc += f", prefix: {self.prefix}"
                 if self.suffix:

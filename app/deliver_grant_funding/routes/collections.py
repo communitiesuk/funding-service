@@ -132,9 +132,10 @@ from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     DataSetValidationResult,
     build_current_data_set_view,
+    build_data_display_rows_with_missing_tags,
     build_data_set_upload_s3_key,
-    build_missing_data_display_rows,
     find_grant_recipient_mismatches,
+    format_data_set_csv_data_for_column_type,
     generate_latest_csv_template,
     validate_data_set,
     validate_data_set_grant_recipients,
@@ -4218,6 +4219,21 @@ def confirm_data_set(  # noqa: C901
             columns_to_display_in_formatting.extend(
                 [DataSetColumnMapping.build_from_data_source_schema_column(col) for col in existing_columns]
             )
+
+        grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
+        missing_data_rows = build_data_display_rows_with_missing_tags(
+            data_set_data.data_columns, rows, grant_recipients, include_all_grant_recipients=True
+        )
+        formatted_data_rows: list[dict[str, str | None]] = []
+        for row in rows:
+            formatted_row = {
+                column_def.column_name: format_data_set_csv_data_for_column_type(
+                    column_def, row[column_def.column_name]
+                )
+                for column_def in columns_to_display_in_formatting
+            }
+            formatted_data_rows.append(formatted_row)
+
     if form.validate_on_submit():
         if data_set_data.is_replace:
             return _save_replaced_data_set_and_redirect(
@@ -4277,6 +4293,8 @@ def confirm_data_set(  # noqa: C901
         form=form,
         columns_to_display_in_formatting=columns_to_display_in_formatting,
         all_rows=rows,
+        missing_data_rows=missing_data_rows,
+        formatted_data_rows=formatted_data_rows,
     )
 
 
@@ -4399,7 +4417,7 @@ def data_set_missing_data(
     rows = _load_rows(data_set_data)
 
     grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
-    missing_data_rows = build_missing_data_display_rows(data_set_data.data_columns, rows, grant_recipients)
+    missing_data_rows = build_data_display_rows_with_missing_tags(data_set_data.data_columns, rows, grant_recipients)
 
     if not missing_data_rows:
         return redirect(

@@ -11165,7 +11165,7 @@ class TestDataSetConfirmData:
                 column_mappings=[
                     DataSetColumnMapping(column_name="Area description", column_type="TEXT"),
                     DataSetColumnMapping(
-                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2
+                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=1
                     ),
                 ],
                 data_source_id=data_source.id,
@@ -11193,7 +11193,7 @@ class TestDataSetConfirmData:
         assert get_summary_list_value_by_key(soup, "Area description").text.strip() == "Text"
         assert (
             get_summary_list_value_by_key(soup, "Council tax band A cost").text.strip()
-            == "Decimal number, 2 decimal places"
+            == "Decimal number, 1 decimal place"
         )
         # check removed columns are not there
         assert get_summary_list_value_by_key(soup, "Whole number suffix") is None
@@ -11212,6 +11212,9 @@ class TestDataSetConfirmData:
         )
         grant_recipient_2 = factories.grant_recipient.create(
             grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000456"
+        )
+        missing_gr = factories.grant_recipient.create(
+            grant=authenticated_grant_admin_client.grant, organisation__external_id="E06000999"
         )
         data_source_id = uuid.uuid4()
         with authenticated_grant_admin_client.session_transaction() as session:
@@ -11250,10 +11253,10 @@ class TestDataSetConfirmData:
             {
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient_2.organisation.name,
                 DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient_2.organisation.external_id,
-                "Capital allocation": "£2000",
-                "Revenue allocation": "£30000",
+                "Capital allocation": "2000",
+                "Revenue allocation": "30000",
                 "Additional info": "Some text",
-                "Distance": "0.4km",
+                "Distance": "0.4",
             },
         ]
         mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
@@ -11277,16 +11280,28 @@ class TestDataSetConfirmData:
             table_row = get_table_row_by_first_column_value(data_table, row[DATA_SET_EXTERNAL_ID_COLUMN_HEADER])
             assert table_row is not None
             for col_name, col_index in column_ordering.items():
-                assert table_row.find_all("td")[col_index].text.strip() == row[col_name], (
+                if col_name == "Capital allocation" or col_name == "Revenue allocation":
+                    expected_value = f"£{int(row[col_name].strip('£')):,}"
+                elif col_name == "Distance":
+                    expected_value = f"{int(row[col_name]):,}km"
+                else:
+                    expected_value = row[col_name]
+
+                assert table_row.find_all("td")[col_index].text.strip() == expected_value, (
                     f"Incorrect value for {col_name} for {row[DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER]}"
                 )
+        table_row = get_table_row_by_first_column_value(data_table, missing_gr.organisation.external_id)
+        assert table_row is not None
+        for _, col_index in column_ordering.items():
+            if col_index > 1:
+                assert table_row.find_all("td")[col_index].text.strip() == "Data missing"
 
     def test_get_shows_correct_data_replace(
         self, factories, mocker, mock_s3_service_calls, authenticated_grant_admin_client, db_session
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
-        gr1, gr2 = factories.grant_recipient.create_batch(2, grant=grant)
+        gr1, gr2, missing_gr = factories.grant_recipient.create_batch(3, grant=grant)
         data_source = factories.data_source.create(
             collection=collection,
             grant=grant,
@@ -11299,6 +11314,7 @@ class TestDataSetConfirmData:
             external_id=gr1.organisation.external_id,
             _data={"c_british_pounds": 1234},
         )
+
         with authenticated_grant_admin_client.session_transaction() as session:
             session[SESSION_DATA_SET_REPLACE] = DataSetUploadSessionModel(
                 name="Updated name",
@@ -11312,7 +11328,7 @@ class TestDataSetConfirmData:
                 column_mappings=[
                     DataSetColumnMapping(column_name="Area description", column_type="TEXT"),
                     DataSetColumnMapping(
-                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2
+                        column_name="Council tax band A cost", column_type="DECIMAL", max_decimal_places=2, prefix="$"
                     ),
                 ],
                 data_source_id=data_source.id,
@@ -11325,15 +11341,15 @@ class TestDataSetConfirmData:
             {
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr1.organisation.name,
                 DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
-                "British pounds": "£1000",
-                "Council tax band A cost": "£10000",
+                "British pounds": "1000",
+                "Council tax band A cost": "10000",
                 "Area description": "Some text",
             },
             {
                 DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
                 DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
-                "British pounds": "£2000",
-                "Council tax band A cost": "£30000",
+                "British pounds": "2000",
+                "Council tax band A cost": "30000",
                 "Area description": "Some more text",
             },
         ]
@@ -11361,9 +11377,21 @@ class TestDataSetConfirmData:
             table_row = get_table_row_by_first_column_value(data_table, row[DATA_SET_EXTERNAL_ID_COLUMN_HEADER])
             assert table_row is not None
             for col_name, col_index in column_ordering.items():
-                assert table_row.find_all("td")[col_index].text.strip() == row[col_name], (
+                if col_name == "British pounds":
+                    expected_value = f"£{int(row[col_name]):,}"
+                elif col_name == "Council tax band A cost":
+                    expected_value = f"${int(row[col_name]):,}"
+                else:
+                    expected_value = row[col_name]
+
+                assert table_row.find_all("td")[col_index].text.strip() == expected_value, (
                     f"Incorrect value for {col_name} for {row[DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER]}"
                 )
+        table_row = get_table_row_by_first_column_value(data_table, missing_gr.organisation.external_id)
+        assert table_row is not None
+        for _, col_index in column_ordering.items():
+            if col_index > 1:
+                assert table_row.find_all("td")[col_index].text.strip() == "Data missing"
 
 
 class TestMapDataSetNumberColumns:
@@ -12314,6 +12342,11 @@ class TestReplaceDataSet:
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E123",
+            organisation__name="Rivendell",
+        )
         ds_1 = factories.data_source.create(
             collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT, name="data set one"
         )
@@ -12323,7 +12356,10 @@ class TestReplaceDataSet:
         )
 
         data = build_file_upload_form_data(
-            csv_content=(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"),
+            csv_content=(
+                f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"
+                + f"\n{gr.organisation.external_id},{gr.organisation.name},120"
+            ),
             name=new_name,
         )
 
