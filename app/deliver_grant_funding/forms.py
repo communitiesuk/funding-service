@@ -1179,6 +1179,12 @@ class UploadDataSetForm(FlaskForm):
         if row_count > 10000:
             raise ValidationError("The file must contain no more than 10,000 rows")
 
+    @staticmethod
+    def _validate_min_rows(rows) -> None:
+        row_count = len(rows)
+        if row_count < 1:
+            raise ValidationError("The CSV file must contain at least one row of data")
+
     def _validate_data_for_existing_submissions(  # noqa: C901
         self, existing_datasource: DataSource, rows: list[dict[str, str]]
     ) -> None:
@@ -1345,6 +1351,7 @@ class UploadDataSetForm(FlaskForm):
             UploadDataSetForm._validate_duplicate_column_names_in_csv(fieldnames)
             UploadDataSetForm._validate_columns_in_each_row(rows)
             UploadDataSetForm._validate_max_rows(rows)
+            UploadDataSetForm._validate_min_rows(rows)
 
             if self.existing_datasource:
                 errors = self._validate_data_for_existing_columns(self.existing_datasource, fieldnames, rows)

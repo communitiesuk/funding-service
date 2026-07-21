@@ -12342,6 +12342,11 @@ class TestReplaceDataSet:
     ):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
+        gr = factories.grant_recipient.create(
+            grant=grant,
+            organisation__external_id="E123",
+            organisation__name="Rivendell",
+        )
         ds_1 = factories.data_source.create(
             collection=collection, grant=grant, type=DataSourceType.GRANT_RECIPIENT, name="data set one"
         )
@@ -12351,7 +12356,10 @@ class TestReplaceDataSet:
         )
 
         data = build_file_upload_form_data(
-            csv_content=(f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"),
+            csv_content=(
+                f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"
+                + f"\n{gr.organisation.external_id},{gr.organisation.name},120"
+            ),
             name=new_name,
         )
 
