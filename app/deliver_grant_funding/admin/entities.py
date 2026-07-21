@@ -4,7 +4,9 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 import markupsafe
-from flask import flash, g, redirect, request, url_for
+from flask import current_app, flash, g, redirect, request, url_for
+from flask.typing import ResponseReturnValue
+from flask_admin import expose
 from flask_admin.actions import action
 from flask_admin.contrib.sqla.filters import BaseSQLAFilter
 from flask_admin.helpers import is_form_submitted
@@ -33,6 +35,7 @@ from app.common.data.models import (
     GrantRecipient,
     Organisation,
     Question,
+    ReleaseNote,
     Submission,
     SubmissionEvent,
 )
@@ -52,6 +55,7 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
 )
+from app.deliver_grant_funding.helpers import preview_guidance_response
 from app.extensions import db, notification_service
 from app.metrics import MetricEventName, emit_metric_count
 
@@ -747,3 +751,57 @@ class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, P
     column_formatters_detail = {
         "data": _format_json_data,
     }
+
+
+class PlatformAdminReleaseNoteView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
+    _model = ReleaseNote
+
+    can_create = True
+    can_edit = True
+    can_delete = True
+
+    create_template = "deliver_grant_funding/admin/release-note-create.html"
+    edit_template = "deliver_grant_funding/admin/release-note-edit.html"
+
+    column_list = [
+        "title",
+        "release_date",
+        "is_published",
+    ]
+
+    column_default_sort = ("release_date", True)
+
+    form_columns = [
+        "title",
+        "content",
+        "release_date",
+        "is_published",
+    ]
+
+    form_args = {
+        "content": {
+            "widget": GovTextArea(),
+        },
+    }
+
+    form_widget_args = {
+        "title": {
+            "attributes": {"data-preview-title-source": ""},
+        },
+    }
+
+    column_labels = {
+        "title": "Title",
+        "content": "Description",
+        "release_date": "Release date",
+        "is_published": "Is published",
+    }
+
+    @expose("/preview-markdown", methods=["POST"])
+    def preview_markdown(self) -> ResponseReturnValue:
+        """
+        This endpoint takes a release note's markdown and returns HTML suitable for inserting into the DOM by our
+        ajax-markdown-preview component. Our markdown converter will escape user input, protecting against user
+        input injection vulnerabilities.
+        """
+        return preview_guidance_response(current_app.extensions["govuk_markdown"].convert)

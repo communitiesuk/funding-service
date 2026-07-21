@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/govuk/tabs/macro.html" import govukTabs %}
+{% from "common/partials/guidance-help.html" import guidanceHelp %}
 
 {% set page_title = "Set guidance for multiple submissions" %}
 {% set submit_label = "Set guidance" %}
@@ -18,11 +19,6 @@
   }}
 {% endblock beforeContent %}
 
-
-{% set guidance_help %}
-  {% include "common/partials/guidance-help.html" %}
-{% endset %}
-
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -35,7 +31,7 @@
         {% set write_guidance_html %}
           {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": ""} }) }}
 
-          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
+          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidanceHelp()}) }}
           {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
         {% endset %}
 

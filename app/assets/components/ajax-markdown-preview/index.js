@@ -157,6 +157,18 @@ const removeErrorClass = () => {
  * @param {HTMLElement} source - The element which contains the raw markdown for conversion.
  * @param {string} endpoint - The URL for the endpoint that renders the markdown.
  */
+const initAjaxMarkdownPreviews = () => {
+    document
+        .querySelectorAll('[data-module="ajax-markdown-preview"]')
+        .forEach((element) => {
+            ajaxMarkdownPreview(
+                element.querySelector("[data-ajax-markdown-target]"),
+                element.querySelector("[data-ajax-markdown-source]"),
+                element.getAttribute("data-ajax-markdown-endpoint"),
+            );
+        });
+};
+
 const ajaxMarkdownPreview = (target, source, endpoint) => {
     store.target = target;
     store.source = source;
@@ -177,3 +189,4 @@ const ajaxMarkdownPreview = (target, source, endpoint) => {
 };
 
 export default ajaxMarkdownPreview;
+export { initAjaxMarkdownPreviews };

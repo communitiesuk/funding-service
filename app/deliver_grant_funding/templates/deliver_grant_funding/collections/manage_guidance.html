@@ -2,6 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "common/govuk/tabs/macro.html" import govukTabs %}
+{% from "common/partials/guidance-help.html" import guidanceHelp %}
 
 {% set page_title = "Add guidance" if not question.guidance_body else "Edit guidance" %}
 {% set submit_label = "Add guidance" if not question.guidance_body else "Update guidance" %}
@@ -17,11 +18,6 @@
     })
   }}
 {% endblock beforeContent %}
-
-
-{% set guidance_help %}
-  {% include "common/partials/guidance-help.html" %}
-{% endset %}
 
 {% block content %}
   <div class="govuk-grid-row">
@@ -49,7 +45,7 @@
             {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-context-aware-editor-target": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
           </div>
 
-          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidance_help}) }}
+          {{ govukDetails(params={"summaryText": "Formatting help", "html": guidanceHelp()}) }}
           {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
         {% endset %}
 

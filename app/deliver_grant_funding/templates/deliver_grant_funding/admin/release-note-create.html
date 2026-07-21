@@ -1,0 +1,10 @@
+{% extends 'admin/model/create.html' %}
+
+{% block create_form %}
+  {% include "deliver_grant_funding/admin/release-note-form.html" %}
+{% endblock %}
+
+{% block bodyEnd %}
+  {{ super() }}
+  <script type="module" src="{{ vite_asset('app/assets/admin.js') }}" nonce="{{ csp_nonce() }}"></script>
+{% endblock %}

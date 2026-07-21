@@ -9,6 +9,7 @@ from app.deliver_grant_funding.admin.entities import (
     PlatformAdminInvitationView,
     PlatformAdminOrganisationView,
     PlatformAdminQuestionView,
+    PlatformAdminReleaseNoteView,
     PlatformAdminSubmissionEventView,
     PlatformAdminSubmissionView,
     PlatformAdminUserRoleView,
@@ -47,6 +48,9 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
     flask_admin.add_view(PlatformAdminQuestionView(db_))
     flask_admin.add_view(PlatformAdminInvitationView(db_))
     flask_admin.add_view(PlatformAdminAuditEventView(db_))
+    flask_admin.add_view(
+        PlatformAdminReleaseNoteView(db_, name="Release note", endpoint="release_note", url="release-note")
+    )
 
     flask_admin.add_view(
         PlatformAdminDeveloperToolsView(

@@ -35,6 +35,7 @@ from tests.models import (
     _MagicLinkFactory,
     _OrganisationFactory,
     _QuestionFactory,
+    _ReleaseNoteFactory,
     _SubmissionEventFactory,
     _SubmissionFactory,
     _UserFactory,
@@ -182,6 +183,7 @@ _Factories = namedtuple(
         "data_source_item",
         "audit_event",
         "data_source_organisation_item",
+        "release_note",
     ],
 )
 
@@ -207,6 +209,7 @@ def factories(db_session: Session) -> _Factories:
         data_source_item=_DataSourceItemFactory,
         audit_event=_AuditEventFactory,
         data_source_organisation_item=_DataSourceOrganisationItemFactory,
+        release_note=_ReleaseNoteFactory,
     )
 
 
