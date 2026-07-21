@@ -105,7 +105,7 @@
         "rows": [
             {"key": {"text": "Status"}, "value": {"html": reportStatusTag(collection.status)} },
             {"key": {"text": "Form"}, "value": {"text": formSectionsText} },
-            {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} } if authorisation_helper.is_platform_member(current_user) else {},
+            {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} },
             {"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} } if collection.is_monitoring_collection else {},
             {"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
             {"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },

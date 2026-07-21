@@ -10339,6 +10339,44 @@ class TestMapDataSetColumns:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant)
+
+        if can_access:
+            with client.session_transaction() as session:
+                session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                    name="Test Data Set",
+                    data_source_type=DataSourceType.GRANT_RECIPIENT,
+                    data_columns=["Capital allocation"],
+                    preview_data={"Capital allocation": ["£1000"]},
+                    data_source_id=uuid.uuid4(),
+                    original_filename="test.csv",
+                    s3_key="data-set-uploads/test.csv",
+                    is_replace=False,
+                ).model_dump(mode="json")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.map_data_set_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
+    @pytest.mark.parametrize(
         "has_missing_data",
         [
             True,
@@ -10915,6 +10953,56 @@ class TestDataSetConfirmData:
                 )
                 assert response.status_code == 404
 
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mocker):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant)
+
+        if can_access:
+            with client.session_transaction() as session:
+                session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                    name="Test Data Set",
+                    data_source_type=DataSourceType.GRANT_RECIPIENT,
+                    data_columns=["Capital allocation"],
+                    preview_data={"Capital allocation": ["£1000"]},
+                    column_mappings=[
+                        DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                    ],
+                    data_source_id=uuid.uuid4(),
+                    original_filename="test.csv",
+                    s3_key="data-set-uploads/test.csv",
+                    is_replace=False,
+                ).model_dump(mode="json")
+
+            all_rows = [
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "E123",
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "Rivendell",
+                    "Capital allocation": "£1000",
+                }
+            ]
+            mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
     def test_post_saves_new_data_set(
         self,
         authenticated_grant_admin_client,
@@ -11406,6 +11494,47 @@ class TestMapDataSetNumberColumns:
         )
         assert response.status_code == 404
 
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant)
+
+        if can_access:
+            with client.session_transaction() as session:
+                session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                    name="Test Data Set",
+                    data_source_type=DataSourceType.GRANT_RECIPIENT,
+                    data_columns=["Capital allocation"],
+                    preview_data={"Capital allocation": ["£1000"]},
+                    column_mappings=[
+                        DataSetColumnMapping(column_name="Capital allocation", column_type="DECIMAL"),
+                    ],
+                    data_source_id=uuid.uuid4(),
+                    original_filename="test.csv",
+                    s3_key="data-set-uploads/test.csv",
+                    is_replace=False,
+                ).model_dump(mode="json")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.map_data_set_number_columns",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
     @pytest.mark.parametrize("is_replace", [True, False])
     def test_get_renders_number_columns_and_fields(self, authenticated_grant_admin_client, factories, is_replace):
         session_data_name = SESSION_DATA_SET_REPLACE if is_replace else SESSION_DATA_SET_UPLOAD
@@ -11783,6 +11912,60 @@ class TestDataSetConfirmGrantRecipients:
         )
         assert response.status_code == 404
 
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mocker):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant)
+
+        if can_access:
+            grant_recipient = factories.grant_recipient.create(
+                grant=client.grant, organisation__external_id="E123", organisation__name="Rivendell"
+            )
+
+            with client.session_transaction() as session:
+                session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                    name="Test Data Set",
+                    data_source_type=DataSourceType.GRANT_RECIPIENT,
+                    data_columns=["Capital allocation"],
+                    preview_data={"Capital allocation": ["£1000"]},
+                    column_mappings=[
+                        DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                    ],
+                    data_source_id=uuid.uuid4(),
+                    original_filename="test.csv",
+                    s3_key="data-set-uploads/test.csv",
+                    is_replace=False,
+                ).model_dump(mode="json")
+
+            all_rows = [
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "A different name",
+                    "Capital allocation": "£1000",
+                }
+            ]
+            mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.confirm_data_set_grant_recipients",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+
     @pytest.mark.parametrize("is_replace", [True, False])
     def test_get_with_mismatched_grant_recipients(
         self, authenticated_grant_admin_client, factories, mocker, mock_s3_service_calls, is_replace
@@ -12000,6 +12183,63 @@ class TestDataSetMissingData:
             )
         )
         assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_get_access(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, mocker):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant)
+
+        if can_access:
+            grant_recipient = factories.grant_recipient.create(
+                grant=client.grant, organisation__external_id="E123", organisation__name="Rivendell"
+            )
+            factories.grant_recipient.create(
+                grant=client.grant, organisation__external_id="E456", organisation__name="Lothlorien"
+            )
+
+            with client.session_transaction() as session:
+                session[SESSION_DATA_SET_UPLOAD] = DataSetUploadSessionModel(
+                    name="Test Data Set",
+                    data_source_type=DataSourceType.GRANT_RECIPIENT,
+                    data_columns=["Capital allocation"],
+                    preview_data={"Capital allocation": ["£1000"]},
+                    column_mappings=[
+                        DataSetColumnMapping(column_name="Capital allocation", column_type="BRITISH_POUNDS"),
+                    ],
+                    data_source_id=uuid.uuid4(),
+                    original_filename="test.csv",
+                    s3_key="data-set-uploads/test.csv",
+                    is_replace=False,
+                ).model_dump(mode="json")
+
+            all_rows = [
+                {
+                    DATA_SET_EXTERNAL_ID_COLUMN_HEADER: grant_recipient.organisation.external_id,
+                    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: grant_recipient.organisation.name,
+                    "Capital allocation": "£1000",
+                }
+            ]
+            mocker.patch("app.services.s3.S3Service.download_file", return_value=_rows_to_csv_bytes(all_rows))
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.data_set_missing_data",
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
 
     @pytest.mark.parametrize(
         "has_grant_recipient_mismatches,is_replace",
@@ -12776,7 +13016,7 @@ class TestViewDataSource:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "client_fixture, can_access, can_delete",
+        "client_fixture, can_access, can_replace_and_delete",
         (
             ("authenticated_no_role_client", False, False),
             ("authenticated_grant_member_client", True, False),
@@ -12784,7 +13024,7 @@ class TestViewDataSource:
         ),
     )
     def test_get_view_data_source(
-        self, request: FixtureRequest, client_fixture: str, can_access: bool, can_delete: bool, factories
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, can_replace_and_delete: bool, factories
     ):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
@@ -12816,10 +13056,12 @@ class TestViewDataSource:
             uploaded_at = soup.find("time")
             assert uploaded_at.text == "1 Jul 2026 at 1pm", "Uploaded at UTC should be converted to local London"
 
-            if can_delete:
+            if can_replace_and_delete:
                 assert page_has_link(soup, "Delete data set")
+                assert page_has_link(soup, "Replace data set")
             else:
                 assert not page_has_link(soup, "Delete data set")
+                assert not page_has_link(soup, "Replace data set")
 
     def test_get_view_data_source_404_if_not_grant_recipient_level_data_set(
         self, authenticated_grant_member_client, factories
