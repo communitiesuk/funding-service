@@ -79,11 +79,14 @@
 {% endmacro %}
 
 {% macro assessmentStatusTag(status) %}
-  {% if status == enum.submission_assessment_status.MARKED_AS_APPROVED %}
-    {{ govukTag({"text": status, "classes": "app-status-tag govuk-tag--green"}) }}
-  {% elif status == enum.submission_assessment_status.MARKED_AS_REJECTED %}
-    {{ govukTag({"text": status, "classes": "app-status-tag govuk-tag--red"}) }}
-  {% endif %}
+  {%
+    set classMap = {
+      enum.submission_assessment_status.MARKED_AS_APPROVED: "govuk-tag--green",
+      enum.submission_assessment_status.MARKED_AS_REJECTED: "govuk-tag--red",
+      enum.submission_assessment_status.NOT_STARTED: "govuk-tag--grey",
+    }
+  %}
+  {{ govukTag({"text": status, "classes": "app-status-tag " ~ classMap[status]}) }}
 {% endmacro %}
 
 {% macro submissionStatusTag(status, is_overdue) %}
