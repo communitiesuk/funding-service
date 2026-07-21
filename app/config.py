@@ -498,16 +498,16 @@ def get_settings() -> _SharedConfig:
     environment = os.getenv("FLASK_ENV", Environment.PROD.value)
     match Environment(environment):
         case Environment.UNIT_TEST:
-            return UnitTestConfig()  # ty: ignore[missing-argument]
+            return UnitTestConfig()
         case Environment.LOCAL:
-            return LocalConfig()  # ty: ignore[missing-argument]
+            return LocalConfig()
         case Environment.DEV:
-            return DevConfig()  # ty: ignore[missing-argument]
+            return DevConfig()
         case Environment.PULLPREVIEW:
-            return PullPreviewConfig()  # ty: ignore[missing-argument]
+            return PullPreviewConfig()
         case Environment.TEST:
-            return TestConfig()  # ty: ignore[missing-argument]
+            return TestConfig()
         case Environment.PROD:
-            return ProdConfig()  # ty: ignore[missing-argument]
+            return ProdConfig()
 
     raise ValueError(f"Unknown environment: {environment}")
