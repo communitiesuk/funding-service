@@ -146,6 +146,14 @@ class Grant(BaseModel):
             if grant_recipient.mode == GrantRecipientModeEnum.TEST
         ]
 
+    @property
+    def live_grant_recipients(self) -> list[GrantRecipient]:
+        return [
+            grant_recipient
+            for grant_recipient in self.grant_recipients
+            if grant_recipient.mode == GrantRecipientModeEnum.LIVE
+        ]
+
     def get_access_reports_for_user(
         self, user: User | None = None, *, user_organisation: Organisation | None = None
     ) -> list[Collection]:
