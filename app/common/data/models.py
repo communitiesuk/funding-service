@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     and_,
     case,
+    cast,
     func,
     not_,
     or_,
@@ -1499,16 +1500,20 @@ class DataSource(BaseModel, SafeDidMixin):
     def _has_missing_data_expression(
         cls, grant_recipients: Sequence[GrantRecipient] | None = None
     ) -> ColumnElement[bool]:
-        has_null_value = (
+        has_null_or_empty_value = (
             select(DataSourceOrganisationItem.data_source_id)
             .where(
                 DataSourceOrganisationItem.data_source_id == cls.id,
-                func.jsonb_path_exists(
-                    DataSourceOrganisationItem._data,
-                    # JSONPath expression to check if any top-level value in the org item JSONB object is null
-                    # $.* iterates all top-level values, ? (@ == null) filters to nulls
-                    # ::jsonpath casts the string to Postgres jsonpath type
-                    text("'$.* ? (@ == null)'::jsonpath"),
+                or_(
+                    # Check if _data is an empty object (eg. copied data set org items with no data)
+                    DataSourceOrganisationItem._data == cast(text("'{}'"), JSONB),
+                    func.jsonb_path_exists(
+                        DataSourceOrganisationItem._data,
+                        # JSONPath expression to check if any top-level value in the org item JSONB object is null
+                        # $.* iterates all top-level values, ? (@ == null) filters to nulls
+                        # ::jsonpath casts the string to Postgres jsonpath type
+                        text("'$.* ? (@ == null)'::jsonpath"),
+                    ),
                 ),
             )
             .correlate(cls)
@@ -1537,7 +1542,7 @@ class DataSource(BaseModel, SafeDidMixin):
 
         return and_(
             cls.type != DataSourceType.CUSTOM,
-            has_null_value | has_missing_grant_recipient,
+            has_null_or_empty_value | has_missing_grant_recipient,
         )
 
 
