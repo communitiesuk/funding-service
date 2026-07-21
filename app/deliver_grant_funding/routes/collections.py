@@ -4002,7 +4002,10 @@ def map_data_set_columns(  # noqa: C901
 
     if data_set_data.is_replace:
         existing_datasource = get_data_source(data_set_data.data_source_id, with_organisation_items=True)
-        existing_column_names = [col_def.original_column_name for _, col_def in existing_datasource.schema.root.items()]  # ty:ignore[unresolved-attribute]
+        existing_column_names = [
+            col_def.original_column_name
+            for _, col_def in existing_datasource.schema.ordered_items()  # ty:ignore[unresolved-attribute]
+        ]
         columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
         if not columns_to_map:  # no new columns
             return redirect(
@@ -4213,7 +4216,7 @@ def confirm_data_set(  # noqa: C901
         if data_set_data.is_replace:
             existing_columns = [
                 v
-                for k, v in existing_datasource.schema.root.items()  # ty:ignore[unresolved-attribute]
+                for k, v in existing_datasource.schema.ordered_items()  # ty:ignore[unresolved-attribute]
                 if v.original_column_name in data_set_data.data_columns
             ]
             columns_to_display_in_formatting.extend(

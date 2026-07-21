@@ -1432,7 +1432,7 @@ class DataSource(BaseModel, SafeDidMixin):
             return {}
         return {
             column_name: self._build_answer_for_column(row.get(column_name), column_schema)
-            for column_name, column_schema in self.schema.root.items()
+            for column_name, column_schema in self.schema.ordered_items()
         }
 
     def _build_answer_for_column(

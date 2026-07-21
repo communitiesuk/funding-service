@@ -606,10 +606,21 @@ class DataSourceSchemaColumn(BaseModel):
     presentation_options: QuestionPresentationOptions
     data_options: QuestionDataOptions
     original_column_name: str
+    order: int | None = None
 
 
 class DataSourceSchema(RootModel[dict[str, DataSourceSchemaColumn]]):
-    pass
+    def ordered_items(self) -> list[tuple[str, DataSourceSchemaColumn]]:
+        return sorted(
+            self.root.items(),
+            key=lambda item: (
+                item[1].order is None,
+                item[1].order if item[1].order is not None else 0,
+            ),
+        )
+
+    def ordered_values(self) -> list[DataSourceSchemaColumn]:
+        return [column for _, column in self.ordered_items()]
 
 
 class DataSourceFileTagEnum(enum.StrEnum):
