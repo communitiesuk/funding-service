@@ -1,7 +1,7 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
-{% block pageTitle %}Access grant funding - {{ super() }}{% endblock pageTitle %}
+{% set page_title = "Access grant funding" %}
 
 {% block content %}
   <div class="govuk-grid-row">

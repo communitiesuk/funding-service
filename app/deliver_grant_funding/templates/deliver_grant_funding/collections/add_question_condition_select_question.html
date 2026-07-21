@@ -3,7 +3,7 @@
 {% set type_constants = component.form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block pageTitle %}Add a condition - {{ component.name }} - Deliver grant funding{% endblock pageTitle %}
+{% set page_title = "Add a condition - " ~ component.name %}
 
 {% block beforeContent %}
   {% set back_link = url_for("deliver_grant_funding.add_question_condition_select_calculation", grant_id=grant.id, component_id=component.id) %}
