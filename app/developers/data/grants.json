@@ -41,7 +41,7 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
-          "allow_validation": false,
+          "allow_validation": true,
           "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4032990c-110c-460b-a3e8-107c6bebcb6d",
