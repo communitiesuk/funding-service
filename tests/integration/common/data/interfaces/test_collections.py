@@ -3886,6 +3886,18 @@ class TestDeleteCollection:
         with pytest.raises(ValueError):
             delete_collection(collection)
 
+    def test_can_delete_with_submission_name_question_set(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(form=form)
+        collection.submission_name_question_id = question.id
+        db_session.flush()
+
+        delete_collection(collection)
+
+        assert db_session.get(Collection, collection.id) is None
+        assert db_session.get(Question, question.id) is None
+
     def test_delete_collection_cascades_data_sources(self, db_session, factories):
         collection = factories.collection.create()
         form = factories.form.create(collection=collection)

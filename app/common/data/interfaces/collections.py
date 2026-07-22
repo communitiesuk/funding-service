@@ -2414,6 +2414,10 @@ def delete_collection(collection: Collection) -> None:
         db.session.rollback()
         raise ValueError("Cannot delete collection with live submissions")
 
+    # Break the collection's reference to the submission name question before the cascade deletes below, otherwise
+    # we get a CircularDependencyError between the collection and that question.
+    collection.submission_name_question_id = None
+
     custom_data_sources_to_delete = [
         c.data_source for form in collection.forms for c in form._all_components if c.data_source
     ]
