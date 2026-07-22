@@ -616,6 +616,7 @@ class TestNotificationService:
                         "email_address": "grant.team@communities.gov.uk",
                         "template_id": "8ee3b678-d69f-4f50-bcc2-87dcd6ad4d43",
                         "personalisation": {
+                            "is_test_data": "no",
                             "submission_name": "Test collection",
                             "collection_type_noun": "report",
                             "grant_name": "Test grant",
