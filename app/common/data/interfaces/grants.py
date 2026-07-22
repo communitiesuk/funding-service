@@ -119,6 +119,9 @@ def create_grant(
         primary_contact_name=primary_contact_name,
         primary_contact_email=primary_contact_email,
         organisation=mhclg,
+        # TODO FSPT-1503: remove with pre-award feature flag when this is turned on for all grants, for now
+        #                 default new grants to allow the functionality without dev config
+        allow_pre_award=True,
     )
     db.session.add(grant)
     return grant

@@ -132,6 +132,7 @@ def test_create_grant(app, db_session) -> None:
     assert from_db is not None
     assert from_db.organisation.name == app.config["PLATFORM_DEPARTMENT_ORGANISATION_CONFIG"]["name"]
     assert from_db.code == "TG"
+    assert from_db.allow_pre_award is True
 
 
 def test_create_duplicate_grant(factories) -> None:
