@@ -77,6 +77,7 @@ from app.common.data.models import (
     ComponentReference,
     DataSource,
     DataSourceItem,
+    DataSourceOrganisationItem,
     Expression,
     Form,
     Group,
@@ -3896,6 +3897,50 @@ class TestDeleteCollection:
         assert db_session.get(DataSource, question.data_source.id) is None
         for item in question.data_source.items:
             assert db_session.get(DataSourceItem, item.id) is None
+
+    def test_delete_collection_cascades_grant_recipient_data_set(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(2, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        org_item_ids = [item.id for item in data_source.organisation_items]
+        assert org_item_ids
+
+        delete_collection(collection)
+
+        assert db_session.get(Collection, collection.id) is None
+        assert db_session.get(DataSource, data_source.id) is None
+        for org_item_id in org_item_ids:
+            assert db_session.get(DataSourceOrganisationItem, org_item_id) is None
+
+    def test_delete_collection_cascades_grant_recipient_data_set_with_column_reference(self, db_session, factories):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+        form = factories.form.create(collection=collection)
+        question = factories.question.create(
+            form=form,
+            text=f"Your allocation is (({data_source.safe_did}.c_allocation))",
+        )
+        _validate_and_sync_component_references(
+            question,
+            ExpressionContext.build_expression_context(collection=collection, mode="interpolation"),
+        )
+        db_session.flush()
+
+        delete_collection(collection)
+
+        assert db_session.get(Collection, collection.id) is None
+        assert db_session.get(DataSource, data_source.id) is None
 
 
 class TestDeleteForm:

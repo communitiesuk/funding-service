@@ -2414,13 +2414,23 @@ def delete_collection(collection: Collection) -> None:
         db.session.rollback()
         raise ValueError("Cannot delete collection with live submissions")
 
-    data_sources_to_delete = [
+    custom_data_sources_to_delete = [
         c.data_source for form in collection.forms for c in form._all_components if c.data_source
-    ] + collection.data_sources
+    ]
+    non_custom_data_sources_to_delete = [ds for ds in collection.data_sources if ds.type != DataSourceType.CUSTOM]
+
+    if non_custom_data_sources_to_delete:
+        non_custom_ds_ids = [ds.id for ds in non_custom_data_sources_to_delete]
+        db.session.execute(
+            delete(ComponentReference).where(ComponentReference.depends_on_data_source_id.in_(non_custom_ds_ids))
+        )
+        for ds in non_custom_data_sources_to_delete:
+            db.session.delete(ds)
+        db.session.flush()
 
     db.session.delete(collection)
 
-    for ds in data_sources_to_delete:
+    for ds in custom_data_sources_to_delete:
         db.session.delete(ds)
 
 
