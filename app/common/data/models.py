@@ -1368,6 +1368,37 @@ class DataSource(BaseModel, SafeDidMixin):
                 missing_organisations.append(grant_recipient.organisation)
         return missing_organisations
 
+    def get_referenced_column_names(self) -> set[str]:
+        """
+        Gets column names from this data source's schema that are referenced anywhere in the collection, either in
+        component text/hint/preview or in a condition/validation expression.
+
+        `depended_on_by_columns` should already be loaded (eg via `get_submission(..., with_full_schema=True)`)
+        to avoid N+1 issues.
+        """
+        return {
+            reference.depends_on_column_name
+            for reference in self.depended_on_by_columns
+            if reference.depends_on_column_name is not None
+        }
+
+    def has_missing_referenced_data_for_organisation(self, organisation_external_id: str) -> bool:
+        """
+        Returns bool for if this grant recipient organisation's item for this data source is missing any of the columns
+        that are referenced elsewhere in the collection.
+
+        Referenced-but-missing data means the report can't be safely rendered for this grant recipient organisation.
+
+        `depended_on_by_columns` and `organisation_items` should already be loaded (eg via
+        `get_submission(..., with_full_schema=True)`) to avoid N+1 issues.
+        """
+        referenced_columns = self.get_referenced_column_names()
+        if not referenced_columns:
+            return False
+
+        item = self.get_filtered_organisation_item(organisation_external_id)
+        return item is None or any(item._data.get(col) is None for col in referenced_columns)
+
     def get_removed_organisation_external_ids(self, grant_recipients: Sequence[GrantRecipient]) -> list[str]:
         """
         External IDs of organisation items on this data source that no longer belong to a live grant recipient.

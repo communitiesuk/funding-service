@@ -1283,3 +1283,136 @@ class TestDataSourceModel:
 
         assert set(result) == {item.external_id for item in data_source.organisation_items}
         assert len(result) == 3
+
+    def test_get_referenced_column_names_returns_empty_when_no_references(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+
+        assert data_source.get_referenced_column_names() == set()
+
+    def test_get_referenced_column_names_returns_referenced_columns(self, factories, db_session):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+        question = factories.question.create(form__collection=report)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert data_source.get_referenced_column_names() == {"c_allocation"}
+
+    def test_has_missing_referenced_data_for_organisation_false_when_no_columns_referenced(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+
+        assert (
+            data_source.has_missing_referenced_data_for_organisation(grant_recipient.organisation.external_id) is False
+        )
+
+    def test_has_missing_referenced_data_for_organisation_true_when_referenced_column_is_null(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        question = factories.question.create(form__collection=report)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            data_source.has_missing_referenced_data_for_organisation(grant_recipient.organisation.external_id) is True
+        )
+
+    def test_has_missing_referenced_data_for_organisation_true_when_no_organisation_item(self, factories, db_session):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=report, type=DataSourceType.GRANT_RECIPIENT)
+        question = factories.question.create(form__collection=report)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            data_source.has_missing_referenced_data_for_organisation(grant_recipient.organisation.external_id) is True
+        )
+
+    def test_has_missing_referenced_data_for_organisation_false_when_referenced_column_present(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123],
+        )
+        question = factories.question.create(form__collection=report)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            data_source.has_missing_referenced_data_for_organisation(grant_recipient.organisation.external_id) is False
+        )
+
+    def test_has_missing_referenced_data_for_organisation_ignores_unreferenced_null_columns(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            has_column_of_each_type=True,
+        )
+        factories.data_source_organisation_item.create(
+            data_source=data_source,
+            external_id=grant_recipient.organisation.external_id,
+            _data={"c_just_text": "hello", "c_whole_number": None},
+        )
+        question = factories.question.create(form__collection=report)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_just_text"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            data_source.has_missing_referenced_data_for_organisation(grant_recipient.organisation.external_id) is False
+        )
