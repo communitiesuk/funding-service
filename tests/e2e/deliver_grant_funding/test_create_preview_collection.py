@@ -8,7 +8,9 @@ from playwright.sync_api import Locator, Page, expect
 
 from app import NumberTypeEnum
 from app.common.data.types import (
+    CollectionStatusEnum,
     GrantRecipientStatusEnum,
+    GrantStatusEnum,
     GroupDisplayOptions,
     ManagedExpressionsEnum,
     MultilineTextInputRows,
@@ -68,6 +70,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     GrantReportsPage,
     ManageSectionPage,
     MarkAsOnboardingWithFundingServicePage,
+    OrganisationSetupRow,
     OverrideGrantRecipientCertifiersPage,
     PlatformAdminGrantSettingsPage,
     PlatformAdminReportSettingsPage,
@@ -834,6 +837,10 @@ def create_question(
     question_details_page.fill_question_text(question_text)
     question_details_page.fill_question_name(question_text.lower())
 
+    if text_reference := question_definition.get("text_reference"):
+        select_data_source_page = question_details_page.click_insert_data(field_name="text")
+        _reference_data_flow(select_data_source_page, text_reference)
+
     if hint := question_definition.get("hint"):
         question_details_page.fill_question_hint(hint.prefix)
         select_data_source_page = question_details_page.click_insert_data(field_name="hint")
@@ -1017,7 +1024,9 @@ def answer_questions_and_check_for_expected_errors(
             current_responses.append(response)
             if response.error_message or response.expect_group_validation_error:
                 expect_errors = True
-            question_page.respond_to_question(question["type"], question["text"], response.answer)
+            question_page.respond_to_question(
+                question["type"], question.get("display_text", question["text"]), response.answer
+            )
         question_page.click_continue()
         if expect_errors:
             for response in current_responses:
@@ -1286,12 +1295,8 @@ def test_setup_grant_and_collection(
     org_name = "End-to-End Testing Organisation"
     user_name = "MHCLG Test User"
     user_email = "fsd-post-award@levellingup.gov.uk"
-    tsv_data = (
-        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
-        f"MHCLG-TEST-ORG\t{org_name}\tCentral Government\t\t\n"
-    )
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
-    set_up_orgs_page.fill_organisations_tsv_data(tsv_data)
+    set_up_orgs_page.fill_organisations([OrganisationSetupRow("MHCLG-TEST-ORG", org_name, "Central Government")])
     set_up_orgs_page.click_set_up_organisations()
 
     collection_lifecycle_tasklist_page.click_task("Set up grant recipients")
@@ -1337,12 +1342,12 @@ def test_setup_grant_and_collection(
     # greyed out in the tasklist at this point)
     grant_settings_page = PlatformAdminGrantSettingsPage(page, domain, grant_id)
     grant_settings_page.navigate()
-    grant_settings_page.select_grant_status("LIVE")
+    grant_settings_page.select_grant_status(GrantStatusEnum.LIVE)
     grant_settings_page.click_save()
 
     report_settings_page = PlatformAdminReportSettingsPage(page, domain, collection_id)
     report_settings_page.navigate()
-    report_settings_page.select_collection_status("OPEN")
+    report_settings_page.select_collection_status(CollectionStatusEnum.OPEN)
     report_settings_page.click_save()
 
     # The report is now open and ready for submissions

@@ -4,7 +4,9 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from app.common.data.types import (
+    CollectionStatusEnum,
     GrantRecipientStatusEnum,
+    GrantStatusEnum,
     QuestionDataType,
 )
 from tests.e2e.access_grant_funding.pages import AccessHomePage
@@ -23,6 +25,7 @@ from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     AdminCollectionLifecycleTasklistPage,
     GrantPreAwardFormsPage,
+    OrganisationSetupRow,
     PlatformAdminGrantSettingsPage,
     PlatformAdminReportSettingsPage,
     PreAwardTestGrantRecipientJourneyPage,
@@ -162,31 +165,33 @@ def test_pre_award_validation_setup(
 
     collection_lifecycle_tasklist_page.navigate()
     collection_lifecycle_tasklist_page.click_task("Set up organisations")
-    tsv_data = (
-        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
-        f"MHCLG-TEST-ORG-REJECT\t{reject_org_name}\tCentral Government\t\t\n"
-        f"MHCLG-TEST-ORG-APPROVE\t{approve_org_name}\tCentral Government\t\t\n"
-    )
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
-    set_up_orgs_page.fill_organisations_tsv_data(tsv_data)
-    set_up_orgs_page.click_set_up_organisations()
+    set_up_orgs_page.fill_organisations(
+        [
+            OrganisationSetupRow("MHCLG-TEST-ORG-REJECT", reject_org_name, "Central Government"),
+            OrganisationSetupRow("MHCLG-TEST-ORG-APPROVE", approve_org_name, "Central Government"),
+        ]
+    )
+    set_up_orgs_page.click_set_up_organisations(expected_organisations_created=2)
 
     collection_lifecycle_tasklist_page.click_task("Set up grant recipients")
     set_up_grant_recipients_page = SetUpGrantRecipientsPage(page, domain, grant_id, collection_id)
     set_up_grant_recipients_page.select_organisation(reject_org_name)
     set_up_grant_recipients_page.select_organisation(approve_org_name)
     set_up_grant_recipients_page.select_status(GrantRecipientStatusEnum.ALLOCATED)
-    set_up_grant_recipients_page.click_set_up_grant_recipients()
+    set_up_grant_recipients_page.click_set_up_grant_recipients(
+        expected_message="Created 2 grant recipients and 2 test grant recipients."
+    )
 
     # Set grant LIVE and collection OPEN via admin shortcuts
     grant_settings_page = PlatformAdminGrantSettingsPage(page, domain, grant_id)
     grant_settings_page.navigate()
-    grant_settings_page.select_grant_status("LIVE")
+    grant_settings_page.select_grant_status(GrantStatusEnum.LIVE)
     grant_settings_page.click_save()
 
     report_settings_page = PlatformAdminReportSettingsPage(page, domain, collection_id)
     report_settings_page.navigate()
-    report_settings_page.select_collection_status("OPEN")
+    report_settings_page.select_collection_status(CollectionStatusEnum.OPEN)
     report_settings_page.click_save()
 
     _shared_setup_data = {
