@@ -4,6 +4,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
+    delete_grant_recipients,
     get_grant_recipient,
     get_grant_recipient_data_provider_roles,
     get_grant_recipient_data_providers_count,
@@ -554,6 +555,27 @@ class TestCreateGrantRecipients:
         grant_recipients = db_session.query(GrantRecipient).filter_by(grant_id=grant.id).all()
         assert len(grant_recipients) == 3
         assert {gr.organisation_id for gr in grant_recipients} == {org1.id, org2.id, org3.id}
+
+
+class TestDeleteGrantRecipients:
+    def test_deletes_all_grant_recipients_for_grant(self, factories, db_session):
+        grant = factories.grant.create()
+        factories.grant_recipient.create_batch(3, grant=grant)
+
+        delete_grant_recipients(grant)
+
+        assert db_session.query(GrantRecipient).filter_by(grant_id=grant.id).count() == 0
+
+    def test_does_not_delete_other_grants_recipients(self, factories, db_session):
+        grant = factories.grant.create()
+        other_grant = factories.grant.create()
+        factories.grant_recipient.create_batch(2, grant=grant)
+        other_grant_recipient = factories.grant_recipient.create(grant=other_grant)
+
+        delete_grant_recipients(grant)
+
+        assert db_session.query(GrantRecipient).filter_by(grant_id=grant.id).count() == 0
+        assert db_session.get(GrantRecipient, other_grant_recipient.id) is not None
 
 
 class TestGetGrantRecipientDataProvidersCount:

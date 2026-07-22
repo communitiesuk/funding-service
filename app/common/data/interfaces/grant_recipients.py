@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, cast, delete, func, select
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
@@ -126,6 +126,11 @@ def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = Gran
         .where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
     )
     return db.session.scalar(statement) or 0
+
+
+@flush_and_rollback_on_exceptions
+def delete_grant_recipients(grant: Grant) -> None:
+    db.session.execute(delete(GrantRecipient).where(GrantRecipient.grant_id == grant.id))
 
 
 @flush_and_rollback_on_exceptions()
