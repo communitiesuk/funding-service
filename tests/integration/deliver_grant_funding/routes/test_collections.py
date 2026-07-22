@@ -9073,6 +9073,28 @@ class TestViewSubmission:
         assert page_has_link(soup, "Request or allow changes") is None
         assert page_has_link(soup, "Approve or reject submission") is None
 
+    def test_action_buttons_hidden_when_allow_pre_award_is_disabled(
+        self, authenticated_grant_member_client, grant_recipient, submission_submitted
+    ):
+        client = authenticated_grant_member_client
+        grant = grant_recipient.grant
+        grant.allow_pre_award = True
+
+        # Setting collection.allow_validation to be False explicitly
+        submission_submitted.collection.allow_validation = False
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Approve or reject submission") is None
+
     def test_can_see_download_pdf_button(
         self, authenticated_grant_member_client, grant_recipient, submission_submitted
     ):
@@ -9741,6 +9763,20 @@ class TestApproveOrRejectSubmission:
         )
 
         assert response.status_code == 404
+
+    def test_400_with_collection_allow_validation_disabled(self, authenticated_org_member_client, submission_submitted):
+        collection = submission_submitted.collection
+        collection.allow_validation = False
+
+        response = authenticated_org_member_client.get(
+            url_for(
+                "deliver_grant_funding.approve_or_reject_submission",
+                grant_id=submission_submitted.collection.grant_id,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 400
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",

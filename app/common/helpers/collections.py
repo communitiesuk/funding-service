@@ -569,6 +569,10 @@ class SubmissionHelper:
     def collection_id(self) -> UUID:
         return self.collection.id
 
+    @property
+    def has_allow_validation_enabled(self) -> bool:
+        return self.submission.collection.allow_validation
+
     def get_form(self, form_id: uuid.UUID) -> Form:
         try:
             return next(filter(lambda f: f.id == form_id, self.collection.forms))

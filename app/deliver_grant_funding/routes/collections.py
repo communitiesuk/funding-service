@@ -3572,6 +3572,9 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
 def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
+    if not submission_helper.has_allow_validation_enabled:
+        abort(400)
+
     if not AuthorisationHelper.can_validate_submission(get_current_user(), submission_helper.submission):
         abort(403)
 
