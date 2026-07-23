@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from playwright.sync_api import Page, expect
 
 from app.common.data.types import (
@@ -37,6 +38,7 @@ from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
     switch_user,
     task_check_your_answers,
 )
+from tests.e2e.helpers import delete_grant_through_admin
 
 _shared_setup_data: dict | None = None
 
@@ -290,17 +292,38 @@ def test_reopen_and_reject(
     resubmit_confirmation_page = confirm_resubmit_page.click_confirm_and_submit()
     expect(resubmit_confirmation_page.heading).to_be_visible()
 
+    # Back on the Deliver side
+    grant_pre_award_forms_page = GrantPreAwardFormsPage(page, domain, data["grant_name"])
+    grant_pre_award_forms_page.navigate(data["grant_id"])
+    submissions_list_page = grant_pre_award_forms_page.click_view_submissions(data["collection_name"])
+    view_submission_page = submissions_list_page.click_on_submission(data["test_org_name"])
 
-# def test_zzz_pre_award_validation_cleanup(
-#     page: Page,
-#     domain: str,
-#     e2e_test_secrets: EndToEndTestSecrets,
-#     authenticated_browser_sso: E2ETestUser,
-#     email: str,
-# ) -> None:
-#     """Cleanup: delete the grant. Named zzz_ to run last alphabetically."""
-#     if _shared_setup_data is None:
-#         pytest.skip("No setup data to clean up")
+    # Check for the Submission status
+    expect(page.get_by_text("Submitted with changes")).to_be_visible()
+    # Check that Changed status shows up
+    expect(view_submission_page.status_tag_with_text("Changed")).to_be_visible()
+    # Check that "Original response" elements show up
+    expect(page.get_by_text("Original response")).to_be_visible()
 
-#     switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
-#     delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
+    # Reject the resubmission
+    approve_or_reject_page = view_submission_page.click_approve_or_reject()
+
+    # Check for the Submission messages and status
+    view_submission_page = approve_or_reject_page.reject_submission("Information still incorrect")
+    expect(page.get_by_role("heading", name="Submission marked as rejected")).to_be_visible()
+    expect(view_submission_page.status_tag_with_text("Marked as rejected")).to_be_visible()
+
+
+def test_zzz_pre_award_validation_cleanup(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    authenticated_browser_sso: E2ETestUser,
+    email: str,
+) -> None:
+    """Cleanup: delete the grant. Named zzz_ to run last alphabetically."""
+    if _shared_setup_data is None:
+        pytest.skip("No setup data to clean up")
+
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
+    delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])

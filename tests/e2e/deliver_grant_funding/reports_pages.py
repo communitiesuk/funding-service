@@ -2003,6 +2003,7 @@ class ViewSubmissionPage(ReportsBasePage):
     report_name: str
     request_or_allow_changes_button: Locator
     reopen_submission_button: Locator
+    approve_or_reject_button: Locator
     status_tags: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
@@ -2015,7 +2016,16 @@ class ViewSubmissionPage(ReportsBasePage):
         self.report_name = report_name
         self.request_or_allow_changes_button = page.get_by_role("button", name="Request or allow changes")
         self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
+        self.approve_or_reject_button = page.get_by_role("button", name="Approve or reject submission")
         self.status_tags = page.locator(".govuk-tag")
+
+    def click_approve_or_reject(self) -> ApproveOrRejectSubmissionPage:
+        self.approve_or_reject_button.click()
+        approve_or_reject_page = ApproveOrRejectSubmissionPage(
+            self.page, self.domain, self.grant_name, self.report_name
+        )
+        expect(approve_or_reject_page.heading).to_be_visible()
+        return approve_or_reject_page
 
     def status_tag_with_text(self, text: str) -> Locator:
         return self.status_tags.filter(has_text=text)
@@ -2100,6 +2110,35 @@ class ReopenSubmissionPage(ReportsBasePage):
     def click_reopen_submission(self) -> ViewSubmissionPage:
         self.reopen_submission_button.click()
         view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
+
+
+class ApproveOrRejectSubmissionPage(ReportsBasePage):
+    form_name: str
+    mark_as_rejected_radio: Locator
+    rejected_reason_input: Locator
+    submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Would you like to mark this submission as approved or rejected?"),
+        )
+        self.form_name = form_name
+        self.mark_as_rejected_radio = page.get_by_role("radio", name="Mark as rejected")
+        self.rejected_reason_input = page.get_by_role(
+            "textbox", name="Why are you marking this submission as rejected?"
+        )
+        self.submit_button = page.get_by_role("button", name="Confirm and submit decision")
+
+    def reject_submission(self, reason: str) -> ViewSubmissionPage:
+        self.mark_as_rejected_radio.click()
+        self.rejected_reason_input.fill(reason)
+        self.submit_button.click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.form_name)
         expect(view_submission_page.heading).to_be_visible()
         return view_submission_page
 
