@@ -337,20 +337,18 @@ class TestAuthorisationHelper:
             ("UKNOWN ROLE", pytest.raises(ValueError)),
         ],
     )
-    def test_has_access_grant_role(self, factories, role, expected, mocker):
+    def test_has_access_grant_role(self, factories, role, expected):
         user = factories.user.build()
         grant_recipient = factories.grant_recipient.build()
         factories.user_role.build(
             user=user, permissions=[role], grant=grant_recipient.grant, organisation=grant_recipient.organisation
         )
-        mocker.patch("app.common.auth.authorisation_helper.get_grant_recipient", return_value=grant_recipient)
 
         if isinstance(expected, bool):
             assert (
                 AuthorisationHelper.has_access_grant_role(
                     user=user,
-                    grant_id=grant_recipient.grant.id,
-                    organisation_id=grant_recipient.organisation.id,
+                    grant_recipient=grant_recipient,
                     role=role,
                 )
                 is expected
@@ -359,8 +357,7 @@ class TestAuthorisationHelper:
             with expected:
                 AuthorisationHelper.has_access_grant_role(
                     user=user,
-                    grant_id=grant_recipient.grant.id,
-                    organisation_id=grant_recipient.organisation.id,
+                    grant_recipient=grant_recipient,
                     role=role,
                 )
 
@@ -372,26 +369,14 @@ class TestAuthorisationHelper:
             (RoleEnum.CERTIFIER, AuthorisationHelper.is_access_grant_certifier),
         ],
     )
-    def test_is_access_grant_role_from_org(self, factories, mocker, role, method):
+    def test_is_access_grant_role_from_org(self, factories, role, method):
         user = factories.user.build()
         user2 = factories.user.build()
         grant_recipient = factories.grant_recipient.build()
         factories.user_role.build(user=user, permissions=[role], organisation=grant_recipient.organisation, grant=None)
-        mocker.patch("app.common.auth.authorisation_helper.get_grant_recipient", return_value=grant_recipient)
 
-        assert (
-            method(
-                grant_id=grant_recipient.grant.id,
-                organisation_id=grant_recipient.organisation.id,
-                user=user,
-            )
-            is True
-        )
-
-        assert (
-            method(grant_id=grant_recipient.grant.id, organisation_id=grant_recipient.organisation.id, user=user2)
-            is False
-        )
+        assert method(grant_recipient=grant_recipient, user=user) is True
+        assert method(grant_recipient=grant_recipient, user=user2) is False
 
     @pytest.mark.parametrize(
         "role, method",
@@ -401,7 +386,7 @@ class TestAuthorisationHelper:
             (RoleEnum.CERTIFIER, AuthorisationHelper.is_access_grant_certifier),
         ],
     )
-    def test_is_access_grant_role_from_grant(self, factories, mocker, role, method):
+    def test_is_access_grant_role_from_grant(self, factories, role, method):
         user = factories.user.build()
         user2 = factories.user.build()
         grant_recipient = factories.grant_recipient.build()
@@ -411,21 +396,9 @@ class TestAuthorisationHelper:
             organisation=grant_recipient.organisation,
             grant=grant_recipient.grant,
         )
-        mocker.patch("app.common.auth.authorisation_helper.get_grant_recipient", return_value=grant_recipient)
 
-        assert (
-            method(
-                grant_id=grant_recipient.grant.id,
-                organisation_id=grant_recipient.organisation.id,
-                user=user,
-            )
-            is True
-        )
-
-        assert (
-            method(grant_id=grant_recipient.grant.id, organisation_id=grant_recipient.organisation.id, user=user2)
-            is False
-        )
+        assert method(grant_recipient=grant_recipient, user=user) is True
+        assert method(grant_recipient=grant_recipient, user=user2) is False
 
     def test_has_access_grant_recipient_role_rejects_anonymous(self):
         assert AuthorisationHelper.has_access_grant_recipient_role(user=AnonymousUserMixin()) is False

@@ -498,7 +498,7 @@ class Submission(BaseModel):
         order_by="desc(SubmissionEvent.created_at_utc)",
     )
     created_by: Mapped[User] = relationship("User", back_populates="submissions")
-    grant_recipient: Mapped[GrantRecipient] = relationship("GrantRecipient", back_populates="submissions")
+    grant_recipient: Mapped[GrantRecipient | None] = relationship("GrantRecipient", back_populates="submissions")
 
     data_sources: Mapped[list[DataSource]] = relationship(
         "DataSource",
@@ -647,7 +647,8 @@ class Submission(BaseModel):
 
     __table_args__ = (
         CheckConstraint(
-            "mode = 'TEST' OR grant_recipient_id IS NOT NULL",
+            # confirmed in 032_entity_modes
+            "mode = 'PREVIEW' OR grant_recipient_id IS NOT NULL",
             name="ck_grant_recipient_if_live",
         ),
     )
