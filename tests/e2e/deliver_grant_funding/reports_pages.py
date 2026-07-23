@@ -33,6 +33,9 @@ if TYPE_CHECKING:
     from tests.e2e.deliver_grant_funding.pages import GrantTeamPage, SSOSignInPage
 
 
+DataSetColumnType = Literal["Text", "British pounds", "Whole number", "Decimal number"]
+
+
 def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_source: DataReferenceConfig) -> None:
     select_data_source_page.select_data_source(context_source.data_source)
 
@@ -63,6 +66,18 @@ def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_
                 )
                 select_question_page.choose_question(context_source.question_text)
                 select_question_page.click_use_data()
+
+        case ExpressionContext.ContextSources.DATASET:
+            if context_source.data_set_name is None or context_source.column_name is None:
+                raise ValueError("Dataset references need a data set name and column name")
+
+            select_data_set_page = SelectDataSourceDataSetPage(
+                select_data_source_page.page,
+                domain=select_data_source_page.domain,
+                grant_name=select_data_source_page.grant_name,
+            )
+            select_column_page = select_data_set_page.choose_data_set(context_source.data_set_name)
+            select_column_page.choose_column(context_source.column_name)
 
         case _:
             raise NotImplementedError(f"Unsupported context source type: {context_source.data_source}")
@@ -437,6 +452,136 @@ class ReportSectionsPage(ReportsBasePage):
         )
         expect(add_section_page.heading).to_be_visible()
         return add_section_page
+
+
+class UploadedDataSetsPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str = "") -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Uploaded data sets"),
+        )
+
+    def navigate(self, grant_id: str, collection_id: str) -> None:
+        self.page.goto(f"{self.domain}/deliver/grant/{grant_id}/reports/{collection_id}/data-sets")
+        expect(self.heading).to_be_visible()
+
+    def click_upload_new_data_set(self) -> "UploadDataSetPage":
+        self.page.get_by_role("button", name="Upload new data set").click()
+        upload_data_set_page = UploadDataSetPage(self.page, self.domain, self.grant_name)
+        expect(upload_data_set_page.heading).to_be_visible()
+        return upload_data_set_page
+
+
+class UploadDataSetPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str = "") -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Upload new data set"),
+        )
+
+    def fill_data_set_name(self, data_set_name: str) -> None:
+        self.page.get_by_role("textbox", name="Data set name").fill(data_set_name)
+
+    def upload_file(self, csv_path: str) -> None:
+        self.page.locator("input[type='file']").set_input_files(csv_path)
+
+    def click_continue_and_format_data(self, data_set_name: str) -> "ReviewMissingDataPage":
+        self.page.get_by_role("button", name="Continue and format data").click()
+        review_missing_data_page = ReviewMissingDataPage(self.page, self.domain, data_set_name, self.grant_name)
+        expect(review_missing_data_page.heading).to_be_visible()
+        return review_missing_data_page
+
+
+class ReviewMissingDataPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, data_set_name: str, grant_name: str = "") -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Review missing data in {data_set_name} data set"),
+        )
+        self.data_set_name = data_set_name
+
+    def expect_organisation_with_missing_data(self, organisation_name: str) -> None:
+        main_content = self.page.locator("main")
+        organisation_row = main_content.get_by_role("row").filter(
+            has=self.page.get_by_role("cell", name=organisation_name, exact=True)
+        )
+        expect(organisation_row).to_be_visible()
+        expect(organisation_row.get_by_text("Data missing", exact=True).first).to_be_visible()
+
+    def expect_organisation_without_missing_data(self, organisation_name: str) -> None:
+        main_content = self.page.locator("main")
+        expect(main_content.get_by_role("cell", name=organisation_name, exact=True)).not_to_be_visible()
+
+    def click_continue(self) -> "MapDataSetColumnsPage":
+        self.page.get_by_role("button", name="Continue").click()
+        map_columns_page = MapDataSetColumnsPage(self.page, self.domain, self.data_set_name, self.grant_name)
+        expect(map_columns_page.heading).to_be_visible()
+        return map_columns_page
+
+
+class MapDataSetColumnsPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, data_set_name: str, grant_name: str = "") -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Map {data_set_name} data columns"),
+        )
+        self.data_set_name = data_set_name
+
+    def select_data_set_column_type(self, column_name: str, type_: DataSetColumnType) -> None:
+        self.page.locator("tr", has_text=column_name).locator("select").select_option(label=type_)
+
+    def click_continue(self) -> "MapDataSetNumberColumnsPage":
+        self.page.get_by_role("button", name="Continue").click()
+        map_number_columns_page = MapDataSetNumberColumnsPage(
+            self.page, self.domain, self.data_set_name, self.grant_name
+        )
+        expect(map_number_columns_page.heading).to_be_visible()
+        return map_number_columns_page
+
+
+class MapDataSetNumberColumnsPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, data_set_name: str, grant_name: str = "") -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Map {data_set_name} number columns"),
+        )
+        self.data_set_name = data_set_name
+
+    def set_max_decimal_places(self, column_name: str, decimal_places: int) -> None:
+        self.page.get_by_label(f"Decimal places for {column_name}").fill(str(decimal_places))
+
+    def click_continue(self) -> "ConfirmDataSetPage":
+        self.page.get_by_role("button", name="Continue").click()
+        confirm_data_set_page = ConfirmDataSetPage(self.page, self.domain, self.data_set_name, self.grant_name)
+        expect(confirm_data_set_page.heading).to_be_visible()
+        return confirm_data_set_page
+
+
+class ConfirmDataSetPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, data_set_name: str, grant_name: str = "") -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=re.compile(f"Confirm {re.escape(data_set_name)} data")),
+        )
+        self.data_set_name = data_set_name
+
+    def click_upload_data_set(self) -> UploadedDataSetsPage:
+        self.page.get_by_role("button", name="Upload data set").click()
+        uploaded_data_sets_page = UploadedDataSetsPage(self.page, self.domain, self.grant_name)
+        expect(uploaded_data_sets_page.heading).to_be_visible()
+        return uploaded_data_sets_page
 
 
 class ManageSectionPage(ReportsBasePage):
@@ -1256,16 +1401,26 @@ class AddQuestionDetailsPage(ReportsBasePage):
         self.section_name = section_name
 
     def fill_question_text(self, question_text: str) -> None:
-        self.page.get_by_role("textbox", name="Question text").fill(question_text)
+        self._fill_context_aware_textarea("text", question_text)
 
     def fill_question_name(self, question_name: str) -> None:
         self.page.get_by_role("textbox", name="Question name").fill(question_name)
 
     def fill_question_hint(self, question_hint: str) -> None:
-        self.page.get_by_role("textbox", name="Question hint").fill(question_hint)
+        self._fill_context_aware_textarea("hint", question_hint)
+
+    def _fill_context_aware_textarea(self, field_name: Literal["text", "hint"], value: str) -> None:
+        textarea_label = "Question text" if field_name == "text" else "Question hint (optional)"
+        wait_for_context_aware_textarea_to_be_ready(self.page, field_name)
+
+        textarea = get_context_aware_textbox_locator_by_name(self.page, textarea_label)
+        textarea.fill(value)
+        expect(textarea).to_have_value(re.compile(re.escape(value)))
 
     def click_insert_data(self, field_name: Literal["text", "hint"]) -> "SelectDataSourcePage":
-        self.page.get_by_role("button", name=f"Reference data in question {field_name}").click()
+        field_label = "name" if field_name == "text" else field_name
+
+        self.page.get_by_role("button", name=f"Reference data in question {field_label}").click()
 
         return SelectDataSourcePage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
@@ -1330,7 +1485,7 @@ class SelectDataSourcePage(ReportsBasePage):
 
     def select_data_source(
         self, data_source: ExpressionContext.ContextSources | Literal["THIS_QUESTION"]
-    ) -> SelectDataSourceQuestionPage | SelectDataSourceSectionPage | None:
+    ) -> SelectDataSourceQuestionPage | SelectDataSourceSectionPage | SelectDataSourceDataSetPage | None:
         self.page.get_by_role(
             "radio",
             name="This question" if data_source == "THIS_QUESTION" else data_source.value,
@@ -1344,12 +1499,44 @@ class SelectDataSourcePage(ReportsBasePage):
             case ExpressionContext.ContextSources.PREVIOUS_SECTION:
                 return SelectDataSourceSectionPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
 
+            case ExpressionContext.ContextSources.DATASET:
+                return SelectDataSourceDataSetPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
             case "THIS_QUESTION":
                 return None
 
             case (ExpressionContext.ContextSources.PREVIOUS_COLLECTION, _):
                 pass
         raise NotImplementedError(f"Unexpected data source: {data_source}")
+
+
+class SelectDataSourceDataSetPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            heading=page.get_by_role("heading", name="Select uploaded data set"),
+            grant_name=grant_name,
+        )
+
+    def choose_data_set(self, data_set_name: str) -> "SelectDataSourceDataSetColumnPage":
+        self.page.get_by_role("radio", name=data_set_name).click()
+        self.page.get_by_role("button", name="Select data set").click()
+        return SelectDataSourceDataSetColumnPage(page=self.page, domain=self.domain, grant_name=self.grant_name)
+
+
+class SelectDataSourceDataSetColumnPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page=page,
+            domain=domain,
+            heading=page.get_by_role("heading", name=re.compile(r"Select column in .+ data set")),
+            grant_name=grant_name,
+        )
+
+    def choose_column(self, column_name: str) -> None:
+        self.page.get_by_role("radio", name=column_name).click()
+        self.page.get_by_role("button", name="Select column").click()
 
 
 class SelectDataSourceSectionPage(ReportsBasePage):
@@ -2129,9 +2316,16 @@ class SetUpOrganisationsPage:
     def fill_organisations_tsv_data(self, tsv_data: str) -> None:
         self.organisations_textarea.fill(tsv_data)
 
-    def click_set_up_organisations(self) -> "AdminCollectionLifecycleTasklistPage":
+    def click_set_up_organisations(
+        self, expected_organisations_created: int = 1, expected_message: str | None = None
+    ) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
-        expect(self.page.get_by_text("Created or updated 1 organisation")).to_be_visible()
+        if expected_message is None:
+            organisation_word = "organisation" if expected_organisations_created == 1 else "organisations"
+            expected_message = f"Created or updated {expected_organisations_created} {organisation_word}"
+            if expected_organisations_created > 1:
+                expected_message += f" and {expected_organisations_created} test organisations."
+        expect(self.page.get_by_text(expected_message)).to_be_visible()
         return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
@@ -2146,21 +2340,36 @@ class SetUpGrantRecipientsPage:
         self.heading = heading or page.get_by_role("heading", name="Set up grant recipients")
 
         self.grant_recipients_combobox = page.locator(".choices", has=page.locator(".choices__input#recipients"))
-        expect(self.grant_recipients_combobox).to_be_visible()
 
         self.set_up_button = page.get_by_role("button", name="Set up grant recipients")
 
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/set-up-grant-recipients"
+        )
+        expect(self.heading).to_be_visible()
+
     def select_organisation(self, org_name: str) -> None:
+        expect(self.grant_recipients_combobox).to_be_visible()
         self.grant_recipients_combobox.click()
         self.page.get_by_role("option", name=org_name).click()
+        self.page.keyboard.press("Escape")
+
+    def select_organisations(self, org_names: list[str]) -> None:
+        expect(self.grant_recipients_combobox).to_be_visible()
+        self.grant_recipients_combobox.click()
+        for org_name in org_names:
+            self.page.get_by_role("option", name=org_name).click()
         self.page.keyboard.press("Escape")
 
     def select_status(self, status: GrantRecipientStatusEnum) -> None:
         self.page.get_by_role("radio", name=status.value).click()
 
-    def click_set_up_grant_recipients(self) -> "AdminCollectionLifecycleTasklistPage":
+    def click_set_up_grant_recipients(
+        self, expected_message: str = "Created 1 grant recipient"
+    ) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
-        expect(self.page.get_by_text("Created 1 grant recipient")).to_be_visible()
+        expect(self.page.get_by_text(expected_message)).to_be_visible()
         return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
