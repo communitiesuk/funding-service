@@ -1604,6 +1604,7 @@ class RunnerTasklistPage(ReportsBasePage):
     submission_status_box: Locator
     submit_button: Locator
     back_link: Locator
+    status_tags: Locator
 
     def __init__(
         self,
@@ -1622,6 +1623,10 @@ class RunnerTasklistPage(ReportsBasePage):
         self.submission_status_box = page.get_by_test_id("submission-status")
         self.submit_button = page.get_by_role("button", name="Submit")
         self.back_link = self.page.get_by_role("link", name="Back")
+        self.status_tags = page.locator(".govuk-tag")
+
+    def status_tag_with_text(self, text: str) -> Locator:
+        return self.status_tags.filter(has_text=text)
 
     def click_on_section(self, section_name: str) -> None:
         self.page.get_by_role("link", name=section_name).click()
@@ -1858,6 +1863,12 @@ class RunnerCheckYourAnswersPage(ReportsBasePage):
     def click_mark_as_complete_yes(self) -> None:
         self.mark_as_complete_yes.click()
 
+    def click_change_answer(self, question_name: str) -> RunnerQuestionPage:
+        self.page.get_by_role("link", name=f"Change {question_name}").click()
+        question_page = RunnerQuestionPage(self.page, self.domain, self.grant_name, question_name)
+        expect(question_page.heading).to_be_visible()
+        return question_page
+
     def click_save_and_continue(self, report_name: str) -> RunnerTasklistPage:
         self.save_and_continue_button.click()
         task_list_page = RunnerTasklistPage(self.page, self.domain, self.grant_name, report_name=report_name)
@@ -2034,28 +2045,6 @@ class ViewSubmissionPage(ReportsBasePage):
         expect(request_or_allow_changes_page.heading).to_be_visible()
         return request_or_allow_changes_page.click_no_just_allow_changes()
 
-
-class RequestOrAllowChangesPage(ReportsBasePage):
-    report_name: str
-    continue_button: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Are you requesting changes to", exact=False),
-        )
-        self.report_name = report_name
-        self.continue_button = page.get_by_role("button", name="Continue")
-
-    def click_no_just_allow_changes(self) -> ReopenSubmissionPage:
-        self.page.get_by_role("radio", name="No, just allow changes").click()
-        self.continue_button.click()
-        reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
-        expect(reopen_page.heading).to_be_visible()
-        return reopen_page
-
     def click_request_or_allow_changes(self) -> RequestOrAllowChangesPage:
         self.request_or_allow_changes_button.click()
         request_or_allow_changes_page = RequestOrAllowChangesPage(
@@ -2081,10 +2070,8 @@ class RequestOrAllowChangesPage(ReportsBasePage):
         self.no_just_allow_changes_radio = page.get_by_role("radio", name="No, just allow changes")
         self.continue_button = page.get_by_role("button", name="Continue")
 
-    def select_no_just_allow_changes(self) -> None:
-        self.no_just_allow_changes_radio.check()
-
-    def click_continue(self) -> ReopenSubmissionPage:
+    def click_no_just_allow_changes(self) -> ReopenSubmissionPage:
+        self.page.get_by_role("radio", name="No, just allow changes").click()
         self.continue_button.click()
         reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(reopen_page.heading).to_be_visible()
