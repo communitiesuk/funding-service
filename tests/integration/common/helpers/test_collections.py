@@ -28,6 +28,7 @@ from app.common.data.interfaces.collections import update_submission_data
 from app.common.data.models import Expression
 from app.common.data.types import (
     CollectionStatusEnum,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     NumberTypeEnum,
@@ -43,10 +44,11 @@ from app.common.data.types import (
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, IsYes
-from app.common.expressions.references import ExpressionReference
+from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
     CollectionDoesNotAllowValidationError,
+    CollectionHelper,
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
@@ -2988,6 +2990,58 @@ class TestSubmissionHelper:
 
             assert helper.has_form_changed_since_previous_submission(question.form) is expected
 
+    class TestHasMissingReferencedDataForGrantRecipient:
+        def test_false_when_no_data_sources(self, factories):
+            collection = factories.collection.create()
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is False
+
+        def test_true_when_a_referenced_column_is_missing(self, factories, db_session):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            grant_recipient = factories.grant_recipient.create(grant=grant)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[None],
+            )
+            factories.question.create(
+                form__collection=collection,
+                hint=InterpolationStatement(
+                    "You were allocated "
+                    + ExpressionReference.from_data_source_column(data_source, "c_allocation").wrapped
+                ),
+            )
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is True
+
+        def test_false_when_referenced_column_present(self, factories, db_session):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            grant_recipient = factories.grant_recipient.create(grant=grant)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[123],
+            )
+            factories.question.create(
+                form__collection=collection,
+                hint=InterpolationStatement(
+                    "You were allocated "
+                    + ExpressionReference.from_data_source_column(data_source, "c_allocation").wrapped
+                ),
+            )
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is False
+
 
 class TestFormResetOnAnswerChange:
     def test_same_section_reset_when_completed(self, db_session, factories):
@@ -3902,3 +3956,79 @@ class TestSubmissionValidation:
             helper.mark_as_sent_for_certification(user)
 
         assert "no longer valid" in str(e.value)
+
+
+class TestCollectionHelper:
+    def test_has_missing_referenced_data_for_organisation_false_when_no_data_sources(self, factories):
+        collection = factories.collection.create()
+
+        assert CollectionHelper(collection).has_missing_referenced_data_for_organisation("EXT-1") is False
+
+    def test_has_missing_referenced_data_for_organisation_true_when_a_referenced_column_is_missing(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        factories.question.create(
+            form__collection=collection,
+            hint=InterpolationStatement(
+                "You were allocated " + ExpressionReference.from_data_source_column(data_source, "c_allocation").wrapped
+            ),
+        )
+
+        assert (
+            CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+                grant_recipient.organisation.external_id
+            )
+            is True
+        )
+
+    def test_has_missing_referenced_data_for_organisation_false_when_referenced_column_present(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123],
+        )
+        factories.question.create(
+            form__collection=collection,
+            hint=InterpolationStatement(
+                "You were allocated " + ExpressionReference.from_data_source_column(data_source, "c_allocation").wrapped
+            ),
+        )
+
+        assert (
+            CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+                grant_recipient.organisation.external_id
+            )
+            is False
+        )
+
+    def test_has_missing_referenced_data_for_organisation_ignores_custom_data_sources(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        # CUSTOM data sources would never realistically be tied to a grant or collection - this is really just to
+        # confirm the data_source.type == GRANT_RECIPIENT filter in _any_data_source_missing_referenced_data
+        factories.data_source.create(grant=grant, collection=collection, type=DataSourceType.CUSTOM)
+
+        assert (
+            CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+                grant_recipient.organisation.external_id
+            )
+            is False
+        )
