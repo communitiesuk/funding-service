@@ -60,6 +60,8 @@ class MetricEventName(StrEnum):
     SUBMISSION_MANAGED_VALIDATION_SUCCESS = "submission-managed-validation-success"
     SUBMISSION_CUSTOM_VALIDATION_SUCCESS = "submission-custom-validation-success"
 
+    REPORT_BLOCKED_BY_MISSING_DATA = "report-blocked-by-missing-data"
+
     SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER = "section-reset-to-in-progress-by-certifier"
 
     GRANT_STATUS_CHANGED = "grant-status-changed"

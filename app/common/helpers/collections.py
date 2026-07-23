@@ -49,6 +49,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     ComponentVisibilityState,
     ConditionsOperator,
+    DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
     GrantStatusEnum,
@@ -79,6 +80,7 @@ if TYPE_CHECKING:
     from app.common.data.models import (
         Collection,
         Component,
+        DataSource,
         Expression,
         Form,
         Grant,
@@ -127,6 +129,14 @@ class CollectionIsNotOpenError(Exception):
 
 class SubmissionIsNotSubmittedError(Exception):
     pass
+
+
+def _any_data_source_missing_referenced_data(data_sources: Sequence[DataSource], organisation_external_id: str) -> bool:
+    return any(
+        data_source.has_missing_referenced_data_for_organisation(organisation_external_id)
+        for data_source in data_sources
+        if data_source.type == DataSourceType.GRANT_RECIPIENT
+    )
 
 
 class SubmissionHelper:
@@ -224,6 +234,11 @@ class SubmissionHelper:
     @property
     def reference(self) -> str:
         return self.submission.reference
+
+    def has_missing_referenced_data_for_grant_recipient(self) -> bool:
+        return _any_data_source_missing_referenced_data(
+            self.data_sources, self.submission.grant_recipient.organisation.external_id
+        )
 
     def form_data(
         self, *, add_another_container: Component | None = None, add_another_index: int | None = None
@@ -1921,6 +1936,9 @@ class CollectionHelper:
     @property
     def is_closed(self) -> bool:
         return self.collection.status == CollectionStatusEnum.CLOSED
+
+    def has_missing_referenced_data_for_organisation(self, organisation_external_id: str) -> bool:
+        return _any_data_source_missing_referenced_data(self.collection.data_sources, organisation_external_id)
 
 
 def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -> AllAnswerTypes:

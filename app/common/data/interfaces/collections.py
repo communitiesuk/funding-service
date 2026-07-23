@@ -269,6 +269,7 @@ def get_collection(
     grant_id: UUID | None = None,
     type_: CollectionType | None = None,
     with_full_schema: bool = False,
+    with_data_source_references: bool = False,
 ) -> Collection:
     """Get a collection by ID."""
     options = []
@@ -282,6 +283,16 @@ def get_collection(
                 # leaves as much as possible with the ORM
                 joinedload(Collection.forms).selectinload(Form.components),
             ]
+        )
+
+    if with_data_source_references:
+        # avoids N+1 queries for callers that check DataSource.has_missing_referenced_data_for_organisation
+        # across every data source on the collection (eg CollectionHelper.has_missing_referenced_data_for_organisation)
+        options.append(
+            selectinload(Collection.data_sources).options(
+                selectinload(DataSource.depended_on_by_columns),
+                selectinload(DataSource.organisation_items),
+            )
         )
 
     filters = [Collection.id == collection_id]
@@ -823,7 +834,10 @@ def get_submission(
                     ),
                 ),
                 selectinload(Submission.events),
-                selectinload(Submission.data_sources),
+                selectinload(Submission.data_sources).options(
+                    selectinload(DataSource.depended_on_by_columns),
+                    selectinload(DataSource.organisation_items),
+                ),
             ]
         )
 

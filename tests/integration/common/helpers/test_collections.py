@@ -25,9 +25,10 @@ from app.common.collections.types import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import update_submission_data
-from app.common.data.models import Expression
+from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import (
     CollectionStatusEnum,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     NumberTypeEnum,
@@ -46,6 +47,7 @@ from app.common.expressions.managed import GreaterThan, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
+    CollectionHelper,
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
@@ -2976,6 +2978,58 @@ class TestSubmissionHelper:
 
             assert helper.has_form_changed_since_previous_submission(question.form) is expected
 
+    class TestHasMissingReferencedDataForGrantRecipient:
+        def test_false_when_no_data_sources(self, factories):
+            collection = factories.collection.create()
+            grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is False
+
+        def test_true_when_a_referenced_column_is_missing(self, factories, db_session):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            grant_recipient = factories.grant_recipient.create(grant=grant)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[None],
+            )
+            question = factories.question.create(form__collection=collection)
+            db_session.add(
+                ComponentReference(
+                    component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+                )
+            )
+            db_session.commit()
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is True
+
+        def test_false_when_referenced_column_present(self, factories, db_session):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            grant_recipient = factories.grant_recipient.create(grant=grant)
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[123],
+            )
+            question = factories.question.create(form__collection=collection)
+            db_session.add(
+                ComponentReference(
+                    component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+                )
+            )
+            db_session.commit()
+            submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
+
+            assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is False
+
 
 class TestFormResetOnAnswerChange:
     def test_same_section_reset_when_completed(self, db_session, factories):
@@ -3890,3 +3944,86 @@ class TestSubmissionValidation:
             helper.mark_as_sent_for_certification(user)
 
         assert "no longer valid" in str(e.value)
+
+
+class TestCollectionHelper:
+    def test_has_missing_referenced_data_for_organisation_false_when_no_data_sources(self, factories):
+        collection = factories.collection.create()
+
+        assert CollectionHelper(collection).has_missing_referenced_data_for_organisation("EXT-1") is False
+
+    def test_has_missing_referenced_data_for_organisation_true_when_a_referenced_column_is_missing(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        question = factories.question.create(form__collection=collection)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+                grant_recipient.organisation.external_id
+            )
+            is True
+        )
+
+    def test_has_missing_referenced_data_for_organisation_false_when_referenced_column_present(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[123],
+        )
+        question = factories.question.create(form__collection=collection)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+                grant_recipient.organisation.external_id
+            )
+            is False
+        )
+
+    def test_has_missing_referenced_data_for_organisation_ignores_custom_data_sources(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(grant=grant, collection=collection, type=DataSourceType.CUSTOM)
+        question = factories.question.create(form__collection=collection)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        assert (
+            CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+                grant_recipient.organisation.external_id
+            )
+            is False
+        )
