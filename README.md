@@ -1,4 +1,4 @@
-# Funding Service
+# Funding Service revamp
 
 ## Local development setup
 
