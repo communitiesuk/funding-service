@@ -1,3 +1,4 @@
+from functools import partial
 from uuid import UUID
 
 from flask import flash, redirect, render_template, request, session, url_for
@@ -8,7 +9,9 @@ from app.common.auth.decorators import has_deliver_grant_role, is_deliver_grant_
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection, get_form_by_id
 from app.common.data.interfaces.grants import get_all_deliver_grants_by_user
+from app.common.data.interfaces.release_notes import get_published_release_notes
 from app.common.data.types import RoleEnum
+from app.common.markdown import convert_text_to_govuk_markup
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.types import FlashMessageType
 
@@ -27,6 +30,22 @@ def list_grants() -> ResponseReturnValue:
     if not AuthorisationHelper.is_deliver_org_member(user) and len(grants) == 1:
         return redirect(url_for("deliver_grant_funding.grant_homepage", grant_id=grants[0].id))
     return render_template("deliver_grant_funding/grant_list.html", grants=grants)
+
+
+@deliver_grant_funding_blueprint.route("/latest-updates", methods=["GET"])
+@is_deliver_grant_funding_user
+def latest_updates() -> ResponseReturnValue:
+    release_note_renderer = partial(
+        convert_text_to_govuk_markup,
+        heading_level_start=3,
+        heading_level_end=3,
+        heading_level_classes=("govuk-heading-s",),
+    )
+    return render_template(
+        "deliver_grant_funding/latest_updates.html",
+        release_notes=get_published_release_notes(),
+        release_note_renderer=release_note_renderer,
+    )
 
 
 @deliver_grant_funding_blueprint.get("/_internal/redirect-after-test-submission/<uuid:collection_id>")

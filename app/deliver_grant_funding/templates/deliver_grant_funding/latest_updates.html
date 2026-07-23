@@ -1,0 +1,26 @@
+{% extends "deliver_grant_funding/base.html" %}
+
+{% set page_title = "Latest updates" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+
+      <p class="govuk-body">Read about new features and important changes in Deliver grant funding.</p>
+
+      <p class="govuk-body">
+        If you have any questions, contact
+        <a class="govuk-link govuk-link--no-visited-state" href="mailto:{{ config.FUNDING_SERVICE_INBOX_EMAIL }}">{{ config.FUNDING_SERVICE_INBOX_EMAIL }}</a>.
+      </p>
+
+      {% for release_note in release_notes %}
+        <h2 class="govuk-heading-m govuk-!-margin-top-6" id="{{ release_note.title | slugify }}">
+          {{ release_note.title }}
+          <span class="govuk-caption-m">{{ format_date_short(release_note.release_date) }}</span>
+        </h2>
+        {{ release_note_renderer(release_note.content) }}
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

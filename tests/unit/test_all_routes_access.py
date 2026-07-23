@@ -192,6 +192,7 @@ routes_with_expected_access_grant_funding_has_certifier_role_access = [
 
 routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
+    "deliver_grant_funding.latest_updates",
 ]
 routes_with_no_expected_access_restrictions = [
     "healthcheck.db_healthcheck_current_revision",
