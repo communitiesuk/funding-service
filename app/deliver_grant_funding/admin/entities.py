@@ -28,6 +28,8 @@ from app.common.audit import (
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.audit import track_audit_event
+from app.common.data.interfaces.collections import delete_collection
+from app.common.data.interfaces.grant_recipients import delete_grant_recipients
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import (
     Collection,
@@ -322,6 +324,24 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
                 "</a>."
             )
         return form
+
+    def on_model_delete(self, model: Grant) -> None:  # ty:ignore[invalid-method-override]
+        user = get_current_user()
+        for collection in list(model.collections):
+            audit_event = create_database_model_change_for_delete(collection, user)
+            delete_collection(collection)
+            track_audit_event(audit_event, user)
+
+        grant_recipient_audit_events = [
+            create_database_model_change_for_delete(grant_recipient, user) for grant_recipient in model.grant_recipients
+        ]
+        delete_grant_recipients(model)
+        for audit_event in grant_recipient_audit_events:
+            track_audit_event(audit_event, user)
+
+        db.session.expire(model, ["collections", "grant_recipients"])
+
+        return super().on_model_delete(model)
 
     def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):

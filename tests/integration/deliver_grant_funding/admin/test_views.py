@@ -9,7 +9,7 @@ from app import CollectionAdminEmailTypeEnum
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_user, get_user_by_email
-from app.common.data.models import Organisation
+from app.common.data.models import Grant, Organisation
 from app.common.data.models_audit import AuditEvent
 from app.common.data.types import (
     AuditEventType,
@@ -6100,6 +6100,41 @@ class TestPlatformAdminQuestionView:
         assert question.text == "Untouched text"
         assert question.hint == "Untouched hint"
         assert question.name == "renamed"
+
+
+class TestPlatformAdminGrantView:
+    def test_delete_grant_with_grant_recipient_data_set(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipients = factories.grant_recipient.create_batch(2, grant=grant)
+        factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/grant/delete/",
+            data={"id": str(grant.id)},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert db_session.get(Grant, grant.id) is None
+
+        audit_events = (
+            db_session.query(AuditEvent).filter(AuditEvent.event_type == AuditEventType.PLATFORM_ADMIN_DB_EVENT).all()
+        )
+        audit_model_classes_and_ids = {
+            (audit_event.data["model_class"], audit_event.data["model_id"]) for audit_event in audit_events
+        }
+        assert ("Grant", str(grant.id)) in audit_model_classes_and_ids
+        assert ("Collection", str(collection.id)) in audit_model_classes_and_ids
+        for grant_recipient in grant_recipients:
+            assert ("GrantRecipient", str(grant_recipient.id)) in audit_model_classes_and_ids
 
 
 class TestGrantRecipientChangeStatus:
