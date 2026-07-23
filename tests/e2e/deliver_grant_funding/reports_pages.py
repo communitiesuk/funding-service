@@ -247,6 +247,43 @@ class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
         expect(self.page.get_by_text("We emailed you a link to test the grant recipient journey")).to_be_visible()
 
 
+class PreAwardTestGrantRecipientJourneyPage(ReportsBasePage):
+    # DeliverTestGrantRecipientJourneyPage equivalen for Pre-award
+    start_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str, collection_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name="",
+            heading=page.get_by_role("heading", name=f"Test the {collection_name} form"),
+        )
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.collection_name = collection_name
+        self.start_button = self.page.get_by_role("button", name="Start test submission journey")
+
+        self.test_organisation_combobox = self.page.locator(
+            "[class='autocomplete__wrapper']", has=self.page.locator("#organisation")
+        ).get_by_role("combobox")
+
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/grant/{self.grant_id}/applications/{self.collection_id}/test-grant-recipient-journey"
+        )
+        expect(self.heading).to_be_visible()
+
+    def select_test_organisation(self, org_name: str) -> None:
+        expect(self.test_organisation_combobox).to_be_visible()
+        self.test_organisation_combobox.click()
+        self.test_organisation_combobox.fill(org_name)
+        self.test_organisation_combobox.press("Enter")
+
+    def click_start_test_journey(self) -> None:
+        self.start_button.click()
+        expect(self.page.get_by_text("We emailed you a link to test the grant recipient journey")).to_be_visible()
+
+
 class GrantReportsPage(ReportsBasePage):
     add_report_button: Locator
     summary_row_submissions: Locator
@@ -314,6 +351,49 @@ class GrantReportsPage(ReportsBasePage):
         return reports_page
 
 
+class GrantPreAwardFormsPage(ReportsBasePage):
+    # GrantReportsPage equivalent in pre-award
+    add_form_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} Forms")
+        )
+        self.add_form_button = self.page.get_by_role("button", name="Create a form").or_(
+            self.page.get_by_role("button", name="Create another form")
+        )
+
+    def navigate(self, grant_id: str) -> None:
+        self.page.goto(f"{self.domain}/deliver/grant/{grant_id}/pre-award")
+        expect(self.heading).to_be_visible()
+
+    def click_add_form(self) -> ChoosePreAwardFormCreationMethodPage:
+        self.add_form_button.click()
+        choose_method_page = ChoosePreAwardFormCreationMethodPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(choose_method_page.heading).to_be_visible()
+        return choose_method_page
+
+    def click_add_section(self, form_name: str, grant_name: str) -> AddSectionPage:
+        self.page.get_by_role("link", name=f"Add sections to {form_name}").click()
+        add_section_page = AddSectionPage(
+            self.page,
+            self.domain,
+            grant_name=grant_name,
+            report_name=form_name,
+        )
+        expect(add_section_page.heading).to_be_visible()
+
+        return add_section_page
+
+    def click_manage_sections(self, form_name: str, grant_name: str) -> PreAwardFormSectionsPage:
+        self.page.get_by_role("link", name=re.compile(r"\d+ section")).click()
+        form_sections_page = PreAwardFormSectionsPage(
+            self.page, self.domain, grant_name=grant_name, form_name=form_name
+        )
+        expect(form_sections_page.heading).to_be_visible()
+        return form_sections_page
+
+
 class ChooseCollectionCreationMethodPage(ReportsBasePage):
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
@@ -329,6 +409,24 @@ class ChooseCollectionCreationMethodPage(ReportsBasePage):
         add_report_page = AddReportPage(self.page, self.domain, grant_name=self.grant_name)
         expect(add_report_page.heading).to_be_visible()
         return add_report_page
+
+
+class ChoosePreAwardFormCreationMethodPage(ReportsBasePage):
+    # ChooseCollectionCreationMethodPage equivalen in Pre-award
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Do you want to create a new form or copy an existing form?"),
+        )
+
+    def click_create_new(self) -> "AddPreAwardFormPage":
+        self.page.get_by_role("radio", name="Create a new form").click()
+        self.page.get_by_role("button", name="Continue").click()
+        add_form_page = AddPreAwardFormPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(add_form_page.heading).to_be_visible()
+        return add_form_page
 
 
 class AddReportPage(ReportsBasePage):
@@ -348,6 +446,26 @@ class AddReportPage(ReportsBasePage):
         reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
         expect(reports_page.heading).to_be_visible()
         return reports_page
+
+
+class AddPreAwardFormPage(ReportsBasePage):
+    # AddReportPage equivalent in Pre-award
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="What is the name of the form?"),
+        )
+
+    def fill_in_form_name(self, name: str) -> None:
+        self.page.get_by_role("textbox", name="Form name").fill(name)
+
+    def click_submit(self, grant_name: str) -> GrantPreAwardFormsPage:
+        self.page.get_by_role("button", name="Create form").click()
+        forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=grant_name)
+        expect(forms_page.heading).to_be_visible()
+        return forms_page
 
 
 class ChangeReportNamePage(ReportsBasePage):
@@ -434,6 +552,62 @@ class ReportSectionsPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
+        )
+        expect(add_section_page.heading).to_be_visible()
+        return add_section_page
+
+
+class PreAwardFormSectionsPage(ReportsBasePage):
+    # ReportSectionsPage equivalent in Pre-award
+    form_name: str
+    preview_form_button: Locator
+    forms_breadcrumb: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Sections"),
+        )
+        self.form_name = form_name
+        self.preview_form_button = self.page.get_by_role("button", name="Preview form")
+        self.forms_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(has=page.get_by_text("Forms"))
+
+    def click_forms_breadcrumb(self) -> GrantPreAwardFormsPage:
+        self.forms_breadcrumb.click()
+        grant_pre_award_forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=self.grant_name)
+        return grant_pre_award_forms_page
+
+    def click_preview_form(self) -> RunnerTasklistPage:
+        self.preview_form_button.click()
+        tasklist_page = RunnerTasklistPage(
+            self.page, self.domain, grant_name=self.grant_name, report_name=self.form_name
+        )
+        expect(tasklist_page.heading).to_be_visible()
+        return tasklist_page
+
+    def click_manage_section(self, section_name: str) -> ManageSectionPage:
+        self.page.get_by_role("link", name=section_name, exact=True).click()
+        manage_section_page = ManageSectionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.form_name,
+            section_name=section_name,
+        )
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
+
+    def click_add_section(self) -> AddSectionPage:
+        self.page.get_by_role("link", name="Add a section").or_(
+            self.page.get_by_role("link", name="Add another section")
+        ).click()
+        add_section_page = AddSectionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.form_name,
         )
         expect(add_section_page.heading).to_be_visible()
         return add_section_page
@@ -2415,6 +2589,7 @@ class PlatformAdminGrantSettingsPage:
         self.grant_id = grant_id
         self.heading = page.get_by_role("heading", name="Edit Grant")
         self.status_dropdown = page.get_by_role("combobox", name="Status")
+        self.allow_pre_award_checkbox = page.get_by_role("checkbox", name="Allow pre-award features")
         self.save_button = page.get_by_role("button", name="Save")
 
     def navigate(self) -> None:
@@ -2423,6 +2598,9 @@ class PlatformAdminGrantSettingsPage:
 
     def select_grant_status(self, status: str) -> None:
         self.status_dropdown.select_option(status)
+
+    def click_allow_pre_award(self) -> None:
+        self.allow_pre_award_checkbox.check()
 
     def click_save(self) -> None:
         self.save_button.click()
@@ -2441,6 +2619,7 @@ class PlatformAdminReportSettingsPage:
         self.collection_id = collection_id
         self.heading = page.get_by_role("heading", name="Edit Collection")
         self.status_dropdown = page.get_by_role("combobox", name="Status")
+        self.allow_validation_checkbox = page.get_by_role("checkbox", name="Allow validation")
         self.save_button = page.get_by_role("button", name="Save")
 
     def navigate(self) -> None:
@@ -2449,6 +2628,9 @@ class PlatformAdminReportSettingsPage:
 
     def select_collection_status(self, status: str) -> None:
         self.status_dropdown.select_option(status)
+
+    def click_allow_validation(self) -> None:
+        self.allow_validation_checkbox.check()
 
     def click_save(self) -> None:
         self.save_button.click()
