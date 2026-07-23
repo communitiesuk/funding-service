@@ -729,3 +729,45 @@ class AGFFormRunner(FormRunner):
             )
         ),
     }
+
+    @classmethod
+    def load(
+        cls,
+        *,
+        submission_id: UUID,
+        question_id: UUID | None = None,
+        form_id: UUID | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        grant_recipient_id: UUID | None = None,
+        is_removing: bool = False,
+        is_clearing: bool = False,
+        check_entries: int | None = None,
+    ) -> "AGFFormRunner":
+        form_runner = cast(
+            "AGFFormRunner",
+            super().load(
+                submission_id=submission_id,
+                question_id=question_id,
+                form_id=form_id,
+                source=source,
+                add_another_index=add_another_index,
+                grant_recipient_id=grant_recipient_id,
+                is_removing=is_removing,
+                is_clearing=is_clearing,
+                check_entries=check_entries,
+            ),
+        )
+
+        grant_recipient = form_runner.submission.submission.grant_recipient
+        if form_runner.submission.has_missing_referenced_data_for_grant_recipient():
+            raise RedirectException(
+                url_for(
+                    "access_grant_funding.report_unavailable",
+                    organisation_id=grant_recipient.organisation_id,
+                    grant_id=grant_recipient.grant_id,
+                    collection_id=form_runner.submission.collection_id,
+                )
+            )
+
+        return form_runner

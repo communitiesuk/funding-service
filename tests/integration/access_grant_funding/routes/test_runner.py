@@ -7,9 +7,10 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.collections.types import FileUploadAnswer, IntegerAnswer, TextSingleLineAnswer, YesNoAnswer
-from app.common.data.models import Submission
+from app.common.data.models import ComponentReference, Submission
 from app.common.data.types import (
     CollectionStatusEnum,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -203,6 +204,44 @@ class TestRouteToSubmission:
         )
         assert response.location == expected_location
 
+    def test_route_to_submission_redirects_to_report_unavailable_when_referenced_data_missing(
+        self, factories, db_session, authenticated_grant_recipient_member_client
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        data_source = factories.data_source.create(
+            grant=grant_recipient.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        question = factories.question.create(form__collection=collection)
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.report_unavailable",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
 
 class TestStartNewMultipleSubmission:
     def _create_multi_submission_collection(self, factories, grant):
@@ -346,6 +385,42 @@ class TestStartNewMultipleSubmission:
         assert response.status_code == 302
         assert response.location == url_for(
             "access_grant_funding.list_collection_submissions",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
+    def test_redirects_to_report_unavailable_when_referenced_data_missing(
+        self, db_session, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        collection, question = self._create_multi_submission_collection(factories, grant_recipient.grant)
+        data_source = factories.data_source.create(
+            grant=grant_recipient.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.report_unavailable",
             organisation_id=grant_recipient.organisation.id,
             grant_id=grant_recipient.grant.id,
             collection_id=collection.id,
@@ -828,6 +903,48 @@ class TestTasklist:
             submission_id=submission.id,
         )
 
+    def test_redirects_to_report_unavailable_when_referenced_data_missing(
+        self, db_session, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(form__collection__grant=grant_recipient.grant)
+        collection = question.form.collection
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        data_source = factories.data_source.create(
+            grant=grant_recipient.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.report_unavailable",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
+
 
 class TestAskAQuestion:
     @pytest.mark.parametrize(
@@ -866,6 +983,52 @@ class TestAskAQuestion:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "What's your favourite colour?" in soup.text
+
+    def test_redirects_to_report_unavailable_when_referenced_data_missing(
+        self, db_session, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="What's your favourite colour?",
+            form__collection__grant=grant_recipient.grant,
+        )
+        collection = question.form.collection
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        data_source = factories.data_source.create(
+            grant=grant_recipient.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.ask_a_question",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+                question_id=question.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.report_unavailable",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
 
     @pytest.mark.parametrize(
         "show_on_same_page",
@@ -1966,6 +2129,53 @@ class TestCheckYourAnswers:
             else:
                 assert change_link is None
                 assert completed_section is False
+
+    def test_redirects_to_report_unavailable_when_referenced_data_missing(
+        self, db_session, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        question = factories.question.create(
+            text="What's your favourite colour?",
+            form__title="Colour information",
+            form__collection__grant=grant_recipient.grant,
+        )
+        collection = question.form.collection
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        data_source = factories.data_source.create(
+            grant=grant_recipient.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        db_session.add(
+            ComponentReference(
+                component=question, depends_on_data_source=data_source, depends_on_column_name="c_allocation"
+            )
+        )
+        db_session.commit()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.check_your_answers",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+                section_id=question.form.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.report_unavailable",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_id=collection.id,
+        )
 
     def test_get_check_your_answers_with_extracts_add_another(
         self, authenticated_grant_recipient_data_provider_client, factories

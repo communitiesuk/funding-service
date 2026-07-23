@@ -30,11 +30,23 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
     user = interfaces.user.get_current_user()
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
-    collection = get_collection(collection_id, grant_id=grant_id)
+    collection = get_collection(collection_id, grant_id=grant_id, with_data_source_references=True)
     if collection.allow_multiple_submissions:
         return redirect(
             url_for(
                 "access_grant_funding.list_collection_submissions",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
+
+    if CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+        grant_recipient.organisation.external_id
+    ):
+        return redirect(
+            url_for(
+                "access_grant_funding.report_unavailable",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 collection_id=collection_id,
@@ -81,7 +93,9 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
     user = interfaces.user.get_current_user()
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
-    collection = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
+    collection = get_collection(
+        collection_id, grant_id=grant_id, with_full_schema=True, with_data_source_references=True
+    )
     question = collection.submission_name_question
     if not collection.allow_multiple_submissions or collection.multiple_submissions_are_managed_by_service:
         abort(404)
@@ -92,6 +106,18 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
         return redirect(
             url_for(
                 "access_grant_funding.list_collection_submissions",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
+
+    if CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+        grant_recipient.organisation.external_id
+    ):
+        return redirect(
+            url_for(
+                "access_grant_funding.report_unavailable",
                 organisation_id=organisation_id,
                 grant_id=grant_id,
                 collection_id=collection_id,
