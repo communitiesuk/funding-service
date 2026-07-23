@@ -4017,7 +4017,7 @@ class TestDeleteCollectionSubmissions:
     def test_delete_preview_collection_submissions_created_by_user(self, db_session, factories):
         collection = factories.collection.create(
             create_completed_submissions_each_question_type__preview=3,
-            create_completed_submissions_each_question_type__live=3,
+            create_completed_submissions_each_question_type__live=1,
         )
         user = collection.preview_submissions[0].created_by
 
@@ -4042,9 +4042,9 @@ class TestDeleteCollectionSubmissions:
         submission_events_from_db = db_session.query(SubmissionEvent).all()
 
         assert len(preview_submissions_from_db) == 3
-        assert len(live_submissions_from_db) == 3
+        assert len(live_submissions_from_db) == 1
         assert len(users_submissions_from_db) == 3
-        assert len(submission_events_from_db) == 7
+        assert len(submission_events_from_db) == 5
 
         delete_collection_preview_submissions_created_by_user(collection=collection, created_by_user=user)
 
@@ -4058,9 +4058,9 @@ class TestDeleteCollectionSubmissions:
         # Check that only the specified user's two test submissions & associated SubmissionEvents for that user were
         # deleted, and no live submission was deleted
         assert len(preview_submissions_from_db) == 1
-        assert len(live_submissions_from_db) == 3
+        assert len(live_submissions_from_db) == 1
         assert len(users_submissions_from_db) == 1
-        assert len(submission_events_from_db) == 4
+        assert len(submission_events_from_db) == 2
 
         for submission in preview_submissions_from_db:
             assert submission.created_by is not user

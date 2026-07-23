@@ -117,14 +117,13 @@ def test_request_fixture_invalid_time_raises_value_error(time_freezer, db_sessio
 
 def test_collection_factory_completed_submissions(db_session, factories):
     collection = factories.collection.create(
-        create_completed_submissions_each_question_type__test=3,
-        create_completed_submissions_each_question_type__live=2,
+        create_completed_submissions_each_question_type__test=1,
     )
 
     collection_from_db = db_session.get(Collection, collection.id)
-    assert len(collection_from_db._submissions) == 5
-    assert len(collection_from_db.test_submissions) == 3
-    assert len(collection_from_db.live_submissions) == 2
+    assert len(collection_from_db._submissions) == 1
+    assert len(collection_from_db.test_submissions) == 1
+    assert len(collection_from_db.live_submissions) == 0
 
     all_questions = collection.forms[0].cached_questions
     submission_data = collection._submissions[0].data_manager

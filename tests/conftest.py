@@ -42,9 +42,6 @@ from tests.models import (
     _UserRoleFactory,
 )
 
-html5parser = html5lib.HTMLParser(strict=False)
-
-
 FAIL_SLOW_MESSAGE_PREFIX = "passed but took too long to run:"
 
 
@@ -132,6 +129,7 @@ class FundingServiceTestClient(FlaskClient):
         # Validate that our HTML is well-structured.
         if response.content_type.startswith("text/html"):
             html = response.data.decode()
+            html5parser = html5lib.HTMLParser(strict=False)
             html5parser.parse(html)
 
             if html5parser.errors:

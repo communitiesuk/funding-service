@@ -13,6 +13,7 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionModeEnum,
     TasklistSectionStatusEnum,
 )
@@ -472,6 +473,37 @@ class TestExportGrants:
 
         grant_data = payload["grants"][0]
         assert grant_data["collections"][0]["created_by_id"] == "00000000-0000-0000-0000-000000000001"
+
+    def test_export_output_sorts_user_roles_after_replacing_platform_organisation_id(
+        self, db_session, factories, capsys
+    ):
+        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        grant = question.form.collection.grant
+        user = factories.user.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+        )
+        factories.user_role.create(
+            user=user,
+            organisation=grant.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        _export_grants(grant_ids=[grant.id], output="stdout", email_address=None, exclude_users=False)
+
+        payload = _extract_stdout_json(capsys.readouterr().out)
+        user_roles = [role for role in payload["user_roles"] if role["user_id"] == str(user.id)]
+
+        assert [role["organisation_id"] for role in user_roles] == [
+            str(grant_recipient.organisation_id),
+            "<UUID:GB-GOV-27>",
+        ]
 
     def test_production_forces_exclude_users_and_warns_on_opt_out(
         self, app, monkeypatch, db_session, factories, capsys
