@@ -1745,7 +1745,7 @@ class SubmissionsListPage(ReportsBasePage):
 
 class ViewSubmissionPage(ReportsBasePage):
     report_name: str
-    reopen_submission_button: Locator
+    request_or_allow_changes_button: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
         super().__init__(
@@ -1755,7 +1755,7 @@ class ViewSubmissionPage(ReportsBasePage):
             heading=page.get_by_role("heading", name="Submission", exact=True),
         )
         self.report_name = report_name
-        self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
+        self.request_or_allow_changes_button = page.get_by_role("button", name="Request or allow changes")
 
     def get_questions_list_for_section(self, section_name: str) -> Locator:
         return self.page.get_by_test_id(section_name)
@@ -1775,7 +1775,31 @@ class ViewSubmissionPage(ReportsBasePage):
         return submissions_list_page
 
     def click_reopen_submission(self) -> ReopenSubmissionPage:
-        self.reopen_submission_button.click()
+        self.request_or_allow_changes_button.click()
+        request_or_allow_changes_page = RequestOrAllowChangesPage(
+            self.page, self.domain, self.grant_name, self.report_name
+        )
+        expect(request_or_allow_changes_page.heading).to_be_visible()
+        return request_or_allow_changes_page.click_no_just_allow_changes()
+
+
+class RequestOrAllowChangesPage(ReportsBasePage):
+    report_name: str
+    continue_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Are you requesting changes to", exact=False),
+        )
+        self.report_name = report_name
+        self.continue_button = page.get_by_role("button", name="Continue")
+
+    def click_no_just_allow_changes(self) -> ReopenSubmissionPage:
+        self.page.get_by_role("radio", name="No, just allow changes").click()
+        self.continue_button.click()
         reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(reopen_page.heading).to_be_visible()
         return reopen_page
