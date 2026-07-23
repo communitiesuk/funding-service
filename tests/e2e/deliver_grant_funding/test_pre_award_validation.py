@@ -95,12 +95,6 @@ def test_pre_award_validation_setup(
     # Get Grant ID
     grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
 
-    # Enable allow_pre_award on the grant via admin panel
-    grant_settings_page = PlatformAdminGrantSettingsPage(page, domain, grant_id)
-    grant_settings_page.navigate()
-    grant_settings_page.click_allow_pre_award()
-    grant_settings_page.click_save()
-
     # Create APPLICATION type collection
     pre_award_forms_page = GrantPreAwardFormsPage(page, domain, grant_name)
     pre_award_forms_page.navigate(grant_id)

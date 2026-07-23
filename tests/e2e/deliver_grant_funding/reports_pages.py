@@ -2727,7 +2727,6 @@ class PlatformAdminGrantSettingsPage:
         self.grant_id = grant_id
         self.heading = page.get_by_role("heading", name="Edit Grant")
         self.status_dropdown = page.get_by_role("combobox", name="Status")
-        self.allow_pre_award_checkbox = page.get_by_role("checkbox", name="Allow pre-award features")
         self.save_button = page.get_by_role("button", name="Save")
 
     def navigate(self) -> None:
@@ -2736,9 +2735,6 @@ class PlatformAdminGrantSettingsPage:
 
     def select_grant_status(self, status: str) -> None:
         self.status_dropdown.select_option(status)
-
-    def click_allow_pre_award(self) -> None:
-        self.allow_pre_award_checkbox.check()
 
     def click_save(self) -> None:
         self.save_button.click()
