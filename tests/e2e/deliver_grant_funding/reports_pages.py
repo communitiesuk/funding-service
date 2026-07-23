@@ -1634,6 +1634,12 @@ class RunnerTasklistPage(ReportsBasePage):
         expect(submitted_page.heading).to_be_visible()
         return submitted_page
 
+    def click_submit_for_direct_submission(self) -> PreAwardConfirmSubmitPage:
+        self.submit_button.click()
+        confirm_submit_page = PreAwardConfirmSubmitPage(self.page, self.domain, self.grant_name)
+        expect(confirm_submit_page.heading).to_be_visible()
+        return confirm_submit_page
+
     def click_back(self) -> ReportSectionsPage:
         self.back_link.click()
         report_sections_page = ReportSectionsPage(
@@ -1664,6 +1670,41 @@ class ReportSubmittedConfirmationPage(ReportsBasePage):
 
     def click_return_to_reports(self) -> None:
         self.return_to_reports_link.click()
+
+
+class PreAwardConfirmSubmitPage(ReportsBasePage):
+    confirm_submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Confirm and submit form"),
+        )
+        self.confirm_submit_button = page.get_by_role("button", name="Confirm and submit")
+
+    def click_confirm_and_submit(self) -> "PreAwardFormSubmittedConfirmationPage":
+        self.confirm_submit_button.click()
+        confirmation_page = PreAwardFormSubmittedConfirmationPage(self.page, self.domain, self.grant_name)
+        expect(confirmation_page.heading).to_be_visible()
+        return confirmation_page
+
+
+class PreAwardFormSubmittedConfirmationPage(ReportsBasePage):
+    return_to_forms_link: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Form submitted"),
+        )
+        self.return_to_forms_link = page.get_by_role("link", name="Return to forms")
+
+    def click_return_to_forms(self) -> None:
+        self.return_to_forms_link.click()
 
 
 class ViewLockedReportPage(ReportsBasePage):
@@ -2620,6 +2661,7 @@ class PlatformAdminReportSettingsPage:
         self.heading = page.get_by_role("heading", name="Edit Collection")
         self.status_dropdown = page.get_by_role("combobox", name="Status")
         self.allow_validation_checkbox = page.get_by_role("checkbox", name="Allow validation")
+        self.requires_certification_checkbox = page.get_by_role("checkbox", name="Requires certification")
         self.save_button = page.get_by_role("button", name="Save")
 
     def navigate(self) -> None:
@@ -2631,6 +2673,9 @@ class PlatformAdminReportSettingsPage:
 
     def click_allow_validation(self) -> None:
         self.allow_validation_checkbox.check()
+
+    def click_turn_off_requires_certification(self) -> None:
+        self.requires_certification_checkbox.uncheck()
 
     def click_save(self) -> None:
         self.save_button.click()

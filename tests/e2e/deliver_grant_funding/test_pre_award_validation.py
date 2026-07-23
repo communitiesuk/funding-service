@@ -29,7 +29,12 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpGrantRecipientsPage,
     SetUpOrganisationsPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group, switch_user
+from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
+    complete_task,
+    create_question_or_group,
+    switch_user,
+    task_check_your_answers,
+)
 
 _shared_setup_data: dict | None = None
 
@@ -97,10 +102,11 @@ def test_pre_award_validation_setup(
     # Get Collection ID
     collection_id = extract_uuid_from_url(page.url, r"/applications/(?P<uuid>[a-f0-9-]+)")
 
-    # Enable allow_validation on the collection via admin panel
+    # Enable allow_validation and turn off requires_certificatio
     report_settings_page = PlatformAdminReportSettingsPage(page, domain, collection_id)
     report_settings_page.navigate()
     report_settings_page.click_allow_validation()
+    report_settings_page.click_turn_off_requires_certification()
     report_settings_page.click_save()
 
     # Go back to Grant page
@@ -209,6 +215,19 @@ def test_reopen_and_reject(
     # Now on the submission tasklist
     tasklist_page = RunnerTasklistPage(page, domain, data["grant_name"], data["collection_name"])
     expect(tasklist_page.heading).to_be_visible()
+
+    # Complete both sections
+    complete_task(tasklist_page, SECTION_1_NAME, data["grant_name"], [section_1_question])
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], [section_1_question])
+
+    complete_task(tasklist_page, SECTION_2_NAME, data["grant_name"], [section_2_question])
+    task_check_your_answers(tasklist_page, data["grant_name"], data["collection_name"], [section_2_question])
+
+    # Submit the form
+    expect(tasklist_page.submit_button).to_be_enabled()
+    confirm_submit_page = tasklist_page.click_submit_for_direct_submission()
+    confirmation_page = confirm_submit_page.click_confirm_and_submit()
+    expect(confirmation_page.heading).to_be_visible()
 
 
 # def test_zzz_pre_award_validation_cleanup(
