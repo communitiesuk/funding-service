@@ -178,6 +178,7 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.export_submission_pdf",
     "access_grant_funding.submitted_confirmation",
     "access_grant_funding.download_file",
+    "access_grant_funding.report_unavailable",
 ]
 
 routes_with_expected_access_grant_funding_has_data_provider_role_access = [
