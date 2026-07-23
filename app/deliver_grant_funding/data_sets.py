@@ -369,7 +369,7 @@ def generate_latest_csv_template(data_source: DataSource) -> StringIO:
 
     headers = []
     headers += DATA_SET_IDENTIFIER_COLUMN_HEADERS
-    for _, col_schema in data_source.schema.root.items():
+    for _, col_schema in data_source.schema.ordered_items():
         headers.append(col_schema.original_column_name)
 
     csv_output = StringIO()
@@ -414,7 +414,7 @@ def upload_header_only_data_set_files(data_set: "DataSource") -> None:
         raise ValueError("Cannot upload a non-grant-recipient data set")
 
     headers = DATA_SET_IDENTIFIER_COLUMN_HEADERS + [
-        column.original_column_name for column in data_set.schema.root.values()
+        column.original_column_name for column in data_set.schema.ordered_values()
     ]
     header_csv = io.StringIO()
     csv.writer(header_csv).writerow(headers)

@@ -185,7 +185,7 @@
           {"text": constants.data_set_grant_recipient_column_header}
         ]
       %}
-      {% for slug, col_schema in data_source.schema.root.items() %}
+      {% for slug, col_schema in data_source.schema.ordered_items() %}
         {% do head.append({"text": col_schema.original_column_name}) %}
       {% endfor %}
 
@@ -200,7 +200,7 @@
         {% endif %}
 
         {% set typed_row = current_row.organisation_item.data if current_row.organisation_item else {} %}
-        {% for slug, col_schema in data_source.schema.root.items() %}
+        {% for slug, col_schema in data_source.schema.ordered_items() %}
           {% set answer = typed_row.get(slug) %}
           {% if answer is none %}
             {% do row.append({"html": govukTag({"text": "Data missing", "classes": "govuk-tag--orange"})}) %}

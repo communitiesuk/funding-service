@@ -222,7 +222,7 @@ def _fake_data_source_data(component: Component) -> dict[str, dict[str, str | in
             raise ValueError("Non-CUSTOM data source must have a schema")
 
         fake_data_sources_data[data_source.safe_did] = {}
-        for column_name, colum_schema in data_source.schema.root.items():
+        for column_name, colum_schema in data_source.schema.ordered_items():
             match colum_schema.data_type:
                 case QuestionDataType.TEXT_SINGLE_LINE:
                     fake_data_sources_data[data_source.safe_did][column_name] = "foo"
