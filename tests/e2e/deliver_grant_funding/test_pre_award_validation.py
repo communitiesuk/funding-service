@@ -321,6 +321,14 @@ def test_reopen_and_reject(
     expect(page.get_by_role("heading", name="Submission marked as rejected")).to_be_visible()
     expect(view_submission_page.status_tag_with_text("Marked as rejected")).to_be_visible()
 
+    # Back on the Access side: the assessment is internal-only
+    # The grant recipient should still just see "Submitted with changes"
+    access_home = AccessHomePage(page, domain)
+    access_home.navigate()
+    access_grant = access_home.select_grant(data["reject_test_org_name"], data["grant_name"])
+    expect(page.get_by_text("Submitted with changes")).to_be_visible()
+    expect(page.get_by_text("Marked as rejected")).not_to_be_visible()
+
 
 def test_request_changes_and_approve(
     page: Page,
@@ -423,6 +431,14 @@ def test_request_changes_and_approve(
     view_submission_page = approve_or_reject_page.approve_submission()
     expect(page.get_by_role("heading", name="Submission marked as approved")).to_be_visible()
     expect(view_submission_page.status_tag_with_text("Marked as approved")).to_be_visible()
+
+    # Back on the Access side: the assessment is internal-only
+    # The grant recipient should still just see "Submitted with changes"
+    access_home = AccessHomePage(page, domain)
+    access_home.navigate()
+    access_grant = access_home.select_grant(data["approve_test_org_name"], data["grant_name"])
+    expect(page.get_by_text("Submitted with changes")).to_be_visible()
+    expect(page.get_by_text("Marked as approved")).not_to_be_visible()
 
 
 def test_zzz_pre_award_validation_cleanup(
