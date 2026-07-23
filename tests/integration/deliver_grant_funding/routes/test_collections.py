@@ -9016,7 +9016,7 @@ class TestViewSubmission:
     @pytest.mark.parametrize(
         "client_fixture, submission_fixture, can_see_button",
         [
-            ("authenticated_org_member_client", "submission_submitted", False),
+            ("authenticated_org_member_client", "submission_submitted", True),
             ("authenticated_grant_member_client", "submission_in_progress", False),
             ("authenticated_grant_member_client", "submission_submitted", True),
         ],
@@ -9295,7 +9295,7 @@ class TestViewSubmission:
     @pytest.mark.parametrize(
         "client_fixture, submission_fixture, can_see_reopen_button",
         [
-            ("authenticated_org_member_client", "submission_submitted", False),
+            ("authenticated_org_member_client", "submission_submitted", True),
             ("authenticated_grant_member_client", "submission_in_progress", False),
             ("authenticated_grant_member_client", "submission_submitted", True),
         ],
@@ -9525,7 +9525,7 @@ class TestReopenSubmission:
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),
-            ("authenticated_org_member_client", False),
+            ("authenticated_org_member_client", True),
             ("authenticated_grant_member_client", True),
         ),
     )
@@ -9782,7 +9782,7 @@ class TestApproveOrRejectSubmission:
         "client_fixture, can_access",
         (
             ("authenticated_no_role_client", False),
-            ("authenticated_org_member_client", False),
+            ("authenticated_org_member_client", True),
             ("authenticated_grant_member_client", True),
         ),
     )
@@ -9864,6 +9864,50 @@ class TestApproveOrRejectSubmission:
         timeline = soup.find(class_="moj-timeline")
         timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
         assert "Report marked as rejected" in timeline_titles
+
+
+class TestOrgMemberPermissions:
+    @pytest.mark.parametrize(
+        "route_name, form_data, expected_error",
+        [
+            (
+                "deliver_grant_funding.reopen_submission",
+                {"reopened_reason": "testing"},
+                "You do not have permission to reopen this submission",
+            ),
+            (
+                "deliver_grant_funding.request_changes_submission",
+                {"changes_requested_reason": "testing"},
+                "You do not have permission to request changes to this submission",
+            ),
+            (
+                "deliver_grant_funding.approve_or_reject_submission",
+                {"is_approved": "yes"},
+                "You do not have permission to assess this submission",
+            ),
+        ],
+    )
+    def test_org_member_gets_form_error_not_403_on_submit(
+        self,
+        route_name,
+        form_data,
+        expected_error,
+        authenticated_org_member_client,
+        submission_with_allow_validation,
+    ):
+        # make it explicit that the Submission.mode is LIVE
+        assert submission_with_allow_validation.mode == SubmissionModeEnum.LIVE
+
+        grant_id = submission_with_allow_validation.collection.grant.id
+        submission_id = submission_with_allow_validation.id
+
+        response = authenticated_org_member_client.post(
+            url_for(route_name, grant_id=grant_id, submission_id=submission_id),
+            data=form_data,
+        )
+
+        assert response.status_code == 200
+        assert expected_error in response.data.decode()
 
 
 class TestListCollectionDataSets:
