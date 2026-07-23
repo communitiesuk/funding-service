@@ -354,6 +354,7 @@ class GrantReportsPage(ReportsBasePage):
 class GrantPreAwardFormsPage(ReportsBasePage):
     # GrantReportsPage equivalent in pre-award
     add_form_button: Locator
+    summary_row_submissions: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
@@ -361,6 +362,9 @@ class GrantPreAwardFormsPage(ReportsBasePage):
         )
         self.add_form_button = self.page.get_by_role("button", name="Create a form").or_(
             self.page.get_by_role("button", name="Create another form")
+        )
+        self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
+            has=page.get_by_text("Submissions")
         )
 
     def navigate(self, grant_id: str) -> None:
@@ -392,6 +396,12 @@ class GrantPreAwardFormsPage(ReportsBasePage):
         )
         expect(form_sections_page.heading).to_be_visible()
         return form_sections_page
+
+    def click_view_submissions(self, form_name: str) -> PreAwardSubmissionsListPage:
+        self.summary_row_submissions.get_by_role("link", name="1 test submission").click()
+        submissions_list_page = PreAwardSubmissionsListPage(self.page, self.domain, self.grant_name, form_name)
+        expect(submissions_list_page.heading).to_be_visible()
+        return submissions_list_page
 
 
 class ChooseCollectionCreationMethodPage(ReportsBasePage):
@@ -1958,9 +1968,31 @@ class SubmissionsListPage(ReportsBasePage):
         return download_filename
 
 
+class PreAwardSubmissionsListPage(ReportsBasePage):
+    # SubmissionsListPage equivalent in Pre-award
+    form_name: str
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"{form_name} Forms"),
+        )
+        self.form_name = form_name
+
+    def click_on_submission(self, submission_reference: str) -> ViewSubmissionPage:
+        self.page.get_by_role("link", name=submission_reference).click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.form_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
+
+
 class ViewSubmissionPage(ReportsBasePage):
     report_name: str
     request_or_allow_changes_button: Locator
+    reopen_submission_button: Locator
+    status_tags: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
         super().__init__(
@@ -1971,6 +2003,11 @@ class ViewSubmissionPage(ReportsBasePage):
         )
         self.report_name = report_name
         self.request_or_allow_changes_button = page.get_by_role("button", name="Request or allow changes")
+        self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
+        self.status_tags = page.locator(".govuk-tag")
+
+    def status_tag_with_text(self, text: str) -> Locator:
+        return self.status_tags.filter(has_text=text)
 
     def get_questions_list_for_section(self, section_name: str) -> Locator:
         return self.page.get_by_test_id(section_name)
@@ -2014,6 +2051,40 @@ class RequestOrAllowChangesPage(ReportsBasePage):
 
     def click_no_just_allow_changes(self) -> ReopenSubmissionPage:
         self.page.get_by_role("radio", name="No, just allow changes").click()
+        self.continue_button.click()
+        reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(reopen_page.heading).to_be_visible()
+        return reopen_page
+
+    def click_request_or_allow_changes(self) -> RequestOrAllowChangesPage:
+        self.request_or_allow_changes_button.click()
+        request_or_allow_changes_page = RequestOrAllowChangesPage(
+            self.page, self.domain, self.grant_name, self.report_name
+        )
+        expect(request_or_allow_changes_page.heading).to_be_visible()
+        return request_or_allow_changes_page
+
+
+class RequestOrAllowChangesPage(ReportsBasePage):
+    report_name: str
+    no_just_allow_changes_radio: Locator
+    continue_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Are you requesting changes to {report_name}?"),
+        )
+        self.report_name = report_name
+        self.no_just_allow_changes_radio = page.get_by_role("radio", name="No, just allow changes")
+        self.continue_button = page.get_by_role("button", name="Continue")
+
+    def select_no_just_allow_changes(self) -> None:
+        self.no_just_allow_changes_radio.check()
+
+    def click_continue(self) -> ReopenSubmissionPage:
         self.continue_button.click()
         reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(reopen_page.heading).to_be_visible()

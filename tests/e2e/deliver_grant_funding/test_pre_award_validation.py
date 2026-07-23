@@ -229,6 +229,28 @@ def test_reopen_and_reject(
     confirmation_page = confirm_submit_page.click_confirm_and_submit()
     expect(confirmation_page.heading).to_be_visible()
 
+    # Back on the deliver side
+    grant_pre_award_forms_page = GrantPreAwardFormsPage(page, domain, data["grant_name"])
+    grant_pre_award_forms_page.navigate(data["grant_id"])
+    submissions_list_page = grant_pre_award_forms_page.click_view_submissions(data["collection_name"])
+    view_submission_page = submissions_list_page.click_on_submission(data["test_org_name"])
+
+    # Reopen the submission flow
+    request_or_allow_changes_page = view_submission_page.click_request_or_allow_changes()
+    request_or_allow_changes_page.select_no_just_allow_changes()
+    reopen_page = request_or_allow_changes_page.click_continue()
+    reopen_page.fill_reopen_reason("Please adjust information")
+    view_submission_page = reopen_page.click_reopen_submission()
+
+    # Check for success message
+    expect(page.get_by_text("Submission reopened and email sent to")).to_be_visible()
+
+    # Check for Submission status
+    expect(view_submission_page.status_tag_with_text("In progress")).to_be_visible()
+
+    # Cleanup step is commented out - pause here to inspect state before the browser closes.
+    page.pause()
+
 
 # def test_zzz_pre_award_validation_cleanup(
 #     page: Page,
