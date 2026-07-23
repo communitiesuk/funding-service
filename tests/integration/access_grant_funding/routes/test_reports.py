@@ -623,12 +623,12 @@ class TestListReports:
     def test_assessed_submission_shows_submission_status_tag_not_approved_assessment_tag(
         self,
         authenticated_grant_recipient_certifier_client,
-        submission_submitted,
+        submission_with_allow_validation,
         grant_team_user,
         db_session,
     ):
         # Validate submission
-        SubmissionHelper(submission_submitted).validate_submission(user=grant_team_user, is_approved=True)
+        SubmissionHelper(submission_with_allow_validation).validate_submission(user=grant_team_user, is_approved=True)
         db_session.commit()
 
         grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
@@ -656,12 +656,12 @@ class TestListReports:
     def test_assessed_submission_shows_submission_status_tag_not_rejected_assessment_tag(
         self,
         authenticated_grant_recipient_certifier_client,
-        submission_submitted,
+        submission_with_allow_validation,
         grant_team_user,
         db_session,
     ):
         # Validate submission
-        SubmissionHelper(submission_submitted).validate_submission(
+        SubmissionHelper(submission_with_allow_validation).validate_submission(
             user=grant_team_user, is_approved=False, rejected_reason="The reason"
         )
         db_session.commit()

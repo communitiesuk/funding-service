@@ -125,6 +125,10 @@ class CollectionIsNotOpenError(Exception):
     pass
 
 
+class CollectionDoesNotAllowValidationError(Exception):
+    pass
+
+
 class SubmissionIsNotSubmittedError(Exception):
     pass
 
@@ -564,6 +568,10 @@ class SubmissionHelper:
     @property
     def collection_id(self) -> UUID:
         return self.collection.id
+
+    @property
+    def has_allow_validation_enabled(self) -> bool:
+        return self.submission.collection.allow_validation
 
     def get_form(self, form_id: uuid.UUID) -> Form:
         try:
@@ -1351,7 +1359,7 @@ class SubmissionHelper:
         return False
 
     def can_be_assessed_by_user(self, user: User) -> bool:
-        if not self.is_submitted:
+        if not self.is_submitted or not self.collection.allow_validation:
             return False
         if self.is_test:
             return True
@@ -1455,6 +1463,11 @@ class SubmissionHelper:
                 user,
                 self.id,
                 RoleEnum.MEMBER,
+            )
+
+        if not self.collection.allow_validation:
+            raise CollectionDoesNotAllowValidationError(
+                f"Could not validate submission id={self.id} because the collection does not allow validation."
             )
 
         if not self.is_submitted:

@@ -1835,6 +1835,7 @@ class TestSubmissionHelper:
             submission = factories.submission.build(
                 mode=SubmissionModeEnum.TEST,
                 collection__grant__status=grant_status,
+                collection__allow_validation=True,
             )
             user = factories.user.build()
             mocker.patch(
@@ -1844,6 +1845,20 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
             assert helper.can_be_assessed_by_user(user) == expected_result
+
+        def test_when_in_test_mode_and_validation_not_allowed(self, factories, mocker):
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.TEST,
+                collection__allow_validation=False,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=True,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_assessed_by_user(user) is False
 
         @pytest.mark.parametrize(
             "grant_status, is_submitted, user_can_assess, expected_result",
@@ -1860,6 +1875,7 @@ class TestSubmissionHelper:
         ):
             submission = factories.submission.build(
                 mode=SubmissionModeEnum.LIVE,
+                collection__allow_validation=True,
                 collection__grant__status=grant_status,
             )
             user = factories.user.build()
@@ -1874,6 +1890,25 @@ class TestSubmissionHelper:
             )
             helper = SubmissionHelper(submission)
             assert helper.can_be_assessed_by_user(user) == expected_result
+
+        def test_when_in_live_mode_and_validation_not_allowed(self, factories, mocker):
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.LIVE,
+                collection__allow_validation=False,
+                collection__grant__status=GrantStatusEnum.LIVE,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=True,
+            )
+            mocker.patch(
+                "app.common.helpers.collections.AuthorisationHelper.can_validate_submission",
+                return_value=True,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_assessed_by_user(user) is False
 
 
 class TestDeserialiseQuestionType:

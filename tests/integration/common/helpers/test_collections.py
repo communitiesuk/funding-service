@@ -46,6 +46,7 @@ from app.common.expressions.managed import GreaterThan, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
+    CollectionDoesNotAllowValidationError,
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
@@ -2511,20 +2512,31 @@ class TestSubmissionHelper:
             assert helper._calculate_assessment_status() == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
 
     class TestValidateSubmission:
-        def test_raises_when_user_not_authorised(self, data_provider_user, submission_submitted):
-            helper = SubmissionHelper(submission_submitted)
+        def test_raises_when_user_not_authorised(self, data_provider_user, submission_with_allow_validation):
+            helper = SubmissionHelper(submission_with_allow_validation)
 
             with pytest.raises(SubmissionAuthorisationError):
                 helper.validate_submission(user=data_provider_user, is_approved=True)
 
-        def test_raises_when_submission_not_submitted(self, grant_team_user, submission_changes_requested):
+        def test_raises_when_collection_does_not_allow_validation(self, grant_team_user, submission_submitted):
+            submission_submitted.collection.allow_validation = False
+            helper = SubmissionHelper(submission_submitted)
+
+            with pytest.raises(CollectionDoesNotAllowValidationError):
+                helper.validate_submission(user=grant_team_user, is_approved=True)
+
+        def test_raises_when_submission_not_submitted(self, db_session, grant_team_user, submission_changes_requested):
+            collection = submission_changes_requested.collection
+            collection.allow_validation = True
+            db_session.flush()
+
             helper = SubmissionHelper(submission_changes_requested)
 
             with pytest.raises(SubmissionIsNotSubmittedError):
                 helper.validate_submission(user=grant_team_user, is_approved=True)
 
-        def test_approve_sets_assessment_status(self, grant_team_user, submission_submitted):
-            helper = SubmissionHelper(submission_submitted)
+        def test_approve_sets_assessment_status(self, grant_team_user, submission_with_allow_validation):
+            helper = SubmissionHelper(submission_with_allow_validation)
 
             helper.validate_submission(user=grant_team_user, is_approved=True)
 
@@ -2532,8 +2544,8 @@ class TestSubmissionHelper:
             assert helper.is_assessment_approved is True
             assert helper.assessed_by == grant_team_user
 
-        def test_reject_sets_assessment_status_and_reason(self, grant_team_user, submission_submitted):
-            helper = SubmissionHelper(submission_submitted)
+        def test_reject_sets_assessment_status_and_reason(self, grant_team_user, submission_with_allow_validation):
+            helper = SubmissionHelper(submission_with_allow_validation)
 
             helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
 
@@ -2542,8 +2554,8 @@ class TestSubmissionHelper:
             assert helper.assessment_rejected_reason == "Missing data"
             assert helper.assessed_by == grant_team_user
 
-        def test_last_validation_decision_prevails(self, grant_team_user, submission_submitted):
-            helper = SubmissionHelper(submission_submitted)
+        def test_last_validation_decision_prevails(self, grant_team_user, submission_with_allow_validation):
+            helper = SubmissionHelper(submission_with_allow_validation)
 
             helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
 
