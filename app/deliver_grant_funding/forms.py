@@ -56,7 +56,7 @@ from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
-from app.common.utils import uppercase_first
+from app.common.utils import slugify, uppercase_first
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
@@ -134,8 +134,11 @@ def _validate_no_blank_lines(form: FlaskForm, field: Field) -> None:
         raise ValidationError("Remove blank lines from the list")
 
 
-def _validate_no_duplicates(form: FlaskForm, field: Field) -> None:
-    choices = [choice.strip() for choice in field.data.split("\n")]
+def _validate_no_duplicates(form: "QuestionForm", field: Field) -> None:
+    # prefers normalised data source items which is always set on radios or checkboxes
+    # falls back on existing raw field value in case its used outside of that context
+    items = form.normalised_data_source_items or [choice.strip() for choice in field.data.split("\n")]
+    choices = [slugify(choice) for choice in items]
     if len(choices) != len(set(choices)):
         raise ValidationError("Remove duplicate options from the list")
 
