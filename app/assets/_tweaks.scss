@@ -69,3 +69,13 @@
         }
     }
 }
+
+.app-border-left {
+    // border-left: 10px solid govuk.govuk-colour("black", $variant: "tint-95");
+    border-left: 10px solid #f3f3f3;
+    padding-left: 10px;
+}
+
+.app-full-tag {
+    max-width: 100%;
+}

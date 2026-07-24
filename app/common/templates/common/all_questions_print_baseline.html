@@ -1,0 +1,48 @@
+{% extends "common/print_baseline.html" %}
+{% from "common/macros/all_questions.html" import render_all_questions %}
+
+{% set page_title = "View all questions - " ~ collection.name %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss', external=True) }}" type="text/css" />
+  <style>
+    .govuk-template {
+      background-color: white;
+    }
+    @page {
+      margin-bottom: 1cm;
+      @bottom-left {
+        margin-left: 0.7cm;
+        content: "Page " counter(page) " of " counter(pages);
+      }
+
+      margin-top: 1cm;
+      @top-left {
+        margin-left: 0.7cm;
+        content: "{{ collection.grant.name }} - {{ collection.name }}";
+      }
+    }
+  </style>
+{% endblock head %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <span class="govuk-caption-l">View all questions</span>
+      {# exception for xl heading to match the submission print baseline #}
+      <h1 class="govuk-heading-xl">{{ collection.name }}</h1>
+
+      {{
+        render_all_questions(
+          collection,
+          interpolate,
+          question_setting_details,
+          describe_conditions,
+          describe_validations,
+          enum,
+          display,
+        )
+      }}
+    </div>
+  </div>
+{% endblock content %}

@@ -513,3 +513,40 @@ class TestInterpolate:
         )
         assert "Value: ((value))" in result
         assert isinstance(result, Markup)
+
+    def test_print_friendly_renders_only_the_underlined_question_name(self):
+        # In interpolation mode a reference resolves to its ((collection → section → question)) placeholder;
+        # print-friendly output keeps just the final segment, underlined and unwrapped.
+        result = interpolate(
+            InterpolationStatement("Only applicable if ((value)) is answered"),
+            ExpressionContext({"value": "((Fund → About your project → Project name))"}),
+            print_friendly=True,
+        )
+        assert result == "Only applicable if <u>Project name</u> is answered"
+        assert isinstance(result, Markup)
+
+    def test_print_friendly_keeps_whole_label_when_there_is_no_section_path(self):
+        # Data-source column placeholders (eg "col from X data set") have no "→" path, so the whole
+        # unwrapped label is shown.
+        result = interpolate(
+            InterpolationStatement("Value: ((value))"),
+            ExpressionContext({"value": "((Amount from Grants data set))"}),
+            print_friendly=True,
+        )
+        assert result == "Value: <u>Amount from Grants data set</u>"
+        assert isinstance(result, Markup)
+
+    def test_print_friendly_escapes_the_reference_name(self):
+        result = interpolate(
+            InterpolationStatement("Value: ((value))"),
+            ExpressionContext({"value": "((Fund → Section → <script>alert(1)</script>))"}),
+            print_friendly=True,
+        )
+        assert "<u>&lt;script&gt;alert(1)&lt;/script&gt;</u>" in result
+        assert "<script>" not in result
+        assert isinstance(result, Markup)
+
+    def test_print_friendly_leaves_unresolved_references_in_place(self):
+        result = interpolate(InterpolationStatement("Value: ((value))"), ExpressionContext({}), print_friendly=True)
+        assert result == "Value: ((value))"
+        assert isinstance(result, Markup)

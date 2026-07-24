@@ -1,0 +1,145 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/checkboxes/macro.html" import govukCheckboxes %}
+{% from "common/macros/all_questions.html" import render_all_questions %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection.edit_view', id=collection.id)}) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {{ layout.messages() }}
+
+      <span class="govuk-caption-l">View all questions</span>
+      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
+
+      <div class="moj-filter-layout">
+        <div class="moj-filter-layout__filter">
+          {# The filter panel. FilterToggleButton (see the script below) shows/hides this and injects
+             the "Show filters" button into .moj-action-bar__filter. #}
+          <div class="moj-filter" data-module="moj-filter" data-active-filter-count="{{ display.active_categories | length }}">
+            <div class="moj-filter__header">
+              <div class="moj-filter__header-title">
+                <h2 class="govuk-heading-m">Filter</h2>
+              </div>
+              <div class="moj-filter__header-action"></div>
+            </div>
+
+            <div class="moj-filter__content">
+              {% if display.active_categories %}
+                <div class="moj-filter__selected">
+                  <div class="moj-filter__selected-heading">
+                    <div class="moj-filter__heading-title">
+                      <h2 class="govuk-heading-m">Selected filters</h2>
+                    </div>
+                    <div class="moj-filter__heading-action">
+                      <p class="govuk-body">
+                        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection.all_questions', collection_id=collection.id, filtered=1) }}">Clear filters</a>
+                      </p>
+                    </div>
+                  </div>
+
+                  <h3 class="govuk-heading-s govuk-!-margin-bottom-0">Showing</h3>
+                  <ul class="moj-filter-tags">
+                    {% for info in display.active_categories %}
+                      <li>
+                        <a class="moj-filter__tag" href="{{ url_for('collection.all_questions', collection_id=collection.id, **display.without(info).query_dict()) }}">
+                          <span class="govuk-visually-hidden">Remove this filter</span>
+                          {{ info.label }}
+                        </a>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% endif %}
+
+              <div class="moj-filter__options">
+                {# The hidden "filtered" input and the "show" checkbox name must match
+                   QuestionDisplayOptions.SENTINEL_PARAM / FILTER_PARAM. #}
+                <form method="get" novalidate>
+                  <input type="hidden" name="filtered" value="1" />
+
+                  {{ govukButton({"text": "Apply filters", "preventDoubleClick": true}) }}
+
+                  {{
+                    govukCheckboxes({
+                      "idPrefix": "show",
+                      "name": "show",
+                      "fieldset": {
+                        "legend": {
+                          "text": "Show for each question",
+                          "classes": "govuk-fieldset__legend--s"
+                        }
+                      },
+                      "hint": {"text": "Choose which details to show, then select Apply filters."},
+                      "items": display.checkbox_items()
+                    })
+                  }}
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="moj-filter-layout__content">
+          <div class="moj-action-bar govuk-!-margin-bottom-4">
+            {# FilterToggleButton injects the "Show filters" button here. #}
+            <div class="moj-action-bar__filter"></div>
+
+            <div class="moj-button-menu">
+              <a href="{{ url_for('collection.all_questions_pdf', collection_id=collection.id, **display.query_dict()) }}" class="govuk-button govuk-button--secondary moj-button-menu__item govuk-!-margin-bottom-0" download>
+                Download as PDF
+              </a>
+            </div>
+          </div>
+
+          {{
+            render_all_questions(
+              collection,
+              interpolate,
+              question_setting_details,
+              describe_conditions,
+              describe_validations,
+              enum,
+              display,
+            )
+          }}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block bodyEnd %}
+  {{ super() }}
+
+  {# Progressively enhance the filter panel with the MOJ "Show filters" toggle button. Mirrors how
+     xgovuk-flask-admin initialises its list-page filters; window.FilterToggleButton and the MOJ
+     filter styles both come from the admin asset bundle loaded by the base template. #}
+  <script nonce="{{ csp_nonce() }}">
+    (function () {
+      function showTextFor(count) {
+        return count > 0 ? "Show filters (" + count + " active)" : "Show filters";
+      }
+
+      function initialiseFilterToggle() {
+        document.querySelectorAll('[data-module="moj-filter"]').forEach(function (element) {
+          var count = parseInt(element.getAttribute("data-active-filter-count"), 10) || 0;
+          new window.FilterToggleButton(element, {
+            toggleButton: { showText: showTextFor(count), hideText: "Hide filters" },
+          });
+        });
+      }
+
+      if (window.FilterToggleButton) {
+        initialiseFilterToggle();
+      } else {
+        window.addEventListener("FilterToggleButtonReady", initialiseFilterToggle);
+      }
+    })();
+  </script>
+{% endblock %}

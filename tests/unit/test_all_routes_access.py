@@ -268,6 +268,8 @@ routes_with_access_controlled_by_flask_admin = [
     "collection.action_view",
     "collection.ajax_lookup",
     "collection.ajax_update",
+    "collection.all_questions",
+    "collection.all_questions_pdf",
     "collection.create_view",
     "collection.delete_view",
     "collection.details_view",

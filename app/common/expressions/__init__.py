@@ -646,12 +646,25 @@ def _evaluate_expression_with_context(
     return result
 
 
+def _print_reference_name(value: str) -> str:
+    """The short, print-friendly name for a resolved reference placeholder.
+
+    In interpolation mode an unresolved reference resolves to its placeholder label wrapped in
+    ``((...))`` - see ``ExpressionContext.build_expression_context`` and ``Component.data_reference_label``,
+    eg ``"((Fund → About → Project name))"``. For print output we show only the final segment (the
+    question or data-source column name), unwrapped and without the surrounding collection/section context.
+    """
+    inner = value[2:-2] if value.startswith("((") and value.endswith("))") else value
+    return inner.rsplit(" → ", 1)[-1]
+
+
 @overload
 def interpolate(
     text: InterpolationStatement | str | None,
     context: ExpressionContext | None,
     *,
     with_interpolation_highlighting: Literal[False] = False,
+    print_friendly: Literal[False] = False,
 ) -> str: ...
 
 
@@ -661,6 +674,17 @@ def interpolate(
     context: ExpressionContext | None,
     *,
     with_interpolation_highlighting: Literal[True],
+    print_friendly: Literal[False] = False,
+) -> Markup: ...
+
+
+@overload
+def interpolate(
+    text: InterpolationStatement | str | None,
+    context: ExpressionContext | None,
+    *,
+    with_interpolation_highlighting: Literal[False] = False,
+    print_friendly: Literal[True],
 ) -> Markup: ...
 
 
@@ -669,9 +693,15 @@ def interpolate(
     context: ExpressionContext | None,
     *,
     with_interpolation_highlighting: bool = False,
+    print_friendly: bool = False,
 ) -> str | Markup:
+    # `with_interpolation_highlighting` wraps resolved references in a highlighting span (for on-screen
+    # editing/preview); `print_friendly` instead renders them as a plain underlined name (for the printable
+    # "View all questions" PDF). They are mutually exclusive display styles - both produce HTML `Markup`.
+    returns_markup = with_interpolation_highlighting or print_friendly
+
     if text is None:
-        return "" if not with_interpolation_highlighting else Markup("")
+        return Markup("") if returns_markup else ""
 
     # We allow `interpolate` to take raw strings here as we'll otherwise be fighting a lot of Jinja2 template behaviour;
     # concating anything in a Jinja template returns `str` and loses our InterpolationStatement subclass. It also means
@@ -684,6 +714,8 @@ def interpolate(
     def _interpolate(matchobj: re.Match[Any]) -> str:
         try:
             value = _evaluate_expression_with_context(matchobj.group(0), context)
+            if print_friendly:
+                return f"<u>{escape(_print_reference_name(str(value)))}</u>"
             if with_interpolation_highlighting:
                 return f'<span class="app-context-aware-editor--valid-reference">{escape(value)}</span>'
         except (
@@ -698,7 +730,7 @@ def interpolate(
 
     result = text.interpolate(_interpolate)
 
-    if with_interpolation_highlighting:
+    if returns_markup:
         return Markup(result)
     return result
 

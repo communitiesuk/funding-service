@@ -1,10 +1,12 @@
 import datetime
+import io
 import uuid
+from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 import markupsafe
-from flask import current_app, flash, g, redirect, request, url_for
+from flask import current_app, flash, g, redirect, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 from flask_admin import expose
 from flask_admin.actions import action
@@ -16,6 +18,7 @@ from govuk_frontend_wtf.wtforms_widgets import GovTextArea
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
+from werkzeug.utils import secure_filename
 from werkzeug.wrappers import Response
 from wtforms import Form
 from wtforms.validators import Email
@@ -26,9 +29,15 @@ from app.common.audit import (
     create_database_model_change_for_delete,
     create_database_model_change_for_update,
 )
+from app.common.collections.question_display import (
+    QuestionDisplayOptions,
+    describe_component_conditions,
+    describe_component_validations,
+    get_question_setting_details,
+)
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.audit import track_audit_event
-from app.common.data.interfaces.collections import delete_collection
+from app.common.data.interfaces.collections import delete_collection, get_collection
 from app.common.data.interfaces.grant_recipients import delete_grant_recipients
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import (
@@ -51,6 +60,7 @@ from app.common.data.types import (
     SubmissionEventType,
 )
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.pdf import render_pdf
 from app.common.security.utils import sanitise_redirect_url
 from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipientStatusForm
 from app.deliver_grant_funding.admin.mixins import (
@@ -213,6 +223,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
 
     can_edit = True
 
+    edit_template = "deliver_grant_funding/admin/collection-edit.html"
+
     column_list = ["name", "type", "status", "grant.name"]
     column_filters = ["name", "type", "status"]
 
@@ -257,6 +269,56 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
                 emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
 
         super().after_model_change(form, model, is_created)
+
+    @staticmethod
+    def _all_questions_context(collection: Collection, *, for_print: bool = False) -> dict[str, Any]:
+        """Shared render context for the "View all questions" page and its printable PDF.
+
+        Both share the same macro; the only difference is how embedded references render. The web page
+        highlights each resolved reference (its full collection/section/question label in a reference tag),
+        while the printable PDF shows just the underlined question name. That choice is bound into the
+        injected ``interpolate`` here, so the template/macro stay agnostic to which style they're rendering.
+        """
+        base_interpolate = SubmissionHelper.get_interpolator(collection=collection)
+        interpolate = (
+            # partial(base_interpolate, print_friendly=True)
+            # if for_print
+            # else partial(base_interpolate, with_interpolation_highlighting=True)
+            partial(base_interpolate, print_friendly=True)
+        )
+        return {
+            "collection": collection,
+            "display": QuestionDisplayOptions.from_request_args(request.args),
+            "interpolate": interpolate,
+            "question_setting_details": get_question_setting_details,
+            "describe_conditions": describe_component_conditions,
+            "describe_validations": describe_component_validations,
+        }
+
+    @expose("/all-questions/<uuid:collection_id>")
+    def all_questions(self, collection_id: uuid.UUID) -> ResponseReturnValue:
+        """A read-only reference page listing every question in the collection, including conditional ones."""
+        collection = get_collection(collection_id, with_full_schema=True)
+        return self.render(
+            "deliver_grant_funding/admin/collection-all-questions.html",
+            **self._all_questions_context(collection),
+        )
+
+    @expose("/all-questions/<uuid:collection_id>/pdf")
+    def all_questions_pdf(self, collection_id: uuid.UUID) -> ResponseReturnValue:
+        """Download the "View all questions" page as a PDF, reusing the submission-PDF print baseline."""
+        collection = get_collection(collection_id, with_full_schema=True)
+        html_content = self.render(
+            "common/all_questions_print_baseline.html",
+            **self._all_questions_context(collection, for_print=True),
+        )
+        return send_file(
+            io.BytesIO(render_pdf(html_content)),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=secure_filename(f"{collection.grant.name} - {collection.name} - all questions.pdf"),
+            max_age=0,
+        )
 
 
 class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):

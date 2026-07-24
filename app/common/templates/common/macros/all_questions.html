@@ -1,0 +1,139 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{# Renders the "Only applicable if ..." condition tags for a question or a group. #}
+{% macro _component_conditions(component, interpolate, describe_conditions) %}
+  {% set conditions = describe_conditions(component, interpolate) %}
+  {% if conditions %}
+    <div class="govuk-!-margin-top-1 govuk-!-margin-bottom-1">
+      {% for condition in conditions %}
+        <p class="govuk-!-margin-bottom-1">{{ govukTag({"html": condition, "classes": "govuk-tag--pink app-full-tag app-all-questions-condition"}) }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{# Renders the validation-rule tags for a question or a group. #}
+{% macro _component_validations(component, interpolate, describe_validations) %}
+  {% set validations = describe_validations(component, interpolate) %}
+  {% if validations %}
+    <div class="govuk-!-margin-top-1 govuk-!-margin-bottom-1">
+      {% for validation in validations %}
+        <p class="govuk-!-margin-bottom-1">{{ govukTag({"html": validation, "classes": "govuk-tag--yellow app-full-tag app-all-questions-validation"}) }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{# Renders the hint text for a question or a group, when present. #}
+{% macro _component_hint(component, interpolate) %}
+  {% if component.hint %}
+    <p class="govuk-hint govuk-!-margin-top-1 govuk-!-margin-bottom-0 app-all-questions-hint">{{ interpolate(component.hint, with_interpolation_highlighting=True) }}</p>
+  {% endif %}
+{% endmacro %}
+
+{# Renders the guidance body for a question or a group, when present.
+
+   Guidance is markdown (the same as on the live question page, see collections.html), so it is run
+   through the govuk_markdown filter rather than shown as plain text. Because that markdown can
+   contain its own headings, which would compete with this reference page's own structure, the
+   rendered guidance is fenced between horizontal rules to set it apart. Markdown is rendered first
+   so its ((reference)) placeholders survive; interpolate then highlights them in place. #}
+{% macro _component_guidance(component, interpolate) %}
+  {% if component.guidance_body %}
+    <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
+    <div class="app-all-questions-guidance">{{ interpolate(component.guidance_body | govuk_markdown, with_interpolation_highlighting=True) }}</div>
+    <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
+  {% endif %}
+{% endmacro %}
+
+{# Renders the <li> items for a list of components. Nested groups recurse via render_components. #}
+{% macro _render_items(components, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display) %}
+  {% for component in components %}
+    <li class="govuk-!-margin-bottom-4">
+      {% if component.is_group %}
+        <strong>{{ component.name }}</strong>
+        {% if component.add_another %}
+          {{ govukTag({"text": "Can be added more than once", "classes": "govuk-tag--grey app-full-tag govuk-!-margin-left-1"}) }}
+        {% endif %}
+        {% if display.hint %}
+          {{ _component_hint(component, interpolate) }}
+        {% endif %}
+        {% if display.guidance %}
+          {{ _component_guidance(component, interpolate) }}
+        {% endif %}
+        {% if display.conditions %}
+          {{ _component_conditions(component, interpolate, describe_conditions) }}
+        {% endif %}
+        {% if display.validations %}
+          {{ _component_validations(component, interpolate, describe_validations) }}
+        {% endif %}
+        {{ render_components(component.components, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display, numbered=false) }}
+      {% else %}
+        {{ interpolate(component.text, with_interpolation_highlighting=True) -}}
+        {%- if display.settings -%}
+          {%- set details = question_setting_details(component) -%}
+          {%- for detail in details %}{{ " (" ~ detail ~ ")" }}{% endfor -%}
+        {%- endif %}
+        {% if display.conditions %}
+          {{ _component_conditions(component, interpolate, describe_conditions) }}
+        {% endif %}
+        {% if display.hint %}
+          {{ _component_hint(component, interpolate) }}
+        {% endif %}
+        {% if display.options and component.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] and component.data_source %}
+          <div class="app-border-left">
+            <ul class="govuk-list govuk-!-margin-top-1 govuk-!-margin-bottom-0 app-all-questions-options">
+              {% for item in component.data_source.items %}
+                <li>{{ item.label }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        {% if display.guidance %}
+          {{ _component_guidance(component, interpolate) }}
+        {% endif %}
+        {% if display.validations %}
+          {{ _component_validations(component, interpolate, describe_validations) }}
+        {% endif %}
+      {% endif %}
+    </li>
+  {% endfor %}
+{% endmacro %}
+
+{#
+  Recursively renders a list of components (questions and groups) honouring the display options.
+
+  The top level of each section is a numbered list; everything nested inside a group is bulleted, at
+  any depth. A group shows its name in bold, an optional "add another" indicator, and then whichever
+  of its guidance, conditions, validations and child components the display options ask for.
+
+  display (a QuestionDisplayOptions) exposes a boolean per category - hint, settings (answer
+  settings such as word counts and file types), options (choice lists), guidance, conditions and
+  validations - and each part of a question or group is only rendered when its category is shown.
+#}
+{% macro render_components(components, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display, numbered=false) %}
+  {% if numbered %}
+    <ol class="govuk-list govuk-list--number ap">
+      {{ _render_items(components, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display) }}
+    </ol>
+  {% else %}
+    <ul class="govuk-list govuk-list--bullet">
+      {{ _render_items(components, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display) }}
+    </ul>
+  {% endif %}
+{% endmacro %}
+
+{#
+  Renders the full body of the "View all questions" page: each section heading followed by its
+  questions. Shared by the admin page and the printable PDF template so they stay in step.
+#}
+{% macro render_all_questions(collection, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display) %}
+  {% for section in collection.forms %}
+    <h2 class="govuk-heading-m govuk-!-margin-top-6">{{ section.title }}</h2>
+    {% if section.components %}
+      {{ render_components(section.components, interpolate, question_setting_details, describe_conditions, describe_validations, enum, display, numbered=true) }}
+    {% else %}
+      <p class="govuk-body">This section has no questions.</p>
+    {% endif %}
+  {% endfor %}
+{% endmacro %}
