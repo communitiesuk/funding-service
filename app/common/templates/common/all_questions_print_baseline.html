@@ -9,26 +9,13 @@
     .govuk-template {
       background-color: white;
     }
-    @page {
-      margin-bottom: 1cm;
-      @bottom-left {
-        margin-left: 0.7cm;
-        content: "Page " counter(page) " of " counter(pages);
-      }
-
-      margin-top: 1cm;
-      @top-left {
-        margin-left: 0.7cm;
-        content: "{{ collection.grant.name }} - {{ collection.name }}";
-      }
-    }
   </style>
 {% endblock head %}
 
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      <span class="govuk-caption-l">View all questions</span>
+      <span class="govuk-caption-l">{{ collection.grant.name }}</span>
       {# exception for xl heading to match the submission print baseline #}
       <h1 class="govuk-heading-xl">{{ collection.name }}</h1>
 

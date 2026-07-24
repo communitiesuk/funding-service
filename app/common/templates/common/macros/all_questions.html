@@ -6,7 +6,7 @@
   {% if conditions %}
     <div class="govuk-!-margin-top-1 govuk-!-margin-bottom-1">
       {% for condition in conditions %}
-        <p class="govuk-!-margin-bottom-1">{{ govukTag({"html": condition, "classes": "govuk-tag--pink app-full-tag app-all-questions-condition"}) }}</p>
+        <p class="govuk-!-margin-bottom-1 govuk-!-margin-top-1">{{ govukTag({"html": condition, "classes": "govuk-tag--pink app-full-tag app-all-questions-condition"}) }}</p>
       {% endfor %}
     </div>
   {% endif %}
@@ -18,7 +18,7 @@
   {% if validations %}
     <div class="govuk-!-margin-top-1 govuk-!-margin-bottom-1">
       {% for validation in validations %}
-        <p class="govuk-!-margin-bottom-1">{{ govukTag({"html": validation, "classes": "govuk-tag--yellow app-full-tag app-all-questions-validation"}) }}</p>
+        <p class="govuk-!-margin-bottom-1 govuk-!-margin-top-1">{{ govukTag({"html": validation, "classes": "govuk-tag--yellow app-full-tag app-all-questions-validation"}) }}</p>
       {% endfor %}
     </div>
   {% endif %}
@@ -74,20 +74,18 @@
           {%- set details = question_setting_details(component) -%}
           {%- for detail in details %}{{ " (" ~ detail ~ ")" }}{% endfor -%}
         {%- endif %}
-        {% if display.conditions %}
-          {{ _component_conditions(component, interpolate, describe_conditions) }}
-        {% endif %}
         {% if display.hint %}
           {{ _component_hint(component, interpolate) }}
         {% endif %}
+        {% if display.conditions %}
+          {{ _component_conditions(component, interpolate, describe_conditions) }}
+        {% endif %}
         {% if display.options and component.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] and component.data_source %}
-          <div class="app-border-left">
-            <ul class="govuk-list govuk-!-margin-top-1 govuk-!-margin-bottom-0 app-all-questions-options">
-              {% for item in component.data_source.items %}
-                <li>{{ item.label }}</li>
-              {% endfor %}
-            </ul>
-          </div>
+          <ul class="govuk-list app-list-square-bullet govuk-!-margin-top-1 govuk-!-margin-bottom-0 app-all-questions-options">
+            {% for item in component.data_source.items %}
+              <li>{{ item.label }}</li>
+            {% endfor %}
+          </ul>
         {% endif %}
         {% if display.guidance %}
           {{ _component_guidance(component, interpolate) }}
