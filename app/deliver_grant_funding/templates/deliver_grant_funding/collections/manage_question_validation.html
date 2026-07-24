@@ -7,9 +7,7 @@
 {% set type_constants = question.form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block pageTitle %}
-  Add validation - {{ question.name }} - Deliver grant funding
-{% endblock pageTitle %}
+{% set page_title = "Add validation - " ~ question.name %}
 
 {% block beforeContent %}
   {{ govukBackLink({ "text": "Back", "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) }) }}
