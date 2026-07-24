@@ -3,7 +3,7 @@ import re
 from playwright.sync_api import Page
 
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage
-from tests.e2e.deliver_grant_funding.reports_pages import ReportSectionsPage
+from tests.e2e.deliver_grant_funding.reports_pages import PreAwardFormSectionsPage, ReportSectionsPage
 
 
 def create_grant(new_grant_name: str, grant_name_uuid: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
@@ -45,3 +45,14 @@ def navigate_to_report_sections_page(page: Page, domain: str, grant_name: str, r
     grant_reports_page = grant_dashboard_page.click_reports(grant_name)
     report_sections_page = grant_reports_page.click_manage_sections(grant_name=grant_name, report_name=report_name)
     return report_sections_page
+
+
+def navigate_to_pre_award_sections_page(
+    page: Page, domain: str, grant_name: str, form_name: str
+) -> PreAwardFormSectionsPage:
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    grant_dashboard_page = all_grants_page.click_grant(grant_name)
+    grant_pre_award_forms_page = grant_dashboard_page.click_pre_award(grant_name)
+    form_sections_page = grant_pre_award_forms_page.click_manage_sections(grant_name=grant_name, form_name=form_name)
+    return form_sections_page

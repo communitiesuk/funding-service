@@ -2,7 +2,7 @@ from abc import ABC
 
 from playwright.sync_api import Locator, Page, expect
 
-from tests.e2e.deliver_grant_funding.reports_pages import GrantReportsPage
+from tests.e2e.deliver_grant_funding.reports_pages import GrantPreAwardFormsPage, GrantReportsPage
 from tests.e2e.pages import BasePage
 
 
@@ -272,6 +272,7 @@ class GrantSetupConfirmationPage(TopNavMixin, BasePage):
 class GrantDashboardBasePage(TopNavMixin, BasePage):
     settings_nav: Locator
     reports_nav: Locator
+    pre_award_nav: Locator
     grant_team_nav: Locator
     sign_out_nav: Locator
 
@@ -279,6 +280,7 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         super().__init__(page, domain)
         self.settings_nav = self.page.get_by_role("link", name="Grant details")
         self.reports_nav = self.page.get_by_role("link", name="Reports")
+        self.pre_award_nav = self.page.get_by_role("link", name="Pre-award")
         self.grant_team_nav = self.page.get_by_role("link", name="Team")
         self.sign_out_nav = self.page.get_by_role("link", name="Sign out")
 
@@ -296,6 +298,12 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         grant_reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
         expect(grant_reports_page.heading).to_be_visible()
         return grant_reports_page
+
+    def click_pre_award(self, grant_name: str) -> GrantPreAwardFormsPage:
+        self.pre_award_nav.click()
+        grant_forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_forms_page.heading).to_be_visible()
+        return grant_forms_page
 
     def click_grant_team(self) -> GrantTeamPage:
         self.reports_nav.click()
