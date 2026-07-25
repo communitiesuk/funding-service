@@ -467,6 +467,10 @@ class SubmissionHelper:
         return self.events.submission_state.assessment_rejected_reason
 
     @property
+    def assessment_approved_reason(self) -> str | None:
+        return self.events.submission_state.assessment_approved_reason
+
+    @property
     def assessed_by(self) -> User | None:
         return self.events.submission_state.assessed_by
 
@@ -1470,7 +1474,13 @@ class SubmissionHelper:
         for recipient in recipients:
             notification_service.send_changes_requested_submission(user=recipient, submission_helper=self)
 
-    def validate_submission(self, user: User, is_approved: bool, rejected_reason: str | None = None) -> None:
+    def validate_submission(
+        self,
+        user: User,
+        is_approved: bool,
+        rejected_reason: str | None = None,
+        approved_reason: str | None = None,
+    ) -> None:
         if not AuthorisationHelper.can_validate_submission(user, self.submission):
             raise SubmissionAuthorisationError(
                 f"User does not have permission to validate submission id={self.id}",
@@ -1494,6 +1504,7 @@ class SubmissionHelper:
                 event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
                 user=user,
                 related_entity_id=self.id,
+                assessment_approved_reason=approved_reason,
             )
         else:
             self.add_submission_event(

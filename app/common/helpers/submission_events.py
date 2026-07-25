@@ -48,6 +48,7 @@ class ChangesRequestedMixin(Protocol):
 
 class AssessorMarkedAsApprovedMixin(Protocol):
     is_assessment_approved: bool
+    assessment_approved_reason: str | None
 
 
 class AssessorMarkedAsRejectedMixin(Protocol):
@@ -124,6 +125,7 @@ class AssessorMarkedAsApprovedEvent(SubmissionEventBase, AssessorMarkedAsApprove
     is_assessment_approved: bool = True
     is_assessment_rejected: bool = False
     assessment_rejected_reason: str | None = None
+    assessment_approved_reason: str | None = field(default=None, metadata={"stored": True})
 
 
 @dataclass
@@ -132,10 +134,15 @@ class AssessorMarkedAsRejectedEvent(SubmissionEventBase, AssessorMarkedAsRejecte
     is_assessment_approved: bool = False
     is_assessment_rejected: bool = True
     assessment_rejected_reason: str | None = field(default=None, metadata={"stored": True})
+    assessment_approved_reason: str | None = None
 
 
 class AssessmentRejectedKwargs(TypedDict, total=False):
     assessment_rejected_reason: str | None
+
+
+class AssessmentApprovedKwargs(TypedDict, total=False):
+    assessment_approved_reason: str | None
 
 
 class DeclinedByCertifierKwargs(TypedDict, total=False):
@@ -247,6 +254,7 @@ class SubmissionState(
     is_assessment_approved: bool = False
     is_assessment_rejected: bool = False
     assessment_rejected_reason: str | None = None
+    assessment_approved_reason: str | None = None
 
 
 @dataclass
@@ -403,6 +411,13 @@ class SubmissionEventHelper:
     def event_from(
         event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED],
         **kwargs: Unpack[AssessmentRejectedKwargs],
+    ) -> dict[str, Any]: ...
+
+    @overload
+    @staticmethod
+    def event_from(
+        event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED],
+        **kwargs: Unpack[AssessmentApprovedKwargs],
     ) -> dict[str, Any]: ...
 
     @overload

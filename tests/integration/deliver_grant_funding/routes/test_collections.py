@@ -9807,11 +9807,12 @@ class TestApproveOrRejectSubmission:
             assert "Would you like to mark this submission as approved or rejected?" in soup.text
             assert page_has_button(soup, "Confirm and submit decision")
 
-    def test_post_approve(self, authenticated_grant_member_client, submission_with_allow_validation):
+    @pytest.mark.parametrize("approved_reason", [None, "Looks good, thanks"])
+    def test_post_approve(self, authenticated_grant_member_client, submission_with_allow_validation, approved_reason):
         client = authenticated_grant_member_client
         client.grant.allow_pre_award = True
 
-        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes"})
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes", "approved_reason": approved_reason})
 
         response = client.post(
             url_for(
@@ -9834,6 +9835,11 @@ class TestApproveOrRejectSubmission:
         timeline = soup.find(class_="moj-timeline")
         timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
         assert "Report marked as approved" in timeline_titles
+
+        if approved_reason:
+            assert approved_reason in timeline.text
+        else:
+            assert timeline.find(class_="moj-timeline__description") is None
 
     def test_post_reject(self, authenticated_grant_member_client, submission_with_allow_validation):
         client = authenticated_grant_member_client

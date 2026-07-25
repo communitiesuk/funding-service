@@ -130,3 +130,89 @@ class TestSubmissionDetails:
         assert "Change request details" in html.find("span", class_="govuk-details__summary-text").text
         assert "Financial data" in html.find("div", class_="govuk-details__text").text
         assert "See sections below" in html.find("div", class_="govuk-details__text").text
+
+    def test_rejected_shows_reason_for_rejection(self, factories):
+        grant = factories.grant.build(
+            organisation=factories.organisation.build(name=GRANT_ORG, can_manage_grants=True),
+        )
+        grant_recipient = factories.grant_recipient.build(grant=grant, organisation__name=RECIPIENT_ORG)
+        submission = factories.submission.build(
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            collection=factories.collection.build(grant=grant),
+        )
+        event = factories.submission_event.build(
+            event_type=SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED,
+            submission=submission,
+            data={"assessment_rejected_reason": "Missing evidence"},
+        )
+
+        item = from_submission_event(event)
+
+        html = BeautifulSoup(
+            render_template_string(
+                '{% include "common/macros/timeline/assessor_marked_as_rejected.html" %}',
+                item=item,
+            ),
+            "html.parser",
+        )
+
+        assert "Reason for rejection" in html.find("span", class_="govuk-details__summary-text").text
+        assert "Missing evidence" in html.find("div", class_="govuk-details__text").text
+
+    def test_approved_shows_comments_when_reason_present(self, factories):
+        grant = factories.grant.build(
+            organisation=factories.organisation.build(name=GRANT_ORG, can_manage_grants=True),
+        )
+        grant_recipient = factories.grant_recipient.build(grant=grant, organisation__name=RECIPIENT_ORG)
+        submission = factories.submission.build(
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            collection=factories.collection.build(grant=grant),
+        )
+        event = factories.submission_event.build(
+            event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+            submission=submission,
+            data={"assessment_approved_reason": "Looks good, thanks"},
+        )
+
+        item = from_submission_event(event)
+
+        html = BeautifulSoup(
+            render_template_string(
+                '{% include "common/macros/timeline/assessor_marked_as_approved.html" %}',
+                item=item,
+            ),
+            "html.parser",
+        )
+
+        assert "Additional comments" in html.find("span", class_="govuk-details__summary-text").text
+        assert "Looks good, thanks" in html.find("div", class_="govuk-details__text").text
+
+    def test_approved_does_not_show_comments_when_no_reason(self, factories):
+        grant = factories.grant.build(
+            organisation=factories.organisation.build(name=GRANT_ORG, can_manage_grants=True),
+        )
+        grant_recipient = factories.grant_recipient.build(grant=grant, organisation__name=RECIPIENT_ORG)
+        submission = factories.submission.build(
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            collection=factories.collection.build(grant=grant),
+        )
+        event = factories.submission_event.build(
+            event_type=SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED,
+            submission=submission,
+            data={"assessment_approved_reason": None},
+        )
+
+        item = from_submission_event(event)
+
+        html = BeautifulSoup(
+            render_template_string(
+                '{% include "common/macros/timeline/assessor_marked_as_approved.html" %}',
+                item=item,
+            ),
+            "html.parser",
+        )
+
+        assert html.find("details") is None

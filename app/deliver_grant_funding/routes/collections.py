@@ -3575,6 +3575,7 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
                 user=get_current_user(),
                 is_approved=is_approved,
                 rejected_reason=form.rejected_reason.data if not is_approved else None,
+                approved_reason=form.approved_reason.data if is_approved else None,
             )
             flash_type = (
                 FlashMessageType.SUBMISSION_MARKED_AS_APPROVED

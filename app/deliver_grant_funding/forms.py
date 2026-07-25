@@ -1693,12 +1693,32 @@ class ApproveOrRejectSubmissionForm(FlaskForm):
     REASON_MAX_WORDS = 200
     is_approved = RadioField(
         choices=[("yes", "Mark as approved"), ("no", "Mark as rejected")],
-        validators=[DataRequired("Select an option")],
+        validators=[DataRequired("Select an option to mark this submission as approved or rejected")],
         widget=GovRadioInput(),
+    )
+    approved_reason = TextAreaField(
+        "Additional comments (optional)",
+        widget=GovCharacterCount(),
     )
     rejected_reason = TextAreaField(
         "Why are you marking this submission as rejected?",
-        validators=[Optional()],
         widget=GovCharacterCount(),
     )
     submit = SubmitField("Confirm and submit decision", widget=GovSubmitInput())
+
+    def validate(self, extra_validators=None):
+        if self.is_approved.data == "no":
+            self.rejected_reason.validators = [
+                WordRange(
+                    max_words=self.REASON_MAX_WORDS, field_display_name="The reason for rejecting this submission"
+                ),
+                DataRequired("Enter the reason for rejecting this submission"),
+            ]
+        elif self.is_approved.data == "yes":
+            self.rejected_reason.validators = [
+                WordRange(
+                    max_words=self.REASON_MAX_WORDS, field_display_name="The reason for rejecting this submission"
+                ),
+            ]
+
+        return super().validate(extra_validators=extra_validators)
