@@ -4,10 +4,10 @@ import json
 import click
 import pytest
 from click import ClickException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.common.collections.types import SingleChoiceFromListAnswer, TextSingleLineAnswer
-from app.common.data.models import Submission
+from app.common.data.models import ComponentReference, Submission
 from app.common.data.types import (
     ExpressionType,
     GrantRecipientModeEnum,
@@ -17,7 +17,7 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
-from app.developers.commands import create_multi_submissions, export_grants, seed_grants
+from app.developers.commands import create_multi_submissions, export_grants, seed_grants, sync_component_references
 from app.extensions import db
 from tests.models import FactoryAnswer
 
@@ -34,6 +34,7 @@ def _unwrap(command):
 _create_multi_submissions = _unwrap(create_multi_submissions)
 _export_grants = _unwrap(export_grants)
 _seed_grants = _unwrap(seed_grants)
+_sync_component_references = _unwrap(sync_component_references)
 
 
 def _make_csv(rows: list[tuple[str, str]]) -> io.StringIO:
@@ -524,6 +525,70 @@ class TestExportGrants:
 
         with pytest.raises(click.ClickException, match="--email is required"):
             _export_grants(grant_ids=[grant.id], output="email", email_address=None, exclude_users=True)
+
+
+class TestSyncComponentReferences:
+    @pytest.fixture()
+    def out_of_sync_questions(self, db_session, factories):
+        q1 = factories.question.create(name="First question")
+        q2 = factories.question.create(form=q1.form, text=f"Reference to (({q1.safe_qid}))", name="Second question")
+        q3 = factories.question.create(form=q1.form, name="Third question")
+
+        db_session.execute(
+            delete(ComponentReference).where(
+                ComponentReference.component_id == q2.id, ComponentReference.depends_on_component_id == q1.id
+            )
+        )
+        db_session.add(ComponentReference(component_id=q1.id, depends_on_component_id=q3.id))
+        db_session.commit()
+        return q1, q2, q3
+
+    def _get_refs(self, db_session, question_ids):
+        return set(
+            db_session.execute(
+                select(ComponentReference.component_id, ComponentReference.depends_on_component_id).where(
+                    ComponentReference.component_id.in_(question_ids)
+                )
+            ).all()
+        )
+
+    def test_commit_applies_delta(self, db_session, out_of_sync_questions, capsys):
+        q1, q2, q3 = out_of_sync_questions
+
+        _sync_component_references(commit=True)
+
+        output = capsys.readouterr().out
+        assert "+ 'Second question' depends on 'First question'" in output
+        assert "- 'First question' depends on 'Third question'" in output
+        assert "Done. Added 1 and deleted 1 component references." in output
+
+        assert self._get_refs(db_session, [q1.id, q2.id, q3.id]) == {(q2.id, q1.id)}
+
+    def test_dry_run_reports_delta_without_committing(self, db_session, out_of_sync_questions, capsys, mocker):
+        q1, q2, q3 = out_of_sync_questions
+        commit_spy = mocker.spy(db.session, "commit")
+
+        _sync_component_references(commit=False)
+
+        output = capsys.readouterr().out
+        assert "Dry run:" in output
+        assert "+ 'Second question' depends on 'First question'" in output
+        assert "- 'First question' depends on 'Third question'" in output
+        assert "Dry run complete. Would add 1 and delete 1 component references." in output
+
+        commit_spy.assert_not_called()
+        assert self._get_refs(db_session, [q1.id, q2.id, q3.id]) == {(q1.id, q3.id)}
+
+    def test_no_changes_when_in_sync(self, db_session, factories, capsys):
+        q1 = factories.question.create(name="First question")
+        factories.question.create(form=q1.form, text=f"Reference to (({q1.safe_qid}))", name="Second question")
+        db_session.commit()
+
+        _sync_component_references(commit=True)
+
+        output = capsys.readouterr().out
+        assert "+" not in output
+        assert "Done. Added 0 and deleted 0 component references." in output
 
 
 class TestSeedGrants:
