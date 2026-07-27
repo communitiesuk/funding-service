@@ -13,6 +13,7 @@ from app import (
 from app.common.collections.types import YesNoAnswer
 from app.common.data.models import Expression
 from app.common.data.types import (
+    CollectionStatusEnum,
     DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
@@ -271,7 +272,7 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,1,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is True
@@ -293,15 +294,15 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,,hello,5,$10,12km" + "\na,b,£100,1.2,hello,,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is True
 
     @pytest.mark.parametrize("is_existing", (True, False))
     def test_remove_referenced_column_raises_error(self, factories, is_existing):
+        collection = factories.collection.create()
         if is_existing:
-            collection = factories.collection.create()
             data_source = factories.data_source.create(
                 grant=collection.grant,
                 collection=collection,
@@ -321,7 +322,9 @@ class TestUploadDataSetForm:
             )
         )
         form = UploadDataSetForm(
-            existing_data_source_names=[], existing_datasource=data_source if is_existing else None
+            existing_data_source_names=[],
+            existing_datasource=data_source if is_existing else None,
+            collection=collection,
         )
         form.process(data)
 
@@ -358,7 +361,7 @@ class TestUploadDataSetForm:
                 + "Another column\na,b,1000\nc,d,3000"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -419,7 +422,7 @@ class TestUploadDataSetForm:
                 + "Another column\na,b,1000\nc,d,3000"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -487,7 +490,7 @@ class TestUploadDataSetForm:
             )
         )
 
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -522,7 +525,7 @@ class TestUploadDataSetForm:
                 + f"\na,b,{bad_value},1.2,hello,5,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -545,7 +548,7 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,5,€10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -568,7 +571,7 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,5,$10,12miles"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -593,7 +596,7 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2,hello,1.5,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -616,7 +619,7 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,hello,hello,5,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -639,7 +642,7 @@ class TestUploadDataSetForm:
                 ALL_COLUMN_TYPE_HEADERS_STR + "\na,b,£100,1.2,hello,5,$10,12km" + "\na,b,£100,1.2345,hello,5,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -666,7 +669,7 @@ class TestUploadDataSetForm:
                 + "\na,b,£100,1.2,hello,5,$10,12km"
             )
         )
-        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source)
+        form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, collection=collection)
         form.process(data)
 
         assert form.validate() is False
@@ -708,6 +711,7 @@ class TestUploadDataSetForm:
         form = UploadDataSetForm(
             existing_data_source_names=[],
             existing_datasource=data_source,
+            collection=collection,
             submitted_orgs=[gr1.organisation],
         )
         form.process(data)
@@ -724,7 +728,9 @@ class TestUploadDataSetForm:
                 type=DataSourceType.GRANT_RECIPIENT,
                 create_gr_org_items=True,
             )
-            form = UploadDataSetForm(existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[])
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, collection=collection, submitted_orgs=[]
+            )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
                 rows=[
@@ -747,7 +753,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=["100"],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr1.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr1.organisation],
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -771,7 +780,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=["100"],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr1.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr1.organisation],
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -795,7 +807,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=["100000000"],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr1.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr1.organisation],
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -819,7 +834,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=[100],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr.organisation],
             )
             with pytest.raises(ValidationError) as e:
                 form._validate_data_for_existing_submissions(
@@ -845,7 +863,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=[100],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr.organisation],
             )
             with pytest.raises(StopValidation) as e:
                 form._validate_data_for_existing_submissions(
@@ -872,7 +893,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=[100],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr.organisation],
             )
             with pytest.raises(StopValidation) as e:
                 form._validate_data_for_existing_submissions(
@@ -899,7 +923,10 @@ class TestUploadDataSetForm:
                 create_gr_org_items__data=[100],
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, submitted_orgs=[gr.organisation]
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                submitted_orgs=[gr.organisation],
             )
             with pytest.raises(StopValidation) as e:
                 form._validate_data_for_existing_submissions(
@@ -914,6 +941,241 @@ class TestUploadDataSetForm:
                 )
             assert str(e.value) == "There is a problem"
             assert form.removed_column_errors["Allocation"][0] == gr.organisation.name
+
+    class TestValidateNoDroppedOrganisationItems:
+        def test_valid_when_no_organisation_items_dropped(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            gr2 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100, 200],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation, gr2.organisation],
+            )
+
+            form._validate_no_dropped_organisation_items(
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr1.organisation.name,
+                        "Allocation": "999",
+                    },
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                        "Allocation": "888",
+                    },
+                ],
+            )
+
+        def test_valid_when_no_existing_organisation_items(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[], existing_datasource=data_source, collection=collection
+            )
+
+            form._validate_no_dropped_organisation_items(rows=[])
+
+        def test_valid_when_missing_organisation_was_removed_from_grant(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            removed_org = factories.organisation.create()
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source, external_id=gr1.organisation.external_id, _data={"c_allocation": 100}
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source, external_id=removed_org.external_id, _data={"c_allocation": 200}
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation],
+            )
+
+            form._validate_no_dropped_organisation_items(
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr1.organisation.name,
+                        "Allocation": "999",
+                    },
+                ],
+            )
+
+        def test_valid_when_missing_organisation_has_no_data_in_this_data_set(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+            )
+            factories.data_source_organisation_item.create(
+                data_source=data_source, external_id=gr1.organisation.external_id, _data={"c_allocation": 100}
+            )
+            gr2 = factories.grant_recipient.create(grant=collection.grant)
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation, gr2.organisation],
+            )
+
+            form._validate_no_dropped_organisation_items(
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr1.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr1.organisation.name,
+                        "Allocation": "999",
+                    },
+                ],
+            )
+
+        def test_not_enforced_when_collection_is_draft(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.DRAFT)
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            gr2 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100, 200],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation, gr2.organisation],
+            )
+
+            form._validate_no_dropped_organisation_items(
+                rows=[
+                    {
+                        DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                        DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                        "Allocation": "888",
+                    },
+                ],
+            )
+
+        def test_raises_for_single_missing_organisation(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.SCHEDULED)
+            gr1 = factories.grant_recipient.create(grant=collection.grant, organisation__name="Rivendell")
+            gr2 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100, 200],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation, gr2.organisation],
+            )
+
+            with pytest.raises(ValidationError) as e:
+                form._validate_no_dropped_organisation_items(
+                    rows=[
+                        {
+                            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr2.organisation.external_id,
+                            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr2.organisation.name,
+                            "Allocation": "888",
+                        },
+                    ],
+                )
+            assert str(e.value) == (
+                f"Missing grant recipient ‘{gr1.organisation.name}’ in the selected file. Make sure the data set "
+                f"includes the grant recipient so they can complete the open {collection.type.constants.singular}"
+            )
+
+        def test_raises_for_multiple_missing_organisations(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            gr1 = factories.grant_recipient.create(grant=collection.grant, organisation__name="Rivendell")
+            gr2 = factories.grant_recipient.create(grant=collection.grant, organisation__name="Lothlorien")
+            gr3 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100, 200, 300],
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation, gr2.organisation, gr3.organisation],
+            )
+
+            with pytest.raises(ValidationError) as e:
+                form._validate_no_dropped_organisation_items(
+                    rows=[
+                        {
+                            DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr3.organisation.external_id,
+                            DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr3.organisation.name,
+                            "Allocation": "999",
+                        },
+                    ],
+                )
+            assert str(e.value) == (
+                f"Missing grant recipients ‘{gr2.organisation.name}’ and ‘{gr1.organisation.name}’ in the selected file"
+                ". Make sure the data set includes the grant recipients so they can complete the open "
+                f"{collection.type.constants.singular}"
+            )
+
+        def test_runs_as_part_of_full_form_validation(self, factories):
+            collection = factories.collection.create(status=CollectionStatusEnum.OPEN)
+            gr1 = factories.grant_recipient.create(grant=collection.grant)
+            gr2 = factories.grant_recipient.create(grant=collection.grant)
+            data_source = factories.data_source.create(
+                collection=collection,
+                grant=collection.grant,
+                type=DataSourceType.GRANT_RECIPIENT,
+                create_gr_org_items=True,
+                create_gr_org_items__data=[100, 200],
+            )
+            data = _build_file_upload_form_data(
+                csv_content=(
+                    f"{DATA_SET_EXTERNAL_ID_COLUMN_HEADER},{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER},Allocation"
+                    + f"\n{gr2.organisation.external_id},{gr2.organisation.name},200"
+                )
+            )
+            form = UploadDataSetForm(
+                existing_data_source_names=[],
+                existing_datasource=data_source,
+                collection=collection,
+                all_organisations=[gr1.organisation, gr2.organisation],
+            )
+            form.process(data)
+
+            assert form.validate() is False
+            assert form.file.errors == [
+                f"Missing grant recipient ‘{gr1.organisation.name}’ in the selected file. Make sure the data set "
+                f"includes the grant recipient so they can complete the open {collection.type.constants.singular}"
+            ]
 
 
 class TestRequestChangesSubmissionForm:

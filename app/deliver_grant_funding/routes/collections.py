@@ -3772,7 +3772,9 @@ def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_
 
     data_set_data = _extract_data_set_data_from_session(None)
 
-    form = UploadDataSetForm(existing_data_source_names=[ds.name for ds in collection.data_sources], obj=data_set_data)
+    form = UploadDataSetForm(
+        existing_data_source_names=[ds.name for ds in collection.data_sources], obj=data_set_data, collection=collection
+    )
 
     gr_errors: list[str] = []
 
@@ -3845,10 +3847,14 @@ def replace_data_set(
         or collection.grant_id != grant_id
     ):
         abort(404)
+
+    grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
     form = UploadDataSetForm(
         existing_data_source_names=[ds.name for ds in collection.data_sources if ds.id != data_source_id],
         existing_datasource=data_source,
         data={"name": data_source.name},
+        collection=collection,
+        all_organisations=[gr.organisation for gr in grant_recipients],
         submitted_orgs=[
             gr.organisation
             for gr in get_grant_recipients_for_collection_with_submitted_submissions(
@@ -3874,7 +3880,6 @@ def replace_data_set(
             data_columns=data_columns,
             is_replace=True,
         )
-        grant_recipients = interfaces.grant_recipients.get_grant_recipients(collection.grant, with_organisations=True)
         gr_errors = validate_data_set_grant_recipients(data_set_session_data, grant_recipients, all_rows=rows)
         if not gr_errors:
             session[SESSION_DATA_SET_REPLACE] = data_set_session_data.model_dump(mode="json")
