@@ -3460,8 +3460,6 @@ def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturn
 def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
 
     submission_helper = SubmissionHelper.load(submission_id)
-    if not AuthorisationHelper.can_request_or_allow_changes(get_current_user(), submission_helper.submission):
-        abort(403)
     form = ReopenSubmissionForm()
     if form.validate_on_submit():
         try:
@@ -3493,9 +3491,6 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
 @has_deliver_grant_role(RoleEnum.MEMBER)
 def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
-
-    if not AuthorisationHelper.can_request_or_allow_changes(get_current_user(), submission_helper.submission):
-        abort(403)
 
     form = RequestOrAllowChangesSubmissionForm()
     if form.validate_on_submit():
@@ -3531,9 +3526,6 @@ def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseRet
 @auto_commit_after_request
 def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
-
-    if not AuthorisationHelper.can_request_or_allow_changes(get_current_user(), submission_helper.submission):
-        abort(403)
 
     form = RequestChangesSubmissionForm(submission_helper=submission_helper)
     if form.validate_on_submit():
@@ -3574,9 +3566,6 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
 
     if not submission_helper.has_allow_validation_enabled:
         abort(400)
-
-    if not AuthorisationHelper.can_validate_submission(get_current_user(), submission_helper.submission):
-        abort(403)
 
     form = ApproveOrRejectSubmissionForm()
     if form.validate_on_submit():

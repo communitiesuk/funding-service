@@ -7,7 +7,7 @@ from flask_login import AnonymousUserMixin
 from app.common.data.interfaces.collections import get_collection, get_submission
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.models_user import User
-from app.common.data.types import OrganisationModeEnum, RoleEnum
+from app.common.data.types import OrganisationModeEnum, RoleEnum, SubmissionModeEnum
 
 if TYPE_CHECKING:
     from app.common.data.models import GrantRecipient, Organisation, Submission
@@ -209,8 +209,7 @@ class AuthorisationHelper:
         # Platform admin should be able to reopen submissions
         # The grant team should be able to reopen submissions. Their roles would be:
         # - grant member
-        # Form designers should not be able to reopen submissions. Their roles would be:
-        # - deliver org admin / member
+        # Form designers (deliver org members) should not be able to reopen live submissions
         if isinstance(submission, UUID):
             submission = get_submission(submission)
 
@@ -220,6 +219,10 @@ class AuthorisationHelper:
         has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(
             submission.collection.grant.id, RoleEnum.MEMBER, user
         )
+
+        if submission.mode == SubmissionModeEnum.TEST:
+            return has_deliver_grant_role
+
         is_deliver_org_member = AuthorisationHelper.is_deliver_org_member(user)
 
         return has_deliver_grant_role and not is_deliver_org_member
@@ -232,6 +235,10 @@ class AuthorisationHelper:
         has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(
             submission.collection.grant.id, RoleEnum.MEMBER, user
         )
+
+        if submission.mode == SubmissionModeEnum.TEST:
+            return has_deliver_grant_role
+
         is_deliver_org_member = AuthorisationHelper.is_deliver_org_member(user)
 
         return has_deliver_grant_role and not is_deliver_org_member

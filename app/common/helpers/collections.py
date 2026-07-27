@@ -1352,7 +1352,7 @@ class SubmissionHelper:
         if (
             self.collection.is_open
             and self.collection.grant.status == GrantStatusEnum.LIVE
-            and AuthorisationHelper.can_request_or_allow_changes(user, self.submission)
+            and AuthorisationHelper.has_deliver_grant_role(self.collection.grant.id, RoleEnum.MEMBER, user)
         ):
             return True
         return False
@@ -1362,8 +1362,8 @@ class SubmissionHelper:
             return False
         if self.is_test:
             return True
-        if self.collection.grant.status == GrantStatusEnum.LIVE and AuthorisationHelper.can_validate_submission(
-            user, self.submission
+        if self.collection.grant.status == GrantStatusEnum.LIVE and AuthorisationHelper.has_deliver_grant_role(
+            self.collection.grant.id, RoleEnum.MEMBER, user
         ):
             return True
         return False
