@@ -295,7 +295,7 @@ class DynamicQuestionForm(FlaskForm):
 
             assert self._submission_helper is not None
             data_source_org_item = data_source.get_filtered_organisation_item(
-                self._submission_helper.submission.grant_recipient.organisation.external_id
+                self._submission_helper.grant_recipient.organisation.external_id
             )
             assert data_source_org_item is not None and isinstance(data_source_org_item.data, dict)
             org_item_column_value = data_source_org_item.data.get(column_name)

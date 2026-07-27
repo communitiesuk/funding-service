@@ -103,7 +103,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
         submission_helpers=submission_helpers,
         can_create_submissions=(
             not collection.multiple_submissions_are_managed_by_service
-            and AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
+            and AuthorisationHelper.is_access_grant_data_provider(grant_recipient, user)
             and not CollectionHelper(collection).is_closed
         ),
     )
@@ -399,11 +399,11 @@ def submitted_confirmation(
         not submission_helper.is_submitted
         or (
             submission_helper.collection.requires_certification
-            and not AuthorisationHelper.is_access_grant_certifier(grant_id, organisation_id, user)
+            and not AuthorisationHelper.is_access_grant_certifier(grant_recipient, user)
         )
         or (
             not submission_helper.collection.requires_certification
-            and not AuthorisationHelper.is_access_grant_data_provider(grant_id, organisation_id, user)
+            and not AuthorisationHelper.is_access_grant_data_provider(grant_recipient, user)
         )
     ):
         # note we're not redirecting to the route to submission as you might have been directed from
