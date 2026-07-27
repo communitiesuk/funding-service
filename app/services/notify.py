@@ -508,7 +508,7 @@ class NotificationService:
             template_id=current_app.config["GOVUK_NOTIFY_SUBMISSION_WITH_CHANGES_NOTIFY_REQUESTER_TEMPLATE_ID"],
             personalisation={
                 "is_test_data": (
-                    "yes" if submission_helper.submission.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
+                    "yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"
                 ),
                 "submission_name": submission_helper.long_collection_name,
                 "collection_type_noun": submission.collection.type.constants.singular,
