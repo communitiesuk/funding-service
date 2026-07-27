@@ -576,28 +576,102 @@ def add_all_components_flat(component: Component, users: set[User], grant_export
             add_all_components_flat(sub_component, users, grant_export)
 
 
+def _get_component_reference_keys(component_ids: list[UUID]) -> set[tuple[Any, ...]]:
+    rows = db.session.execute(
+        select(
+            ComponentReference.component_id,
+            ComponentReference.expression_id,
+            ComponentReference.depends_on_component_id,
+            ComponentReference.depends_on_data_source_item_id,
+            ComponentReference.depends_on_data_source_id,
+            ComponentReference.depends_on_column_name,
+        ).where(ComponentReference.component_id.in_(component_ids))
+    ).all()
+    return {tuple(row) for row in rows}
+
+
+def _describe_component_reference_key(key: tuple[Any, ...], component_names: dict[UUID, str]) -> str:
+    component_id, expression_id, depends_on_component_id, _, depends_on_data_source_id, depends_on_column_name = key
+
+    if depends_on_component_id:
+        target = f"'{component_names.get(depends_on_component_id, depends_on_component_id)}'"
+    else:
+        target = f"data source {depends_on_data_source_id} column '{depends_on_column_name}'"
+
+    via = ""
+    if expression_id:
+        expression = db.session.get(Expression, expression_id)
+        via = f" (via {expression.type_.value.lower()})" if expression else " (via unknown expression)"
+
+    return f"'{component_names.get(component_id, component_id)}' depends on {target}{via}"
+
+
 @developers_blueprint.cli.command(
     "sync-component-references", help="Scan all components and expressions and denormalise their references into the DB"
 )
-def sync_component_references() -> None:
-    click.echo("Syncing all component references.")
+@click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
+def sync_component_references(commit: bool) -> None:
+    if not commit:
+        click.echo("Dry run:")
 
-    count = db.session.query(ComponentReference).count()
-    click.echo(f"Deleting {count} component references.")
+    click.echo("Syncing component references, one collection at a time.")
 
-    db.session.execute(delete(ComponentReference))
+    total_refs_before = db.session.query(ComponentReference).count()
+    click.echo(f"There are {total_refs_before} component references in the database.")
 
-    for component in db.session.query(Component).all():
-        _validate_and_sync_component_references(
-            component,
-            ExpressionContext.build_expression_context(collection=component.form.collection, mode="interpolation"),
+    total_added, total_deleted = 0, 0
+    collection_ids = db.session.query(Collection.id).all()
+    for collection_id in collection_ids:
+        collection = db.session.get(Collection, collection_id)
+        if not collection:
+            click.echo(f"Collection {collection_id} does not exist.")
+            continue
+
+        components = db.session.scalars(
+            select(Component).join(Component.form).where(Form.collection_id == collection.id)
+        ).all()
+        if not components:
+            continue
+
+        component_ids = [component.id for component in components]
+        component_names = {component.id: str(component.name) for component in components}
+        refs_before = _get_component_reference_keys(component_ids)
+
+        expression_context = ExpressionContext.build_expression_context(collection=collection, mode="interpolation")
+        for component in components:
+            _validate_and_sync_component_references(component, expression_context)
+        db.session.flush()
+
+        refs_after = _get_component_reference_keys(component_ids)
+        added = sorted(refs_after - refs_before, key=str)
+        deleted = sorted(refs_before - refs_after, key=str)
+
+        if added or deleted:
+            click.echo(f"\n{collection.grant.name} / {collection.name}:")
+            for key in added:
+                click.echo(f" + {_describe_component_reference_key(key, component_names)}")
+            for key in deleted:
+                click.echo(f" - {_describe_component_reference_key(key, component_names)}")
+
+        total_added += len(added)
+        total_deleted += len(deleted)
+
+        if commit:
+            db.session.commit()
+        else:
+            db.session.rollback()
+
+    if commit:
+        total_refs_after = db.session.query(ComponentReference).count()
+        click.echo(
+            f"\nDone. Added {total_added} and deleted {total_deleted} component references "
+            f"({total_refs_before} -> {total_refs_after} in total)."
         )
-
-    count = db.session.query(ComponentReference).count()
-
-    db.session.commit()
-
-    click.echo(f"Done; created {count} component references.")
+    else:
+        click.echo(
+            f"\nDry run complete. Would add {total_added} and delete {total_deleted} component references "
+            f"({total_refs_before} -> {total_refs_before + total_added - total_deleted} in total)."
+        )
 
 
 # TODO: remove me after this has been executed in all envs as part of https://github.com/communitiesuk/funding-service/pull/1344
