@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Sequence
 from uuid import UUID
 
@@ -7,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Organisation
-from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus
+from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus, OrganisationType
 from app.extensions import db
 
 
@@ -132,3 +133,73 @@ def upsert_organisations(
                 "retirement_date": retired_orgs[org_id].retirement_date,
             },
         )
+
+
+@flush_and_rollback_on_exceptions()
+def get_or_create_self_registered_organisation(
+    *, name: str, type_: OrganisationType, typed_id: str | None = None
+) -> Organisation:
+    """Get or create a LIVE organisation (with a TEST counterpart) for an applicant self-registering through the
+    public sign up journey.
+
+    Company/charity organisations are matched on their external ID, so registering the same Companies House or
+    Charity Commission reference twice reuses the existing organisation rather than duplicating it. 'Other'
+    organisations have no external identifier to match on, so they're matched by name instead, otherwise a new
+    custom code is generated.
+    """
+    if type_ in (OrganisationType.COMPANY, OrganisationType.CHARITY):
+        external_id = f"{type_.external_id_prefix}{typed_id}"
+        existing = db.session.scalars(
+            select(Organisation).where(
+                Organisation.mode == OrganisationModeEnum.LIVE, Organisation.external_id == external_id
+            )
+        ).one_or_none()
+        if existing:
+            return existing
+    else:
+        existing = db.session.scalars(
+            select(Organisation).where(Organisation.mode == OrganisationModeEnum.LIVE, Organisation.name == name)
+        ).one_or_none()
+        if existing:
+            return existing
+
+        typed_id = uuid.uuid4().hex[:12].upper()
+        external_id = f"{type_.external_id_prefix}{typed_id}"
+
+    # `uq_organisation_name_mode` is unique on (name, mode); if this name is already taken by a different
+    # organisation, suffix it with the reference so we don't 500 on a collision.
+    name_taken_by_other_org = (
+        db.session.scalars(
+            select(Organisation).where(
+                Organisation.mode == OrganisationModeEnum.LIVE,
+                Organisation.name == name,
+                Organisation.external_id != external_id,
+            )
+        ).first()
+        is not None
+    )
+    resolved_name = f"{name} ({external_id})" if name_taken_by_other_org else name
+
+    organisation = Organisation(
+        external_id=external_id,
+        name=resolved_name,
+        type=type_,
+        status=OrganisationStatus.ACTIVE,
+        can_manage_grants=False,
+        mode=OrganisationModeEnum.LIVE,
+    )
+    organisation.typed_id = typed_id or ""
+    db.session.add(organisation)
+
+    test_organisation = Organisation(
+        external_id=external_id,
+        name=f"{resolved_name} (test)",
+        type=type_,
+        status=OrganisationStatus.ACTIVE,
+        can_manage_grants=False,
+        mode=OrganisationModeEnum.TEST,
+    )
+    test_organisation.typed_id = typed_id or ""
+    db.session.add(test_organisation)
+
+    return organisation

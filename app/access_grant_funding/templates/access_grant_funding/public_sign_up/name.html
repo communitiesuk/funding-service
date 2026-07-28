@@ -7,7 +7,7 @@
   {{ super() }}
   {{
     govukBackLink({
-      "href": url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id),
+      "href": back_url,
       "text": "Back"
     })
   }}
@@ -25,7 +25,7 @@
             "label": {"text": form.full_name.label.text, "isPageHeading": true, "classes": "govuk-label--l"},
           })
         }}
-        {{ form.submit }}
+        {{ form.submit(params={"text": submit_text}) }}
       </form>
     </div>
   </div>

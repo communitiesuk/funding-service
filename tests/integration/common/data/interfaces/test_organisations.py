@@ -3,6 +3,7 @@ import datetime
 import pytest
 
 from app.common.data.interfaces.organisations import (
+    get_or_create_self_registered_organisation,
     get_organisation_count,
     get_organisations,
     get_organisations_by_trusted_domain,
@@ -531,3 +532,86 @@ class TestUpsertOrganisations:
         db_session.expire_all()
         final_count = db_session.query(Organisation).count()
         assert final_count == initial_count
+
+
+class TestGetOrCreateSelfRegisteredOrganisation:
+    def test_creates_a_company_with_a_test_counterpart(self, db_session):
+        organisation = get_or_create_self_registered_organisation(
+            name="Northern Regeneration Partners Limited", type_=OrganisationType.COMPANY, typed_id="01234567"
+        )
+
+        assert organisation.external_id == "CH-01234567"
+        assert organisation.mode == OrganisationModeEnum.LIVE
+        assert organisation.companies_house_number == "01234567"
+        assert organisation.status == OrganisationStatus.ACTIVE
+        assert organisation.can_manage_grants is False
+
+        test_organisation = (
+            db_session.query(Organisation).filter_by(external_id="CH-01234567", mode=OrganisationModeEnum.TEST).one()
+        )
+        assert test_organisation.name == "Northern Regeneration Partners Limited (test)"
+        assert test_organisation.companies_house_number == "01234567"
+
+    def test_creates_a_charity_with_a_test_counterpart(self, db_session):
+        organisation = get_or_create_self_registered_organisation(
+            name="The Riverside Youth Trust", type_=OrganisationType.CHARITY, typed_id="1122334"
+        )
+
+        assert organisation.external_id == "CC-1122334"
+        assert organisation.charity_commission_number == "1122334"
+
+    def test_reuses_an_existing_company_with_a_matching_external_id(self, factories, db_session):
+        existing = factories.organisation.create(
+            name="Existing Co",
+            type=OrganisationType.COMPANY,
+            external_id="CH-01234567",
+        )
+
+        organisation = get_or_create_self_registered_organisation(
+            name="Northern Regeneration Partners Limited", type_=OrganisationType.COMPANY, typed_id="01234567"
+        )
+
+        assert organisation.id == existing.id
+        assert db_session.query(Organisation).filter_by(external_id="CH-01234567").count() == 1
+
+    def test_creates_an_other_organisation_with_a_generated_custom_code(self, db_session):
+        organisation = get_or_create_self_registered_organisation(
+            name="A New Village Hall", type_=OrganisationType.OTHER
+        )
+
+        assert organisation.external_id.startswith("FS-")
+        assert organisation.custom_code == organisation.external_id.removeprefix("FS-")
+        assert organisation.name == "A New Village Hall"
+
+    def test_reuses_an_existing_other_organisation_matched_by_name(self, factories, db_session):
+        existing = factories.organisation.create(name="A New Village Hall", type=OrganisationType.OTHER)
+
+        organisation = get_or_create_self_registered_organisation(
+            name="A New Village Hall", type_=OrganisationType.OTHER
+        )
+
+        assert organisation.id == existing.id
+        assert db_session.query(Organisation).filter_by(name="A New Village Hall").count() == 1
+
+    def test_matches_other_organisation_names_case_insensitively(self, factories, db_session):
+        existing = factories.organisation.create(name="A New Village Hall", type=OrganisationType.OTHER)
+
+        organisation = get_or_create_self_registered_organisation(
+            name="a new village hall", type_=OrganisationType.OTHER
+        )
+
+        assert organisation.id == existing.id
+
+    def test_suffixes_the_name_when_it_collides_with_a_different_organisation(self, factories, db_session):
+        factories.organisation.create(name="Acme Limited", type=OrganisationType.COMPANY, external_id="CH-11111111")
+
+        organisation = get_or_create_self_registered_organisation(
+            name="Acme Limited", type_=OrganisationType.COMPANY, typed_id="22222222"
+        )
+
+        assert organisation.name == "Acme Limited (CH-22222222)"
+
+        test_organisation = (
+            db_session.query(Organisation).filter_by(external_id="CH-22222222", mode=OrganisationModeEnum.TEST).one()
+        )
+        assert test_organisation.name == "Acme Limited (CH-22222222) (test)"

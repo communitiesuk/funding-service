@@ -1,7 +1,13 @@
+from collections.abc import Callable
+from typing import Any
+
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
-from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired, Email
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
+from wtforms import RadioField, StringField, SubmitField
+from wtforms.validators import DataRequired, Email, ValidationError
+
+from app.access_grant_funding.mock_registries import RegisteredOrganisation
+from app.access_grant_funding.session_models import SignUpOrganisationType
 
 
 class PublicSignUpEmailForm(FlaskForm):
@@ -28,6 +34,81 @@ class PublicSignUpNameForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Continue and start application", widget=GovSubmitInput())
+
+
+class PublicSignUpOrganisationTypeForm(FlaskForm):
+    organisation_type = RadioField(
+        "What is your organisation type?",
+        choices=[
+            (SignUpOrganisationType.COMPANY.value, "Company"),
+            (SignUpOrganisationType.CHARITY.value, "Charity"),
+            (SignUpOrganisationType.LOCAL_AUTHORITY.value, "Local authority"),
+            (SignUpOrganisationType.OTHER.value, "Other"),
+        ],
+        validators=[DataRequired(message="Select your organisation type")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class PublicSignUpOrganisationReferenceForm(FlaskForm):
+    has_reference_number = RadioField(
+        "Do you have a reference number?",
+        choices=[("yes", "Yes"), ("no", "No")],
+        validators=[DataRequired(message="Select an option")],
+        widget=GovRadioInput(),
+    )
+    reference_number = StringField(
+        "Reference number",
+        filters=[lambda x: x.strip() if x else x],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(
+        self,
+        *args: Any,
+        lookup: Callable[[str], RegisteredOrganisation | None],
+        registry_label: str,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._lookup = lookup
+        self.registry_label = registry_label
+        self.has_reference_number.label.text = f"Do you have a {registry_label} reference number?"
+        self.reference_number.label.text = f"{registry_label} reference number"
+
+    def validate_reference_number(self, field: StringField) -> None:
+        if self.has_reference_number.data != "yes":
+            return
+
+        if not field.data:
+            raise ValidationError(f"Enter your {self.registry_label} reference number")
+
+        if self._lookup(field.data) is None:
+            raise ValidationError(
+                f"We could not find that {self.registry_label} reference number. Check it and try again."
+            )
+
+
+class PublicSignUpOrganisationNameForm(FlaskForm):
+    organisation_name = StringField(
+        "What is the name of your organisation?",
+        validators=[DataRequired(message="Enter the name of your organisation")],
+        filters=[lambda x: x.strip() if x else x],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class PublicSignUpConfirmOrganisationForm(FlaskForm):
+    is_correct_organisation = RadioField(
+        "Is this the organisation you're applying on behalf of?",
+        choices=[("yes", "Yes"), ("no", "No")],
+        validators=[DataRequired(message="Select an option")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
 
 
 class DeclineSignOffForm(FlaskForm):

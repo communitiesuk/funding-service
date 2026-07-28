@@ -1,0 +1,18 @@
+{% extends "access_grant_funding/public_sign_up/base.html" %}
+
+{% set page_title = "Contact our support desk" %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+
+      <p class="govuk-body">
+        Contact us through our
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>.
+      </p>
+      <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
+    </div>
+  </div>
+{% endblock content %}

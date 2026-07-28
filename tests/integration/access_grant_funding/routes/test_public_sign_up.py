@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none
+from app.common.data.models import GrantRecipient, Organisation
 from app.common.data.models_user import MagicLink
 from app.common.data.types import (
     CollectionStatusEnum,
@@ -12,6 +13,8 @@ from app.common.data.types import (
     GrantRecipientStatusEnum,
     GrantStatusEnum,
     ManagedExpressionsEnum,
+    OrganisationModeEnum,
+    OrganisationType,
     QuestionDataType,
     RoleEnum,
 )
@@ -21,6 +24,7 @@ from tests.utils import get_h1_text, page_has_error
 
 TRUSTED_DOMAIN = "barnsley.gov.uk"
 APPLICANT_EMAIL = f"chief.cheesemonger@{TRUSTED_DOMAIN}"
+UNTRUSTED_EMAIL = "someone@example.com"
 
 
 @pytest.fixture()
@@ -150,7 +154,7 @@ class TestPublicSignUpEmail:
 
 @pytest.mark.authenticate_as(APPLICANT_EMAIL)
 class TestPublicSignUpEligible:
-    def test_sends_you_back_to_the_email_page_when_your_domain_is_not_registered(
+    def test_sends_you_to_register_an_organisation_when_your_domain_is_not_registered(
         self, authenticated_no_role_client, application, factories
     ):
         factories.organisation.create(name="Barnsley Council", trusted_domains=["somewhere-else.gov.uk"])
@@ -160,13 +164,9 @@ class TestPublicSignUpEligible:
         )
 
         assert response.status_code == 302
-        assert response.location == url_for("access_grant_funding.public_sign_up_email", collection_id=application.id)
-
-        # ... and the email page tells them to talk to the service desk, with their address prefilled
-        response = authenticated_no_role_client.get(response.location)
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "We could not match your email address to an organisation")
-        assert soup.find("input", {"name": "email_address"})["value"] == APPLICANT_EMAIL
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_organisation_type", collection_id=application.id
+        )
 
     def test_offers_to_start_an_application_for_your_organisation(
         self, authenticated_no_role_client, application, factories
@@ -488,3 +488,307 @@ class TestPublicSignUpEligibilityQuestion:
         assert response.location == url_for(
             "access_grant_funding.public_sign_up_eligible", collection_id=application.id
         )
+
+
+@pytest.mark.authenticate_as(UNTRUSTED_EMAIL)
+class TestPublicSignUpOrganisationRegistration:
+    def test_local_authority_is_sent_to_contact_support(self, authenticated_no_role_client, application):
+        client = authenticated_no_role_client
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "local authority"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_contact_support", collection_id=application.id
+        )
+
+    def test_no_reference_number_is_sent_to_contact_support(self, authenticated_no_role_client, application):
+        client = authenticated_no_role_client
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "company"},
+        )
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "no"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_contact_support", collection_id=application.id
+        )
+
+    def test_unrecognised_reference_number_shows_a_field_error(self, authenticated_no_role_client, application):
+        client = authenticated_no_role_client
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "company"},
+        )
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "yes", "reference_number": "00000000"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "We could not find that Companies House reference number. Check it and try again.")
+
+    def test_not_your_organisation_is_sent_to_contact_support(self, authenticated_no_role_client, application):
+        client = authenticated_no_role_client
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "company"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "yes", "reference_number": "01234567"},
+        )
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_confirm_organisation", collection_id=application.id),
+            data={"is_correct_organisation": "no"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_contact_support", collection_id=application.id
+        )
+
+    def test_company_happy_path_registers_the_organisation_and_starts_applying(
+        self, authenticated_no_role_client, application, db_session
+    ):
+        client = authenticated_no_role_client
+        client.user.name = None
+        db_session.commit()
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "company"},
+        )
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id
+        )
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "yes", "reference_number": "01234567"},
+        )
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_confirm_organisation", collection_id=application.id
+        )
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_confirm_organisation", collection_id=application.id),
+            data={"is_correct_organisation": "yes"},
+        )
+        assert response.location == url_for("access_grant_funding.public_sign_up_name", collection_id=application.id)
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_name", collection_id=application.id),
+            data={"full_name": "Ada Lovelace"},
+        )
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_check_your_answers", collection_id=application.id
+        )
+
+        response = client.get(response.location)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Northern Regeneration Partners Limited" in soup.text
+        assert "01234567" in soup.text
+        assert "Ada Lovelace" in soup.text
+
+        response = client.post(response.request.path, data={"submit": "Confirm and start application"})
+
+        organisation = (
+            db_session.query(Organisation).filter_by(external_id="CH-01234567", mode=OrganisationModeEnum.LIVE).one()
+        )
+        assert organisation.name == "Northern Regeneration Partners Limited"
+        assert organisation.type == OrganisationType.COMPANY
+        assert organisation.companies_house_number == "01234567"
+
+        test_organisation = (
+            db_session.query(Organisation).filter_by(external_id="CH-01234567", mode=OrganisationModeEnum.TEST).one()
+        )
+        assert test_organisation.name == "Northern Regeneration Partners Limited (test)"
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collections", organisation_id=organisation.id, grant_id=application.grant_id
+        )
+
+        live_grant_recipient = get_grant_recipient_or_none(application.grant_id, organisation.id)
+        assert live_grant_recipient is not None
+        assert live_grant_recipient.status == GrantRecipientStatusEnum.APPLYING
+
+        test_grant_recipient = get_grant_recipient_or_none(application.grant_id, test_organisation.id)
+        assert test_grant_recipient is not None
+        assert test_grant_recipient.mode == GrantRecipientModeEnum.TEST
+
+        user = client.user
+        db_session.refresh(user)
+        assert user.name == "Ada Lovelace"
+        assert RoleEnum.DATA_PROVIDER in user.roles[0].permissions
+
+    def test_charity_happy_path_registers_the_organisation(self, authenticated_no_role_client, application, db_session):
+        client = authenticated_no_role_client
+        client.user.name = None
+        db_session.commit()
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "charity"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "yes", "reference_number": "1122334"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_confirm_organisation", collection_id=application.id),
+            data={"is_correct_organisation": "yes"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_name", collection_id=application.id),
+            data={"full_name": "Ada Lovelace"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_check_your_answers", collection_id=application.id),
+            data={"submit": "Confirm and start application"},
+        )
+
+        organisation = (
+            db_session.query(Organisation).filter_by(external_id="CC-1122334", mode=OrganisationModeEnum.LIVE).one()
+        )
+        assert organisation.name == "The Riverside Youth Trust"
+        assert organisation.type == OrganisationType.CHARITY
+        assert organisation.charity_commission_number == "1122334"
+
+        assert get_grant_recipient_or_none(application.grant_id, organisation.id) is not None
+
+    def test_other_happy_path_registers_the_organisation(self, authenticated_no_role_client, application, db_session):
+        client = authenticated_no_role_client
+        client.user.name = None
+        db_session.commit()
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "other"},
+        )
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_organisation_name", collection_id=application.id
+        )
+
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_name", collection_id=application.id),
+            data={"organisation_name": "Our Village Hall"},
+        )
+        assert response.location == url_for("access_grant_funding.public_sign_up_name", collection_id=application.id)
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_name", collection_id=application.id),
+            data={"full_name": "Ada Lovelace"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_check_your_answers", collection_id=application.id),
+            data={"submit": "Confirm and start application"},
+        )
+
+        organisation = db_session.query(Organisation).filter_by(name="Our Village Hall").one()
+        assert organisation.type == OrganisationType.OTHER
+        assert organisation.external_id.startswith("FS-")
+
+        assert get_grant_recipient_or_none(application.grant_id, organisation.id) is not None
+
+    def test_reuses_an_existing_organisation_with_the_same_reference(
+        self, authenticated_no_role_client, application, factories, db_session
+    ):
+        existing = factories.organisation.create(
+            name="Northern Regeneration Partners Limited",
+            type=OrganisationType.COMPANY,
+            external_id="CH-01234567",
+        )
+
+        client = authenticated_no_role_client
+        client.user.name = None
+        db_session.commit()
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "company"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "yes", "reference_number": "01234567"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_confirm_organisation", collection_id=application.id),
+            data={"is_correct_organisation": "yes"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_name", collection_id=application.id),
+            data={"full_name": "Ada Lovelace"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_check_your_answers", collection_id=application.id),
+            data={"submit": "Confirm and start application"},
+        )
+
+        assert db_session.query(Organisation).filter_by(external_id="CH-01234567").count() == 1
+        organisation = db_session.query(Organisation).filter_by(external_id="CH-01234567").one()
+        assert organisation.id == existing.id
+
+    def test_an_organisation_already_applying_is_sent_to_contact_support(
+        self, authenticated_no_role_client, application, factories, db_session
+    ):
+        existing = factories.organisation.create(
+            name="Northern Regeneration Partners Limited",
+            type=OrganisationType.COMPANY,
+            external_id="CH-01234567",
+        )
+        factories.grant_recipient.create(
+            grant=application.grant, organisation=existing, status=GrantRecipientStatusEnum.APPLYING
+        )
+
+        client = authenticated_no_role_client
+        client.user.name = None
+        db_session.commit()
+
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id),
+            data={"organisation_type": "company"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_organisation_reference", collection_id=application.id),
+            data={"has_reference_number": "yes", "reference_number": "01234567"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_confirm_organisation", collection_id=application.id),
+            data={"is_correct_organisation": "yes"},
+        )
+        client.post(
+            url_for("access_grant_funding.public_sign_up_name", collection_id=application.id),
+            data={"full_name": "Ada Lovelace"},
+        )
+        response = client.post(
+            url_for("access_grant_funding.public_sign_up_check_your_answers", collection_id=application.id),
+            data={"submit": "Confirm and start application"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_contact_support", collection_id=application.id
+        )
+
+        grant_recipients = db_session.query(GrantRecipient).filter_by(
+            grant_id=application.grant_id, organisation_id=existing.id
+        )
+        assert grant_recipients.count() == 1
+
+        user = authenticated_no_role_client.user
+        db_session.refresh(user)
+        assert user.roles == []
