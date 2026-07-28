@@ -56,7 +56,7 @@ from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
-from app.common.utils import uppercase_first
+from app.common.utils import comma_join_items, uppercase_first
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
@@ -1120,8 +1120,10 @@ class UploadDataSetForm(FlaskForm):
         self,
         *args: Any,
         existing_data_source_names: list[str | None],
+        collection: Collection,
         existing_datasource: DataSource | None = None,
         submitted_orgs: list[Organisation] | None = None,
+        all_organisations: list[Organisation] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -1129,6 +1131,8 @@ class UploadDataSetForm(FlaskForm):
         self.existing_datasource = existing_datasource
         self.data_errors = []
         self.submitted_orgs = submitted_orgs or []
+        self.all_organisations = all_organisations or []
+        self.collection = collection
         self.removed_column_errors = {}
         self.changed_column_errors = {}
 
@@ -1194,7 +1198,7 @@ class UploadDataSetForm(FlaskForm):
             existing_org_item = existing_datasource.get_filtered_organisation_item(org.external_id)
             if not existing_org_item:
                 # Nothing to validate if there was no data for this org in the first place
-                return
+                continue
             new_org_item_row = next(
                 (row for row in rows if row[DATA_SET_EXTERNAL_ID_COLUMN_HEADER] == org.external_id), None
             )
@@ -1248,6 +1252,37 @@ class UploadDataSetForm(FlaskForm):
         self.changed_column_errors = changed_column_errors
         if removed_column_errors or changed_column_errors:
             raise StopValidation("There is a problem")
+
+    def _validate_no_dropped_organisation_items(self, rows: list[dict[str, str]]) -> None:
+        if self.collection.is_editable_for_current_status:
+            return
+
+        # Only require orgs that are both a) already part of this data set and b) still a current grant recipient.
+        # This means a recipient removed from the grant entirely is fine to drop, and a recipient who's never had data
+        # in this data set (eg they were added to the grant for a later, still-in-draft report or are a last-minute
+        # addition) isn't expected to appear here either as there'd be nothing to drop.
+        assert self.existing_datasource is not None
+        existing_item_external_ids = {item.external_id for item in self.existing_datasource.organisation_items}
+        current_recipient_external_ids = {org.external_id for org in self.all_organisations}
+        required_external_ids = existing_item_external_ids.intersection(current_recipient_external_ids)
+
+        new_external_ids = {row.get(DATA_SET_EXTERNAL_ID_COLUMN_HEADER, "").strip() for row in rows}
+        missing_external_ids = required_external_ids - new_external_ids
+        if not missing_external_ids:
+            return
+
+        name_by_external_id = {org.external_id: org.name for org in self.all_organisations}
+        missing_names = sorted(
+            name_by_external_id.get(external_id, external_id) for external_id in missing_external_ids
+        )
+
+        gr = "grant recipient" if len(missing_names) == 1 else "grant recipients"
+        quoted_names = [f"‘{name}’" for name in missing_names]
+        raise ValidationError(
+            f"Missing {gr} {comma_join_items(quoted_names)} in the selected file. "
+            f"Make sure the data set includes the {gr} so they can complete the open "
+            f"{self.collection.type.constants.singular}"
+        )
 
     def _validate_existing_references(self, existing_datasource: DataSource, fieldnames: list) -> list[str]:
         fieldnames_to_safe_ids = {fieldname: safe_column_id(fieldname) for fieldname in fieldnames}
@@ -1359,6 +1394,7 @@ class UploadDataSetForm(FlaskForm):
                 if errors:
                     self.data_errors = errors
                     raise ValidationError(errors[0])
+                self._validate_no_dropped_organisation_items(rows)
                 self._validate_data_for_existing_submissions(self.existing_datasource, rows)
         finally:
             field.data.stream.seek(0)

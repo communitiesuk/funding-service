@@ -425,6 +425,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -451,6 +452,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -471,6 +473,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -496,6 +499,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -521,6 +525,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -547,6 +552,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -573,6 +579,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -599,6 +606,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -627,6 +635,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -656,6 +665,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -686,6 +696,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -717,6 +728,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -746,6 +758,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
@@ -775,6 +788,7 @@ class TestUploadDataSetForm:
             existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
             if is_existing
             else None,
+            collection=factories.collection.build(),
         )
         form.process(data)
 
