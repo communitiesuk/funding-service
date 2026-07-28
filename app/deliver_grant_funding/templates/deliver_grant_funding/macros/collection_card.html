@@ -2,6 +2,14 @@
 {% from "govuk_frontend_jinja/components/summary-list/macro.html" import govukSummaryList %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
+{% macro submissionCountsList(counts) %}
+  <ul class="govuk-list">
+    <li>{{ counts.applying if counts else 0 }} applying</li>
+    <li>{{ counts.submitted if counts else 0 }} submitted</li>
+    <li>{{ counts.in_progress if counts else 0 }} in progress</li>
+  </ul>
+{% endmacro %}
+
 {% macro collection_card(collection) %}
   {% set can_edit = authorisation_helper.can_edit_collection(current_user, collection.id) %}
   {% set grant = collection.grant %}
@@ -41,35 +49,66 @@
     {% endif %}
   {% endset %}
 
+  {% if collection.allow_rolling_submissions %}
+    {% set liveSubmissionsText %}
+      {% trans count = collection.live_submissions | length %}{{ count }} live submission{% pluralize %}{{ count }} live submissions{% endtrans %}
+      <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+    {% endset %}
+    {% set testSubmissionsText %}
+      {% trans count = collection.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
+      <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+    {% endset %}
 
-  {% set liveSubmissionsText %}
-    {% trans count = collection.live_submissions | length %}{{ count }} live submission{% pluralize %}{{ count }} live submissions{% endtrans %}
-    <span class="govuk-visually-hidden">for {{ collection.name }}</span>
-  {% endset %}
-  {% set testSubmissionsText %}
-    {% trans count = collection.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
-    <span class="govuk-visually-hidden">for {{ collection.name }}</span>
-  {% endset %}
+
+    {% set submissionsHtml %}
+      <p class="govuk-body">
+        <a
+          class="govuk-link govuk-link--no-visited-state"
+          href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.LIVE) }}">
+          {{ liveSubmissionsText }}
+        </a>
+      </p>
+
+      {# TODO: hide test submissions link when the reporting round status is live #}
+      <p class="govuk-body">
+        <a
+          class="govuk-link govuk-link--no-visited-state"
+          href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.TEST) }}">
+          {{ testSubmissionsText }}
+        </a>
+      </p>
+    {% endset %}
+  {% else %}
+    {% set live_counts = (submission_counts or {}).get(collection.id, {}).get(enum.submission_mode.LIVE) %}
+    {% set test_counts = (submission_counts or {}).get(collection.id, {}).get(enum.submission_mode.TEST) %}
 
 
-  {% set submissionsHtml %}
-    <p class="govuk-body">
-      <a
-        class="govuk-link govuk-link--no-visited-state"
-        href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.LIVE) }}">
-        {{ liveSubmissionsText }}
-      </a>
-    </p>
+    {% set submissionsHtml %}
+      <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1">Live<span class="govuk-visually-hidden"> submissions for {{ collection.name }}</span></p>
+      {{ submissionCountsList(live_counts) }}
+      {% if collection.is_closed %}
+        <p class="govuk-body">
+          <a
+            class="govuk-link govuk-link--no-visited-state"
+            href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.LIVE) }}">
+            View live submissions
+          </a>
+        </p>
+      {% else %}
+        <p class="govuk-hint">Submissions will be available to view when this {{ collection.type.constants.singular }} closes.</p>
+      {% endif %}
 
-    {# TODO: hide test submissions link when the reporting round status is live #}
-    <p class="govuk-body">
-      <a
-        class="govuk-link govuk-link--no-visited-state"
-        href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.TEST) }}">
-        {{ testSubmissionsText }}
-      </a>
-    </p>
-  {% endset %}
+      <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1">Test<span class="govuk-visually-hidden"> submissions for {{ collection.name }}</span></p>
+      {{ submissionCountsList(test_counts) }}
+      <p class="govuk-body">
+        <a
+          class="govuk-link govuk-link--no-visited-state"
+          href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.TEST) }}">
+          View test submissions
+        </a>
+      </p>
+    {% endset %}
+  {% endif %}
 
 
   {% set reportingPeriodText %}
@@ -92,6 +131,9 @@
   {% set actions = [] %}
   {% if can_edit %}
     {% do actions.append({"text": "Change name", "visuallyHiddenText": collection.title, "href": url_for("deliver_grant_funding.change_collection_name", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id), "classes": "govuk-link--no-visited-state" }) %}
+    {# TODO: collection.live_submissions is a recipient-joined count and will silently miss submissions with a NULL
+       grant_recipient_id, which migration 073 (dropping ck_grant_recipient_if_live) made possible. Not fixed here
+       as it's out of scope for rolling submissions. #}
     {% if not collection.live_submissions %}
       {% set delete_url = url_for("deliver_grant_funding.list_reports", grant_id=grant.id, delete=collection.id) if collection.is_monitoring_collection else url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id, delete=collection.id) %}
       {% do actions.append({"text": "Delete", "visuallyHiddenText": collection.title, "href": delete_url, "classes": "govuk-link--no-visited-state" }) %}

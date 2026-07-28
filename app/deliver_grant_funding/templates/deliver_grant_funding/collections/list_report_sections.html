@@ -131,6 +131,11 @@
               Configure validate submission
             </a>
           </li>
+          <li>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_configure_rolling_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">
+              Configure rolling submissions
+            </a>
+          </li>
         {% endif %}
         {% if collection.allow_multiple_submissions %}
           <li>

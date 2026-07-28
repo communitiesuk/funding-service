@@ -1069,6 +1069,19 @@ class ValidateSubmissionSettingsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class RollingSubmissionsSettingsForm(FlaskForm):
+    allow_rolling_submissions = RadioField(
+        "Should live submissions be visible to the grant team as they are started?",
+        choices=[
+            (True, "Yes, show submissions as they are started"),
+            (False, "No, only show submissions once the collection closes"),
+        ],
+        validators=[DataRequired("Select whether live submissions should be visible as they are started")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+
 class CollectionSettingsSelectSectionForm(FlaskForm):
     section = RadioField(
         "Select a section",

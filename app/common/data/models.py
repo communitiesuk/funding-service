@@ -365,6 +365,10 @@ class Collection(BaseModel):
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
     allow_validate_submission: Mapped[bool] = mapped_column(default=False)
+    # Rolling collections (the default) let the grant team see live submissions as recipients create and fill them in.
+    # Non-rolling ("competed") collections hide live submissions from the grant team until the collection closes, so
+    # that every application is assessed together and fairly.
+    allow_rolling_submissions: Mapped[bool] = mapped_column(default=True)
     requires_eligibility_check: Mapped[bool] = mapped_column(default=False)
     prospectus_markdown: Mapped[str | None]
     submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
@@ -449,6 +453,17 @@ class Collection(BaseModel):
     @property
     def is_closed(self) -> bool:
         return self.status == CollectionStatusEnum.CLOSED
+
+    def submissions_are_viewable(self, submission_mode: SubmissionModeEnum) -> bool:
+        """Whether the grant team can view submissions of this mode yet.
+
+        Non-rolling ("competed") collections hide their LIVE submissions until the collection closes. TEST and
+        PREVIEW submissions are always viewable, so grant teams can keep testing their own form while a competed
+        round is open.
+        """
+        if submission_mode != SubmissionModeEnum.LIVE:
+            return True
+        return self.allow_rolling_submissions or self.is_closed
 
     @property
     def is_open_for_changes(self) -> bool:

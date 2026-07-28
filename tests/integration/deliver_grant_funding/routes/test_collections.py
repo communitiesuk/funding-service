@@ -9111,6 +9111,44 @@ class TestViewSubmission:
             submission_id=submission_submitted.id,
         )
 
+    def test_answers_gating_for_unsubmitted_submission(
+        self, authenticated_grant_member_client, grant_recipient, submission_in_progress, db_session
+    ):
+        client = authenticated_grant_member_client
+        grant = grant_recipient.grant
+        grant.allow_pre_award = True
+        db_session.commit()
+
+        submission_url = url_for(
+            "deliver_grant_funding.view_submission",
+            grant_id=grant.id,
+            submission_id=submission_in_progress.id,
+        )
+
+        response = client.get(submission_url)
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "has not been submitted" in soup.text
+        assert "Question answer" not in soup.text
+        assert page_has_link(soup, "Show work in progress answers") is not None
+        assert page_has_link(soup, "Download responses as PDF") is None
+
+        response_wip = client.get(submission_url + "?show_work_in_progress")
+        assert response_wip.status_code == 200
+        soup_wip = BeautifulSoup(response_wip.data, "html.parser")
+        assert "Question answer" in soup_wip.text
+        assert "work in progress" in soup_wip.text.lower()
+        assert page_has_link(soup_wip, "Download responses as PDF") is None
+
+        pdf_response = client.get(
+            url_for(
+                "deliver_grant_funding.export_submission_pdf",
+                grant_id=grant.id,
+                submission_id=submission_in_progress.id,
+            )
+        )
+        assert pdf_response.status_code == 403
+
     def test_get_view_submission_displays_questions_with_add_another(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
@@ -9397,6 +9435,60 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
         tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
         assert "Changed" not in tag_texts
+
+
+class TestRollingSubmissionsGuards:
+    @pytest.mark.parametrize(
+        "route_name,url_kwargs",
+        [
+            ("deliver_grant_funding.list_submissions", {}),
+            ("deliver_grant_funding.export_collection_submissions", {"export_format": "csv"}),
+            ("deliver_grant_funding.view_submission", {}),
+            ("deliver_grant_funding.export_submission_pdf", {}),
+        ],
+    )
+    def test_live_submissions_hidden_until_closed_for_non_rolling_collection(
+        self, authenticated_grant_member_client, factories, db_session, mocker, route_name, url_kwargs
+    ):
+        mocker.patch("app.deliver_grant_funding.routes.collections.render_pdf", return_value=b"%PDF-fake-content")
+        client = authenticated_grant_member_client
+        collection = factories.collection.create(
+            grant=client.grant, allow_rolling_submissions=False, status=CollectionStatusEnum.OPEN
+        )
+        live_submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
+        test_submission = factories.submission.create(collection=collection, mode=SubmissionModeEnum.TEST)
+        # Set status directly after creation - the factory's post_generation hook recalculates status from
+        # form/event state, so passing status= as a create() kwarg would just be overwritten.
+        live_submission.status = SubmissionStatusEnum.SUBMITTED
+        test_submission.status = SubmissionStatusEnum.SUBMITTED
+        db_session.commit()
+
+        def _url(submission: Submission, submission_mode: SubmissionModeEnum) -> str:
+            if route_name in (
+                "deliver_grant_funding.view_submission",
+                "deliver_grant_funding.export_submission_pdf",
+            ):
+                return url_for(route_name, grant_id=client.grant.id, submission_id=submission.id, **url_kwargs)
+            return url_for(
+                route_name,
+                grant_id=client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+                submission_mode=submission_mode,
+                **url_kwargs,
+            )
+
+        live_response = client.get(_url(live_submission, SubmissionModeEnum.LIVE))
+        assert live_response.status_code == 403
+
+        test_response = client.get(_url(test_submission, SubmissionModeEnum.TEST))
+        assert test_response.status_code == 200
+
+        collection.status = CollectionStatusEnum.CLOSED
+        db_session.commit()
+
+        live_response_after_close = client.get(_url(live_submission, SubmissionModeEnum.LIVE))
+        assert live_response_after_close.status_code == 200
 
 
 class TestExportSubmissionPDFLock:

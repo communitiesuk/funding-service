@@ -5,7 +5,11 @@ from flask.typing import ResponseReturnValue
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import has_deliver_grant_role, has_feature_flag_enabled
-from app.common.data.interfaces.collections import delete_collection, get_collection
+from app.common.data.interfaces.collections import (
+    delete_collection,
+    get_collection,
+    get_submission_counts_for_grant_collections,
+)
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum
@@ -21,6 +25,11 @@ from app.extensions import auto_commit_after_request
 @auto_commit_after_request
 def list_pre_award_forms(grant_id: uuid.UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id, with_all_collections=True)
+    submission_counts = (
+        get_submission_counts_for_grant_collections(grant_id)
+        if any(not c.allow_rolling_submissions for c in grant.pre_award_forms)
+        else {}
+    )
 
     delete_wtform, delete_pre_award_form = None, None
     if delete_pre_award_form_id := request.args.get("delete"):
@@ -48,4 +57,5 @@ def list_pre_award_forms(grant_id: uuid.UUID) -> ResponseReturnValue:
         grant=grant,
         delete_form=delete_wtform,
         delete_pre_award_form=delete_pre_award_form,
+        submission_counts=submission_counts,
     )

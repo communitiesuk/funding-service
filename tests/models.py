@@ -315,6 +315,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     slug = factory.Sequence(lambda n: "collection-%d" % n)
     type = CollectionType.MONITORING_REPORT
     requires_certification = True  # note: this'll need to change when we have more than just monitoring reports
+    allow_rolling_submissions = True
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)

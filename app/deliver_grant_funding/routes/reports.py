@@ -10,6 +10,7 @@ from app.common.auth.decorators import has_deliver_grant_role
 from app.common.data.interfaces.collections import (
     delete_collection,
     get_collection,
+    get_submission_counts_for_grant_collections,
 )
 from app.common.data.interfaces.data_sets import get_collection_ids_with_missing_data_data_sets
 from app.common.data.interfaces.grants import get_grant
@@ -32,6 +33,11 @@ if TYPE_CHECKING:
 def list_reports(grant_id: UUID) -> ResponseReturnValue:
     grant = get_grant(grant_id, with_all_collections=True)
     collections_with_missing_data_data_sets = get_collection_ids_with_missing_data_data_sets(grant_id)
+    submission_counts = (
+        get_submission_counts_for_grant_collections(grant_id)
+        if any(not c.allow_rolling_submissions for c in grant.reports)
+        else {}
+    )
 
     delete_wtform, delete_report = None, None
     if delete_report_id := request.args.get("delete"):
@@ -60,4 +66,5 @@ def list_reports(grant_id: UUID) -> ResponseReturnValue:
         delete_form=delete_wtform,
         delete_report=delete_report,
         collections_with_missing_data_data_sets=collections_with_missing_data_data_sets,
+        submission_counts=submission_counts,
     )

@@ -112,6 +112,34 @@ class TestListReports:
             if can_edit:
                 assert link.get("href") == expected_link[1]
 
+    def test_non_rolling_card_shows_counts(self, authenticated_grant_member_client, factories, db_session):
+        client = authenticated_grant_member_client
+        collection = factories.collection.create(
+            grant=client.grant, allow_rolling_submissions=False, status=CollectionStatusEnum.OPEN
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=client.grant_recipient
+        )
+
+        response = client.get(url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id))
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        assert "1 applying" in soup.text
+        assert "0 submitted" in soup.text
+        assert "1 in progress" in soup.text
+
+        assert page_has_link(soup, "View live submissions") is None
+        assert page_has_link(soup, "View test submissions") is not None
+        assert "Submissions will be available to view when this report closes." in soup.text
+
+        collection.status = CollectionStatusEnum.CLOSED
+        db_session.commit()
+
+        response_closed = client.get(url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id))
+        soup_closed = BeautifulSoup(response_closed.data, "html.parser")
+        assert page_has_link(soup_closed, "View live submissions") is not None
+
     def test_get_hides_delete_link_with_submissions(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)

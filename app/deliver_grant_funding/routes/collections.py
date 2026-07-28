@@ -157,6 +157,7 @@ from app.deliver_grant_funding.forms import (
     ReopenSubmissionForm,
     RequestChangesSubmissionForm,
     RequestOrAllowChangesSubmissionForm,
+    RollingSubmissionsSettingsForm,
     SelectCollectionToCopyForm,
     SelectConditionCalculationForm,
     SelectDataSourceDataSetColumnForm,
@@ -569,6 +570,44 @@ def collection_configure_validate_submission(
 
     return render_template(
         "deliver_grant_funding/collections/configure_validate_submission.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-rolling-submissions",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@auto_commit_after_request
+def collection_configure_rolling_submissions(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = RollingSubmissionsSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
+            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
+        else:
+            update_collection(
+                collection,
+                allow_rolling_submissions=form.allow_rolling_submissions.data == "True",
+            )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.list_collection_sections",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_rolling_submissions.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3452,6 +3491,8 @@ def list_submissions(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, submission_mode: SubmissionModeEnum
 ) -> ResponseReturnValue:
     collection = interfaces.collections.get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    if not collection.submissions_are_viewable(submission_mode):
+        abort(403)
 
     delete_all_form = GenericConfirmDeletionForm() if "delete_all" in request.args else None
     if delete_all_form and delete_all_form.validate_on_submit():
@@ -3499,6 +3540,8 @@ def export_collection_submissions(
     collection = interfaces.collections.get_collection(
         collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True
     )
+    if not collection.submissions_are_viewable(submission_mode):
+        abort(403)
     helper = AllSubmissionsHelper(collection=collection, submission_mode=submission_mode)
 
     export_format = export_format.lower()
@@ -3542,6 +3585,8 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
     collection_id = helper.collection.id
     submission_mode = helper.submission.mode
+    if not helper.collection.submissions_are_viewable(helper.submission.mode):
+        abort(403)
 
     delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
     if delete_wtform:
@@ -3597,6 +3642,10 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
 @has_deliver_grant_role(RoleEnum.MEMBER)
 def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
+    if not helper.collection.submissions_are_viewable(helper.submission.mode):
+        abort(403)
+    if not helper.is_submitted:
+        abort(403)
 
     html_content = render_template(
         "common/submission_print_baseline.html",

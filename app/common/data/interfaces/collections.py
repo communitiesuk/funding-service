@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from collections import defaultdict
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
@@ -7,7 +8,7 @@ from typing import Any, List, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
 
 from flask import current_app
-from sqlalchemy import and_, delete, func, null, or_, select, text
+from sqlalchemy import and_, case, delete, distinct, func, not_, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -393,6 +394,7 @@ def update_collection(  # noqa: C901
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     allow_validate_submission: bool | TNotProvided = NOT_PROVIDED,
+    allow_rolling_submissions: bool | TNotProvided = NOT_PROVIDED,
     requires_eligibility_check: bool | TNotProvided = NOT_PROVIDED,
     depends_on_collection_eligibility_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     prospectus_markdown: str | None | TNotProvided = NOT_PROVIDED,
@@ -473,6 +475,9 @@ def update_collection(  # noqa: C901
 
     if allow_validate_submission is not NOT_PROVIDED:
         collection.allow_validate_submission = allow_validate_submission
+
+    if allow_rolling_submissions is not NOT_PROVIDED:
+        collection.allow_rolling_submissions = allow_rolling_submissions
 
     if requires_eligibility_check is not NOT_PROVIDED:
         collection.requires_eligibility_check = requires_eligibility_check
@@ -790,6 +795,72 @@ def get_submission_list_for_collection(
         )
         for row in db.session.execute(stmt).all()
     ]
+
+
+@dataclass(frozen=True)
+class CollectionSubmissionCounts:
+    """Aggregate submission counts for a collection, for a single submission mode.
+
+    `applying` counts every grant recipient in this mode - the same population `get_submission_list_for_collection`
+    renders a row for - including recipients who have not started a submission yet.
+
+    NOTE: `GrantRecipient` is scoped to the *grant*, not the collection, so two collections on the same grant will
+    report the same `applying` figure. This is a known limitation, kept for consistency with the existing
+    submissions list rather than modelled around.
+    """
+
+    applying: int
+    submitted: int
+    in_progress: int
+
+
+def get_submission_counts_for_grant_collections(
+    grant_id: UUID,
+) -> dict[UUID, dict[SubmissionModeEnum, CollectionSubmissionCounts]]:
+    """Fetch applying/submitted/in-progress counts for every collection on a grant, keyed by collection then mode.
+
+    Runs one aggregate query per submission mode rather than loading full submission rows -
+    `Collection.live_submissions` / `test_submissions` are Python-side filters over the lazy `_submissions`
+    relationship, so they would load every submission row (including the `data` JSONB blob) once per collection.
+
+    "In progress" means "has a submission that is not submitted", not the `IN_PROGRESS_STATUSES` tuple - that tuple
+    excludes `READY_TO_SUBMIT` / `AWAITING_SIGN_OFF`, which would otherwise silently vanish from the count.
+    """
+    counts: dict[UUID, dict[SubmissionModeEnum, CollectionSubmissionCounts]] = defaultdict(dict)
+
+    for submission_mode in (SubmissionModeEnum.LIVE, SubmissionModeEnum.TEST):
+        grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
+        stmt = (
+            select(
+                Collection.id.label("collection_id"),
+                func.count(distinct(GrantRecipient.id)).label("applying"),
+                func.count(distinct(case((Submission.is_submitted, GrantRecipient.id)))).label("submitted"),
+                func.count(
+                    distinct(case((and_(Submission.id.is_not(None), not_(Submission.is_submitted)), GrantRecipient.id)))
+                ).label("in_progress"),
+            )
+            .select_from(Collection)
+            .join(GrantRecipient, GrantRecipient.grant_id == Collection.grant_id)
+            .outerjoin(
+                Submission,
+                and_(
+                    Submission.collection_id == Collection.id,
+                    Submission.grant_recipient_id == GrantRecipient.id,
+                    Submission.mode == submission_mode,
+                ),
+            )
+            .where(Collection.grant_id == grant_id, GrantRecipient.mode == grant_recipient_mode)
+            .group_by(Collection.id)
+        )
+
+        for row in db.session.execute(stmt).all():
+            counts[row.collection_id][submission_mode] = CollectionSubmissionCounts(
+                applying=row.applying,
+                submitted=row.submitted,
+                in_progress=row.in_progress,
+            )
+
+    return dict(counts)
 
 
 def get_submissions_by_grant_recipient_collection(

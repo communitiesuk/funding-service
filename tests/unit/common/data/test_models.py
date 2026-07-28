@@ -18,6 +18,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionModeEnum,
 )
 
 
@@ -348,6 +349,38 @@ class TestGrantAccessPreAwardForms:
         assert result[0].id == form3.id
         assert result[1].id == form1.id
         assert result[2].id == form2.id
+
+
+class TestSubmissionsAreViewable:
+    @pytest.mark.parametrize(
+        "allow_rolling_submissions,status,submission_mode,expected",
+        [
+            # Rolling collections: LIVE is always viewable, regardless of status.
+            (True, CollectionStatusEnum.DRAFT, SubmissionModeEnum.LIVE, True),
+            (True, CollectionStatusEnum.OPEN, SubmissionModeEnum.LIVE, True),
+            (True, CollectionStatusEnum.CLOSED, SubmissionModeEnum.LIVE, True),
+            # Non-rolling ("competed") collections: LIVE is hidden until closed.
+            (False, CollectionStatusEnum.DRAFT, SubmissionModeEnum.LIVE, False),
+            (False, CollectionStatusEnum.OPEN, SubmissionModeEnum.LIVE, False),
+            (False, CollectionStatusEnum.CLOSED, SubmissionModeEnum.LIVE, True),
+            # TEST and PREVIEW are always viewable, regardless of rolling setting or status.
+            (True, CollectionStatusEnum.OPEN, SubmissionModeEnum.TEST, True),
+            (False, CollectionStatusEnum.OPEN, SubmissionModeEnum.TEST, True),
+            (False, CollectionStatusEnum.DRAFT, SubmissionModeEnum.TEST, True),
+            (True, CollectionStatusEnum.OPEN, SubmissionModeEnum.PREVIEW, True),
+            (False, CollectionStatusEnum.OPEN, SubmissionModeEnum.PREVIEW, True),
+        ],
+    )
+    def test_submissions_are_viewable(
+        self,
+        factories,
+        allow_rolling_submissions: bool,
+        status: CollectionStatusEnum,
+        submission_mode: SubmissionModeEnum,
+        expected: bool,
+    ):
+        collection = factories.collection.build(allow_rolling_submissions=allow_rolling_submissions, status=status)
+        assert collection.submissions_are_viewable(submission_mode) is expected
 
 
 class TestFullConditionChain:
