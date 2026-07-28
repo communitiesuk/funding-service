@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.models import Grant
-from app.common.data.types import RoleEnum
+from app.common.data.types import CollectionStatusEnum, CollectionType, GrantRecipientStatusEnum, RoleEnum
 from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
@@ -66,9 +66,9 @@ class TestViewGrantDetails:
         org_b = factories.organisation.create(name="Organisation B")
         org_c = factories.organisation.create(name="Organisation C")
 
-        factories.grant_recipient.create(grant=grant, organisation=org_a)
-        factories.grant_recipient.create(grant=grant, organisation=org_b)
-        factories.grant_recipient.create(grant=grant, organisation=org_c)
+        factories.grant_recipient.create(grant=grant, organisation=org_a, status=GrantRecipientStatusEnum.AWARDED)
+        factories.grant_recipient.create(grant=grant, organisation=org_b, status=GrantRecipientStatusEnum.AWARDED)
+        factories.grant_recipient.create(grant=grant, organisation=org_c, status=GrantRecipientStatusEnum.AWARDED)
 
         certifier_1_a = factories.user.create(name="Charlie Brown", email="charlie@org-a.com")
         data_provider_1_a = factories.user.create(name="Alice Smith", email="alice@org-a.com")
@@ -142,8 +142,19 @@ class TestViewGrantDetails:
         recipients_heading = soup.find("h2", string="Recipients")
         assert recipients_heading is not None
 
-        table = soup.find("table", class_="govuk-table")
-        assert table is not None
+        assert soup.find("h3", string="Allocated") is not None
+        assert soup.find("h3", string="Awarded") is not None
+
+        tables = soup.find_all("table", class_="govuk-table")
+        assert len(tables) == 2
+
+        allocated_table, awarded_table = tables
+
+        allocated_rows = allocated_table.find("tbody").find_all("tr")
+        assert len(allocated_rows) == 1
+        assert "No grant recipients have been allocated yet" in allocated_rows[0].get_text()
+
+        table = awarded_table
 
         headers = table.find_all("th")
         assert len(headers) == 2
@@ -190,17 +201,21 @@ class TestViewGrantDetails:
         recipients_heading = soup.find("h2", string="Recipients")
         assert recipients_heading is not None
 
-        table = soup.find("table", class_="govuk-table")
-        assert table is not None
+        tables = soup.find_all("table", class_="govuk-table")
+        assert len(tables) == 2
 
-        rows = table.find("tbody").find_all("tr")
-        assert len(rows) == 1
-        assert "No grant recipients have been set up yet" in rows[0].get_text()
+        allocated_rows = tables[0].find("tbody").find_all("tr")
+        assert len(allocated_rows) == 1
+        assert "No grant recipients have been allocated yet" in allocated_rows[0].get_text()
+
+        awarded_rows = tables[1].find("tbody").find_all("tr")
+        assert len(awarded_rows) == 1
+        assert "No grant recipients have been awarded yet" in awarded_rows[0].get_text()
 
     def test_displays_no_certifiers_message(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create()
         org = factories.organisation.create(name="Test Organisation")
-        factories.grant_recipient.create(grant=grant, organisation=org)
+        factories.grant_recipient.create(grant=grant, organisation=org, status=GrantRecipientStatusEnum.AWARDED)
 
         data_provider = factories.user.create(name="Jane Doe", email="jane@test.com")
         factories.user_role.create(
@@ -217,9 +232,10 @@ class TestViewGrantDetails:
 
         soup = BeautifulSoup(result.data, "html.parser")
 
-        table = soup.find("table", class_="govuk-table")
-        assert table is not None
+        tables = soup.find_all("table", class_="govuk-table")
+        assert len(tables) == 2
 
+        table = tables[1]
         rows = table.find("tbody").find_all("tr")
         assert len(rows) == 1
 
@@ -227,6 +243,89 @@ class TestViewGrantDetails:
         assert "Test Organisation" in row_text
         assert "Jane Doe (jane@test.com)" in row_text
         assert "No certifiers have been set up" in row_text
+
+    def test_allocated_and_awarded_recipients_are_split_into_separate_tables(
+        self, authenticated_platform_admin_client, factories
+    ):
+        grant = factories.grant.create()
+
+        allocated_org = factories.organisation.create(name="Allocated Org")
+        awarded_org = factories.organisation.create(name="Awarded Org")
+        applying_org = factories.organisation.create(name="Applying Org")
+
+        factories.grant_recipient.create(
+            grant=grant, organisation=allocated_org, status=GrantRecipientStatusEnum.ALLOCATED
+        )
+        factories.grant_recipient.create(grant=grant, organisation=awarded_org, status=GrantRecipientStatusEnum.AWARDED)
+        factories.grant_recipient.create(
+            grant=grant, organisation=applying_org, status=GrantRecipientStatusEnum.APPLYING
+        )
+
+        result = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+
+        soup = BeautifulSoup(result.data, "html.parser")
+
+        tables = soup.find_all("table", class_="govuk-table")
+        assert len(tables) == 2
+
+        allocated_table, awarded_table = tables
+        assert "Allocated Org" in allocated_table.get_text()
+        assert "Awarded Org" not in allocated_table.get_text()
+        assert "Applying Org" not in allocated_table.get_text()
+
+        assert "Awarded Org" in awarded_table.get_text()
+        assert "Allocated Org" not in awarded_table.get_text()
+        assert "Applying Org" not in awarded_table.get_text()
+
+    def test_displays_applicants_message_when_applying_recipients_and_open_form(
+        self, authenticated_platform_admin_client, factories
+    ):
+        grant = factories.grant.create()
+        factories.collection.create(grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.OPEN)
+
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+
+        result = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+
+        soup = BeautifulSoup(result.data, "html.parser")
+        assert "2 applicants for open forms" in soup.get_text()
+
+    def test_does_not_display_applicants_message_without_open_form(
+        self, authenticated_platform_admin_client, factories
+    ):
+        grant = factories.grant.create()
+        factories.collection.create(grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.CLOSED)
+
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+
+        result = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+
+        soup = BeautifulSoup(result.data, "html.parser")
+        assert "applicant" not in soup.get_text()
+
+    def test_does_not_display_applicants_message_without_applying_recipients(
+        self, authenticated_platform_admin_client, factories
+    ):
+        grant = factories.grant.create()
+        factories.collection.create(grant=grant, type=CollectionType.APPLICATION, status=CollectionStatusEnum.OPEN)
+
+        result = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+
+        soup = BeautifulSoup(result.data, "html.parser")
+        assert "applicant" not in soup.get_text()
 
 
 class TestChangeGGIS:

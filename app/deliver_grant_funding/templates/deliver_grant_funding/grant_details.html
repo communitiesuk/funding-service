@@ -6,6 +6,57 @@
 {% set page_title = "Grant details - " ~ grant.name %}
 {% set active_item_identifier = "details" %}
 
+{% macro grantRecipientsTable(grant_recipients, empty_message) %}
+  {% set tableRows = [] %}
+  {% if not grant_recipients %}
+    {% set noGrantRecipientsHtml %}
+      <span>{{ empty_message }}</span>
+    {% endset %}
+    {% do tableRows.append([{"html": noGrantRecipientsHtml, "colspan": 2}]) %}
+  {% else %}
+    {% for grant_recipient in grant_recipients %}
+      {% set userDetails %}
+        <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Can edit and submit reports:</p>
+        {% if grant_recipient.data_providers %}
+          <ul class="govuk-list govuk-list--bullet">
+            {% for user in grant_recipient.data_providers | sort(attribute="name") %}
+              <li>{{ user.name }} ({{ user.email }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="govuk-body govuk-!-margin-bottom-0">No data providers have been set up</p>
+        {% endif %}
+        <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Certifiers:</p>
+        {% if grant_recipient.certifiers %}
+          <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+            {% for user in grant_recipient.certifiers | sort(attribute="name") %}
+              <li>{{ user.name }} ({{ user.email }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="govuk-body govuk-!-margin-bottom-0">No certifiers have been set up</p>
+        {% endif %}
+      {% endset %}
+      {%
+        do tableRows.append([
+          {"text": grant_recipient.organisation.name},
+          {"html": userDetails}
+        ])
+      %}
+    {% endfor %}
+  {% endif %}
+
+  {{
+    govukTable({
+      "head": [
+        {"text": "Grant recipient"},
+        {"text": "Users"}
+      ],
+      "rows": tableRows
+    })
+  }}
+{% endmacro %}
+
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
@@ -91,54 +142,15 @@
 
       <h2 class="govuk-heading-m govuk-!-margin-top-9">Recipients</h2>
 
-      {% set tableRows = [] %}
-      {% if not grant_recipients %}
-        {% set noGrantRecipientsHtml %}
-          <span>No grant recipients have been set up yet</span>
-        {% endset %}
-        {% do tableRows.append([{"html": noGrantRecipientsHtml, "colspan": 2}]) %}
-      {% else %}
-        {% for grant_recipient in grant_recipients %}
-          {% set userDetails %}
-            <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Can edit and submit reports:</p>
-            {% if grant_recipient.data_providers %}
-              <ul class="govuk-list govuk-list--bullet">
-                {% for user in grant_recipient.data_providers | sort(attribute="name") %}
-                  <li>{{ user.name }} ({{ user.email }})</li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <p class="govuk-body govuk-!-margin-bottom-0">No data providers have been set up</p>
-            {% endif %}
-            <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Certifiers:</p>
-            {% if grant_recipient.certifiers %}
-              <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
-                {% for user in grant_recipient.certifiers | sort(attribute="name") %}
-                  <li>{{ user.name }} ({{ user.email }})</li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <p class="govuk-body govuk-!-margin-bottom-0">No certifiers have been set up</p>
-            {% endif %}
-          {% endset %}
-          {%
-            do tableRows.append([
-              {"text": grant_recipient.organisation.name},
-              {"html": userDetails}
-            ])
-          %}
-        {% endfor %}
+      {% if applying_grant_recipients_count and has_open_pre_award_forms %}
+        <p class="govuk-body">{{ applying_grant_recipients_count }} applicant{{ 's' if applying_grant_recipients_count != 1 else '' }} for open forms</p>
       {% endif %}
 
-      {{
-        govukTable({
-          "head": [
-            {"text": "Grant recipient"},
-            {"text": "Users"}
-          ],
-          "rows": tableRows
-        })
-      }}
+      <h3 class="govuk-heading-s">Allocated</h3>
+      {{ grantRecipientsTable(allocated_grant_recipients, "No grant recipients have been allocated yet") }}
+
+      <h3 class="govuk-heading-s govuk-!-margin-top-6">Awarded</h3>
+      {{ grantRecipientsTable(awarded_grant_recipients, "No grant recipients have been awarded yet") }}
     </div>
   </div>
 {% endblock content %}

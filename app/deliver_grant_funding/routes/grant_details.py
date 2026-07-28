@@ -8,7 +8,7 @@ from app.common.auth.decorators import has_deliver_grant_role, is_platform_admin
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grant_recipients import get_grant_recipients
-from app.common.data.types import RoleEnum
+from app.common.data.types import GrantRecipientStatusEnum, RoleEnum
 from app.deliver_grant_funding.forms import GrantChangeGGISForm, GrantContactForm, GrantDescriptionForm, GrantNameForm
 from app.deliver_grant_funding.routes import deliver_grant_funding_blueprint
 from app.extensions import auto_commit_after_request
@@ -18,13 +18,20 @@ from app.extensions import auto_commit_after_request
 @has_deliver_grant_role(RoleEnum.MEMBER)
 def grant_details(grant_id: UUID) -> ResponseReturnValue:
     grant = interfaces.grants.get_grant(grant_id)
+    grant_recipients = get_grant_recipients(
+        grant, with_data_providers=True, with_certifiers=True, with_organisations=True
+    )
+
     return render_template(
         "deliver_grant_funding/grant_details.html",
         grant=grant,
         roles_enum=RoleEnum,
-        grant_recipients=get_grant_recipients(
-            grant, with_data_providers=True, with_certifiers=True, with_organisations=True
+        allocated_grant_recipients=[gr for gr in grant_recipients if gr.status == GrantRecipientStatusEnum.ALLOCATED],
+        awarded_grant_recipients=[gr for gr in grant_recipients if gr.status == GrantRecipientStatusEnum.AWARDED],
+        applying_grant_recipients_count=sum(
+            1 for gr in grant_recipients if gr.status == GrantRecipientStatusEnum.APPLYING
         ),
+        has_open_pre_award_forms=any(form.is_open for form in grant.pre_award_forms),
     )
 
 
