@@ -291,6 +291,8 @@ class _SharedConfig(_BaseConfig):
     SYSTEM_USER_EMAIL: str = "funding-service-notify@communities.gov.uk"
     SYSTEM_USER_NAME: str = "Funding Service System"
 
+    FUNDING_SERVICE_INBOX_EMAIL: str = "FundingService@communities.gov.uk"
+
     ASSETS_VITE_BASE_URL: str = "http://localhost:5173"
     ASSETS_VITE_LIVE_ENABLED: bool = False
 

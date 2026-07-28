@@ -27,7 +27,7 @@ def slugify(text: str) -> str:
 
     text = text.lower()
     # Replace spaces (one or more) with a single hyphen
-    text = re.sub(r"\s+", "-", text.strip())
+    text = re.sub(r"[\s-]+", "-", text.strip())
     return text
 
 

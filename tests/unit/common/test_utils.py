@@ -21,6 +21,7 @@ from app.common.utils import comma_join_items, slugify, to_dict, uppercase_first
         ("    ", ""),
         ("Already-slugified-text", "already-slugified-text"),
         ("Under_score and-dash", "underscore-and-dash"),
+        ("Help - me", "help-me"),
         (None, ""),
         ("-", "-"),
     ],
