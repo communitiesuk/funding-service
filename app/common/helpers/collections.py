@@ -135,6 +135,10 @@ class SubmissionIsNotSubmittedError(Exception):
     pass
 
 
+class SubmissionIsAlreadyAssessedError(Exception):
+    pass
+
+
 def _any_data_source_missing_referenced_data(data_sources: Sequence[DataSource], organisation_external_id: str) -> bool:
     return any(
         data_source.has_missing_referenced_data_for_organisation(organisation_external_id)
@@ -1497,6 +1501,11 @@ class SubmissionHelper:
         if not self.is_submitted:
             raise SubmissionIsNotSubmittedError(
                 f"Could not validate submission id={self.id} because it is not submitted."
+            )
+
+        if self.submission.is_assessed:
+            raise SubmissionIsAlreadyAssessedError(
+                f"Could not validate submission id={self.id} because it has already been assessed."
             )
 
         if is_approved:

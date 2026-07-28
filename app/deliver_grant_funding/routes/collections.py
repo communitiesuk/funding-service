@@ -116,6 +116,7 @@ from app.common.helpers.collections import (
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
+    SubmissionIsAlreadyAssessedError,
     SubmissionIsNotSubmittedError,
 )
 from app.common.helpers.feature_flags import FeatureFlags
@@ -3592,6 +3593,8 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
             form.form_errors.append("You cannot assess this submission because the report does not allow validation")
         except SubmissionIsNotSubmittedError:
             form.form_errors.append("You cannot assess this submission because it has not been submitted")
+        except SubmissionIsAlreadyAssessedError:
+            form.form_errors.append("You cannot assess this submission because it has already been assessed")
 
     return render_template(
         "deliver_grant_funding/collections/approve_or_reject_submission.html",
