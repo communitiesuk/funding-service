@@ -133,6 +133,7 @@ def test_create_grant(app, db_session) -> None:
     assert from_db.organisation.name == app.config["PLATFORM_DEPARTMENT_ORGANISATION_CONFIG"]["name"]
     assert from_db.code == "TG"
     assert from_db.allow_pre_award is True
+    assert from_db.slug == "test-grant"
 
 
 def test_create_duplicate_grant(factories) -> None:
@@ -164,6 +165,7 @@ class TestUpdateGrant:
         )
 
         assert grant.name == "test_grant_updated"
+        assert grant.slug == "testgrantupdated"
         assert grant.description == "Updated grant description"
         assert grant.primary_contact_name == "Updated primary contact name"
         assert grant.primary_contact_email == "Updated primary contact email"
@@ -183,9 +185,11 @@ class TestUpdateGrant:
             primary_contact_email="Initial Email",
             ggis_number="GGIS-123456",
         )
+        original_slug = grant.slug
         updated_grant = update_grant(grant=grant)
 
         assert updated_grant.name == "test_grant"
+        assert updated_grant.slug == original_slug
         assert updated_grant.description == "Initial description"
         assert updated_grant.primary_contact_name == "Initial Contact"
         assert updated_grant.primary_contact_email == "Initial Email"

@@ -133,6 +133,7 @@ class _GrantFactory(SQLAlchemyModelFactory):
     id = factory.LazyFunction(uuid4)
     ggis_number = factory.Sequence(lambda n: f"GGIS-{n:06d}")
     name = factory.Sequence(lambda n: "Grant %d" % n)
+    slug = factory.Sequence(lambda n: "grant-%d" % n)
     code = factory.Sequence(lambda n: f"GRANT-{n}")
     status = GrantStatusEnum.DRAFT
     description = factory.Faker("text", max_nb_chars=200)

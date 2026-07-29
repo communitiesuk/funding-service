@@ -297,6 +297,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
 
     form_columns = [
         "name",
+        "slug",
         "code",
         "organisation",
         "ggis_number",

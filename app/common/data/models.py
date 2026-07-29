@@ -92,6 +92,7 @@ class Grant(BaseModel):
 
     ggis_number: Mapped[str]
     name: Mapped[CIStr] = mapped_column(unique=True)
+    slug: Mapped[str]
     code: Mapped[CIStr] = mapped_column(unique=True)
     status: Mapped[GrantStatusEnum] = mapped_column(default=GrantStatusEnum.DRAFT)
     description: Mapped[str]
