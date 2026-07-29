@@ -20,6 +20,11 @@
               <a class="govuk-link govuk-link--no-visited-state" href="#form-{{ form.id }}">{{ form.title }}</a>
             </li>
           {% endfor %}
+          {% if helper.eligibility_form %}
+            <li class="app-section-nav-list__item">
+              <a class="govuk-link govuk-link--no-visited-state" href="#form-{{ helper.eligibility_form.id }}">{{ helper.eligibility_form.title }}</a>
+            </li>
+          {% endif %}
         </ul>
       </nav>
     {% endif %}
@@ -31,7 +36,7 @@
       <p class="govuk-body">View all responses to the {{ helper.submission.collection.name }} by {{ org_name }}.</p>
       <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.export_submission_pdf', grant_id=helper.collection.grant_id, submission_id=helper.submission.id) }}">Download responses as PDF</a>
 
-      {{ submission_answers(helper, should_show_answers_diff=true) }}
+      {{ submission_answers(helper, should_show_answers_diff=true, include_eligibility=true) }}
     {% else %}
       <p class="govuk-body">The {{ type_constants.singular }} has not been submitted. Answers will display here when {{ org_name }} submits it to {{ helper.submission.collection.grant.organisation.name }}.</p>
 
@@ -42,7 +47,7 @@
           })
         }}
 
-        {{ submission_answers(helper, should_show_answers_diff=false) }}
+        {{ submission_answers(helper, should_show_answers_diff=false, include_eligibility=true) }}
 
         <p class="govuk-body">
           <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=helper.grant.id, submission_id=helper.submission.id) }}#submission-responses">Hide work in progress answers</a>

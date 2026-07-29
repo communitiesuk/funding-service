@@ -87,7 +87,7 @@
         </div>
       {% endif %}
     </div>
-    {% if can_edit %}
+    {% if can_edit and not db_form.is_eligibility %}
       <div class="govuk-grid-column-full">
         <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage section</h2>
 

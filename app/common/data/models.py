@@ -377,16 +377,6 @@ class Collection(BaseModel):
     )
     submission_guidance: Mapped[str | None]
 
-    # The eligibility-check collection an applicant must pass before starting a submission to this collection.
-    depends_on_collection_eligibility_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("collection.id"), nullable=True
-    )
-    depends_on_collection_eligibility: Mapped["Collection | None"] = relationship(
-        "Collection",
-        remote_side="Collection.id",
-        foreign_keys=[depends_on_collection_eligibility_id],
-    )
-
     # Prevents grant recipients from creating their own submissions in a multi-submission collection; where we set this
     # to be true, we need to generate the initial submissions for them.
     multiple_submissions_are_managed_by_service: Mapped[bool] = mapped_column(default=False)
@@ -482,6 +472,15 @@ class Collection(BaseModel):
     @property
     def is_pre_award_collection(self) -> bool:
         return self.type in PRE_AWARD_COLLECTIONS
+
+    @property
+    def eligibility_form(self) -> "Form | None":
+        return next((form for form in self.forms if form.is_eligibility), None)
+
+    @property
+    def application_forms(self) -> list["Form"]:
+        """Every section except the eligibility section, in order."""
+        return [form for form in self.forms if not form.is_eligibility]
 
     @property
     def public_sign_up(self) -> str:
@@ -668,6 +667,10 @@ class Form(BaseModel):
     order: Mapped[int]
     slug: Mapped[str]
 
+    # Eligibility sections are answered during public sign up, before the application starts. They are
+    # hidden from the tasklist and from exports, and there is at most one per collection.
+    is_eligibility: Mapped[bool] = mapped_column(default=False)
+
     collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
     collection: Mapped[Collection] = relationship("Collection", back_populates="forms")
 
@@ -675,6 +678,12 @@ class Form(BaseModel):
         UniqueConstraint("order", "collection_id", name="uq_form_order_collection", deferrable=True),
         UniqueConstraint("title", "collection_id", name="uq_form_title_collection"),
         UniqueConstraint("slug", "collection_id", name="uq_form_slug_collection"),
+        Index(
+            "uq_form_eligibility_collection",
+            "collection_id",
+            unique=True,
+            postgresql_where=text("is_eligibility"),
+        ),
     )
 
     # support fetching all of a forms components so that the selectin loading strategy can make one

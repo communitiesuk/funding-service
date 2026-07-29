@@ -2,8 +2,12 @@ import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 
+from app.common.data.interfaces.collections import (
+    get_submissions_by_grant_recipient_collection,
+    get_unclaimed_submission_for_user,
+)
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none
-from app.common.data.models import GrantRecipient, Organisation
+from app.common.data.models import GrantRecipient, Organisation, Submission
 from app.common.data.models_user import MagicLink
 from app.common.data.types import (
     CollectionStatusEnum,
@@ -17,6 +21,7 @@ from app.common.data.types import (
     OrganisationType,
     QuestionDataType,
     RoleEnum,
+    SubmissionModeEnum,
 )
 from app.common.expressions.references import ExpressionReference
 from tests.models import _get_grant_managing_organisation
@@ -46,8 +51,7 @@ def application(factories):
 @pytest.fixture()
 def application_with_eligibility_check(application, factories, db_session):
     """The `application` fixture, gated behind a single yes/no eligibility question."""
-    eligibility_collection = factories.collection.create(grant=application.grant, type=CollectionType.ELIGIBILITY_CHECK)
-    eligibility_form = factories.form.create(collection=eligibility_collection, title="Eligibility")
+    eligibility_form = factories.form.create(collection=application, title="Eligibility", is_eligibility=True)
     question = factories.question.create(
         form=eligibility_form, text="Are you a registered charity?", data_type=QuestionDataType.YES_NO
     )
@@ -60,7 +64,6 @@ def application_with_eligibility_check(application, factories, db_session):
     )
 
     application.requires_eligibility_check = True
-    application.depends_on_collection_eligibility = eligibility_collection
     db_session.commit()
 
     return application, question
@@ -488,6 +491,95 @@ class TestPublicSignUpEligibilityQuestion:
         assert response.location == url_for(
             "access_grant_funding.public_sign_up_eligible", collection_id=application.id
         )
+
+
+@pytest.mark.authenticate_as(APPLICANT_EMAIL)
+class TestPublicSignUpClaimsSubmission:
+    def _answer_eligibility_question(self, client, application, question):
+        return client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                collection_id=application.id,
+                question_id=question.id,
+            ),
+            data={question.safe_qid: "1", "submit": "Continue"},
+        )
+
+    def test_answering_eligibility_questions_creates_an_unclaimed_submission(
+        self, authenticated_no_role_client, application_with_eligibility_check
+    ):
+        application, question = application_with_eligibility_check
+
+        self._answer_eligibility_question(authenticated_no_role_client, application, question)
+
+        submission = get_unclaimed_submission_for_user(
+            authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE
+        )
+        assert submission is not None
+        assert submission.grant_recipient_id is None
+
+    def test_becoming_a_grant_recipient_claims_the_unclaimed_submission(
+        self, authenticated_no_role_client, application_with_eligibility_check, factories, db_session
+    ):
+        application, question = application_with_eligibility_check
+        organisation = factories.organisation.create(name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN])
+
+        self._answer_eligibility_question(authenticated_no_role_client, application, question)
+        unclaimed = get_unclaimed_submission_for_user(
+            authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE
+        )
+        assert unclaimed is not None
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id),
+            data={"submit": "Continue and start application"},
+        )
+        assert response.status_code == 302
+
+        grant_recipient = get_grant_recipient_or_none(application.grant_id, organisation.id)
+        assert grant_recipient is not None
+
+        db_session.refresh(unclaimed)
+        assert unclaimed.grant_recipient_id == grant_recipient.id
+        assert (
+            get_unclaimed_submission_for_user(authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE)
+            is None
+        )
+
+    def test_joining_an_organisation_that_already_has_a_submission_discards_your_unclaimed_one(
+        self, authenticated_no_role_client, application_with_eligibility_check, factories, db_session
+    ):
+        application, question = application_with_eligibility_check
+        organisation = factories.organisation.create(name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN])
+        grant_recipient = factories.grant_recipient.create(
+            grant=application.grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
+        )
+        existing_submission = factories.submission.create(
+            collection=application, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        self._answer_eligibility_question(authenticated_no_role_client, application, question)
+        unclaimed = get_unclaimed_submission_for_user(
+            authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE
+        )
+        assert unclaimed is not None
+        unclaimed_id = unclaimed.id
+
+        # this user has no access to the organisation yet, so they join it - the "already applying" path
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id)
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collections",
+            organisation_id=organisation.id,
+            grant_id=application.grant_id,
+        )
+
+        assert db_session.get(Submission, unclaimed_id) is None
+        remaining = get_submissions_by_grant_recipient_collection(grant_recipient, application.id)
+        assert [s.id for s in remaining] == [existing_submission.id]
 
 
 @pytest.mark.authenticate_as(UNTRUSTED_EMAIL)

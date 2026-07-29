@@ -374,7 +374,7 @@ class SubmissionHelper:
 
         form_statuses_by_id = {
             form.id: self.get_status_for_form(form)
-            for form in self.collection.forms
+            for form in self.collection.application_forms
             if not self.form_is_managed_by_service(form)
         }
 
@@ -752,7 +752,7 @@ class SubmissionHelper:
 
     @cached_property
     def all_needed_forms_are_completed(self) -> bool:
-        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
+        form_statuses = {self.get_status_for_form(form) for form in self.collection.application_forms}
         return form_statuses <= {
             TasklistSectionStatusEnum.COMPLETED,
             TasklistSectionStatusEnum.NOT_NEEDED,
@@ -793,7 +793,11 @@ class SubmissionHelper:
 
     def get_ordered_visible_forms(self) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
-        return sorted(self.collection.forms, key=lambda f: f.order)
+        return sorted(self.collection.application_forms, key=lambda f: f.order)
+
+    @property
+    def eligibility_form(self) -> Form | None:
+        return self.collection.eligibility_form
 
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None
@@ -1017,6 +1021,9 @@ class SubmissionHelper:
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
     def _statuses_for_all_forms(self) -> dict[Form, TasklistSectionStatusEnum]:
+        # Deliberately includes the eligibility form (unlike `all_needed_forms_are_completed`): this tracks whether
+        # answering a question reset some form's completion status, and `current_form` in
+        # `_emit_submission_events_for_forms_reset_to_in_progress` may itself be the eligibility form.
         return {form: self.get_status_for_form(form) for form in self.collection.forms}
 
     def _emit_submission_events_for_forms_reset_to_in_progress(
@@ -1704,7 +1711,7 @@ class AllSubmissionsHelper:
             gr.id: None for gr in self.grant_recipients
         }
         self.grant_recipients_submission_helpers.update(
-            {s.grant_recipient.id: self.submission_helpers[s.id] for s in self.submissions}
+            {s.grant_recipient.id: self.submission_helpers[s.id] for s in self.submissions if s.grant_recipient}
         )
 
     @property
@@ -1727,7 +1734,7 @@ class AllSubmissionsHelper:
         """
         return [
             question
-            for form in sorted(self.collection.forms, key=lambda f: f.order)
+            for form in sorted(self.collection.application_forms, key=lambda f: f.order)
             for question in sorted(form.cached_questions, key=lambda q: q.order)
         ]
 

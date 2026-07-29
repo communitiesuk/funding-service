@@ -167,18 +167,6 @@ class TestCreateCollection:
         with pytest.raises(DuplicateValueError):
             create_collection(name="test_collection", user=u, grant=grants[0], type_=CollectionType.MONITORING_REPORT)
 
-    def test_create_eligibility_check_collection(self, db_session, factories):
-        g = factories.grant.create()
-        u = factories.user.create()
-
-        collection = create_collection(
-            name="test eligibility check", user=u, grant=g, type_=CollectionType.ELIGIBILITY_CHECK
-        )
-
-        assert collection.requires_certification is False
-        assert len(collection.forms) == 1
-        assert collection.forms[0].title == "Eligibility"
-
 
 class TestUpdateCollection:
     def test_update_collection_name(self, db_session, factories):
@@ -1000,6 +988,68 @@ def test_move_form_up_down(db_session, factories):
 
     assert form1.order == 0
     assert form2.order == 1
+
+
+def test_create_eligibility_form_is_inserted_at_order_0(db_session, factories):
+    collection = factories.collection.create()
+    existing_form = factories.form.create(collection=collection)
+    assert existing_form.order == 0
+
+    eligibility_form = create_form(title="Eligibility", collection=collection, is_eligibility=True)
+
+    assert eligibility_form.is_eligibility is True
+    assert eligibility_form.order == 0
+    assert existing_form.order == 1
+
+
+def test_create_eligibility_form_only_one_allowed_per_collection(db_session, factories):
+    collection = factories.collection.create()
+    create_form(title="Eligibility", collection=collection, is_eligibility=True)
+
+    with pytest.raises(DuplicateValueError):
+        create_form(title="Eligibility 2", collection=collection, is_eligibility=True)
+
+
+def test_move_form_up_refuses_to_move_the_eligibility_form(db_session, factories):
+    collection = factories.collection.create()
+    application_form = factories.form.create(collection=collection)
+    eligibility_form = create_form(title="Eligibility", collection=collection, is_eligibility=True)
+
+    assert eligibility_form.order == 0
+    assert application_form.order == 1
+
+    move_form_up(eligibility_form)
+
+    assert eligibility_form.order == 0
+    assert application_form.order == 1
+
+
+def test_move_form_up_refuses_to_move_a_section_above_the_eligibility_form(db_session, factories):
+    collection = factories.collection.create()
+    eligibility_form = create_form(title="Eligibility", collection=collection, is_eligibility=True)
+    application_form = factories.form.create(collection=collection)
+
+    assert eligibility_form.order == 0
+    assert application_form.order == 1
+
+    move_form_up(application_form)
+
+    assert eligibility_form.order == 0
+    assert application_form.order == 1
+
+
+def test_move_form_down_refuses_to_move_the_eligibility_form(db_session, factories):
+    collection = factories.collection.create()
+    eligibility_form = create_form(title="Eligibility", collection=collection, is_eligibility=True)
+    application_form = factories.form.create(collection=collection)
+
+    assert eligibility_form.order == 0
+    assert application_form.order == 1
+
+    move_form_down(eligibility_form)
+
+    assert eligibility_form.order == 0
+    assert application_form.order == 1
 
 
 def test_get_question(db_session, factories):

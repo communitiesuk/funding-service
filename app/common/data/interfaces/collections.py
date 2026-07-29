@@ -99,27 +99,11 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
         grant=grant,
         slug=slugify(name),
         type=type_,
-        requires_certification=type_ != CollectionType.ELIGIBILITY_CHECK,
+        requires_certification=True,  # note: this'll need to change when we have more than just monitoring reports
     )
     db.session.add(collection)
 
-    if type_ == CollectionType.ELIGIBILITY_CHECK:
-        create_form(title="Eligibility", collection=collection)
-
     return collection
-
-
-def get_or_create_eligibility_collection(*, collection: Collection, user: User) -> Collection:
-    """Return the eligibility-check collection linked to `collection`, creating one if it doesn't exist yet."""
-    if collection.depends_on_collection_eligibility:
-        return collection.depends_on_collection_eligibility
-
-    return create_collection(
-        name=f"{collection.name} eligibility check",
-        user=user,
-        grant=collection.grant,
-        type_=CollectionType.ELIGIBILITY_CHECK,
-    )
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
@@ -396,7 +380,6 @@ def update_collection(  # noqa: C901
     allow_validate_submission: bool | TNotProvided = NOT_PROVIDED,
     allow_rolling_submissions: bool | TNotProvided = NOT_PROVIDED,
     requires_eligibility_check: bool | TNotProvided = NOT_PROVIDED,
-    depends_on_collection_eligibility_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     prospectus_markdown: str | None | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
@@ -481,9 +464,6 @@ def update_collection(  # noqa: C901
 
     if requires_eligibility_check is not NOT_PROVIDED:
         collection.requires_eligibility_check = requires_eligibility_check
-
-    if depends_on_collection_eligibility_id is not NOT_PROVIDED:
-        collection.depends_on_collection_eligibility_id = depends_on_collection_eligibility_id
 
     if prospectus_markdown is not NOT_PROVIDED:
         collection.prospectus_markdown = prospectus_markdown
@@ -913,6 +893,27 @@ def get_submissions_by_user(
     ).all()
 
 
+def get_unclaimed_submission_for_user(
+    user: User, collection: Collection, mode: SubmissionModeEnum
+) -> Submission | None:
+    """The sign-up counterpart of `get_or_create_submission`: a submission the user started during public sign up
+    that hasn't yet been attached to a grant recipient."""
+    return db.session.scalars(
+        select(Submission).where(
+            Submission.created_by_id == user.id,
+            Submission.collection_id == collection.id,
+            Submission.mode == mode,
+            Submission.grant_recipient_id.is_(None),
+        )
+    ).one_or_none()
+
+
+@flush_and_rollback_on_exceptions
+def claim_submission_for_grant_recipient(submission: Submission, grant_recipient: GrantRecipient) -> Submission:
+    submission.grant_recipient = grant_recipient
+    return submission
+
+
 def get_submission(
     submission_id: UUID, *, with_full_schema: bool = False, grant_recipient_id: UUID | None = None
 ) -> Submission:
@@ -1032,20 +1033,31 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
 
 
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
-def create_form(*, title: str, collection: Collection) -> Form:
+def create_form(*, title: str, collection: Collection, is_eligibility: bool = False) -> Form:
     form = Form(
         title=title,
         collection_id=collection.id,
         slug=slugify(title),
+        is_eligibility=is_eligibility,
     )
-    collection.forms.append(form)
+    if is_eligibility:
+        # The eligibility section is always answered first; inserting at 0 lets the `ordering_list` renumber
+        # every other form, so defer the order uniqueness constraint until commit like other multi-row reorders.
+        collection.forms.insert(0, form)
+        db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
+    else:
+        collection.forms.append(form)
     db.session.add(form)
     return form
 
 
 @flush_and_rollback_on_exceptions
 def move_form_up(form: Form) -> Form:
+    if form.is_eligibility:
+        return form
     swap_form = form.collection.forms[form.order - 1]
+    if swap_form.is_eligibility:
+        return form
     _check_form_order_dependency(form, swap_form)
     _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
     return form
@@ -1053,6 +1065,8 @@ def move_form_up(form: Form) -> Form:
 
 @flush_and_rollback_on_exceptions
 def move_form_down(form: Form) -> Form:
+    if form.is_eligibility:
+        return form
     swap_form = form.collection.forms[form.order + 1]
     _check_form_order_dependency(form, swap_form)
     _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
@@ -2546,6 +2560,12 @@ def delete_form(form: Form) -> None:
     form.collection.forms = [f for f in form.collection.forms if f.id != form.id]  # ty: ignore[invalid-assignment]
     form.collection.forms.reorder()  # Force all other forms to update their `order` attribute
     db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
+
+
+@flush_and_rollback_on_exceptions
+def delete_submission(submission: Submission) -> None:
+    db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id == submission.id))
+    db.session.execute(delete(Submission).where(Submission.id == submission.id))
 
 
 @flush_and_rollback_on_exceptions

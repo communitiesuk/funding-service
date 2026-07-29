@@ -24,10 +24,13 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    claim_submission_for_grant_recipient,
     create_submission,
+    delete_submission,
     get_collection,
     get_public_sign_up_collection,
-    get_submissions_by_user,
+    get_submissions_by_grant_recipient_collection,
+    get_unclaimed_submission_for_user,
 )
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipient_with_test_counterpart,
@@ -44,7 +47,6 @@ from app.common.data.types import (
     GrantRecipientStatusEnum,
     GrantStatusEnum,
     RoleEnum,
-    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import evaluate
@@ -127,6 +129,45 @@ def _start_applying(user: User, collection: Collection, organisation: Organisati
     )
 
 
+def _has_passed_eligibility(user: User, collection: Collection, mode: SubmissionModeEnum) -> bool:
+    """Whether `user` has completed the eligibility section of their unclaimed sign-up submission to `collection`."""
+    assert collection.eligibility_form is not None
+
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
+    if unclaimed is None:
+        return False
+
+    helper = SubmissionHelper.load(unclaimed.id)
+    return helper.events.form_state(collection.eligibility_form.id).is_completed
+
+
+def _claim_submission(user: User, collection: Collection, organisation: Organisation, mode: SubmissionModeEnum) -> None:
+    """Attach the applicant's unclaimed sign-up submission to their grant recipient, now that they have one.
+
+    If the recipient already has a submission for this collection (eg they signed up before, or a colleague
+    already started one) the unclaimed submission is discarded in favour of the existing one, which
+    `route_to_submission` will pick up.
+    """
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
+    if unclaimed is None:
+        return
+
+    # `create_grant_recipient_with_test_counterpart` always returns the LIVE recipient, so for a TEST-mode
+    # submission we need the recipient for the organisation's test-mode counterpart instead.
+    target_organisation = organisation.matching_test_organisation if mode == SubmissionModeEnum.TEST else organisation
+    if target_organisation is None:
+        return
+
+    grant_recipient = get_grant_recipient_or_none(collection.grant_id, target_organisation.id)
+    if grant_recipient is None:
+        return
+
+    if get_submissions_by_grant_recipient_collection(grant_recipient, collection.id):
+        delete_submission(unclaimed)
+    else:
+        claim_submission_for_grant_recipient(unclaimed, grant_recipient)
+
+
 def _load_registration_session(collection: Collection) -> PublicSignUpSession | None:
     """Load the in-progress self-registration session for this collection, discarding a stale one for another."""
     session_data = session.get(PUBLIC_SIGN_UP_SESSION_KEY)
@@ -151,12 +192,9 @@ def _check_registration_journey(collection: Collection) -> ResponseReturnValue |
     if not user.is_authenticated:
         return redirect(url_for("access_grant_funding.public_sign_up_email", collection_id=collection.id))
 
-    if collection.requires_eligibility_check and collection.depends_on_collection_eligibility:
-        eligibility_collection = collection.depends_on_collection_eligibility
+    if collection.requires_eligibility_check and collection.eligibility_form:
         mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
-        eligibility_submissions = get_submissions_by_user(user, eligibility_collection.id, mode)
-
-        if not any(submission.is_submitted for submission in eligibility_submissions):
+        if not _has_passed_eligibility(user, collection, mode):
             return redirect(url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id))
 
     if _get_organisation_by_email_domain(user.email) is not None:
@@ -172,9 +210,8 @@ def _check_registration_journey(collection: Collection) -> ResponseReturnValue |
 
 
 def _organisation_type_back_url(collection: Collection) -> str:
-    if collection.requires_eligibility_check and collection.depends_on_collection_eligibility:
-        eligibility_collection = collection.depends_on_collection_eligibility
-        last_question = eligibility_collection.forms[0].components[-1]
+    if collection.requires_eligibility_check and collection.eligibility_form:
+        last_question = collection.eligibility_form.components[-1]
         return url_for(
             "access_grant_funding.public_sign_up_eligibility_question",
             collection_id=collection.id,
@@ -209,7 +246,6 @@ def public_sign_up_email(collection_id: uuid.UUID) -> ResponseReturnValue:
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
-        # TODO: when a collection has an eligibility check configured, send people there to answer it instead
         redirect_to_path = url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id)
 
         # They're already signed in as the person they say they are, so there's nothing to verify
@@ -247,13 +283,11 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
     if not user.is_authenticated:
         return redirect(url_for("access_grant_funding.public_sign_up_email", collection_id=collection.id))
 
-    if collection.requires_eligibility_check and collection.depends_on_collection_eligibility:
-        eligibility_collection = collection.depends_on_collection_eligibility
-        mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
-        eligibility_submissions = get_submissions_by_user(user, eligibility_collection.id, mode)
+    mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
 
-        if not any(submission.is_submitted for submission in eligibility_submissions):
-            first_question = eligibility_collection.forms[0].components[0]
+    if collection.requires_eligibility_check and collection.eligibility_form:
+        if not _has_passed_eligibility(user, collection, mode):
+            first_question = collection.eligibility_form.components[0]
             return redirect(
                 url_for(
                     "access_grant_funding.public_sign_up_eligibility_question",
@@ -285,6 +319,7 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
         # name first if we don't already have it
         if not user.name:
             return redirect(url_for("access_grant_funding.public_sign_up_name", collection_id=collection.id))
+        _claim_submission(user, collection, organisation, mode)
         return _start_applying(user, collection, organisation)
 
     form = GenericSubmitForm()
@@ -294,6 +329,7 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
         create_grant_recipient_with_test_counterpart(
             collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING
         )
+        _claim_submission(user, collection, organisation, mode)
         return _start_applying(user, collection, organisation)
 
     return _render_sign_up_page(
@@ -305,15 +341,14 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
     )
 
 
-def _get_or_create_eligibility_submission(
-    user: User, eligibility_collection: Collection, mode: SubmissionModeEnum
+def _get_or_create_unclaimed_submission(
+    user: User, collection: Collection, mode: SubmissionModeEnum
 ) -> SubmissionHelper:
-    submissions = get_submissions_by_user(user, eligibility_collection.id, mode)
-    unsubmitted = next((submission for submission in submissions if not submission.is_submitted), None)
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
     submission_id = (
-        unsubmitted.id
-        if unsubmitted
-        else create_submission(collection=eligibility_collection, created_by=user, mode=mode, grant_recipient=None).id
+        unclaimed.id
+        if unclaimed
+        else create_submission(collection=collection, created_by=user, mode=mode, grant_recipient=None).id
     )
     return SubmissionHelper.load(submission_id)
 
@@ -329,12 +364,12 @@ def public_sign_up_eligibility_question(collection_id: uuid.UUID, question_id: u
     if not user.is_authenticated:
         return redirect(url_for("access_grant_funding.public_sign_up_email", collection_id=collection.id))
 
-    eligibility_collection = collection.depends_on_collection_eligibility
-    if not collection.requires_eligibility_check or eligibility_collection is None:
+    eligibility_form = collection.eligibility_form
+    if not collection.requires_eligibility_check or eligibility_form is None:
         abort(404)
 
     mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
-    submission_helper = _get_or_create_eligibility_submission(user, eligibility_collection, mode)
+    submission_helper = _get_or_create_unclaimed_submission(user, collection, mode)
     question = submission_helper.get_question(question_id)
 
     form_cls = build_question_form(
@@ -360,10 +395,7 @@ def public_sign_up_eligibility_question(collection_id: uuid.UUID, question_id: u
                 )
             )
 
-        submission_helper.toggle_form_completed(eligibility_collection.forms[0], user, is_complete=True)
-        submission_helper.add_submission_event(
-            SubmissionEventType.SUBMISSION_SUBMITTED, user, related_entity_id=submission_helper.submission.id
-        )
+        submission_helper.toggle_form_completed(eligibility_form, user, is_complete=True)
         return redirect(url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id))
 
     previous_question = submission_helper.get_previous_question(question.id)
@@ -383,7 +415,7 @@ def public_sign_up_eligibility_question(collection_id: uuid.UUID, question_id: u
         form=form,
         question=question,
         back_url=back_url,
-        interpolator=SubmissionHelper.get_interpolator(eligibility_collection, submission_helper),
+        interpolator=SubmissionHelper.get_interpolator(collection, submission_helper),
     )
 
 
@@ -450,6 +482,8 @@ def public_sign_up_name(collection_id: uuid.UUID) -> ResponseReturnValue:
                 collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING
             )
 
+        mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
+        _claim_submission(user, collection, organisation, mode)
         return _start_applying(user, collection, organisation)
 
     return _render_sign_up_page(
@@ -657,6 +691,9 @@ def public_sign_up_check_your_answers(collection_id: uuid.UUID) -> ResponseRetur
             collection.grant, organisation, status=GrantRecipientStatusEnum.APPLYING
         )
         session.pop(PUBLIC_SIGN_UP_SESSION_KEY, None)
+
+        mode = SubmissionModeEnum.LIVE if _is_publicly_visible(collection) else SubmissionModeEnum.TEST
+        _claim_submission(user, collection, organisation, mode)
         return _start_applying(user, collection, organisation)
 
     return _render_sign_up_page(

@@ -609,6 +609,39 @@ class TestListCollectionSections:
 
         assert soup.find("details", id="previewers-details") is None
 
+    def test_get_with_eligibility_section(self, authenticated_grant_admin_client, factories):
+        client = authenticated_grant_admin_client
+        collection = factories.collection.create(
+            grant=client.grant, name="Test Report", requires_eligibility_check=True
+        )
+        factories.form.create(collection=collection, title="Organisation information")
+        eligibility_form = factories.form.create(collection=collection, title="Eligibility", is_eligibility=True)
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Eligibility" in soup.text
+
+        sections_heading = soup.find(["h2"], string="Sections")
+        assert sections_heading is not None
+        sections_list = sections_heading.find_next("dl")
+        assert "Organisation information" in sections_list.text
+        assert "Eligibility" not in sections_list.text
+
+        eligibility_link = page_has_link(soup, eligibility_form.title)
+        assert eligibility_link is not None
+        assert eligibility_link.get("href") == url_for(
+            "deliver_grant_funding.list_section_questions", grant_id=client.grant.id, form_id=eligibility_form.id
+        )
+
     @pytest.mark.parametrize(
         "client_fixture, can_edit",
         (
@@ -1097,9 +1130,7 @@ class TestConfigurePublicSignUp:
 
         assert response.status_code == 403
 
-    def test_post_enable_eligibility_check_creates_and_links_collection(
-        self, authenticated_grant_admin_client, factories
-    ):
+    def test_post_enable_eligibility_check_creates_eligibility_form(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
 
         response = authenticated_grant_admin_client.post(
@@ -1115,10 +1146,74 @@ class TestConfigurePublicSignUp:
 
         assert response.status_code == 302
         assert collection.requires_eligibility_check is True
-        eligibility_collection = collection.depends_on_collection_eligibility
-        assert eligibility_collection is not None
-        assert eligibility_collection.type == CollectionType.ELIGIBILITY_CHECK
-        assert eligibility_collection.forms[0].title == "Eligibility"
+        eligibility_form = collection.eligibility_form
+        assert eligibility_form is not None
+        assert eligibility_form.title == "Eligibility"
+        assert eligibility_form.order == 0
+
+    def test_post_disable_eligibility_check_deletes_eligibility_form(
+        self, db_session, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_eligibility_check=True
+        )
+        eligibility_form = factories.form.create(collection=collection, title="Eligibility", is_eligibility=True)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": False, "requires_eligibility_check": False, "submit": "Save"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert collection.requires_eligibility_check is False
+        assert collection.eligibility_form is None
+        assert db_session.get(Form, eligibility_form.id) is None
+
+    def test_post_disable_eligibility_check_shows_error_when_eligibility_form_is_referenced(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_eligibility_check=True
+        )
+        eligibility_form = factories.form.create(collection=collection, title="Eligibility", is_eligibility=True)
+        eligibility_question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.NUMBER)
+        application_form = factories.form.create(collection=collection, title="About you")
+        factories.question.create(
+            form=application_form,
+            expressions=[
+                Expression.from_evaluatable_expression(
+                    GreaterThan(
+                        subject_reference=ExpressionReference.from_question(eligibility_question), minimum_value=1000
+                    ),
+                    ExpressionType.CONDITION,
+                    authenticated_grant_admin_client.user,
+                )
+            ],
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": False, "requires_eligibility_check": False, "submit": "Save"},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "you cannot delete" in soup.text.lower()
+        assert collection.requires_eligibility_check is True
+        assert collection.eligibility_form is not None
+        assert collection.eligibility_form.id == eligibility_form.id
 
     def test_get_configure_public_sign_up_shows_manage_eligibility_form_link_when_linked(
         self, authenticated_grant_admin_client, factories
@@ -1126,11 +1221,7 @@ class TestConfigurePublicSignUp:
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant, requires_eligibility_check=True
         )
-        eligibility_collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant, type=CollectionType.ELIGIBILITY_CHECK
-        )
-        factories.form.create(collection=eligibility_collection, title="Eligibility")
-        collection.depends_on_collection_eligibility = eligibility_collection
+        factories.form.create(collection=collection, title="Eligibility", is_eligibility=True)
 
         response = authenticated_grant_admin_client.get(
             url_for(

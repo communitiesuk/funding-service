@@ -22,6 +22,7 @@ class DuplicateValueError(Exception):
         "uq_collection_name_grant_id": "name",
         "uq_form_title_collection": "title",
         "uq_form_slug_collection": "title",
+        "uq_form_eligibility_collection": "is_eligibility",
         "uq_collection_slug_grant_id": "name",
         "uq_component_slug_form": "text",
         "uq_component_text_form": "text",

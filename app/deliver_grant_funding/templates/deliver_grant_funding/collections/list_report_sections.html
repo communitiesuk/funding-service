@@ -6,6 +6,7 @@
 {% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
 {% from "common/macros/status.html" import reportStatusTag with context %}
 {% from "deliver_grant_funding/macros/dependency_banner.html" import section_dependency_banner %}
+{% from "deliver_grant_funding/macros/dependency_banner.html" import section_component_dependency_banner %}
 
 {% set type_constants = collection.type.constants %}
 {% set page_title = collection.name %}
@@ -26,6 +27,11 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SECTION_DEPENDENCY_ORDER_ERROR.value]) %}
         {% if flashes %}
           {{ section_dependency_banner(flashes[0]) }}
+        {% endif %}
+      {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SECTION_COMPONENT_DEPENDENCY_ERROR.value]) %}
+        {% if flashes %}
+          {{ section_component_dependency_banner(flashes[0], interpolate=interpolate) }}
         {% endif %}
       {% endwith %}
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.SUBMISSION_TESTING_COMPLETE.value]) %}
@@ -64,7 +70,7 @@
       <p class="govuk-body"><strong>{{ type_constants.singular | uppercase_first }} status</strong>: {{ reportStatusTag(collection.status) }}</p>
 
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
-      {% if not collection.forms %}
+      {% if not collection.application_forms %}
         <p class="govuk-body">This {{ type_constants.singular }} has no sections.</p>
         {% if can_edit %}
           <p class="govuk-body">
@@ -73,7 +79,7 @@
         {% endif %}
       {% else %}
         {% set rows = [] %}
-        {% for form in collection.forms %}
+        {% for form in collection.application_forms %}
           {% set taskHtml %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
@@ -82,7 +88,7 @@
             questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
           {% endset %}
           {% set actions = [] %}
-          {% if can_edit and collection.forms|length > 1 %}
+          {% if can_edit and collection.application_forms|length > 1 %}
             {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
             {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
@@ -111,6 +117,26 @@
 
       {% if can_edit %}
         <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add another section</a>
+      {% endif %}
+
+      {% if collection.eligibility_form %}
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility</h2>
+        <p class="govuk-body">Applicants answer this section during sign up, before they start the {{ type_constants.singular }}.</p>
+        {% set eligibility_task_html %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=collection.eligibility_form.id) }}">{{ collection.eligibility_form.title }}</a>
+        {% endset %}
+        {% set eligibility_questions_html %}
+          {{ collection.eligibility_form.cached_questions | length }}
+          questions<span class="govuk-visually-hidden"> in {{ collection.eligibility_form.title }}</span>
+        {% endset %}
+        {{
+          govukSummaryList({
+            "rows": [{
+              "key": {"html": eligibility_task_html, "classes": "govuk-!-font-weight-regular"},
+              "value": {"html": eligibility_questions_html},
+            }]
+          })
+        }}
       {% endif %}
 
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage collection</h2>

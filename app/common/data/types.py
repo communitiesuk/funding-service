@@ -251,19 +251,10 @@ application_constants = CollectionTypeConstants(
     slug="applications",
 )
 
-eligibility_check_constants = CollectionTypeConstants(
-    singular="eligibility check",
-    plural="eligibility checks",
-    active_nav="pre_award",
-    list_endpoint="deliver_grant_funding.list_pre_award_forms",
-    slug="eligibility",
-)
-
 
 class CollectionType(enum.StrEnum):
     MONITORING_REPORT = "monitoring report"
     APPLICATION = "application"
-    ELIGIBILITY_CHECK = "eligibility check"
 
     @property
     def constants(self) -> CollectionTypeConstants:
@@ -272,8 +263,6 @@ class CollectionType(enum.StrEnum):
                 return application_constants
             case CollectionType.MONITORING_REPORT:
                 return monitoring_report_constants
-            case CollectionType.ELIGIBILITY_CHECK:
-                return eligibility_check_constants
             case _:
                 raise ValueError(f"No constants defined for {self=}")
 
@@ -284,8 +273,6 @@ class CollectionType(enum.StrEnum):
                 return CollectionType.APPLICATION
             case "reports":
                 return CollectionType.MONITORING_REPORT
-            case "eligibility":
-                return CollectionType.ELIGIBILITY_CHECK
             case _:
                 raise ValueError(f"No collection type defined for {slug=}")
 

@@ -37,8 +37,8 @@
           })
         }}
 
-        {% set eligibility_collection = collection.depends_on_collection_eligibility %}
-        {% set manage_eligibility_url = url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=eligibility_collection.forms[0].id) if eligibility_collection else "" %}
+        {% set eligibility_form = collection.eligibility_form %}
+        {% set manage_eligibility_url = url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=eligibility_form.id) if eligibility_form else "" %}
 
         {{
           form.requires_eligibility_check(params={
@@ -48,7 +48,7 @@
                 "value": true,
                 "text": "Yes",
                 "conditional": {
-                  "html": "<p class='govuk-body'><a class='govuk-link' href='" ~ manage_eligibility_url ~ "'>Manage the eligibility form</a></p>" if eligibility_collection else ""
+                  "html": "<p class='govuk-body'><a class='govuk-link' href='" ~ manage_eligibility_url ~ "'>Manage the eligibility form</a></p>" if eligibility_form else ""
                 }
               },
               {"value": false, "text": "No"}

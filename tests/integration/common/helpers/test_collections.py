@@ -3734,3 +3734,100 @@ class TestSubmissionValidation:
             helper.mark_as_sent_for_certification(user)
 
         assert "no longer valid" in str(e.value)
+
+
+class TestEligibilitySection:
+    def _build_collection_with_eligibility(self, factories):
+        collection = factories.collection.create()
+        application_form = factories.form.create(collection=collection, title="About you")
+        application_question = factories.question.create(form=application_form)
+        eligibility_form = factories.form.create(collection=collection, title="Eligibility", is_eligibility=True)
+        eligibility_question = factories.question.create(form=eligibility_form)
+        return collection, application_form, application_question, eligibility_form, eligibility_question
+
+    def test_get_ordered_visible_forms_excludes_the_eligibility_form(self, factories):
+        collection, application_form, _, eligibility_form, _ = self._build_collection_with_eligibility(factories)
+        submission = factories.submission.create(collection=collection)
+        helper = SubmissionHelper(submission)
+
+        assert helper.get_ordered_visible_forms() == [application_form]
+        assert helper.eligibility_form == eligibility_form
+
+    def test_all_needed_forms_are_completed_ignores_the_eligibility_form(self, factories):
+        collection, application_form, application_question, eligibility_form, _ = (
+            self._build_collection_with_eligibility(factories)
+        )
+        submission = factories.submission.create(
+            collection=collection,
+            answers=[FactoryAnswer(application_question, TextSingleLineAnswer("answer"))],
+        )
+        helper = SubmissionHelper(submission)
+        helper.toggle_form_completed(application_form, submission.created_by, True)
+
+        # the eligibility form has an unanswered question and has never been marked complete, but that must not
+        # block the submission - it isn't part of the application any more.
+        assert helper.get_status_for_form(eligibility_form) != TasklistSectionStatusEnum.COMPLETED
+        assert helper.all_needed_forms_are_completed is True
+
+    def test_eligibility_form_does_not_block_submission_status(self, factories):
+        collection, application_form, application_question, eligibility_form, _ = (
+            self._build_collection_with_eligibility(factories)
+        )
+        submission = factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            answers=[FactoryAnswer(application_question, TextSingleLineAnswer("answer"))],
+        )
+        helper = SubmissionHelper(submission)
+        helper.toggle_form_completed(application_form, submission.created_by, True)
+
+        # a test/preview submission never goes through public sign up, so its eligibility form is never answered -
+        # that must not stop it becoming ready to submit.
+        assert helper.get_status_for_form(eligibility_form) != TasklistSectionStatusEnum.COMPLETED
+        assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
+    def test_csv_and_json_exports_exclude_the_eligibility_form(self, factories):
+        collection, _, application_question, eligibility_form, eligibility_question = (
+            self._build_collection_with_eligibility(factories)
+        )
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            answers=[
+                FactoryAnswer(application_question, TextSingleLineAnswer("answer")),
+                FactoryAnswer(eligibility_question, TextSingleLineAnswer("should not be exported")),
+            ],
+        )
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
+        assert f"[{eligibility_form.title}] {eligibility_question.name}" not in csv_content
+        assert "should not be exported" not in csv_content
+
+        json_content = json.loads(subs_helper.generate_json_content_for_all_submissions())
+        section_names = [
+            section["name"] for submission in json_content["submissions"] for section in submission["sections"]
+        ]
+        assert eligibility_form.title not in section_names
+
+    def test_get_all_possible_questions_for_collection_excludes_the_eligibility_form(self, factories):
+        collection, _, application_question, _, eligibility_question = self._build_collection_with_eligibility(
+            factories
+        )
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+
+        questions = subs_helper.get_all_possible_questions_for_collection()
+
+        assert application_question in questions
+        assert eligibility_question not in questions
+
+    def test_all_submissions_helper_copes_with_unclaimed_submissions(self, factories):
+        collection, _, _, _, _ = self._build_collection_with_eligibility(factories)
+        unclaimed = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        # this must not raise - unclaimed public sign-up submissions have no grant recipient yet
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert unclaimed.id in subs_helper.submission_helpers

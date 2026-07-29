@@ -887,6 +887,7 @@ class _FormFactory(SQLAlchemyModelFactory):
     title = factory.Sequence(lambda n: "Form %d" % n)
     slug = factory.Sequence(lambda n: "form-%d" % n)
     order = factory.LazyAttribute(lambda o: len(o.collection.forms))
+    is_eligibility = False
 
     collection = factory.SubFactory(_CollectionFactory)
     collection_id = factory.LazyAttribute(lambda o: o.collection.id)

@@ -44,7 +44,6 @@ from app.common.data.interfaces.collections import (
     get_expression_by_id,
     get_form_by_id,
     get_group_by_id,
-    get_or_create_eligibility_collection,
     get_question_by_id,
     get_submission_list_for_collection,
     move_component_down,
@@ -507,19 +506,23 @@ def collection_configure_public_sign_up(
             form.form_errors.append("You cannot change this setting as the collection is not currently editable")
         else:
             requires_eligibility_check = form.requires_eligibility_check.data == "True"
-            depends_on_collection_eligibility_id = collection.depends_on_collection_eligibility_id
-            if requires_eligibility_check and not collection.depends_on_collection_eligibility:
-                eligibility_collection = get_or_create_eligibility_collection(
-                    collection=collection, user=get_current_user()
-                )
-                depends_on_collection_eligibility_id = eligibility_collection.id
+
+            if requires_eligibility_check and collection.eligibility_form is None:
+                create_form(title="Eligibility", collection=collection, is_eligibility=True)
+            elif not requires_eligibility_check and collection.eligibility_form is not None:
+                eligibility_form = collection.eligibility_form
+                try:
+                    raise_if_component_or_section_has_any_dependencies(eligibility_form)
+                    delete_form(eligibility_form)
+                except SectionComponentDependencyException as e:
+                    flash(e.as_flash_context(), FlashMessageType.SECTION_COMPONENT_DEPENDENCY_ERROR.value)  # ty: ignore[invalid-argument-type]
+                    requires_eligibility_check = True
 
             update_collection(
                 collection,
                 allow_public_sign_up=form.allow_public_sign_up.data == "True",
                 prospectus_markdown=form.prospectus_markdown.data or None,
                 requires_eligibility_check=requires_eligibility_check,
-                depends_on_collection_eligibility_id=depends_on_collection_eligibility_id,
             )
             return redirect(
                 url_for(
@@ -682,11 +685,6 @@ def list_collection_sections(
 ) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True)
 
-    if collection.type == CollectionType.ELIGIBILITY_CHECK:
-        return redirect(
-            url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=collection.forms[0].id)
-        )
-
     previews = get_all_submissions_with_mode_for_collection(
         collection_id=collection.id, submission_mode=SubmissionModeEnum.PREVIEW, with_full_schema=False, with_users=True
     )
@@ -702,6 +700,7 @@ def list_collection_sections(
         collection=collection,
         form=form,
         previewers=previewers,
+        interpolate=SubmissionHelper.get_interpolator(collection=collection),
     )
 
 
@@ -794,6 +793,9 @@ def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: 
 @auto_commit_after_request
 def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id, grant_id=grant_id)
+
+    if db_form.is_eligibility:
+        abort(404)
 
     if db_form.collection.live_submissions:
         # Prevent changes to the section if it has any live submissions; this is very coarse layer of protection. We
@@ -1090,7 +1092,7 @@ def list_section_questions(grant_id: UUID, form_id: UUID) -> ResponseReturnValue
     if preview_form.validate_on_submit() and preview_form.submit.data:
         return start_previewing_collection(db_form.collection, form=db_form)
 
-    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args else None
+    delete_wtform = GenericConfirmDeletionForm() if "delete" in request.args and not db_form.is_eligibility else None
     if delete_wtform:
         if not AuthorisationHelper.can_edit_collection(user=get_current_user(), collection_id=db_form.collection_id):
             return redirect(url_for("deliver_grant_funding.list_section_questions", grant_id=grant_id, form_id=form_id))
@@ -1402,9 +1404,7 @@ def move_component(grant_id: UUID, component_id: UUID, direction: str) -> Respon
 def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
     allowed_data_types = (
-        {QuestionDataType.YES_NO, QuestionDataType.NUMBER, QuestionDataType.DATE}
-        if db_form.collection.type == CollectionType.ELIGIBILITY_CHECK
-        else None
+        {QuestionDataType.YES_NO, QuestionDataType.NUMBER, QuestionDataType.DATE} if db_form.is_eligibility else None
     )
     wt_form = QuestionTypeForm(
         question_data_type=request.args.get("question_data_type", None), allowed_data_types=allowed_data_types

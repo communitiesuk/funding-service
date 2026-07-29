@@ -162,7 +162,7 @@
           {% endif %}
         </div>
 
-        {% if db_form.collection.type == enum.collection_type_enum.ELIGIBILITY_CHECK %}
+        {% if db_form.is_eligibility %}
           <div class="govuk-form-group">
             <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility</h2>
             {% if managed_eligibility_available %}
