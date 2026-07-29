@@ -42,7 +42,7 @@
       <form method="POST" enctype="multipart/form-data" novalidate>
         {{ form.csrf_token }}
         {{ form.name }}
-        {{ form.file(params={"javascript": true}) }}
+        {{ form.file(params={"javascript": true, "attributes": {"accept": "text/csv" } }) }}
         <p class="govuk-body">Only CSV (.csv) files can be uploaded for data sets.</p>
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Continue and format data" }) }}

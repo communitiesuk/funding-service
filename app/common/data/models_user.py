@@ -101,6 +101,7 @@ class User(BaseModel):
             Organisation.can_manage_grants == False
         )""",
         viewonly=True,
+        order_by="Organisation.name",
     )
 
     def get_grant_recipients(
