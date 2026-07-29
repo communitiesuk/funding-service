@@ -3565,8 +3565,10 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
 def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
-    if not submission_helper.has_allow_validation_enabled:
-        abort(400)
+    if not submission_helper.has_allow_validation_enabled or submission_helper.submission.is_assessed:
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
 
     form = ApproveOrRejectSubmissionForm()
     if form.validate_on_submit():
