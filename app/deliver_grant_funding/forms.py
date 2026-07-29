@@ -1709,15 +1709,15 @@ class ApproveOrRejectSubmissionForm(FlaskForm):
     def validate(self, extra_validators=None):
         if self.is_approved.data == "no":
             self.rejected_reason.validators = [
+                DataRequired("Enter the reason for rejecting this submission"),
                 WordRange(
                     max_words=self.REASON_MAX_WORDS, field_display_name="The reason for rejecting this submission"
                 ),
-                DataRequired("Enter the reason for rejecting this submission"),
             ]
         elif self.is_approved.data == "yes":
-            self.rejected_reason.validators = [
+            self.approved_reason.validators = [
                 WordRange(
-                    max_words=self.REASON_MAX_WORDS, field_display_name="The reason for rejecting this submission"
+                    max_words=self.REASON_MAX_WORDS, field_display_name="The reason for approving this submission"
                 ),
             ]
 
