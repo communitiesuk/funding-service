@@ -119,6 +119,30 @@ jobs:
         uses: ./.github/workflows/run-database-migrations
 
 
+      - name: Install uv
+        if: ${{ inputs.environment != 'prod' }}
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.30"
+
+      - name: Start ECS Express deploy - ${{ github.sha }}
+        # Dual-running during the App Runner -> ECS Express migration
+        # (FSPT-1318): App Runner below remains the live service; this keeps
+        # the parallel ECS Express service on the same image. The rollout is
+        # started here and collected after the App Runner deploy, so the two
+        # proceed in parallel. Express only exists in dev/test for now - drop
+        # these conditions when prod joins express_enabled_workspaces in
+        # funding-service-terraform.
+        id: start_express
+        if: ${{ inputs.environment != 'prod' }}
+        # Don't let an Express hiccup block an App Runner deploy while the
+        # migration beds in. Remove once dual deploys have been green a while.
+        continue-on-error: true
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          ECR_IMAGE_LOCATION: ${{ steps.ecr_info.outputs.ecr_image_location }}
+        run: uv run scripts/update-ecs-express-image.py --no-wait --environment "${ENVIRONMENT}" "${ECR_IMAGE_LOCATION}"
+
       - name: Deploy image to App Runner - ${{ github.sha }}
         id: deploy
         uses: awslabs/amazon-app-runner-deploy@8d446e5e06d34b619d712e6f4d35ded91e3c9e7e  # PR #53
@@ -131,6 +155,17 @@ jobs:
           cpu: ${{inputs.image_cpu}}
           memory: ${{inputs.image_memory}}
           wait-for-service-stability-seconds: 600
+
+      - name: Wait for ECS Express rollout - ${{ github.sha }}
+        # Collects the rollout started before the App Runner deploy: waits for
+        # the service to settle and fails if it settled on anything other than
+        # the image above (i.e. the canary was rolled back).
+        if: ${{ inputs.environment != 'prod' && steps.start_express.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          ECR_IMAGE_LOCATION: ${{ steps.ecr_info.outputs.ecr_image_location }}
+        run: uv run scripts/update-ecs-express-image.py --wait-only --environment "${ENVIRONMENT}" "${ECR_IMAGE_LOCATION}"
 
   e2e_tests:
     name: Python E2E tests
