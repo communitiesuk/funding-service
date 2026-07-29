@@ -78,6 +78,7 @@ from app.common.forms.helpers import (
     components_in_valid_add_another_combination,
 )
 from app.common.helpers.submission_events import (
+    AssessmentApprovedKwargs,
     AssessmentRejectedKwargs,
     ChangesRequestedKwargs,
     DeclinedByCertifierKwargs,
@@ -1921,6 +1922,17 @@ def _add_submission_event(
     user: User,
     related_entity_id: UUID | None = None,
     **kwargs: Unpack[AssessmentRejectedKwargs],
+) -> None: ...
+
+
+@overload
+def _add_submission_event(
+    submission: Submission,
+    *,
+    event_type: Literal[SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED],
+    user: User,
+    related_entity_id: UUID | None = None,
+    **kwargs: Unpack[AssessmentApprovedKwargs],
 ) -> None: ...
 
 

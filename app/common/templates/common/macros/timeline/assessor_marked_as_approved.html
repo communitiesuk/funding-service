@@ -7,4 +7,14 @@
     <strong>{{ item.source.created_by.name or item.source.created_by.email }}</strong> on
     <time datetime="{{ iso_utc(item.datetime) }}">{{ format_datetime_short(item.datetime) }}</time>
   </p>
+  {% if item.source.data.get("assessment_approved_reason") %}
+    <div class="moj-timeline__description">
+      <details class="govuk-details govuk-!-margin-bottom-0">
+        <summary class="govuk-details__summary">
+          <span class="govuk-details__summary-text">Additional comments</span>
+        </summary>
+        <div class="govuk-details__text app-pre-markdown">{{ item.source.data.get("assessment_approved_reason") }}</div>
+      </details>
+    </div>
+  {% endif %}
 </div>

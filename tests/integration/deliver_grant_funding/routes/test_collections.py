@@ -9764,7 +9764,9 @@ class TestApproveOrRejectSubmission:
 
         assert response.status_code == 404
 
-    def test_400_with_collection_allow_validation_disabled(self, authenticated_org_member_client, submission_submitted):
+    def test_redirects_with_collection_allow_validation_disabled(
+        self, authenticated_org_member_client, submission_submitted
+    ):
         collection = submission_submitted.collection
         collection.allow_validation = False
 
@@ -9776,7 +9778,33 @@ class TestApproveOrRejectSubmission:
             )
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.view_submission",
+            grant_id=submission_submitted.collection.grant_id,
+            submission_id=submission_submitted.id,
+        )
+
+    def test_redirects_when_submission_already_assessed(
+        self, authenticated_org_member_client, grant_team_user, submission_with_allow_validation
+    ):
+        helper = SubmissionHelper(submission_with_allow_validation)
+        helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
+
+        response = authenticated_org_member_client.get(
+            url_for(
+                "deliver_grant_funding.approve_or_reject_submission",
+                grant_id=submission_with_allow_validation.collection.grant_id,
+                submission_id=submission_with_allow_validation.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.view_submission",
+            grant_id=submission_with_allow_validation.collection.grant_id,
+            submission_id=submission_with_allow_validation.id,
+        )
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -9807,11 +9835,12 @@ class TestApproveOrRejectSubmission:
             assert "Would you like to mark this submission as approved or rejected?" in soup.text
             assert page_has_button(soup, "Confirm and submit decision")
 
-    def test_post_approve(self, authenticated_grant_member_client, submission_with_allow_validation):
+    @pytest.mark.parametrize("approved_reason", [None, "Looks good, thanks"])
+    def test_post_approve(self, authenticated_grant_member_client, submission_with_allow_validation, approved_reason):
         client = authenticated_grant_member_client
         client.grant.allow_pre_award = True
 
-        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes"})
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes", "approved_reason": approved_reason})
 
         response = client.post(
             url_for(
@@ -9834,6 +9863,11 @@ class TestApproveOrRejectSubmission:
         timeline = soup.find(class_="moj-timeline")
         timeline_titles = [item.text.strip() for item in timeline.find_all(class_="moj-timeline__title")]
         assert "Report marked as approved" in timeline_titles
+
+        if approved_reason:
+            assert approved_reason in timeline.text
+        else:
+            assert timeline.find(class_="moj-timeline__description") is None
 
     def test_post_reject(self, authenticated_grant_member_client, submission_with_allow_validation):
         client = authenticated_grant_member_client

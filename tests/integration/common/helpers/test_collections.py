@@ -52,6 +52,7 @@ from app.common.helpers.collections import (
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
+    SubmissionIsAlreadyAssessedError,
     SubmissionIsNotSubmittedError,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
@@ -2537,13 +2538,24 @@ class TestSubmissionHelper:
             with pytest.raises(SubmissionIsNotSubmittedError):
                 helper.validate_submission(user=grant_team_user, is_approved=True)
 
-        def test_approve_sets_assessment_status(self, grant_team_user, submission_with_allow_validation):
+        def test_raises_when_already_assessed(self, grant_team_user, submission_with_allow_validation):
+            helper = SubmissionHelper(submission_with_allow_validation)
+            helper.validate_submission(user=grant_team_user, is_approved=True)
+
+            with pytest.raises(SubmissionIsAlreadyAssessedError):
+                helper.validate_submission(user=grant_team_user, is_approved=True)
+
+        @pytest.mark.parametrize("approved_reason", [None, "Looks good, thanks"])
+        def test_approve_sets_assessment_status(
+            self, grant_team_user, submission_with_allow_validation, approved_reason
+        ):
             helper = SubmissionHelper(submission_with_allow_validation)
 
-            helper.validate_submission(user=grant_team_user, is_approved=True)
+            helper.validate_submission(user=grant_team_user, is_approved=True, approved_reason=approved_reason)
 
             assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
             assert helper.is_assessment_approved is True
+            assert helper.assessment_approved_reason == approved_reason
             assert helper.assessed_by == grant_team_user
 
         def test_reject_sets_assessment_status_and_reason(self, grant_team_user, submission_with_allow_validation):
@@ -2554,25 +2566,6 @@ class TestSubmissionHelper:
             assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
             assert helper.is_assessment_rejected is True
             assert helper.assessment_rejected_reason == "Missing data"
-            assert helper.assessed_by == grant_team_user
-
-        def test_last_validation_decision_prevails(self, grant_team_user, submission_with_allow_validation):
-            helper = SubmissionHelper(submission_with_allow_validation)
-
-            helper.validate_submission(user=grant_team_user, is_approved=False, rejected_reason="Missing data")
-
-            assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
-            assert helper.is_assessment_approved is False
-            assert helper.is_assessment_rejected is True
-            assert helper.assessment_rejected_reason == "Missing data"
-            assert helper.assessed_by == grant_team_user
-
-            helper.validate_submission(user=grant_team_user, is_approved=True)
-
-            assert helper.assessment_status == SubmissionAssessmentStatusEnum.MARKED_AS_APPROVED
-            assert helper.is_assessment_approved is True
-            assert helper.is_assessment_rejected is False
-            assert helper.assessment_rejected_reason is None
             assert helper.assessed_by == grant_team_user
 
     class TestLastUpdatedAt:

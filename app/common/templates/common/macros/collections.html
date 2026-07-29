@@ -357,7 +357,7 @@
   {% if submission.get_status_for_form(form) == enum.tasklist_section_status.CHANGES_REQUESTED or (submission.events.submission_state.is_changes_requested and not submission.events.submission_state.section_ids) %}
     <div class="govuk-inset-text">
       <strong class="govuk-tag govuk-tag--yellow govuk-!-margin-bottom-2">Changes requested</strong>
-      <p class="govuk-body">{{ submission.changes_requested_reason }}</p>
+      <p class="govuk-body app-pre-markdown">{{ submission.changes_requested_reason }}</p>
     </div>
   {% endif %}
 

@@ -19,6 +19,7 @@ from app.common.filters import format_thousands
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
+    ApproveOrRejectSubmissionForm,
     GrantAddUserForm,
     GrantGGISForm,
     GrantNameForm,
@@ -797,3 +798,41 @@ class TestUploadDataSetForm:
             f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
             f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in form.file.errors[0]
+
+
+class TestApproveOrRejectSubmissionForm:
+    def test_rejected_requires_a_reason(self):
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "no", "rejected_reason": ""})
+
+        assert form.validate() is False
+        assert "Enter the reason for rejecting this submission" in form.rejected_reason.errors
+
+    def test_rejected_reason_must_not_exceed_max_words(self):
+        too_long_reason = " ".join(["word"] * (ApproveOrRejectSubmissionForm.REASON_MAX_WORDS + 1))
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "no", "rejected_reason": too_long_reason})
+
+        assert form.validate() is False
+        assert "The reason for rejecting this submission must be 200 words or fewer" in form.rejected_reason.errors
+
+    def test_rejected_reason_within_max_words_is_valid(self):
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "no", "rejected_reason": "Not enough evidence"})
+
+        assert form.validate() is True
+
+    def test_approved_reason_is_optional(self):
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes", "approved_reason": ""})
+
+        assert form.validate() is True
+
+    def test_approved_reason_must_not_exceed_max_words(self):
+        too_long_reason = " ".join(["word"] * (ApproveOrRejectSubmissionForm.REASON_MAX_WORDS + 1))
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes", "approved_reason": too_long_reason})
+
+        assert form.validate() is False
+        assert "The reason for approving this submission must be 200 words or fewer" in form.approved_reason.errors
+
+    def test_approved_reason_within_max_words_is_valid(self):
+        form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes", "approved_reason": "Looks good"})
+
+        assert form.validate() is True
+        assert len(form.approved_reason.errors) == 0

@@ -116,6 +116,7 @@ from app.common.helpers.collections import (
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
     SubmissionHelper,
+    SubmissionIsAlreadyAssessedError,
     SubmissionIsNotSubmittedError,
 )
 from app.common.helpers.feature_flags import FeatureFlags
@@ -3564,8 +3565,10 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
 def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
-    if not submission_helper.has_allow_validation_enabled:
-        abort(400)
+    if not submission_helper.has_allow_validation_enabled or submission_helper.submission.is_assessed:
+        return redirect(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant_id, submission_id=submission_id)
+        )
 
     form = ApproveOrRejectSubmissionForm()
     if form.validate_on_submit():
@@ -3575,6 +3578,7 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
                 user=get_current_user(),
                 is_approved=is_approved,
                 rejected_reason=form.rejected_reason.data if not is_approved else None,
+                approved_reason=form.approved_reason.data if is_approved else None,
             )
             flash_type = (
                 FlashMessageType.SUBMISSION_MARKED_AS_APPROVED
@@ -3591,6 +3595,8 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
             form.form_errors.append("You cannot assess this submission because the report does not allow validation")
         except SubmissionIsNotSubmittedError:
             form.form_errors.append("You cannot assess this submission because it has not been submitted")
+        except SubmissionIsAlreadyAssessedError:
+            form.form_errors.append("You cannot assess this submission because it has already been assessed")
 
     return render_template(
         "deliver_grant_funding/collections/approve_or_reject_submission.html",
