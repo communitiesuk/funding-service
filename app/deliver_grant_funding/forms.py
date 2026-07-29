@@ -423,6 +423,16 @@ class QuestionForm(FlaskForm):
         filters=[strip_string_if_not_empty, lambda val: val.replace("\r", "") if val else val],
         widget=GovTextArea(),
     )
+    data_source_item_aliases = StringField(
+        "Option aliases (optional)",
+        validators=[Optional()],
+        description=(
+            "Enter a short alias for each option, on a new line and in the same order. These are used "
+            "when the answer is referenced in other questions, instead of the option text."
+        ),
+        filters=[strip_string_if_not_empty, lambda val: val.replace("\r", "") if val else val],
+        widget=GovTextArea(),
+    )
     separate_option_if_no_items_match = BooleanField(
         "Include an ‘other’ option",
         validators=[Optional()],
@@ -572,6 +582,21 @@ class QuestionForm(FlaskForm):
 
         return data_source_items
 
+    @property
+    def normalised_data_source_item_aliases(self) -> list[str | None] | None:
+        """Aliases align 1:1 with the options typed into `data_source_items`. The appended 'other'
+        item never has an alias, so we pad with None to stay aligned with
+        `normalised_data_source_items`."""
+        items = self.normalised_data_source_items
+        if items is None:
+            return None
+
+        aliases: list[str | None] = []
+        if self.data_source_item_aliases.data and self.data_source_item_aliases.data.strip():
+            aliases.extend(alias.strip() for alias in self.data_source_item_aliases.data.split("\n") if alias.strip())
+
+        return (aliases + [None] * len(items))[: len(items)]
+
     def validate_prefix(self, field: Field) -> None:
         if self.prefix.data and self.suffix.data:
             raise ValidationError("Remove the suffix if you need a prefix")
@@ -579,6 +604,24 @@ class QuestionForm(FlaskForm):
     def validate_suffix(self, field: Field) -> None:
         if self.prefix.data and self.suffix.data:
             raise ValidationError("Remove the prefix if you need a suffix")
+
+    def validate_data_source_item_aliases(self, field: Field) -> None:
+        if self._question_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
+            return
+        if not field.data or not field.data.strip():
+            return
+
+        aliases = field.data.split("\n")
+        if any(alias.strip() == "" for alias in aliases):
+            raise ValidationError("Remove blank lines from the aliases")
+
+        options = [item for item in (self.data_source_items.data or "").split("\n") if item.strip()]
+        if len(aliases) != len(options):
+            raise ValidationError(
+                f"Enter one alias for each option. You have entered {len(options)} "
+                f"option{'s' if len(options) != 1 else ''} and {len(aliases)} "
+                f"alias{'es' if len(aliases) != 1 else ''}"
+            )
 
     def is_submitted_to_add_context(self) -> bool:
         return bool(self.is_submitted() and self.add_context.data and not self.submit.data)

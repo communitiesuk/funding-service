@@ -1,5 +1,6 @@
 {% extends "deliver_grant_funding/grant_base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
 {% from "deliver_grant_funding/partials/_advanced_formatting_options.html" import advancedFormattingOptions %}
 {% from "deliver_grant_funding/partials/_question_data_options.html" import questionDataOptions %}
 
@@ -52,6 +53,18 @@
 
         {% if chosen_question_data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] %}
           {{ form.data_source_items(params={"label": {"classes": "govuk-!-font-weight-bold"} }) }}
+
+
+          {% set aliasesHtml %}
+            {{ form.data_source_item_aliases() }}
+          {% endset %}
+          {{
+            govukDetails({
+              "summaryText": "Add aliases for these options",
+              "html": aliasesHtml,
+              "open": form.data_source_item_aliases.errors or form.data_source_item_aliases.data,
+            })
+          }}
 
 
           {% set conditionalHtml %}

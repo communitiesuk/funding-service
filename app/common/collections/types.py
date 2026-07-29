@@ -1,7 +1,7 @@
 import abc
 from datetime import date
 from decimal import Decimal
-from typing import Any, Protocol, TypedDict, Union, cast
+from typing import Any, NotRequired, Protocol, TypedDict, Union, cast
 
 from pydantic import BaseModel, RootModel
 
@@ -14,6 +14,7 @@ NOT_ANSWERED = "NOT_ANSWERED"
 class ChoiceDict(TypedDict):
     key: str
     label: str
+    alias: NotRequired[str | None]
 
 
 class SubmissionAnswerProtocol(Protocol):
@@ -176,6 +177,7 @@ class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
 
     key: str
     label: str
+    alias: str | None = None
 
     @property
     def _render_answer_template(self) -> str:
@@ -191,7 +193,7 @@ class SingleChoiceFromListAnswer(SubmissionAnswerBaseModel):
         return self.key
 
     def get_value_for_interpolation(self) -> str:
-        return self.label
+        return self.alias or self.label
 
     def get_value_for_text_export(self) -> str:
         return self.label
@@ -218,13 +220,13 @@ class MultipleChoiceFromListAnswer(SubmissionAnswerBaseModel):
 
     def get_value_for_interpolation(self) -> str:
         # This feels like quite an iffy representation for interpolation; I'm not sure what we should _actually_ do here
-        return ", ".join(choice["label"] for choice in self.choices)
+        return ", ".join(choice.get("alias") or choice["label"] for choice in self.choices)
 
     def get_value_for_text_export(self) -> str:
         return "\n".join(choice["label"] for choice in self.choices)
 
     def get_value_for_json_export(self) -> list[ChoiceDict]:
-        return self.choices
+        return [{"key": c["key"], "label": c["label"]} for c in self.choices]
 
 
 class DateAnswer(SubmissionAnswerBaseModel):

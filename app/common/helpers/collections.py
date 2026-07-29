@@ -2050,12 +2050,12 @@ def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -
             return YesNoAnswer(answer)
         case QuestionDataType.RADIOS:
             assert question.data_source is not None
-            label = next(item.label for item in question.data_source.items if item.key == answer)
-            return SingleChoiceFromListAnswer(key=answer, label=label)
+            item = next(item for item in question.data_source.items if item.key == answer)
+            return SingleChoiceFromListAnswer(key=item.key, label=item.label, alias=item.alias)
         case QuestionDataType.CHECKBOXES:
             assert question.data_source is not None
             choices = [
-                ChoiceDict({"key": item.key, "label": item.label})
+                ChoiceDict({"key": item.key, "label": item.label, "alias": item.alias})
                 for item in question.data_source.items
                 if item.key in answer
             ]

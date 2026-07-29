@@ -1710,6 +1710,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                 name=wt_form.name.data,
                 data_type=question_data_type_enum,
                 items=wt_form.normalised_data_source_items,
+                item_aliases=wt_form.normalised_data_source_item_aliases,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
                 expression_context=ExpressionContext.build_expression_context(
                     collection=form.collection, mode="interpolation"
@@ -2320,6 +2321,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
                 hint=wt_form.hint.data,
                 name=wt_form.name.data,
                 items=wt_form.normalised_data_source_items,
+                item_aliases=wt_form.normalised_data_source_item_aliases,
                 presentation_options=QuestionPresentationOptions.from_question_form(wt_form),
                 data_options=QuestionDataOptions.from_question_form(wt_form),
             )

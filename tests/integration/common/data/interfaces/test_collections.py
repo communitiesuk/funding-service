@@ -2103,6 +2103,47 @@ class TestUpdateQuestion:
 
         assert question.presentation_options.last_data_source_item_is_distinct_from_others is True
 
+    def test_radios_with_aliases(self, db_session, factories):
+        form = factories.form.create()
+        question = create_question(
+            form=form,
+            text=InterpolationStatement("Test Question"),
+            hint=InterpolationStatement("Test Hint"),
+            name="Test Question Name",
+            data_type=QuestionDataType.RADIOS,
+            expression_context=ExpressionContext(),
+            items=["option 1", "option 2"],
+            item_aliases=["alias-one", "alias-two"],
+        )
+        assert question is not None
+        assert [item.alias for item in question.data_source.items] == ["alias-one", "alias-two"]
+
+        updated_question = update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
+            name="Updated Question Name",
+            items=["option 1", "option 2"],
+            item_aliases=["updated-alias-one", "updated-alias-two"],
+        )
+        assert [item.alias for item in updated_question.data_source.items] == [
+            "updated-alias-one",
+            "updated-alias-two",
+        ]
+
+        # Blanking the aliases field clears previously-stored aliases
+        cleared_question = update_question(
+            question=question,
+            expression_context=ExpressionContext(),
+            text=InterpolationStatement("Updated Question"),
+            hint=InterpolationStatement("Updated Hint"),
+            name="Updated Question Name",
+            items=["option 1", "option 2"],
+            item_aliases=[None, None],
+        )
+        assert [item.alias for item in cleared_question.data_source.items] == [None, None]
+
     def test_update_radios_question_options_errors_on_referenced_data_items(self, db_session, factories):
         form = factories.form.create()
         user = factories.user.create()

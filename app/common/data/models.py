@@ -1026,6 +1026,23 @@ class Question(Component, SafeQidMixin):
         return "\n".join([item.label for item in self.data_source.items])
 
     @property
+    def data_source_item_aliases(self) -> str | None:
+        if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
+            return None
+        assert self.data_source is not None
+
+        items = self.data_source.items
+        if (
+            self.presentation_options is not None
+            and self.presentation_options.last_data_source_item_is_distinct_from_others
+        ):
+            items = items[:-1]
+
+        if not any(item.alias for item in items):
+            return ""
+        return "\n".join(item.alias or "" for item in items)
+
+    @property
     def separate_option_if_no_items_match(self) -> bool | None:
         if self.data_type not in [QuestionDataType.RADIOS, QuestionDataType.CHECKBOXES]:
             return None
@@ -1551,6 +1568,7 @@ class DataSourceItem(BaseModel):
     order: Mapped[int]
     key: Mapped[CIStr]
     label: Mapped[str]
+    alias: Mapped[str | None] = mapped_column(default=None)
 
     data_source: Mapped[DataSource] = relationship("DataSource", back_populates="items", uselist=False)
     component_references: Mapped[list[ComponentReference]] = relationship(

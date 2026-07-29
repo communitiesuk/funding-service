@@ -215,6 +215,65 @@ class TestQuestionForm:
             "data_source_items": [f"You have entered too many options. The maximum is {max_data_source_items}"]
         }
 
+    def test_data_source_item_aliases_blank_is_valid(self, app):
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "one\ntwo"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+        assert form.errors == {}
+        assert form.normalised_data_source_item_aliases == [None, None]
+
+    def test_data_source_item_aliases_mismatched_count_fails(self, app):
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "one\ntwo\nthree"),
+                ("data_source_item_aliases", "one_alias\ntwo_alias"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {
+            "data_source_item_aliases": ["Enter one alias for each option. You have entered 3 options and 2 aliases"]
+        }
+
+    def test_data_source_item_aliases_excludes_other_option(self, app):
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "one\ntwo"),
+                ("data_source_item_aliases", "one_alias\ntwo_alias"),
+                ("separate_option_if_no_items_match", "y"),
+                ("none_of_the_above_item_text", "Other"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is True
+        assert form.errors == {}
+        assert form.normalised_data_source_item_aliases == ["one_alias", "two_alias", None]
+
     def test_prefixes_and_suffixes_blank_coerced_to_none(self, app):
         form = QuestionForm(question_type=QuestionDataType.NUMBER)
 

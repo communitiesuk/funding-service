@@ -1081,7 +1081,7 @@ def update_form(form: Form, *, title: str) -> Form:
 
 
 @flush_and_rollback_on_exceptions
-def _create_data_source(question: Question, items: list[str]) -> None:
+def _create_data_source(question: Question, items: list[str], item_aliases: list[str | None] | None = None) -> None:
     data_source = DataSource(id=uuid.uuid4())
 
     if len({slugify(item) for item in items}) != len(items):
@@ -1091,8 +1091,10 @@ def _create_data_source(question: Question, items: list[str]) -> None:
         raise ValueError("No duplicate data source items are allowed")
 
     data_source_items = []
-    for choice in items:
-        data_source_items.append(DataSourceItem(data_source_id=data_source.id, key=slugify(choice), label=choice))
+    for choice, alias in zip(items, item_aliases or [None] * len(items), strict=True):
+        data_source_items.append(
+            DataSourceItem(data_source_id=data_source.id, key=slugify(choice), label=choice, alias=alias)
+        )
     data_source.items = data_source_items
     question.data_source = data_source
 
@@ -1102,12 +1104,14 @@ def _create_data_source(question: Question, items: list[str]) -> None:
 
 
 @flush_and_rollback_on_exceptions
-def _update_data_source(question: Question, items: list[str]) -> None:
+def _update_data_source(question: Question, items: list[str], item_aliases: list[str | None] | None = None) -> None:
     assert question.data_source is not None
     existing_choices_map = {choice.key: choice for choice in question.data_source.items}
-    for item in items:
+    aliases = item_aliases or [None] * len(items)
+    for item, alias in zip(items, aliases, strict=True):
         if slugify(item) in existing_choices_map:
             existing_choices_map[slugify(item)].label = item
+            existing_choices_map[slugify(item)].alias = alias
 
     if len({slugify(item) for item in items}) != len(items):
         # If this error occurs, it's probably because QuestionForm does not check for duplication between the
@@ -1118,9 +1122,9 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     new_choices = [
         existing_choices_map.get(
             slugify(choice),
-            DataSourceItem(data_source_id=question.data_source.id, key=slugify(choice), label=choice),
+            DataSourceItem(data_source_id=question.data_source.id, key=slugify(choice), label=choice, alias=alias),
         )
-        for choice in items
+        for choice, alias in zip(items, aliases, strict=True)
     ]
 
     db.session.execute(text("SET CONSTRAINTS uq_data_source_id_order DEFERRED"))
@@ -1144,6 +1148,7 @@ def create_question(
     expression_context: ExpressionContext,
     parent: Group | None = None,
     items: list[str] | None = None,
+    item_aliases: list[str | None] | None = None,
     presentation_options: QuestionPresentationOptions | None = None,
     data_options: QuestionDataOptions | None = None,
 ) -> Question:
@@ -1175,7 +1180,7 @@ def create_question(
         raise e
 
     if items is not None:
-        _create_data_source(question, items)
+        _create_data_source(question, items, item_aliases)
 
     return question
 
@@ -2005,6 +2010,7 @@ def update_question(
     name: str | TNotProvided = NOT_PROVIDED,
     hint: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     items: list[str] | None | TNotProvided = NOT_PROVIDED,
+    item_aliases: list[str | None] | None | TNotProvided = NOT_PROVIDED,
     presentation_options: QuestionPresentationOptions | TNotProvided = NOT_PROVIDED,
     guidance_heading: str | None | TNotProvided = NOT_PROVIDED,
     guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
@@ -2034,7 +2040,7 @@ def update_question(
         question.conditions_operator = conditions_operator
 
     if items is not NOT_PROVIDED and items is not None:
-        _update_data_source(question, items)
+        _update_data_source(question, items, item_aliases if item_aliases is not NOT_PROVIDED else None)
 
     if data_options is not NOT_PROVIDED:
         question.data_options = data_options
