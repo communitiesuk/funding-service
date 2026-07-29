@@ -74,6 +74,23 @@ def source_collection(factories):
         text="A child question",
     )
 
+    # a second self-referential FK on `component` (add_another_repeats_over_component_id, alongside
+    # parent_id) - exercises whether the single db.session.flush() of all copied components in
+    # `copy_collection` can order/insert both self-FKs correctly.
+    repeating_group = factories.group.create(
+        form=form,
+        name="Repeating group",
+        add_another=True,
+        add_another_repeats_over=group,
+    )
+    factories.question.create(
+        form=form,
+        parent=repeating_group,
+        name="Repeating group question",
+        data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        text="A repeating group question",
+    )
+
     grant_recipient = factories.grant_recipient.create(grant=grant)
     gr_data_source = factories.data_source.create(
         type=DataSourceType.GRANT_RECIPIENT,
@@ -247,6 +264,23 @@ class TestCopyCollectionComponents:
         for component in source_form._all_components:
             from_db = db_session.get(Component, component.id)
             assert from_db.form_id == source_form.id
+
+    def test_repeats_over_self_fk_remapped_to_copied_group(self, db_session, source_collection, copied):
+        source_group = next(c for c in source_collection.forms[0]._all_components if c.name == "Staff group")
+        copied_group = next(c for c in copied.forms[0]._all_components if c.name == "Staff group")
+        copied_repeating_group = next(c for c in copied.forms[0]._all_components if c.name == "Repeating group")
+
+        assert copied_repeating_group.add_another_repeats_over_component_id == copied_group.id
+        assert copied_repeating_group.add_another_repeats_over_component_id != source_group.id
+
+    def test_repeats_over_component_reference_copied(self, db_session, source_collection, copied):
+        copied_group = next(c for c in copied.forms[0]._all_components if c.name == "Staff group")
+        copied_repeating_group = next(c for c in copied.forms[0]._all_components if c.name == "Repeating group")
+
+        component_reference = (
+            db_session.query(ComponentReference).filter_by(component_id=copied_repeating_group.id).one()
+        )
+        assert component_reference.depends_on_component_id == copied_group.id
 
 
 class TestCopyCollectionExpressions:

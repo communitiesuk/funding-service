@@ -529,6 +529,72 @@ class TestSubmissionHelper:
             all_answered = helper.cached_get_all_questions_are_answered_for_form(group.form).all_answered
             assert all_answered is True
 
+        def test_repeating_add_another_not_blocking_when_source_is_empty(self, factories):
+            source_form = factories.form.build()
+            source = factories.group.build(form=source_form, add_another=True)
+            factories.question.build(form=source_form, parent=source)
+            container_form = factories.form.build(collection=source_form.collection)
+            container = factories.group.build(form=container_form, add_another=True, add_another_repeats_over=source)
+            factories.question.build(form=container_form, parent=container)
+            submission = factories.submission.build(collection=source_form.collection)
+            helper = SubmissionHelper(submission)
+
+            # the source has zero entries, so the repeating container contributes nothing (it does not
+            # block its own section - the source being empty blocks the source's own section instead)
+            all_answered = helper.cached_get_all_questions_are_answered_for_form(container_form).all_answered
+            assert all_answered is True
+
+        def test_repeating_add_another_incomplete_while_any_entry_unanswered(self, factories):
+            source_form = factories.form.build()
+            source = factories.group.build(form=source_form, add_another=True)
+            source_q = factories.question.build(form=source_form, parent=source)
+            container_form = factories.form.build(collection=source_form.collection)
+            container = factories.group.build(form=container_form, add_another=True, add_another_repeats_over=source)
+            container_q = factories.question.build(form=container_form, parent=container)
+            submission = factories.submission.build(
+                collection=source_form.collection,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+            helper = SubmissionHelper(submission)
+
+            # materialise the container's entries directly (as `reconcile_repeating_entries` would, minus
+            # the DB sync, which isn't available in this unit test) - one per source entry
+            source_entries = submission.data_manager.get_entries(source)
+            submission.data_manager.append_entry(container, source_entry_id=source_entries[0]["id"])
+            submission.data_manager.append_entry(container, source_entry_id=source_entries[1]["id"])
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+
+            all_answered = helper.cached_get_all_questions_are_answered_for_form(container_form).all_answered
+            assert all_answered is False
+
+        def test_repeating_add_another_complete_when_all_entries_answered(self, factories):
+            source_form = factories.form.build()
+            source = factories.group.build(form=source_form, add_another=True)
+            source_q = factories.question.build(form=source_form, parent=source)
+            container_form = factories.form.build(collection=source_form.collection)
+            container = factories.group.build(form=container_form, add_another=True, add_another_repeats_over=source)
+            container_q = factories.question.build(form=container_form, parent=container)
+            submission = factories.submission.build(
+                collection=source_form.collection,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+            helper = SubmissionHelper(submission)
+
+            source_entries = submission.data_manager.get_entries(source)
+            submission.data_manager.append_entry(container, source_entry_id=source_entries[0]["id"])
+            submission.data_manager.append_entry(container, source_entry_id=source_entries[1]["id"])
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£200"), add_another_index=1)
+
+            all_answered = helper.cached_get_all_questions_are_answered_for_form(container_form).all_answered
+            assert all_answered is True
+
     class TestStatuses:
         def test_all_needed_forms_are_completed(self, db_session, factories):
             form_one = factories.form.build()

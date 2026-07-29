@@ -163,6 +163,7 @@ from app.deliver_grant_funding.forms import (
     SelectDataSourceDataSetForm,
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
+    SelectRepeatsOverGroupForm,
     SetUpCollectionForm,
     SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
@@ -177,6 +178,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    AddRepeatsOverSourceSessionModel,
     DataSetUploadSessionModel,
 )
 from app.extensions import auto_commit_after_request, notification_service, s3_service
@@ -191,6 +193,7 @@ SessionModelType = (
     | AddContextToComponentSessionModel
     | AddContextToComponentGuidanceSessionModel
     | AddContextToExpressionsModel
+    | AddRepeatsOverSourceSessionModel
 )
 
 
@@ -1081,6 +1084,68 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-repeats-over/select-source", methods=["GET"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def start_change_group_repeats_over(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+    add_context_data = AddRepeatsOverSourceSessionModel(component_id=db_group.id)
+    session["question"] = add_context_data.model_dump(mode="json")
+    return redirect(url_for("deliver_grant_funding.select_context_source", grant_id=grant_id, form_id=db_group.form_id))
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/group/<uuid:group_id>/change-repeats-over", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def change_group_repeats_over(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
+    db_group = get_group_by_id(group_id)
+    form = GenericSubmitForm()
+
+    add_context_data = cast(
+        "AddRepeatsOverSourceSessionModel | None",
+        _extract_add_context_data_from_session(session_model=AddRepeatsOverSourceSessionModel, component_id=group_id),
+    )
+    if add_context_data and add_context_data.selected_group_id:
+        del session["question"]
+        try:
+            update_group(
+                db_group,
+                expression_context=ExpressionContext.build_expression_context(
+                    collection=db_group.form.collection, mode="interpolation"
+                ),
+                repeats_over=get_group_by_id(add_context_data.selected_group_id),
+            )
+        except AddAnotherNotValidException as e:
+            form.submit.errors = [e.message]
+        except DependencyOrderException:
+            form.submit.errors = ["You can only repeat over a group in an earlier section, or earlier in this section"]
+
+    elif form.validate_on_submit() and form.submit.data:
+        update_group(
+            db_group,
+            expression_context=ExpressionContext.build_expression_context(
+                collection=db_group.form.collection, mode="interpolation"
+            ),
+            repeats_over=None,
+        )
+        return redirect(
+            url_for("deliver_grant_funding.change_group_repeats_over", grant_id=grant_id, group_id=db_group.id)
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/change_group_repeats_over.html",
+        grant=db_group.form.collection.grant,
+        group=db_group,
+        db_form=db_group.form,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/section/<uuid:form_id>/questions", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
@@ -1438,7 +1503,7 @@ def choose_question_type(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
 
 
-def _extract_add_context_data_from_session(
+def _extract_add_context_data_from_session(  # noqa: C901
     session_model: type[SessionModelType] | None = None,
     component_id: UUID | TNotProvided | None = NOT_PROVIDED,
     expression_id: UUID | TNotProvided | None = NOT_PROVIDED,
@@ -1460,6 +1525,12 @@ def _extract_add_context_data_from_session(
 
             case "condition_depends_on":
                 add_context_data = AddConditionDependsOnSessionModel(**session_data)
+                if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
+                    del session["question"]
+                    return None
+
+            case "repeats_over":
+                add_context_data = AddRepeatsOverSourceSessionModel(**session_data)
                 if component_id is not NOT_PROVIDED and component_id != add_context_data.component_id:
                     del session["question"]
                     return None
@@ -1695,6 +1766,7 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         current_component=this_component,
         parent_component=get_group_by_id(add_context_data.parent_id) if add_context_data.parent_id else None,
         include_this_component=add_context_data.include_current_component_when_referencing_data(this_component),
+        restrict_to_sections=isinstance(add_context_data, AddRepeatsOverSourceSessionModel),
     )
     question = cast("Question", this_component)
     if wtform.validate_on_submit():
@@ -1712,11 +1784,12 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             redirect_response = None
             match add_context_data.data_source:
                 case ExpressionContext.ContextSources.SECTION:
-                    redirect_response = redirect(
-                        url_for(
-                            "deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id
-                        )
+                    next_route = (
+                        "deliver_grant_funding.select_context_source_group"
+                        if isinstance(add_context_data, AddRepeatsOverSourceSessionModel)
+                        else "deliver_grant_funding.select_context_source_question"
                     )
+                    redirect_response = redirect(url_for(next_route, grant_id=grant_id, form_id=form_id))
                     add_context_data.collection_id = db_form.collection_id
                     add_context_data.form_id = db_form.id
 
@@ -1789,12 +1862,56 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
         referenced_section = get_form_by_id(uuid.UUID(wtform.section.data))
         add_context_data.form_id = referenced_section.id
         session["question"] = add_context_data.model_dump(mode="json")
-        return redirect(
-            url_for("deliver_grant_funding.select_context_source_question", grant_id=grant_id, form_id=form_id)
+        next_route = (
+            "deliver_grant_funding.select_context_source_group"
+            if isinstance(add_context_data, AddRepeatsOverSourceSessionModel)
+            else "deliver_grant_funding.select_context_source_question"
         )
+        return redirect(url_for(next_route, grant_id=grant_id, form_id=form_id))
 
     return render_template(
         "deliver_grant_funding/collections/select_context_source_section.html",
+        grant=db_form.collection.grant,
+        db_form=db_form,
+        form=wtform,
+        add_context_data=add_context_data,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-group-from-section", methods=["GET", "POST"]
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+def select_context_source_group(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
+    db_form = get_form_by_id(form_id)
+
+    add_context_data = cast(
+        "AddRepeatsOverSourceSessionModel | None",
+        _extract_add_context_data_from_session(session_model=AddRepeatsOverSourceSessionModel),
+    )
+    if not add_context_data:
+        return abort(400)
+
+    assert add_context_data.form_id
+    target_form = get_form_by_id(add_context_data.form_id)
+    group = get_group_by_id(add_context_data.component_id)
+
+    wtform = SelectRepeatsOverGroupForm(section=target_form, group=group)
+
+    if wtform.validate_on_submit():
+        add_context_data.selected_group_id = uuid.UUID(wtform.repeats_over_group.data)
+        session["question"] = add_context_data.model_dump(mode="json")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=grant_id,
+                group_id=add_context_data.component_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/select_context_source_group.html",
         grant=db_form.collection.grant,
         db_form=db_form,
         form=wtform,

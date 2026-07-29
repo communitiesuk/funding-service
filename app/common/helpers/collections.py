@@ -699,8 +699,17 @@ class SubmissionHelper:
                 continue
 
             if question.add_another_container:
-                number_of_add_another_entries = self.get_count_for_add_another(question.add_another_container)
+                add_another_container = question.add_another_container
+                number_of_add_another_entries = self.get_count_for_add_another(add_another_container)
                 if number_of_add_another_entries == 0:
+                    repeats_over_source = (
+                        cast("Group", add_another_container).repeats_over if add_another_container.is_group else None
+                    )
+                    if repeats_over_source is not None and self.get_count_for_add_another(repeats_over_source) == 0:
+                        # a repeating container contributes nothing while its source has no entries to
+                        # repeat over - the source being empty already blocks its own section
+                        continue
+
                     # we don't currently support optional questions so anything without answers
                     # should be considered blocking
                     if self.is_component_visible(question, self.cached_evaluation_context, add_another_index=0):
@@ -1130,6 +1139,53 @@ class SubmissionHelper:
 
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)
 
+        # Answering the first question of a new entry is what lazily creates that entry (see
+        # `SubmissionDataManager.set`), so this is the point at which any group repeating over this one
+        # needs to pick up the new source entry.
+        if question.add_another_container:
+            for repeating_group in question.add_another_container.repeated_over_by:
+                if repeating_group.is_group:
+                    self.reconcile_repeating_entries(cast("Group", repeating_group))
+
+    def reconcile_repeating_entries(self, container: Group) -> None:
+        """For a `container` that repeats over another add-another group, make `data[container.id]` hold
+        exactly one entry per entry of the source group, in source order, each stamped with its
+        `source_entry_id`. Missing entries are appended empty; orphaned entries (whose source entry has
+        been removed) are removed along with their files, reusing `remove_entry_for_add_another`.
+
+        A no-op if `container` doesn't repeat over anything.
+        """
+        source = container.repeats_over
+        if source is None:
+            return
+
+        data_manager = self.submission.data_manager
+        changed = False
+
+        while True:
+            source_entry_ids = {entry["id"] for entry in data_manager.get_entries(source)}
+            orphan_index = next(
+                (
+                    i
+                    for i, entry in enumerate(data_manager.get_entries(container))
+                    if entry.get("source_entry_id") not in source_entry_ids
+                ),
+                None,
+            )
+            if orphan_index is None:
+                break
+            self.remove_entry_for_add_another(container, orphan_index)
+            changed = True
+
+        existing_source_entry_ids = {entry["source_entry_id"] for entry in data_manager.get_entries(container)}
+        for source_entry in data_manager.get_entries(source):
+            if source_entry["id"] not in existing_source_entry_ids:
+                data_manager.append_entry(container, source_entry_id=source_entry["id"])
+                changed = True
+
+        if changed:
+            self._sync_submission_data_and_status()
+
     def remove_entry_for_add_another(self, add_another_container: Group, add_another_index: int) -> None:
         if self.in_answers_locked_state:
             raise ValueError(
@@ -1148,6 +1204,34 @@ class SubmissionHelper:
         self.submission.data_manager.remove_add_another_entry(
             add_another_container, add_another_index=add_another_index
         )
+        self._sync_submission_data_and_status()
+
+        for key in keys_to_delete:
+            s3_service.delete_file(key)
+
+        # Removing a source entry cascades to any group repeating over this one.
+        for repeating_group in add_another_container.repeated_over_by:
+            if repeating_group.is_group:
+                self.reconcile_repeating_entries(cast("Group", repeating_group))
+
+    def clear_entry_for_add_another(self, add_another_container: Group, add_another_index: int) -> None:
+        """Empty a repeating entry's answers (and delete its files), rather than removing the row - the row's
+        position corresponds to a source entry, so it stays and reverts to being unanswered."""
+        if self.in_answers_locked_state:
+            raise ValueError(
+                f"Could not clear entry for add another id={add_another_container.id} "
+                f"because the answers are locked for submission id={self.id}."
+            )
+
+        keys_to_delete = [
+            answer.key
+            for question in add_another_container.cached_questions
+            if question.data_type == QuestionDataType.FILE_UPLOAD
+            and (answer := self.cached_get_answer_for_question(question.id, add_another_index=add_another_index))
+            and isinstance(answer, FileUploadAnswer)
+            and answer.key
+        ]
+        self.submission.data_manager.clear_entry_answers(add_another_container, add_another_index=add_another_index)
         self._sync_submission_data_and_status()
 
         for key in keys_to_delete:

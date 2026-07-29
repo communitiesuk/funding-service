@@ -384,6 +384,101 @@ class TestSubmissionHelper:
             assert len(mock_s3_service_calls.delete_file_calls) == 1
             assert mock_s3_service_calls.delete_file_calls[0].args[0] == "an-s3-key-0"
 
+    class TestReconcileRepeatingEntries:
+        def test_noop_when_container_does_not_repeat_over_anything(self, db_session, factories):
+            container = factories.group.create(add_another=True)
+            factories.question.create(form=container.form, parent=container)
+            submission = factories.submission.create(collection=container.form.collection)
+            helper = SubmissionHelper(submission)
+
+            helper.reconcile_repeating_entries(container)
+
+            assert helper.submission.data_manager.get_count_for_add_another(container) == 0
+
+        def test_adds_missing_entries_for_each_source_entry_in_order(self, db_session, factories):
+            source = factories.group.create(add_another=True)
+            source_question = factories.question.create(form=source.form, parent=source)
+            container = factories.group.create(form=source.form, add_another=True, add_another_repeats_over=source)
+            factories.question.create(form=container.form, parent=container)
+
+            submission = factories.submission.create(collection=source.form.collection)
+            submission.data_manager.set(source_question, TextSingleLineAnswer("Recipient 1"), add_another_index=0)
+            submission.data_manager.set(source_question, TextSingleLineAnswer("Recipient 2"), add_another_index=1)
+
+            helper = SubmissionHelper(submission)
+            helper.reconcile_repeating_entries(container)
+
+            source_entries = helper.submission.data_manager.get_entries(source)
+            container_entries = helper.submission.data_manager.get_entries(container)
+            assert len(container_entries) == 2
+            assert [e["source_entry_id"] for e in container_entries] == [e["id"] for e in source_entries]
+            assert all(e["answers"] == {} for e in container_entries)
+
+        def test_preserves_existing_answers_and_only_adds_the_new_entry(self, db_session, factories):
+            source = factories.group.create(add_another=True)
+            source_question = factories.question.create(form=source.form, parent=source)
+            container = factories.group.create(form=source.form, add_another=True, add_another_repeats_over=source)
+            container_question = factories.question.create(form=container.form, parent=container)
+
+            submission = factories.submission.create(collection=source.form.collection)
+            submission.data_manager.set(source_question, TextSingleLineAnswer("Recipient 1"), add_another_index=0)
+            submission.data_manager.set(source_question, TextSingleLineAnswer("Recipient 2"), add_another_index=1)
+
+            helper = SubmissionHelper(submission)
+            helper.reconcile_repeating_entries(container)
+            helper.submission.data_manager.set(
+                container_question, TextSingleLineAnswer("Funding details 1"), add_another_index=0
+            )
+
+            # a third source entry appears
+            submission.data_manager.set(source_question, TextSingleLineAnswer("Recipient 3"), add_another_index=2)
+            helper.reconcile_repeating_entries(container)
+
+            source_entries = helper.submission.data_manager.get_entries(source)
+            container_entries = helper.submission.data_manager.get_entries(container)
+            assert len(container_entries) == 3
+            assert [e["source_entry_id"] for e in container_entries] == [e["id"] for e in source_entries]
+            assert container_entries[0]["answers"] == {str(container_question.id): "Funding details 1"}
+            assert container_entries[1]["answers"] == {}
+            assert container_entries[2]["answers"] == {}
+
+        def test_removes_orphaned_entries_and_their_files_and_keeps_source_order(
+            self, db_session, factories, mock_s3_service_calls
+        ):
+            source = factories.group.create(add_another=True)
+            source_question = factories.question.create(form=source.form, parent=source)
+            container = factories.group.create(form=source.form, add_another=True, add_another_repeats_over=source)
+            file_question = factories.question.create(
+                form=container.form, parent=container, data_type=QuestionDataType.FILE_UPLOAD
+            )
+
+            submission = factories.submission.create(collection=source.form.collection)
+            for i in range(3):
+                submission.data_manager.set(
+                    source_question, TextSingleLineAnswer(f"Recipient {i}"), add_another_index=i
+                )
+
+            helper = SubmissionHelper(submission)
+            helper.reconcile_repeating_entries(container)
+            # the file answer belongs to the entry that will become orphaned below (source index 1)
+            helper.submission.data_manager.set(
+                file_question,
+                FileUploadAnswer(filename="doc.pdf", size=0, mime_type="application/pdf", key="orphan-key"),
+                add_another_index=1,
+            )
+
+            # remove the middle source entry - its corresponding container entry becomes an orphan; removing a
+            # source entry cascades into reconciling the repeating container automatically
+            surviving_source_ids = [
+                e["id"] for i, e in enumerate(helper.submission.data_manager.get_entries(source)) if i != 1
+            ]
+            helper.remove_entry_for_add_another(source, 1)
+
+            container_entries = helper.submission.data_manager.get_entries(container)
+            assert [e["source_entry_id"] for e in container_entries] == surviving_source_ids
+            assert len(mock_s3_service_calls.delete_file_calls) == 1
+            assert mock_s3_service_calls.delete_file_calls[0].args[0] == "orphan-key"
+
     class TestRemoveAnswerForQuestion:
         def test_remove_answer_for_file_upload_question_and_clears_cache(
             self, db_session, factories, mock_s3_service_calls
@@ -3387,6 +3482,37 @@ class TestSubmissionsHelper:
         assert rows[1]["[Test form] [Test group] Test question (1)"] == "only first"
         assert rows[1]["[Test form] [Test group] Test question (2)"] == "NOT_ASKED"
         assert rows[1]["[Test form] [Test group] Test question (3)"] == "NOT_ASKED"
+
+    def test_generate_csv_content_repeating_add_another_empty_materialised_entry_is_not_answered(self, factories):
+        source = factories.group.create(add_another=True, name="Recipients", form__title="Test form")
+        source_q = factories.question.create(form=source.form, parent=source, name="Recipient name")
+        container = factories.group.create(
+            form=source.form, add_another=True, add_another_repeats_over=source, name="Recipient details"
+        )
+        container_q = factories.question.create(form=source.form, parent=container, name="Funding amount")
+
+        submission = factories.submission.create(
+            collection=source.form.collection,
+            mode=SubmissionModeEnum.TEST,
+            reference="TEST-001",
+            answers=[
+                FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+            ],
+        )
+        helper = SubmissionHelper(submission)
+        helper.reconcile_repeating_entries(container)
+        # Alice's entry is answered; Bob's is materialised but left unanswered
+        submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+        helper._sync_submission_data_and_status()
+
+        subs_helper = AllSubmissionsHelper(collection=source.form.collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+        rows = list(reader)
+
+        assert rows[0]["[Test form] [Recipient details] Funding amount (1)"] == "£100"
+        assert rows[0]["[Test form] [Recipient details] Funding amount (2)"] == "NOT_ANSWERED"
 
     def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly(self, factories):
         factories.data_source_item.reset_sequence()

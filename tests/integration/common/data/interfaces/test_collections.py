@@ -53,6 +53,7 @@ from app.common.data.interfaces.collections import (
     move_form_up,
     raise_if_component_or_section_has_any_dependencies,
     raise_if_data_source_item_reference_dependency,
+    raise_if_group_cannot_repeat_over,
     raise_if_group_questions_depend_on_each_other,
     raise_if_nested_group_creation_not_valid_here,
     remove_question_expression,
@@ -1509,6 +1510,99 @@ class TestUpdateGroup:
 
         update_group(group, expression_context=ExpressionContext(), add_another=True)
         assert group.add_another is True
+
+    def test_update_group_sets_repeats_over(self, db_session, factories):
+        form = factories.form.create()
+        source = factories.group.create(form=form, add_another=True, name="Recipients")
+        group = factories.group.create(form=form, add_another=True, name="Recipient details")
+
+        updated_group = update_group(
+            group,
+            expression_context=ExpressionContext.build_expression_context(form.collection, "interpolation", None, None),
+            repeats_over=source,
+        )
+
+        assert updated_group.repeats_over == source
+        component_reference = db_session.query(ComponentReference).filter_by(component_id=group.id).one()
+        assert component_reference.depends_on_component_id == source.id
+
+    def test_update_group_clears_repeats_over(self, db_session, factories):
+        form = factories.form.create()
+        source = factories.group.create(form=form, add_another=True, name="Recipients")
+        group = factories.group.create(
+            form=form, add_another=True, name="Recipient details", add_another_repeats_over=source
+        )
+
+        updated_group = update_group(
+            group,
+            expression_context=ExpressionContext(),
+            repeats_over=None,
+        )
+
+        assert updated_group.repeats_over is None
+        assert db_session.query(ComponentReference).filter_by(component_id=group.id).one_or_none() is None
+
+    def test_update_group_repeats_over_requires_both_groups_to_be_add_another(self, db_session, factories):
+        form = factories.form.create()
+        source = factories.group.create(form=form, add_another=False, name="Recipients")
+        group = factories.group.create(form=form, add_another=True, name="Recipient details")
+
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(group, expression_context=ExpressionContext(), repeats_over=source)
+
+        group2 = factories.group.create(form=form, add_another=False, name="Recipient details 2")
+        source2 = factories.group.create(form=form, add_another=True, name="Recipients 2")
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(group2, expression_context=ExpressionContext(), repeats_over=source2)
+
+    def test_update_group_cannot_repeat_over_itself(self, db_session, factories):
+        group = factories.group.create(add_another=True, name="Recipients")
+
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(group, expression_context=ExpressionContext(), repeats_over=group)
+
+    def test_update_group_repeats_over_must_come_after_source(self, db_session, factories):
+        form = factories.form.create()
+        group = factories.group.create(form=form, add_another=True, name="Recipient details")
+        source = factories.group.create(form=form, add_another=True, name="Recipients")
+
+        with pytest.raises(DependencyOrderException):
+            update_group(group, expression_context=ExpressionContext(), repeats_over=source)
+
+    def test_update_group_repeats_over_blocks_chain_where_source_already_repeats(self, db_session, factories):
+        form = factories.form.create()
+        a = factories.group.create(form=form, add_another=True, name="A")
+        b = factories.group.create(form=form, add_another=True, name="B", add_another_repeats_over=a)
+        c = factories.group.create(form=form, add_another=True, name="C")
+
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(c, expression_context=ExpressionContext(), repeats_over=b)
+
+    def test_update_group_repeats_over_blocks_chain_where_group_already_repeated_over(self, db_session, factories):
+        form = factories.form.create()
+        a = factories.group.create(form=form, add_another=True, name="A")
+        b = factories.group.create(form=form, add_another=True, name="B")
+        factories.group.create(form=form, add_another=True, name="C", add_another_repeats_over=b)
+
+        with pytest.raises(AddAnotherNotValidException):
+            update_group(b, expression_context=ExpressionContext(), repeats_over=a)
+
+    def test_update_group_cannot_stop_being_add_another_while_repeated_over(self, db_session, factories):
+        form = factories.form.create()
+        source = factories.group.create(form=form, add_another=True, name="Recipients")
+        factories.group.create(form=form, add_another=True, name="Recipient details", add_another_repeats_over=source)
+
+        with pytest.raises(AddAnotherDependencyException):
+            update_group(source, expression_context=ExpressionContext(), add_another=False)
+        assert source.add_another is True
+
+    def test_raise_if_group_cannot_repeat_over_directly(self, db_session, factories):
+        form = factories.form.create()
+        source = factories.group.create(form=form, add_another=True, name="Recipients")
+        group = factories.group.create(form=form, add_another=True, name="Recipient details")
+
+        # valid case does not raise
+        raise_if_group_cannot_repeat_over(group, source)
 
     def test_synced_component_references(self, db_session, factories, mocker):
         form = factories.form.create()
@@ -4072,6 +4166,18 @@ class TestDeleteQuestion:
         for item in question.data_source.items:
             assert db_session.get(DataSourceItem, item.id) is None
 
+    def test_delete_group_that_is_repeated_over_raises(self, db_session, factories):
+        # the repeats-over relationship is enforced via the standard ComponentReference dependency
+        # machinery (see `_validate_and_sync_component_references`), so the existing deletion guard
+        # protects a source group from deletion with no extra code
+        form = factories.form.create()
+        source = factories.group.create(form=form, add_another=True, name="Recipients")
+        factories.group.create(form=form, add_another=True, name="Recipient details", add_another_repeats_over=source)
+
+        with pytest.raises(DependencyOrderException):
+            delete_question(source)
+        assert db_session.get(Group, source.id) is source
+
 
 class TestDeleteCollectionSubmissions:
     def test_delete_preview_collection_submissions_created_by_user(self, db_session, factories):
@@ -4187,6 +4293,18 @@ class TestReferenceValidation:
 
         with subtests.test("add_another referencing multiple previous add_anothers from different group"):
             assert components_in_valid_add_another_combination(g2_q1, [g1_q1, g1_q2]) is False
+
+        g3 = factories.group.create(form=q1.form, add_another=True, add_another_repeats_over=g1)
+        g3_q1 = factories.question.create(form=q1.form, parent=g3)
+
+        with subtests.test("repeating group can reference its source group's questions"):
+            assert components_in_valid_add_another_combination(g3_q1, [g1_q1]) is True
+
+        with subtests.test("source group cannot reference the repeating group's questions"):
+            assert components_in_valid_add_another_combination(g1_q1, [g3_q1]) is False
+
+        with subtests.test("repeating group referencing an unrelated add_another group is still invalid"):
+            assert components_in_valid_add_another_combination(g3_q1, [g2_q1]) is False
 
 
 class TestValidateAndSyncExpressionReferences:

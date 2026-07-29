@@ -773,6 +773,7 @@ class Component(BaseModel):
     guidance_body: Mapped[InterpolationStatement | None]
     add_another_guidance_body: Mapped[InterpolationStatement | None]
     add_another: Mapped[bool] = mapped_column(default=False)
+    add_another_repeats_over_component_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"))
     conditions_operator: Mapped[ConditionsOperator] = mapped_column(
         SqlEnum(ConditionsOperator, name="conditions_operator_enum", validate_strings=True),
         default=ConditionsOperator.ALL,
@@ -792,13 +793,29 @@ class Component(BaseModel):
         back_populates="questions",
         foreign_keys=[data_source_id],
     )
-    parent: Mapped[Group] = relationship("Component", remote_side="Component.id", back_populates="components")
+    parent: Mapped[Group] = relationship(
+        "Component", remote_side="Component.id", foreign_keys=[parent_id], back_populates="components"
+    )
     components: Mapped[OrderingList[Component]] = relationship(
         "Component",
         back_populates="parent",
+        foreign_keys=[parent_id],
         cascade="all, save-update, merge",
         order_by="Component.order",
         collection_class=ordering_list("order"),
+    )
+    add_another_repeats_over: Mapped[Group | None] = relationship(
+        "Component",
+        remote_side="Component.id",
+        foreign_keys=[add_another_repeats_over_component_id],
+        back_populates="repeated_over_by",
+    )
+    repeated_over_by: Mapped[list[Component]] = relationship(
+        "Component",
+        back_populates="add_another_repeats_over",
+        foreign_keys=[add_another_repeats_over_component_id],
+        # explicitly disable cascading deletes so that a repeating group protects its source from deletion
+        passive_deletes="all",
     )
 
     owned_component_references: Mapped[list[ComponentReference]] = relationship(
@@ -1174,6 +1191,12 @@ class Group(Component):
                 if question.id in self.presentation_options.add_another_summary_line_question_ids
             ] or self.cached_questions
         return self.cached_questions
+
+    @property
+    def repeats_over(self) -> Group | None:
+        """The add-another group this group repeats over, ie. produces exactly one entry per entry of,
+        rather than letting the filler add as many entries as they like."""
+        return self.add_another_repeats_over
 
 
 class SubmissionEvent(BaseModel):

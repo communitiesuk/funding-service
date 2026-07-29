@@ -1660,6 +1660,185 @@ class TestAskAQuestion:
             assert soup.find("input", {"name": "add_another", "value": "yes"}).get("checked") is None
             assert soup.find("input", {"name": "add_another", "value": "no"}).get("checked") is None
 
+    class TestAskAQuestionRepeatingAddAnotherSummary:
+        def _build_source_and_container(self, factories, grant):
+            collection = factories.collection.create(grant=grant)
+            source_form = factories.form.create(collection=collection, title="Recipients section", order=0)
+            container_form = factories.form.create(collection=collection, title="Recipient details section", order=1)
+            source = factories.group.create(form=source_form, add_another=True, name="Recipients")
+            source_q = factories.question.create(form=source_form, parent=source, name="Recipient name")
+            container = factories.group.create(
+                form=container_form,
+                add_another=True,
+                name="Recipient details",
+                add_another_repeats_over=source,
+            )
+            container_q = factories.question.create(form=container_form, parent=container, name="Funding amount")
+            return collection, source, source_q, container, container_q
+
+        def test_get_shows_enter_answer_links_and_no_radio_or_add_button(
+            self, authenticated_grant_recipient_data_provider_client, factories
+        ):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+            collection, source, source_q, container, container_q = self._build_source_and_container(
+                factories, grant_recipient.grant
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+
+            response = authenticated_grant_recipient_data_provider_client.get(
+                url_for(
+                    "access_grant_funding.ask_a_question",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    question_id=container_q.id,
+                )
+            )
+
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Recipient details"
+            assert "You have added 2 recipient details" in soup.text
+
+            # no free "add another" choice for a repeating container
+            assert soup.find("input", {"name": "add_another"}) is None
+            assert "Add the first answer" not in soup.text
+
+            keys = soup.find_all("dt", {"class": "govuk-summary-list__key"})
+            assert keys[0].text.strip() == "Enter answer for (Alice)"
+            assert keys[1].text.strip() == "Enter answer for (Bob)"
+
+            rows = soup.find_all("div", {"class": "govuk-summary-list__row"})
+            assert page_has_link(rows[0], "Remove") is not None
+            assert page_has_link(rows[0], "Change") is None
+
+        def test_get_shows_answered_entry_with_change_and_remove(
+            self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        ):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+            collection, source, source_q, container, container_q = self._build_source_and_container(
+                factories, grant_recipient.grant
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+
+            # reconcile first so the container entry is stamped with a source_entry_id before answering it,
+            # matching how the runner would materialise it on a real page load
+            helper = SubmissionHelper(submission)
+            helper.reconcile_repeating_entries(container)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+            helper._sync_submission_data_and_status()
+            db_session.commit()
+
+            response = authenticated_grant_recipient_data_provider_client.get(
+                url_for(
+                    "access_grant_funding.ask_a_question",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    question_id=container_q.id,
+                )
+            )
+
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            keys = soup.find_all("dt", {"class": "govuk-summary-list__key"})
+            assert keys[0].text.strip() == "£100"
+            assert keys[1].text.strip() == "Enter answer for (Bob)"
+
+            rows = soup.find_all("div", {"class": "govuk-summary-list__row"})
+            assert page_has_link(rows[0], "Change") is not None
+            assert page_has_link(rows[0], "Remove") is not None
+            assert page_has_link(rows[1], "Change") is None
+
+        def test_get_shows_explanatory_text_when_source_has_no_entries(
+            self, authenticated_grant_recipient_data_provider_client, factories
+        ):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+            collection, source, source_q, container, container_q = self._build_source_and_container(
+                factories, grant_recipient.grant
+            )
+            submission = factories.submission.create(
+                collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+            )
+
+            response = authenticated_grant_recipient_data_provider_client.get(
+                url_for(
+                    "access_grant_funding.ask_a_question",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    question_id=container_q.id,
+                )
+            )
+
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert "There are no answers in Recipients section to repeat over yet." in soup.text
+            assert soup.find("input", {"name": "add_another"}) is None
+            assert soup.find_all("dt", {"class": "govuk-summary-list__key"}) == []
+
+        def test_post_remove_clears_answer_but_keeps_the_row(
+            self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        ):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+            collection, source, source_q, container, container_q = self._build_source_and_container(
+                factories, grant_recipient.grant
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+            helper = SubmissionHelper(submission)
+            helper.reconcile_repeating_entries(container)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£200"), add_another_index=1)
+            helper._sync_submission_data_and_status()
+            db_session.commit()
+
+            response = authenticated_grant_recipient_data_provider_client.post(
+                url_for(
+                    "access_grant_funding.ask_a_question",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    question_id=container_q.id,
+                    add_another_index=0,
+                    action="remove",
+                ),
+                data={"confirm_remove": "yes"},
+                follow_redirects=False,
+            )
+
+            assert response.status_code == 302
+            assert submission.data_manager.get_count_for_add_another(container) == 2
+            assert submission.data_manager.get(container_q, add_another_index=0) is None
+            assert submission.data_manager.get(container_q, add_another_index=1) == TextSingleLineAnswer("£200")
+
     def test_post_add_first_answer_redirects_to_index_0(
         self, authenticated_grant_recipient_data_provider_client, factories
     ):

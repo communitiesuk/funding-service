@@ -13,6 +13,8 @@
     {% endif %}
   {% elif add_context_data.field == "condition_depends_on" %}
     {% set return_url = url_for("deliver_grant_funding.add_question_condition_select_question", grant_id=grant.id, component_id=add_context_data.component_id) %}
+  {% elif add_context_data.field == "repeats_over" %}
+    {% set return_url = url_for("deliver_grant_funding.change_group_repeats_over", grant_id=grant.id, group_id=add_context_data.component_id) %}
   {% elif add_context_data.field == enum.expression_type.CONDITION %}
     {% if not add_context_data.expression_id %}
       {% if add_context_data.is_custom == true %}

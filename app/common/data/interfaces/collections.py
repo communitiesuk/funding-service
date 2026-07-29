@@ -1203,6 +1203,13 @@ def raise_if_group_cannot_be_add_another(group: Group) -> None:
             component=group,
             add_another_container=group.parent.add_another_container,
         )
+    if group.repeated_over_by:
+        raise AddAnotherDependencyException(
+            message="You cannot change a group's add another setting while another group repeats over it",
+            component=group,
+            referenced_question=group.repeated_over_by[0],
+            form_error_message="You cannot change this group's add another setting while another group repeats over it",
+        )
 
 
 def raise_if_nested_group_creation_not_valid_here(parent: Group | None = None) -> None:
@@ -1838,6 +1845,34 @@ def raise_if_add_another_not_valid_here(component: Component) -> None:
         )
 
 
+def raise_if_group_cannot_repeat_over(group: Group, target: Group) -> None:
+    if not group.add_another or not target.add_another:
+        raise AddAnotherNotValidException(
+            "A group can only repeat over another add another group, and must itself be an add another group",
+            component=group,
+            add_another_container=target,
+        )
+    if target == group:
+        raise AddAnotherNotValidException(
+            "A group cannot repeat over itself",
+            component=group,
+            add_another_container=target,
+        )
+    if not is_component_dependency_order_valid(group, target):
+        raise DependencyOrderException(
+            f"Cannot repeat {group.id} over {target.id} because it must come after it",
+            group,
+            target,
+            form_error_message="You can only repeat over a group in an earlier section, or earlier in this section",
+        )
+    if target.add_another_repeats_over_component_id is not None or group.repeated_over_by:
+        raise AddAnotherNotValidException(
+            "A group cannot repeat over a group that is part of a chain of repeating groups",
+            component=group,
+            add_another_container=target,
+        )
+
+
 @flush_and_rollback_on_exceptions
 def move_component_up(component: Component) -> Component:
     swap_component = component.container.components[component.order - 1]
@@ -1885,6 +1920,7 @@ def update_group(  # noqa: C901
     guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
     add_another: bool | TNotProvided = NOT_PROVIDED,
     add_another_guidance_body: InterpolationStatement | None | TNotProvided = NOT_PROVIDED,
+    repeats_over: Group | None | TNotProvided = NOT_PROVIDED,
     conditions_operator: ConditionsOperator | TNotProvided = NOT_PROVIDED,
 ) -> Group:
     if name is not NOT_PROVIDED:
@@ -1933,13 +1969,18 @@ def update_group(  # noqa: C901
         group.guidance_body = guidance_body
 
     if add_another is not NOT_PROVIDED:
-        if group.add_another is not True and add_another is True:
+        if add_another != group.add_another:
             raise_if_group_cannot_be_add_another(group)
 
         group.add_another = add_another
 
     if add_another_guidance_body is not NOT_PROVIDED:
         group.add_another_guidance_body = add_another_guidance_body
+
+    if repeats_over is not NOT_PROVIDED:
+        if repeats_over is not None:
+            raise_if_group_cannot_repeat_over(group, repeats_over)
+        group.add_another_repeats_over = repeats_over
 
     if conditions_operator is not NOT_PROVIDED:
         group.conditions_operator = conditions_operator
@@ -2455,6 +2496,9 @@ def _validate_and_sync_component_references(component: Component, expression_con
                 continue
 
             raise ValueError(f"Unhandled reference '{validated_reference}' in component '{component.id}'")
+
+    if component.add_another_repeats_over_component_id is not None:
+        component_refs_to_set_up.add((component.id, component.add_another_repeats_over_component_id))
 
     for component_id, depends_on_component_id in component_refs_to_set_up:
         if component_id == depends_on_component_id:

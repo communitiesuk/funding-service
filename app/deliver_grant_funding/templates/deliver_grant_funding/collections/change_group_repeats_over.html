@@ -1,0 +1,52 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "deliver_grant_funding/macros/deliver_grant_funding_collection_breadcrumb.html" import deliver_grant_funding_collection_breadcrumb %}
+
+{% set page_title = "Repeats over" ~ " - " ~ group.name %}
+{% set type_constants = db_form.collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+  {% set parent_html %}
+    <span class="govuk-visually-hidden">Question group:</span>
+    <span>{{ group.name }}</span>
+  {% endset %}
+  {% set parent_item={"html": parent_html, "href": url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=group.id)} %}
+
+  {{
+    deliver_grant_funding_collection_breadcrumb(
+        grant=grant,
+        collection=db_form.collection,
+        form=db_form,
+        immediate_parent_breadcrumb_item=parent_item,
+        this_page_breadcrumb_item={"text":"Repeats over"}
+    )
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ grant.name }}</span>
+      <h1 class="govuk-heading-l">Repeats over</h1>
+
+      {% if group.repeats_over %}
+        <p class="govuk-body">This group repeats over <strong>{{ group.repeats_over.data_reference_label }}</strong>. One entry is created for each entry of that group, instead of people adding as many answers as they need.</p>
+      {% else %}
+        <p class="govuk-body">This group does not repeat over another group - people can add as many answers as they need.</p>
+      {% endif %}
+
+      <div class="govuk-button-group">
+        <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_change_group_repeats_over', grant_id=grant.id, group_id=group.id) }}">Reference data</a>
+      </div>
+
+      {% if group.repeats_over %}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.submit(params={"text": "Does not repeat", "classes": "govuk-button--warning"}) }}
+        </form>
+      {% endif %}
+
+      <p class="govuk-body"><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_group_questions', grant_id=grant.id, group_id=group.id) }}">Back to question group</a></p>
+    </div>
+  </div>
+{% endblock content %}

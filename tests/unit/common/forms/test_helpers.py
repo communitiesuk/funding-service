@@ -94,6 +94,17 @@ class TestQuestionsInSameAddAnotherGroup:
         assert questions_in_same_add_another_container(q1, q3) is False
         assert questions_in_same_add_another_container(q2, q3) is False
 
+    def test_repeating_group_question_can_reference_source_group_question(self, factories):
+        form = factories.form.build()
+        source = factories.group.build(form=form, add_another=True)
+        source_q = factories.question.build(form=form, parent=source)
+        container = factories.group.build(form=form, add_another=True, add_another_repeats_over=source)
+        container_q = factories.question.build(form=form, parent=container)
+
+        assert questions_in_same_add_another_container(source_q, container_q) is True
+        # the relaxation is one-directional - the source cannot reference into the repeating group
+        assert questions_in_same_add_another_container(container_q, source_q) is False
+
 
 class TestGetReferenceableQuestions:
     def test_no_current_component_returns_all_questions(self, factories):
@@ -246,6 +257,28 @@ class TestGetReferenceableQuestions:
         q2 = factories.question.build(form=form_2, data_type=QuestionDataType.TEXT_SINGLE_LINE)
 
         assert get_referenceable_questions(form, current_component=q2) == [q1]
+
+    def test_repeating_group_can_reference_source_group_in_same_section(self, factories):
+        form = factories.form.build()
+        source = factories.group.build(form=form, add_another=True)
+        source_q1, source_q2 = factories.question.build_batch(2, form=form, parent=source)
+        container = factories.group.build(form=form, add_another=True, add_another_repeats_over=source)
+        container_q = factories.question.build(form=form, parent=container)
+
+        referenceable_questions = get_referenceable_questions(form, current_component=container_q)
+        assert referenceable_questions == [source_q1, source_q2]
+
+    def test_repeating_group_can_reference_source_group_in_earlier_section(self, factories):
+        collection = factories.collection.build()
+        form_1 = factories.form.build(collection=collection)
+        source = factories.group.build(form=form_1, add_another=True)
+        source_q1, source_q2 = factories.question.build_batch(2, form=form_1, parent=source)
+        form_2 = factories.form.build(collection=collection)
+        container = factories.group.build(form=form_2, add_another=True, add_another_repeats_over=source)
+        container_q = factories.question.build(form=form_2, parent=container)
+
+        referenceable_questions = get_referenceable_questions(form_1, current_component=container_q)
+        assert referenceable_questions == [source_q1, source_q2]
 
     def test_include_this_component(self, factories):
         form = factories.form.build()

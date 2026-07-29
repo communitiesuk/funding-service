@@ -78,6 +78,11 @@ class FormRunner:
         self.is_clearing = is_clearing
         self.check_entries = check_entries
 
+        if question and question.add_another_container and question.add_another_container.is_group:
+            repeating_container = cast("Group", question.add_another_container)
+            if repeating_container.repeats_over:
+                self.submission.reconcile_repeating_entries(repeating_container)
+
         self._valid: bool | None = None
 
         self._tasklist_form = GenericSubmitForm()
@@ -116,9 +121,8 @@ class FormRunner:
 
             if self.component and self.component.add_another_container and self.add_another_summary_context:
                 _AddAnotherSummaryForm = AddAnotherSummaryForm(
-                    add_another_required=bool(
-                        self.submission.get_count_for_add_another(self.component.add_another_container)
-                    )
+                    add_another_required=not self.is_repeating_container
+                    and bool(self.submission.get_count_for_add_another(self.component.add_another_container))
                 )
                 self._add_another_summary_form = _AddAnotherSummaryForm
             else:
@@ -248,6 +252,15 @@ class FormRunner:
         return self._add_another_summary_form
 
     @property
+    def is_repeating_container(self) -> bool:
+        """Whether the current add-another container repeats over another add-another group, rather than
+        letting the filler add as many entries as they like."""
+        add_another_container = self.component.add_another_container if self.component else None
+        if not add_another_container or not add_another_container.is_group:
+            return False
+        return bool(cast("Group", add_another_container).repeats_over)
+
+    @property
     def confirm_remove_form(self) -> ConfirmRemoveAddAnotherForm | ConfirmClearQuestionAnswerForm:
         if not self.component or not self._confirm_remove_form:
             raise RuntimeError("Confirm remove context not set")
@@ -347,10 +360,19 @@ class FormRunner:
                             # the number of entries has changed since we loaded the page
                             # return to the add another summary page with a no-op
                             return True
-                    self.submission.remove_entry_for_add_another(
-                        add_another_container=cast("Group", self.component.add_another_container),
-                        add_another_index=self.add_another_index,
-                    )
+                    add_another_container = cast("Group", self.component.add_another_container)
+                    if self.is_repeating_container:
+                        # the row stays - it reverts to "enter answer for..." rather than being removed, since
+                        # its position corresponds to the source entry it repeats over
+                        self.submission.clear_entry_for_add_another(
+                            add_another_container=add_another_container,
+                            add_another_index=self.add_another_index,
+                        )
+                    else:
+                        self.submission.remove_entry_for_add_another(
+                            add_another_container=add_another_container,
+                            add_another_index=self.add_another_index,
+                        )
 
         # Returns True if it was successful; at the moment this cannot fail (vs `save_question_answer`)
         return True
@@ -431,7 +453,8 @@ class FormRunner:
     def next_url(self) -> str:
         if self.add_another_summary_context and self.component and self.component.add_another_container:
             if (
-                self.add_another_summary_form.validate_on_submit()
+                not self.is_repeating_container
+                and self.add_another_summary_form.validate_on_submit()
                 and self.add_another_summary_form.add_another.data == "yes"
             ):
                 new_index = self.submission.get_count_for_add_another(self.component.add_another_container)
@@ -596,7 +619,7 @@ class FormRunner:
         # we only want to show the add another index context on the heading if the add another container
         # is itself on the same page
         if heading and self.add_another_index is not None and self.component == self.component.add_another_container:
-            heading = add_another_suffix(heading, self.add_another_index)
+            heading = add_another_suffix(heading, self._add_another_entry_label(self.add_another_index))
 
         return heading
 
@@ -613,8 +636,23 @@ class FormRunner:
             and self.component.add_another_container
             and self.component != self.component.add_another_container
         ):
-            caption = add_another_suffix(self.component.add_another_container.name, self.add_another_index)
+            caption = add_another_suffix(
+                self.component.add_another_container.name, self._add_another_entry_label(self.add_another_index)
+            )
         return caption
+
+    def _add_another_entry_label(self, add_another_index: int) -> str:
+        """The '(...)' text shown against an add-another entry: the entry summary of the corresponding
+        source entry when the container repeats over another group, otherwise the entry's position."""
+        if not self.component:
+            raise RuntimeError("Question context not set")
+
+        if self.is_repeating_container:
+            source = cast("Group", cast("Group", self.component.add_another_container).repeats_over)
+            summary, _ = self.submission.get_answer_summary_for_add_another(source, add_another_index=add_another_index)
+            if summary:
+                return summary
+        return str(add_another_index + 1)
 
     @property
     def runner_evaluation_context(self) -> ExpressionContext:
@@ -638,8 +676,8 @@ class FormRunner:
         return self.submission.cached_interpolation_context
 
 
-def add_another_suffix(heading: str, add_another_index: int) -> str:
-    return f"{heading} ({add_another_index + 1})"
+def add_another_suffix(heading: str, label: str) -> str:
+    return f"{heading} ({label})"
 
 
 class DGFFormRunner(FormRunner):

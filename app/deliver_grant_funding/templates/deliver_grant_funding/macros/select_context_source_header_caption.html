@@ -5,6 +5,8 @@
     {% set heading_caption = add_context_data.field %}
   {% elif add_context_data.field == "condition_depends_on" %}
     {% set heading_caption = "condition" %}
+  {% elif add_context_data.field == "repeats_over" %}
+    {% set heading_caption = "group repeats over" %}
   {% else %}
     {% set heading_caption = add_context_data.field.lower() %}
   {% endif %}

@@ -178,6 +178,11 @@ class SubmissionValidator:
         errors = []
         container = cast("Group | Question", container)
 
+        if container.is_group:
+            # a no-op unless the container repeats over another group - reconciling here means submit-time
+            # validation sees the same entries as the tasklist
+            self.helper.reconcile_repeating_entries(cast("Group", container))
+
         count = self.helper.get_count_for_add_another(container)
         for index in range(count):
             questions = (

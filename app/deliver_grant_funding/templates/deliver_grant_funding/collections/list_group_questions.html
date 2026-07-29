@@ -169,6 +169,16 @@
                   "href": url_for("deliver_grant_funding.manage_add_another_guidance", grant_id=grant.id, group_id=group.id)
                 }]
               }
+            }, {
+              "key": {"text": "Repeats over"},
+              "value": {"text": group.repeats_over.data_reference_label if group.repeats_over else "Does not repeat — people can add as many answers as they need"},
+              "actions": {
+                "items": [{
+                  "text": "Change",
+                  "visuallyHiddenText": "repeats over setting",
+                  "href": url_for("deliver_grant_funding.change_group_repeats_over", grant_id=grant.id, group_id=group.id)
+                }]
+              }
             }]
           })
         }}

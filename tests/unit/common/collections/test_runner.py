@@ -358,6 +358,30 @@ class TestFormRunner:
             question.guidance_heading = InterpolationStatement("Test group guidance heading")
             assert runner.question_page_heading == "Test group guidance heading"
 
+        def test_single_question_inside_repeating_add_another_context(self, factories):
+            form = factories.form.build(title="Test form title")
+            source_form = factories.form.build(collection=form.collection)
+            source = factories.group.build(form=source_form, name="Source group", add_another=True)
+            source_question = factories.question.build(form=source_form, parent=source, text="Name?")
+
+            container = factories.group.build(
+                form=form, name="Test group name", add_another=True, add_another_repeats_over=source
+            )
+            question = factories.question.build(parent=container, form=form, text="Test question text?")
+
+            submission = factories.submission.build(
+                collection=form.collection,
+                answers=[FactoryAnswer(source_question, TextSingleLineAnswer("Acme Ltd"), add_another_index=0)],
+            )
+            source_entries = submission.data_manager.get_entries(source)
+            submission.data_manager.append_entry(container, source_entry_id=source_entries[0]["id"])
+
+            runner = FormRunner(submission=SubmissionHelper(submission), question=question, add_another_index=0)
+
+            # the caption shows the source entry's summary instead of a bare "(1)" index
+            assert runner.question_page_heading is None
+            assert runner.question_page_caption == "Test group name (Acme Ltd)"
+
         def test_same_page_group_inside_add_another_context(self, factories):
             form = factories.form.build(title="Test form title")
             add_another_group = factories.group.build(form=form, name="Test group name", add_another=True)

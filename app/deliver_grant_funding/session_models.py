@@ -77,6 +77,23 @@ class AddContextToComponentGuidanceSessionModel(_ReferenceDataSessionModel):
     data_source: ExpressionContext.ContextSources | None = None
 
 
+class AddRepeatsOverSourceSessionModel(_ReferenceDataSessionModel):
+    model_config = ConfigDict(validate_assignment=True)
+
+    field: Literal["repeats_over"] = "repeats_over"
+    # The group being configured to repeat over another.
+    component_id: UUID
+    parent_id: UUID | None = None
+
+    collection_id: UUID | None = None
+    form_id: UUID | None = None
+
+    data_source: ExpressionContext.ContextSources | None = None
+
+    # Set once a source group has been picked; consumed by `change_group_repeats_over` to apply the change.
+    selected_group_id: UUID | None = None
+
+
 class AddConditionDependsOnSessionModel(_ReferenceDataSessionModel):
     model_config = ConfigDict(validate_assignment=True)
 

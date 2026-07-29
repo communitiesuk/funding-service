@@ -57,9 +57,13 @@
 
         {% set key_text = interpolate(question.add_another_container.text) %}
 
-
+        {% set answered_count = summaries | selectattr("is_answered") | list | length %}
         {% set value_html %}
-          <p class="govuk-body">There {% trans count=count %}is {{ count }} answer{% pluralize %}are {{ count }} answers{% endtrans %}</p>
+          {% if count and answered_count < count %}
+            <p class="govuk-body">There {% trans count=answered_count %}is {{ answered_count }} answer{% pluralize %}are {{ answered_count }} answers{% endtrans %} out of {{ count }}</p>
+          {% else %}
+            <p class="govuk-body">There {% trans count=count %}is {{ count }} answer{% pluralize %}are {{ count }} answers{% endtrans %}</p>
+          {% endif %}
           {% if count %}
             <p class="govuk-body">
               <a href="#{{ question.add_another_container.id }}-answers" class="govuk-link govuk-link--no-visited-state">Answers for “{{ question.add_another_container.name }}”</a>

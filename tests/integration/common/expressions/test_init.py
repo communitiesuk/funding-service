@@ -711,6 +711,58 @@ class TestExtendingWithAddAnotherContext:
         assert context.get(q2.safe_qid) == "e1"
         assert context.get(q3.safe_qid) is None
 
+    def test_extending_with_add_another_context_merges_repeats_over_source_answers(self, factories):
+        source = factories.group.create(add_another=True)
+        source_q = factories.question.create(form=source.form, parent=source)
+        container = factories.group.create(form=source.form, add_another=True, add_another_repeats_over=source)
+        container_q = factories.question.create(form=source.form, parent=container)
+
+        submission = factories.submission.create(
+            collection=source.form.collection,
+            answers=[
+                FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                FactoryAnswer(container_q, TextSingleLineAnswer("£100"), add_another_index=0),
+            ],
+        )
+
+        context = ExpressionContext.build_expression_context(
+            collection=source.form.collection,
+            submission_helper=SubmissionHelper(submission),
+            data_manager=submission.data_manager,
+            mode="evaluation",
+        )
+        context = context.with_add_another_context(
+            component=container_q, data_manager=submission.data_manager, add_another_index=0
+        )
+
+        assert context.get(container_q.safe_qid) == "£100"
+        assert context.get(source_q.safe_qid) == "Alice"
+
+    def test_extending_with_add_another_context_no_merge_when_not_repeating(self, factories):
+        group = factories.group.create(add_another=True)
+        q1 = factories.question.create(form=group.form, parent=group)
+        other_group = factories.group.create(form=group.form, add_another=True)
+        other_q = factories.question.create(form=group.form, parent=other_group)
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            answers=[
+                FactoryAnswer(q1, TextSingleLineAnswer("v0"), add_another_index=0),
+                FactoryAnswer(other_q, TextSingleLineAnswer("unrelated"), add_another_index=0),
+            ],
+        )
+        context = ExpressionContext.build_expression_context(
+            collection=group.form.collection,
+            submission_helper=SubmissionHelper(submission),
+            data_manager=submission.data_manager,
+            mode="evaluation",
+        )
+        context = context.with_add_another_context(
+            component=q1, data_manager=submission.data_manager, add_another_index=0
+        )
+
+        assert context.get(q1.safe_qid) == "v0"
+        assert context.get(other_q.safe_qid) is None
+
     def test_extending_with_new_add_another_index(self, factories):
         component = factories.question.create(add_another=True)
         submission = factories.submission.create(

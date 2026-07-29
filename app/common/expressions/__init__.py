@@ -222,21 +222,33 @@ class ExpressionContext(ChainMap[str, Any]):
         if not component.add_another_container:
             raise ValueError("add_another_context can only be set for add another components")
 
+        container = component.add_another_container
+
         # we're evaluating for a specific entry in a list so we'll set the context for the
         # questions in our container - assume submission context is already set
-        questions = (
-            cast("Group", component.add_another_container).cached_questions
-            if component.add_another_container.is_group
-            else [cast("Question", component.add_another_container)]
-        )
+        questions = cast("Group", container).cached_questions if container.is_group else [cast("Question", container)]
 
-        add_another_context: dict[str, Any] = {}
-        for question in questions:
-            answer = data_manager.get(question, add_another_index=add_another_index)
-            if answer is not None:
-                add_another_context[question.safe_qid] = (
-                    answer.get_value_for_evaluation() if mode == "evaluation" else answer.get_value_for_interpolation()
-                )
+        def _collect_answers_at_index(questions: list[Question]) -> dict[str, Any]:
+            answers: dict[str, Any] = {}
+            for question in questions:
+                answer = data_manager.get(question, add_another_index=add_another_index)
+                if answer is not None:
+                    answers[question.safe_qid] = (
+                        answer.get_value_for_evaluation()
+                        if mode == "evaluation"
+                        else answer.get_value_for_interpolation()
+                    )
+            return answers
+
+        add_another_context = _collect_answers_at_index(questions)
+
+        # a repeating container has exactly one entry per entry of its source, in source order (see
+        # `SubmissionHelper.reconcile_repeating_entries`), so the same `add_another_index` addresses the
+        # matching source entry. Source questions are excluded from `_submission_data` precisely because
+        # they live in a container, so there's no collision risk merging them into this same layer.
+        source = cast("Group", container).repeats_over if container.is_group else None
+        if source is not None:
+            add_another_context.update(_collect_answers_at_index(source.cached_questions))
 
         if self._add_another_context:
             if self._add_another_context != add_another_context:

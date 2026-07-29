@@ -21,13 +21,19 @@ def questions_in_same_page_group(c1: Question, c2: Component) -> bool:
 
 def questions_in_same_add_another_container(q1: Component, q2: Component) -> bool:
     """
-    Check if two components are both in the same add another group.
+    Check if two components are both in the same add another group, or if q2's container repeats over
+    q1's container - which makes q1 referenceable from within q2's container, since q2's container is
+    materialised with exactly one entry per entry of q1's container (see
+    `SubmissionHelper.reconcile_repeating_entries`).
     """
-    return (
-        q1.add_another_container is not None
-        and q2.add_another_container is not None
-        and q1.add_another_container == q2.add_another_container
-    )
+    if q1.add_another_container is None or q2.add_another_container is None:
+        return False
+
+    if q1.add_another_container == q2.add_another_container:
+        return True
+
+    q2_container = q2.add_another_container
+    return q2_container.is_group and cast("Group", q2_container).repeats_over == q1.add_another_container
 
 
 def components_in_valid_add_another_combination(
@@ -38,11 +44,20 @@ def components_in_valid_add_another_combination(
         return True
 
     all_add_another_containers = set(c.add_another_container for c in filtered_components if c.add_another_container)
-    if attached_to_component.add_another_container:
-        all_add_another_containers.add(attached_to_component.add_another_container)
-        return len(all_add_another_containers) == 1
 
-    return len(all_add_another_containers) == 0
+    attached_container = attached_to_component.add_another_container
+    if not attached_container:
+        return len(all_add_another_containers) == 0
+
+    all_add_another_containers.add(attached_container)
+
+    allowed_containers = {attached_container}
+    if attached_container.is_group:
+        source = cast("Group", attached_container).repeats_over
+        if source is not None:
+            allowed_containers.add(source)
+
+    return all_add_another_containers <= allowed_containers
 
 
 def get_referenceable_questions(
@@ -118,7 +133,18 @@ def get_referenceable_questions(
             )
         ]
     else:
-        questions = [q for q in questions if not q.add_another_container]
+        # A repeating container's questions may still reference its source container's questions even
+        # when the source lives in an earlier section (so `limit_to_components_before` above is None).
+        repeats_over_source = (
+            cast("Group", current_component.add_another_container).repeats_over
+            if current_component
+            and current_component.add_another_container
+            and current_component.add_another_container.is_group
+            else None
+        )
+        questions = [
+            q for q in questions if not q.add_another_container or q.add_another_container == repeats_over_source
+        ]
 
     if limit_to_data_type is not None:
         questions = [q for q in questions if q.data_type in limit_to_data_type]

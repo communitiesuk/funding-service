@@ -92,6 +92,7 @@ from app.deliver_grant_funding.session_models import (
     AddContextToComponentGuidanceSessionModel,
     AddContextToComponentSessionModel,
     AddContextToExpressionsModel,
+    AddRepeatsOverSourceSessionModel,
     DataSetColumnMapping,
     DataSetUploadSessionModel,
 )
@@ -1921,6 +1922,260 @@ class TestChangeGroupAddAnotherOptions:
 
         updated_group = db_session.get(Group, db_group.id)
         assert updated_group.add_another is False
+
+
+class TestStartChangeGroupRepeatsOver:
+    def test_get_sets_session_and_redirects(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        db_group = factories.group.create(form=db_form, add_another=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.start_change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.select_context_source",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            form_id=db_form.id,
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess["question"]["field"] == "repeats_over"
+            assert sess["question"]["component_id"] == str(db_group.id)
+
+
+class TestSelectContextSourceGroup:
+    def test_lists_only_valid_add_another_groups_before_this_one(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        valid_source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=0)
+        factories.group.create(form=db_form, name="Not add another", add_another=False, order=1)
+        db_group = factories.group.create(form=db_form, name="Recipient details", add_another=True, order=2)
+        later_group = factories.group.create(form=db_form, name="Later group", add_another=True, order=3)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddRepeatsOverSourceSessionModel(
+                component_id=db_group.id,
+                collection_id=db_form.collection_id,
+                form_id=db_form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_group",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert valid_source.name in soup.text
+        assert "Not add another" not in soup.text
+        assert later_group.name not in soup.text
+        assert db_group.name not in soup.text
+
+    def test_excludes_candidates_when_target_already_repeated_over(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=0)
+        db_group = factories.group.create(form=db_form, name="Recipient details", add_another=True, order=1)
+        factories.group.create(
+            form=db_form,
+            name="Other repeating group",
+            add_another=True,
+            order=2,
+            add_another_repeats_over=db_group,
+        )
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddRepeatsOverSourceSessionModel(
+                component_id=db_group.id,
+                collection_id=db_form.collection_id,
+                form_id=db_form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_group",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "There are no add another groups available to repeat over" in soup.text
+        assert source.name not in soup.text
+
+    def test_post_stores_selected_group_and_redirects(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=0)
+        db_group = factories.group.create(form=db_form, name="Recipient details", add_another=True, order=1)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddRepeatsOverSourceSessionModel(
+                component_id=db_group.id,
+                collection_id=db_form.collection_id,
+                form_id=db_form.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.select_context_source_group",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=db_form.id,
+            ),
+            data={"repeats_over_group": str(source.id)},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.change_group_repeats_over",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            group_id=db_group.id,
+        )
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert sess["question"]["selected_group_id"] == str(source.id)
+
+
+class TestChangeGroupRepeatsOver:
+    def test_get_shows_does_not_repeat_by_default(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        db_group = factories.group.create(form=db_form, add_another=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            )
+        )
+        assert response.status_code == 200
+        assert "does not repeat over another group" in response.text
+
+    def test_get_shows_current_source_when_set(self, authenticated_grant_admin_client, factories):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=0)
+        db_group = factories.group.create(
+            form=db_form, name="Recipient details", add_another=True, order=1, add_another_repeats_over=source
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            )
+        )
+        assert response.status_code == 200
+        assert source.data_reference_label in response.text
+
+    def test_get_applies_pending_selection_from_session(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=0)
+        db_group = factories.group.create(form=db_form, name="Recipient details", add_another=True, order=1)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddRepeatsOverSourceSessionModel(
+                component_id=db_group.id,
+                selected_group_id=source.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            )
+        )
+        assert response.status_code == 200
+        assert source.data_reference_label in response.text
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another_repeats_over_component_id == source.id
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            assert "question" not in sess
+
+    def test_get_surfaces_chain_guard_as_error_without_applying(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        a = factories.group.create(form=db_form, name="A", add_another=True, order=0)
+        b = factories.group.create(form=db_form, name="B", add_another=True, order=1, add_another_repeats_over=a)
+        c = factories.group.create(form=db_form, name="C", add_another=True, order=2)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddRepeatsOverSourceSessionModel(
+                component_id=c.id,
+                selected_group_id=b.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=c.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "A group cannot repeat over a group that is part of a chain of repeating groups")
+
+        updated_group = db_session.get(Group, c.id)
+        assert updated_group.add_another_repeats_over_component_id is None
+
+    def test_get_surfaces_ordering_guard_as_error_without_applying(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        db_group = factories.group.create(form=db_form, name="Recipient details", add_another=True, order=0)
+        source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=1)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddRepeatsOverSourceSessionModel(
+                component_id=db_group.id,
+                selected_group_id=source.id,
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(
+            soup, "You can only repeat over a group in an earlier section, or earlier in this section"
+        )
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another_repeats_over_component_id is None
+
+    def test_post_clears_repeats_over(self, authenticated_grant_admin_client, factories, db_session):
+        db_form = factories.form.create(collection__grant=authenticated_grant_admin_client.grant)
+        source = factories.group.create(form=db_form, name="Recipients", add_another=True, order=0)
+        db_group = factories.group.create(
+            form=db_form, name="Recipient details", add_another=True, order=1, add_another_repeats_over=source
+        )
+
+        form = GenericSubmitForm()
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_group_repeats_over",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                group_id=db_group.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        updated_group = db_session.get(Group, db_group.id)
+        assert updated_group.add_another_repeats_over_component_id is None
 
 
 class TestChangeGroupAddAnotherSummaryQuestions:
@@ -9279,6 +9534,32 @@ class TestViewSubmission:
             )
             == 5
         )
+
+    def test_get_view_submission_distinguishes_answered_from_outstanding_add_another_entries(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        grant = authenticated_grant_admin_client.grant
+        group = factories.group.create(add_another=True, name="People", form__collection__grant=grant)
+        q1 = factories.question.create(form=group.form, parent=group, name="Name")
+        submission = factories.submission.create(
+            collection=group.form.collection,
+            mode=SubmissionModeEnum.TEST,
+            answers=[FactoryAnswer(q1, TextSingleLineAnswer("Alice"), add_another_index=0)],
+        )
+
+        # a second, materialised-but-unanswered entry (as reconciliation would produce for a repeating
+        # container whose source has gained an entry)
+        submission.data_manager.append_entry(group)
+        SubmissionHelper(submission)._sync_submission_data_and_status()
+        db_session.commit()
+
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.view_submission", grant_id=grant.id, submission_id=submission.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "There is 1 answer out of 2" in soup.text
 
     def test_view_submission_add_another_interpolates_with_display_value(
         self, authenticated_grant_admin_client, factories

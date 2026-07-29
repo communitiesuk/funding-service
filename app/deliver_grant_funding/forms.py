@@ -28,6 +28,7 @@ from wtforms.validators import DataRequired, Email, Length, Optional, Regexp, St
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.collections import (
     group_name_exists,
+    is_component_dependency_order_valid,
 )
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
 from app.common.data.interfaces.user import get_user_by_email
@@ -619,6 +620,7 @@ class AddContextSelectSourceForm(FlaskForm):
         current_component: TOptional[Component],
         parent_component: TOptional[Group] = None,
         include_this_component: bool = False,
+        restrict_to_sections: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -627,7 +629,16 @@ class AddContextSelectSourceForm(FlaskForm):
         self.parent_component = parent_component
         self.include_this_component = include_this_component
 
-        if FeatureFlags.NEW_CONTEXT_SOURCES.is_enabled:
+        if restrict_to_sections:
+            # A group can only repeat over a group in this section or an earlier one.
+            self.data_source.choices = [
+                (ExpressionContext.ContextSources.SECTION.name, ExpressionContext.ContextSources.SECTION.value),
+                (
+                    ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
+                    ExpressionContext.ContextSources.PREVIOUS_SECTION.value,
+                ),
+            ]
+        elif FeatureFlags.NEW_CONTEXT_SOURCES.is_enabled:
             # A soft feature flag that will (when implemented) allow platform admins to test new context sources
             # before releasing to a wider audience eg form builders.
             self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
@@ -672,6 +683,30 @@ class AddContextSelectSourceForm(FlaskForm):
                 include_this_component=self.include_this_component,
             ):
                 raise ValidationError("There are no available questions before this one in the section")
+
+
+class SelectRepeatsOverGroupForm(FlaskForm):
+    repeats_over_group = RadioField(
+        "Select which group to repeat over",
+        choices=[],
+        validators=[DataRequired("Select a group")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField(widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, section: Form, group: Group, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.repeats_over_group.choices = []
+        if not group.repeated_over_by:
+            self.repeats_over_group.choices = [
+                (str(component.id), component.name)
+                for component in section.cached_all_components
+                if component.is_group
+                and component.add_another
+                and component.id != group.id
+                and component.add_another_repeats_over_component_id is None
+                and is_component_dependency_order_valid(group, component)
+            ]
 
 
 class SelectDataSourceSectionForm(FlaskForm):
