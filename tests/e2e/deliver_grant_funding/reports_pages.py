@@ -247,6 +247,43 @@ class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
         expect(self.page.get_by_text("We emailed you a link to test the grant recipient journey")).to_be_visible()
 
 
+class PreAwardTestGrantRecipientJourneyPage(ReportsBasePage):
+    # DeliverTestGrantRecipientJourneyPage equivalen for Pre-award
+    start_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_id: str, collection_id: str, collection_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name="",
+            heading=page.get_by_role("heading", name=f"Test the {collection_name} form"),
+        )
+        self.grant_id = grant_id
+        self.collection_id = collection_id
+        self.collection_name = collection_name
+        self.start_button = self.page.get_by_role("button", name="Start test submission journey")
+
+        self.test_organisation_combobox = self.page.locator(
+            "[class='autocomplete__wrapper']", has=self.page.locator("#organisation")
+        ).get_by_role("combobox")
+
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/grant/{self.grant_id}/applications/{self.collection_id}/test-grant-recipient-journey"
+        )
+        expect(self.heading).to_be_visible()
+
+    def select_test_organisation(self, org_name: str) -> None:
+        expect(self.test_organisation_combobox).to_be_visible()
+        self.test_organisation_combobox.click()
+        self.test_organisation_combobox.fill(org_name)
+        self.test_organisation_combobox.press("Enter")
+
+    def click_start_test_journey(self) -> None:
+        self.start_button.click()
+        expect(self.page.get_by_text("We emailed you a link to test the grant recipient journey")).to_be_visible()
+
+
 class GrantReportsPage(ReportsBasePage):
     add_report_button: Locator
     summary_row_submissions: Locator
@@ -314,6 +351,59 @@ class GrantReportsPage(ReportsBasePage):
         return reports_page
 
 
+class GrantPreAwardFormsPage(ReportsBasePage):
+    # GrantReportsPage equivalent in pre-award
+    add_form_button: Locator
+    summary_row_submissions: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page, domain, grant_name=grant_name, heading=page.get_by_role("heading", name=f"{grant_name} Forms")
+        )
+        self.add_form_button = self.page.get_by_role("button", name="Create a form").or_(
+            self.page.get_by_role("button", name="Create another form")
+        )
+        self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
+            has=page.get_by_text("Submissions")
+        )
+
+    def navigate(self, grant_id: str) -> None:
+        self.page.goto(f"{self.domain}/deliver/grant/{grant_id}/pre-award")
+        expect(self.heading).to_be_visible()
+
+    def click_add_form(self) -> ChoosePreAwardFormCreationMethodPage:
+        self.add_form_button.click()
+        choose_method_page = ChoosePreAwardFormCreationMethodPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(choose_method_page.heading).to_be_visible()
+        return choose_method_page
+
+    def click_add_section(self, form_name: str, grant_name: str) -> AddSectionPage:
+        self.page.get_by_role("link", name=f"Add sections to {form_name}").click()
+        add_section_page = AddSectionPage(
+            self.page,
+            self.domain,
+            grant_name=grant_name,
+            report_name=form_name,
+        )
+        expect(add_section_page.heading).to_be_visible()
+
+        return add_section_page
+
+    def click_manage_sections(self, form_name: str, grant_name: str) -> PreAwardFormSectionsPage:
+        self.page.get_by_role("link", name=re.compile(r"\d+ section")).click()
+        form_sections_page = PreAwardFormSectionsPage(
+            self.page, self.domain, grant_name=grant_name, form_name=form_name
+        )
+        expect(form_sections_page.heading).to_be_visible()
+        return form_sections_page
+
+    def click_view_submissions(self, form_name: str) -> PreAwardSubmissionsListPage:
+        self.summary_row_submissions.get_by_role("link", name=re.compile(r"\d+ test submissions?")).click()
+        submissions_list_page = PreAwardSubmissionsListPage(self.page, self.domain, self.grant_name, form_name)
+        expect(submissions_list_page.heading).to_be_visible()
+        return submissions_list_page
+
+
 class ChooseCollectionCreationMethodPage(ReportsBasePage):
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
@@ -329,6 +419,24 @@ class ChooseCollectionCreationMethodPage(ReportsBasePage):
         add_report_page = AddReportPage(self.page, self.domain, grant_name=self.grant_name)
         expect(add_report_page.heading).to_be_visible()
         return add_report_page
+
+
+class ChoosePreAwardFormCreationMethodPage(ReportsBasePage):
+    # ChooseCollectionCreationMethodPage equivalen in Pre-award
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Do you want to create a new form or copy an existing form?"),
+        )
+
+    def click_create_new(self) -> "AddPreAwardFormPage":
+        self.page.get_by_role("radio", name="Create a new form").click()
+        self.page.get_by_role("button", name="Continue").click()
+        add_form_page = AddPreAwardFormPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(add_form_page.heading).to_be_visible()
+        return add_form_page
 
 
 class AddReportPage(ReportsBasePage):
@@ -348,6 +456,26 @@ class AddReportPage(ReportsBasePage):
         reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
         expect(reports_page.heading).to_be_visible()
         return reports_page
+
+
+class AddPreAwardFormPage(ReportsBasePage):
+    # AddReportPage equivalent in Pre-award
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="What is the name of the form?"),
+        )
+
+    def fill_in_form_name(self, name: str) -> None:
+        self.page.get_by_role("textbox", name="Form name").fill(name)
+
+    def click_submit(self, grant_name: str) -> GrantPreAwardFormsPage:
+        self.page.get_by_role("button", name="Create form").click()
+        forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=grant_name)
+        expect(forms_page.heading).to_be_visible()
+        return forms_page
 
 
 class ChangeReportNamePage(ReportsBasePage):
@@ -434,6 +562,62 @@ class ReportSectionsPage(ReportsBasePage):
             self.domain,
             grant_name=self.grant_name,
             report_name=self.report_name,
+        )
+        expect(add_section_page.heading).to_be_visible()
+        return add_section_page
+
+
+class PreAwardFormSectionsPage(ReportsBasePage):
+    # ReportSectionsPage equivalent in Pre-award
+    form_name: str
+    preview_form_button: Locator
+    forms_breadcrumb: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Sections"),
+        )
+        self.form_name = form_name
+        self.preview_form_button = self.page.get_by_role("button", name="Preview form")
+        self.forms_breadcrumb = self.page.locator("a.govuk-breadcrumbs__link").filter(has=page.get_by_text("Forms"))
+
+    def click_forms_breadcrumb(self) -> GrantPreAwardFormsPage:
+        self.forms_breadcrumb.click()
+        grant_pre_award_forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=self.grant_name)
+        return grant_pre_award_forms_page
+
+    def click_preview_form(self) -> RunnerTasklistPage:
+        self.preview_form_button.click()
+        tasklist_page = RunnerTasklistPage(
+            self.page, self.domain, grant_name=self.grant_name, report_name=self.form_name
+        )
+        expect(tasklist_page.heading).to_be_visible()
+        return tasklist_page
+
+    def click_manage_section(self, section_name: str) -> ManageSectionPage:
+        self.page.get_by_role("link", name=section_name, exact=True).click()
+        manage_section_page = ManageSectionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.form_name,
+            section_name=section_name,
+        )
+        expect(manage_section_page.heading).to_be_visible()
+        return manage_section_page
+
+    def click_add_section(self) -> AddSectionPage:
+        self.page.get_by_role("link", name="Add a section").or_(
+            self.page.get_by_role("link", name="Add another section")
+        ).click()
+        add_section_page = AddSectionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.form_name,
         )
         expect(add_section_page.heading).to_be_visible()
         return add_section_page
@@ -1420,6 +1604,7 @@ class RunnerTasklistPage(ReportsBasePage):
     submission_status_box: Locator
     submit_button: Locator
     back_link: Locator
+    status_tags: Locator
 
     def __init__(
         self,
@@ -1438,6 +1623,10 @@ class RunnerTasklistPage(ReportsBasePage):
         self.submission_status_box = page.get_by_test_id("submission-status")
         self.submit_button = page.get_by_role("button", name="Submit")
         self.back_link = self.page.get_by_role("link", name="Back")
+        self.status_tags = page.locator(".govuk-tag")
+
+    def status_tag_with_text(self, text: str) -> Locator:
+        return self.status_tags.filter(has_text=text)
 
     def click_on_section(self, section_name: str) -> None:
         self.page.get_by_role("link", name=section_name).click()
@@ -1459,6 +1648,12 @@ class RunnerTasklistPage(ReportsBasePage):
         )
         expect(submitted_page.heading).to_be_visible()
         return submitted_page
+
+    def click_submit_for_direct_submission(self) -> PreAwardConfirmSubmitPage:
+        self.submit_button.click()
+        confirm_submit_page = PreAwardConfirmSubmitPage(self.page, self.domain, self.grant_name)
+        expect(confirm_submit_page.heading).to_be_visible()
+        return confirm_submit_page
 
     def click_back(self) -> ReportSectionsPage:
         self.back_link.click()
@@ -1490,6 +1685,41 @@ class ReportSubmittedConfirmationPage(ReportsBasePage):
 
     def click_return_to_reports(self) -> None:
         self.return_to_reports_link.click()
+
+
+class PreAwardConfirmSubmitPage(ReportsBasePage):
+    confirm_submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Confirm and submit form"),
+        )
+        self.confirm_submit_button = page.get_by_role("button", name="Confirm and submit")
+
+    def click_confirm_and_submit(self) -> "PreAwardFormSubmittedConfirmationPage":
+        self.confirm_submit_button.click()
+        confirmation_page = PreAwardFormSubmittedConfirmationPage(self.page, self.domain, self.grant_name)
+        expect(confirmation_page.heading).to_be_visible()
+        return confirmation_page
+
+
+class PreAwardFormSubmittedConfirmationPage(ReportsBasePage):
+    return_to_forms_link: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Form submitted"),
+        )
+        self.return_to_forms_link = page.get_by_role("link", name="Return to forms")
+
+    def click_return_to_forms(self) -> None:
+        self.return_to_forms_link.click()
 
 
 class ViewLockedReportPage(ReportsBasePage):
@@ -1614,6 +1844,7 @@ class RunnerQuestionPage(ReportsBasePage):
 class RunnerCheckYourAnswersPage(ReportsBasePage):
     save_and_continue_button: Locator
     mark_as_complete_yes: Locator
+    changes_requested_reason_inset: Locator
 
     def __init__(
         self,
@@ -1629,9 +1860,16 @@ class RunnerCheckYourAnswersPage(ReportsBasePage):
         )
         self.save_and_continue_button = page.get_by_role("button", name="Save and continue")
         self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this section")
+        self.changes_requested_reason_inset = page.locator(".govuk-inset-text")
 
     def click_mark_as_complete_yes(self) -> None:
         self.mark_as_complete_yes.click()
+
+    def click_change_answer(self, question_name: str) -> RunnerQuestionPage:
+        self.page.get_by_role("link", name=f"Change {question_name}").click()
+        question_page = RunnerQuestionPage(self.page, self.domain, self.grant_name, question_name)
+        expect(question_page.heading).to_be_visible()
+        return question_page
 
     def click_save_and_continue(self, report_name: str) -> RunnerTasklistPage:
         self.save_and_continue_button.click()
@@ -1743,9 +1981,32 @@ class SubmissionsListPage(ReportsBasePage):
         return download_filename
 
 
+class PreAwardSubmissionsListPage(ReportsBasePage):
+    # SubmissionsListPage equivalent in Pre-award
+    form_name: str
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"{form_name} Forms"),
+        )
+        self.form_name = form_name
+
+    def click_on_submission(self, submission_reference: str) -> ViewSubmissionPage:
+        self.page.get_by_role("link", name=submission_reference).click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.form_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
+
+
 class ViewSubmissionPage(ReportsBasePage):
     report_name: str
     request_or_allow_changes_button: Locator
+    reopen_submission_button: Locator
+    approve_or_reject_button: Locator
+    status_tags: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
         super().__init__(
@@ -1756,6 +2017,20 @@ class ViewSubmissionPage(ReportsBasePage):
         )
         self.report_name = report_name
         self.request_or_allow_changes_button = page.get_by_role("button", name="Request or allow changes")
+        self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
+        self.approve_or_reject_button = page.get_by_role("button", name="Approve or reject submission")
+        self.status_tags = page.locator(".govuk-tag")
+
+    def click_approve_or_reject(self) -> ApproveOrRejectSubmissionPage:
+        self.approve_or_reject_button.click()
+        approve_or_reject_page = ApproveOrRejectSubmissionPage(
+            self.page, self.domain, self.grant_name, self.report_name
+        )
+        expect(approve_or_reject_page.heading).to_be_visible()
+        return approve_or_reject_page
+
+    def status_tag_with_text(self, text: str) -> Locator:
+        return self.status_tags.filter(has_text=text)
 
     def get_questions_list_for_section(self, section_name: str) -> Locator:
         return self.page.get_by_test_id(section_name)
@@ -1782,19 +2057,29 @@ class ViewSubmissionPage(ReportsBasePage):
         expect(request_or_allow_changes_page.heading).to_be_visible()
         return request_or_allow_changes_page.click_no_just_allow_changes()
 
+    def click_request_or_allow_changes(self) -> RequestOrAllowChangesPage:
+        self.request_or_allow_changes_button.click()
+        request_or_allow_changes_page = RequestOrAllowChangesPage(
+            self.page, self.domain, self.grant_name, self.report_name
+        )
+        expect(request_or_allow_changes_page.heading).to_be_visible()
+        return request_or_allow_changes_page
+
 
 class RequestOrAllowChangesPage(ReportsBasePage):
     report_name: str
+    no_just_allow_changes_radio: Locator
     continue_button: Locator
 
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
         super().__init__(
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Are you requesting changes to", exact=False),
+            heading=page.get_by_role("heading", name=f"Are you requesting changes to {form_name}?"),
         )
-        self.report_name = report_name
+        self.report_name = form_name
+        self.no_just_allow_changes_radio = page.get_by_role("radio", name="No, just allow changes")
         self.continue_button = page.get_by_role("button", name="Continue")
 
     def click_no_just_allow_changes(self) -> ReopenSubmissionPage:
@@ -1803,6 +2088,40 @@ class RequestOrAllowChangesPage(ReportsBasePage):
         reopen_page = ReopenSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
         expect(reopen_page.heading).to_be_visible()
         return reopen_page
+
+    def click_yes_request_changes(self) -> RequestChangesSubmissionPage:
+        self.page.get_by_role("radio", name="Yes", exact=True).click()
+        self.continue_button.click()
+        request_changes_page = RequestChangesSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(request_changes_page.heading).to_be_visible()
+        return request_changes_page
+
+
+class RequestChangesSubmissionPage(ReportsBasePage):
+    form_name: str
+    changes_requested_reason_input: Locator
+    submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=f"Changes needed to {form_name}"),
+        )
+        self.form_name = form_name
+        self.changes_requested_reason_input = page.locator("textarea[name='changes_requested_reason']")
+        self.submit_button = page.get_by_role("button", name="Confirm and request changes")
+
+    def select_section(self, section_name: str) -> None:
+        self.page.get_by_role("checkbox", name=section_name).check()
+
+    def request_changes(self, reason: str) -> ViewSubmissionPage:
+        self.changes_requested_reason_input.fill(reason)
+        self.submit_button.click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.form_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
 
 
 class ReopenSubmissionPage(ReportsBasePage):
@@ -1827,6 +2146,44 @@ class ReopenSubmissionPage(ReportsBasePage):
     def click_reopen_submission(self) -> ViewSubmissionPage:
         self.reopen_submission_button.click()
         view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.report_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
+
+
+class ApproveOrRejectSubmissionPage(ReportsBasePage):
+    form_name: str
+    mark_as_approved_radio: Locator
+    mark_as_rejected_radio: Locator
+    rejected_reason_input: Locator
+    submit_button: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str, form_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Would you like to mark this submission as approved or rejected?"),
+        )
+        self.form_name = form_name
+        self.mark_as_approved_radio = page.get_by_role("radio", name="Mark as approved")
+        self.mark_as_rejected_radio = page.get_by_role("radio", name="Mark as rejected")
+        self.rejected_reason_input = page.get_by_role(
+            "textbox", name="Why are you marking this submission as rejected?"
+        )
+        self.submit_button = page.get_by_role("button", name="Confirm and submit decision")
+
+    def reject_submission(self, reason: str) -> ViewSubmissionPage:
+        self.mark_as_rejected_radio.click()
+        self.rejected_reason_input.fill(reason)
+        self.submit_button.click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.form_name)
+        expect(view_submission_page.heading).to_be_visible()
+        return view_submission_page
+
+    def approve_submission(self) -> ViewSubmissionPage:
+        self.mark_as_approved_radio.click()
+        self.submit_button.click()
+        view_submission_page = ViewSubmissionPage(self.page, self.domain, self.grant_name, self.form_name)
         expect(view_submission_page.heading).to_be_visible()
         return view_submission_page
 
@@ -2155,7 +2512,7 @@ class SetUpOrganisationsPage:
 
     def click_set_up_organisations(self) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
-        expect(self.page.get_by_text("Created or updated 1 organisation")).to_be_visible()
+        expect(self.page.get_by_text(re.compile(r"Created or updated \d+ organisations?"))).to_be_visible()
         return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
@@ -2184,7 +2541,7 @@ class SetUpGrantRecipientsPage:
 
     def click_set_up_grant_recipients(self) -> "AdminCollectionLifecycleTasklistPage":
         self.set_up_button.click()
-        expect(self.page.get_by_text("Created 1 grant recipient")).to_be_visible()
+        expect(self.page.get_by_text(re.compile(r"Created \d+ grant recipients?"))).to_be_visible()
         return AdminCollectionLifecycleTasklistPage(self.page, self.domain, self.grant_id, self.collection_id)
 
 
@@ -2441,6 +2798,8 @@ class PlatformAdminReportSettingsPage:
         self.collection_id = collection_id
         self.heading = page.get_by_role("heading", name="Edit Collection")
         self.status_dropdown = page.get_by_role("combobox", name="Status")
+        self.allow_validation_checkbox = page.get_by_role("checkbox", name="Allow validation")
+        self.requires_certification_checkbox = page.get_by_role("checkbox", name="Requires certification")
         self.save_button = page.get_by_role("button", name="Save")
 
     def navigate(self) -> None:
@@ -2449,6 +2808,12 @@ class PlatformAdminReportSettingsPage:
 
     def select_collection_status(self, status: str) -> None:
         self.status_dropdown.select_option(status)
+
+    def click_allow_validation(self) -> None:
+        self.allow_validation_checkbox.check()
+
+    def click_turn_off_requires_certification(self) -> None:
+        self.requires_certification_checkbox.uncheck()
 
     def click_save(self) -> None:
         self.save_button.click()
