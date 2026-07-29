@@ -858,6 +858,27 @@ class TestUserGrantRelationships:
         ]
         assert user.get_grant_recipients(limit_to_organisation_id=uuid.uuid4()) == []
 
+    def test_grant_recipients_sorted_alphabetically_by_organisation_name(self, db_session, factories):
+        grant = factories.grant.create()
+        org_c = factories.organisation.create(name="CCCC Organisation", can_manage_grants=False)
+        org_a = factories.organisation.create(name="AAAA Organisation", can_manage_grants=False)
+        org_b = factories.organisation.create(name="BBBB Organisation", can_manage_grants=False)
+
+        grant_recipient_c = factories.grant_recipient.create(grant=grant, organisation=org_c)
+        grant_recipient_a = factories.grant_recipient.create(grant=grant, organisation=org_a)
+        grant_recipient_b = factories.grant_recipient.create(grant=grant, organisation=org_b)
+
+        user = factories.user.create(email="test@communities.gov.uk")
+        for grant_recipient in (grant_recipient_c, grant_recipient_a, grant_recipient_b):
+            factories.user_role.create(
+                user=user,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
+            )
+
+        assert user.get_grant_recipients() == [grant_recipient_a, grant_recipient_b, grant_recipient_c]
+
 
 class TestGetUsersWithPermission:
     def test_returns_users_with_specific_permission(self, factories, db_session):
