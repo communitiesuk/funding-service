@@ -140,6 +140,58 @@ class TestGetCollection:
 
         # TODO: Extend with a test on another collection type when we extend the CollectionType enum.
 
+    def test_get_collection_with_full_schema_data_source_references_no_n_plus_one(
+        self, db_session, factories, track_sql_queries
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+        )
+        factories.question.create(
+            form__collection=collection,
+            hint=InterpolationStatement(
+                "You were allocated " + ExpressionReference.from_data_source_column(data_source, "c_allocation").wrapped
+            ),
+        )
+
+        with track_sql_queries() as one_data_source_queries:
+            from_db = get_collection(collection_id=collection.id, with_full_schema=True)
+            for ds in from_db.data_sources:
+                assert ds.depended_on_by_columns
+                assert ds.organisation_items
+
+        baseline_queries = len(one_data_source_queries)
+
+        for i in range(2):
+            other_data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+                name=f"Other data source {i}",
+                create_gr_org_items=True,
+            )
+            factories.question.create(
+                form__collection=collection,
+                hint=InterpolationStatement(
+                    "You were allocated "
+                    + ExpressionReference.from_data_source_column(other_data_source, "c_allocation").wrapped
+                ),
+            )
+        db_session.commit()
+
+        with track_sql_queries() as three_data_source_queries:
+            from_db = get_collection(collection_id=collection.id, with_full_schema=True)
+            for ds in from_db.data_sources:
+                assert ds.depended_on_by_columns
+                assert ds.organisation_items
+
+        assert len(three_data_source_queries) == baseline_queries
+
 
 class TestCreateCollection:
     def test_create_collection(self, db_session, factories):
@@ -3194,7 +3246,8 @@ def test_get_collection_with_full_schema(db_session, factories, track_sql_querie
     # * Load the forms
     # * Load the question (component)
     # * Load any of the questions (components)
-    assert len(queries) == 5
+    # * Load the data sources
+    assert len(queries) == 6
 
     # No additional queries when inspecting the ORM model
     count = 0

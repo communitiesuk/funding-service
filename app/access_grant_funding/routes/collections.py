@@ -110,6 +110,42 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
 
 
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/collection/<uuid:collection_id>/unavailable",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def collection_unavailable(organisation_id: UUID, grant_id: UUID, collection_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    collection = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
+
+    if not CollectionHelper(collection).has_missing_referenced_data_for_organisation(
+        grant_recipient.organisation.external_id
+    ):
+        return redirect(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=organisation_id,
+                grant_id=grant_id,
+                collection_id=collection_id,
+            )
+        )
+
+    user = get_current_user()
+    emit_metric_count(
+        MetricEventName.COLLECTION_BLOCKED_BY_MISSING_DATA, grant_recipient=grant_recipient, collection=collection
+    )
+    current_app.logger.error(
+        "User %(user_id)s from grant recipient %(grant_recipient_id)s was shown the collection-unavailable page for "
+        "collection %(collection_id)s because a referenced grant recipient data source is missing data",
+        dict(user_id=user.id, grant_recipient_id=grant_recipient.id, collection_id=collection.id),
+    )
+
+    return render_template(
+        "access_grant_funding/collection_unavailable.html", grant_recipient=grant_recipient, collection=collection
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/view",
     methods=["GET", "POST"],
 )

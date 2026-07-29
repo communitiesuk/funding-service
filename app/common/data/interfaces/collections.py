@@ -281,6 +281,13 @@ def get_collection(
                 # eagerly populate the forms top level components - this is a redundant query but
                 # leaves as much as possible with the ORM
                 joinedload(Collection.forms).selectinload(Form.components),
+                # avoids N+1 queries for callers that check DataSource.has_missing_referenced_data_for_organisation
+                # across every data source on the collection
+                # (eg CollectionHelper.has_missing_referenced_data_for_organisation)
+                selectinload(Collection.data_sources).options(
+                    selectinload(DataSource.depended_on_by_columns),
+                    selectinload(DataSource.organisation_items),
+                ),
             ]
         )
 
@@ -823,7 +830,10 @@ def get_submission(
                     ),
                 ),
                 selectinload(Submission.events),
-                selectinload(Submission.data_sources),
+                selectinload(Submission.data_sources).options(
+                    selectinload(DataSource.depended_on_by_columns),
+                    selectinload(DataSource.organisation_items),
+                ),
             ]
         )
 

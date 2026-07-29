@@ -1,6 +1,8 @@
 import datetime
+import logging
 from copy import deepcopy
 from datetime import date
+from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -13,6 +15,7 @@ from app.common.collections.types import IntegerAnswer, TextSingleLineAnswer
 from app.common.data.interfaces.collections import update_collection
 from app.common.data.types import (
     CollectionType,
+    DataSourceType,
     ExpressionType,
     ManagedExpressionsEnum,
     QuestionDataType,
@@ -22,10 +25,12 @@ from app.common.data.types import (
     SubmissionStatusEnum,
 )
 from app.common.expressions import ExpressionReference
+from app.common.expressions.references import InterpolationStatement
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
-from tests.utils import get_h1_text, page_has_button, page_has_error, page_has_link
+from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_link
 
 
 class TestViewLockedReport:
@@ -358,6 +363,134 @@ class TestViewLockedReport:
         soup = BeautifulSoup(response.data, "html.parser")
         tag_texts = {tag.text.strip() for tag in soup.select(".govuk-tag")}
         assert "Changed" in tag_texts
+
+
+class TestCollectionUnavailable:
+    def _make_collection_with_missing_referenced_data(
+        self, factories, db_session, grant_recipient, **collection_kwargs
+    ):
+        collection = factories.collection.create(grant=grant_recipient.grant, **collection_kwargs)
+        data_source = factories.data_source.create(
+            grant=grant_recipient.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[None],
+        )
+        factories.question.create(
+            form__collection=collection,
+            hint=InterpolationStatement(
+                "You were allocated " + ExpressionReference.from_data_source_column(data_source, "c_allocation").wrapped
+            ),
+        )
+        return collection
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_recipient_member_client", True),
+        ),
+    )
+    def test_get_collection_unavailable_access(
+        self, request: FixtureRequest, client_fixture: str, can_access: bool, factories, db_session
+    ):
+        client = request.getfixturevalue(client_fixture)
+        grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+        collection = self._make_collection_with_missing_referenced_data(factories, db_session, grant_recipient)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.collection_unavailable",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+        else:
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == f"Sorry, the {collection.type.constants.singular} is unavailable"
+            assert (
+                f"You cannot access this {collection.type.constants.singular} right now. You will be "
+                + "able to access it later."
+                in soup.text
+            )
+
+    @patch("app.access_grant_funding.routes.collections.emit_metric_count")
+    def test_records_metric_and_error_log_when_shown(
+        self, mock_count, authenticated_grant_recipient_member_client, factories, db_session, caplog
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = self._make_collection_with_missing_referenced_data(factories, db_session, grant_recipient)
+
+        with caplog.at_level(logging.ERROR):
+            response = authenticated_grant_recipient_member_client.get(
+                url_for(
+                    "access_grant_funding.collection_unavailable",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_id=collection.id,
+                )
+            )
+
+        assert response.status_code == 200
+        mock_count.assert_called_once_with(
+            MetricEventName.COLLECTION_BLOCKED_BY_MISSING_DATA, grant_recipient=grant_recipient, collection=collection
+        )
+        assert any(
+            r.getMessage()
+            == AnyStringMatching(
+                rf"^User [a-z0-9-]{{36}} from grant recipient {grant_recipient.id} was shown the "
+                rf"collection-unavailable page for collection {collection.id} because a referenced grant recipient "
+                r"data source is missing data$"
+            )
+            for r in caplog.records
+            if r.levelno == logging.ERROR
+        )
+
+    def test_redirects_to_route_to_submission_when_data_no_longer_missing(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant)
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.collection_unavailable",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/access/organisation/[a-z0-9-]{36}/grants/[a-z0-9-]{36}/collection/[a-z0-9-]{36}$"
+        )
+
+    def test_redirects_to_route_to_submission_when_data_no_longer_missing_and_multiple_submissions(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        collection = factories.collection.create(grant=grant_recipient.grant, allow_multiple_submissions=True)
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.collection_unavailable",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            "^/access/organisation/[a-z0-9-]{36}/grants/[a-z0-9-]{36}/collection/[a-z0-9-]{36}$"
+        )
 
 
 class TextExportReportPDF:
