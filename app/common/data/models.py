@@ -620,6 +620,21 @@ class Submission(BaseModel):
         return cls.status.in_(SUBMITTED_STATUSES)
 
     @hybrid_property
+    def has_answers_locked_status(self) -> bool:
+        """
+        True when the submission status means grant recipient answers should no longer be changed.
+
+        `is_submitted` covers both SUBMITTED and SUBMITTED_WITH_CHANGES; AWAITING_SIGN_OFF is also locked because the
+        grant recipient user cannot update answers while certification is pending.
+        """
+        return self.is_submitted or self.status == SubmissionStatusEnum.AWAITING_SIGN_OFF
+
+    @has_answers_locked_status.inplace.expression
+    @classmethod
+    def _has_answers_locked_status_expression(cls) -> ColumnElement[bool]:
+        return or_(cls.is_submitted, cls.status == SubmissionStatusEnum.AWAITING_SIGN_OFF)
+
+    @hybrid_property
     def is_in_progress(self) -> bool:
         return self.status in IN_PROGRESS_STATUSES
 

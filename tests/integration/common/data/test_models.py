@@ -9,7 +9,7 @@ from app import QuestionDataType
 from app.common.collections.types import (
     TextSingleLineAnswer,
 )
-from app.common.data.models import ComponentReference, DataSource, Expression, Group
+from app.common.data.models import ComponentReference, DataSource, Expression, Group, Submission
 from app.common.data.types import (
     DataSourceType,
     ExpressionType,
@@ -152,6 +152,37 @@ class TestSubmissionModel:
         submission.status = status
 
         assert submission.is_overdue is False
+
+    @pytest.mark.parametrize(
+        "status, expected_locked",
+        [
+            (SubmissionStatusEnum.NOT_STARTED, False),
+            (SubmissionStatusEnum.IN_PROGRESS, False),
+            (SubmissionStatusEnum.READY_TO_SUBMIT, False),
+            (SubmissionStatusEnum.AWAITING_SIGN_OFF, True),
+            (SubmissionStatusEnum.SUBMITTED, True),
+            (SubmissionStatusEnum.NOT_SUBMITTED, False),
+            (SubmissionStatusEnum.PARTIALLY_SUBMITTED, False),
+            (SubmissionStatusEnum.CHANGES_REQUESTED, False),
+            (SubmissionStatusEnum.SUBMITTED_WITH_CHANGES, True),
+        ],
+    )
+    def test_submission_has_answers_locked_status(self, factories, status, expected_locked):
+        submission = factories.submission.build(status=status)
+
+        assert submission.has_answers_locked_status is expected_locked
+
+    def test_submission_has_answers_locked_status_can_be_queried(self, factories, db_session):
+        locked_submission = factories.submission.create()
+        locked_submission.status = SubmissionStatusEnum.AWAITING_SIGN_OFF
+        unlocked_submission = factories.submission.create()
+        unlocked_submission.status = SubmissionStatusEnum.IN_PROGRESS
+        db_session.commit()
+
+        result = db_session.scalars(select(Submission).where(Submission.has_answers_locked_status)).all()
+
+        assert locked_submission in result
+        assert unlocked_submission not in result
 
 
 class TestGrantModel:

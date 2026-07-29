@@ -492,14 +492,15 @@ class SubmissionHelper:
 
     @property
     def in_answers_locked_state(self) -> bool:
-        return self.is_submitted or self.is_awaiting_sign_off or self.in_immutable_state
+        """Returns True when answers should not be changed by grant recipient users."""
+        return self.submission.has_answers_locked_status or self.collection_helper.is_closed
 
     @property
     def in_immutable_state(self) -> bool:
         """Returns True if no actions should be able to take place on the submission
 
-        This is different from `in_answers_locked_state` as it may not have been submitted; it could be that the
-        reporting round has closed.
+        This is stricter than `in_answers_locked_state`: submissions awaiting sign off have locked answers, but are not
+        immutable because sign off actions can still take place.
         """
         return self.is_submitted or self.collection_helper.is_closed
 
