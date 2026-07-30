@@ -1,5 +1,6 @@
 import io
 import json
+import uuid
 
 import click
 import pytest
@@ -13,13 +14,14 @@ from app.common.data.types import (
     GrantRecipientModeEnum,
     QuestionDataType,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionModeEnum,
     TasklistSectionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.developers.commands import create_multi_submissions, export_grants, seed_grants, sync_component_references
 from app.extensions import db
-from tests.models import FactoryAnswer
+from tests.models import FactoryAnswer, _get_grant_managing_organisation
 
 
 def _unwrap(command):
@@ -453,6 +455,27 @@ class TestExportGrants:
             "Community Transport Fund",
         ]
         assert captured.index('"a_key"') < captured.index('"z_key"')
+
+    def test_user_role_order_does_not_depend_on_grant_managing_org_id(self, db_session, factories, capsys):
+        managing_org = _get_grant_managing_organisation()
+        managing_org.id = uuid.UUID("ffffffff-ffff-4fff-bfff-fffffffffffe")
+        db_session.flush()
+
+        recipient_org = factories.organisation.create(id=uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"))
+        grant = factories.grant.create(organisation=managing_org)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_org)
+        user = factories.user.create()
+        factories.user_role.create(user=user, organisation=managing_org, grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(user=user, organisation=recipient_org, grant=grant, permissions=[RoleEnum.MEMBER])
+
+        _export_grants(grant_ids=[grant.id], output="stdout", email_address=None, exclude_users=False)
+
+        payload = _extract_stdout_json(capsys.readouterr().out)
+
+        assert [role["organisation_id"] for role in payload["user_roles"]] == [
+            f"<UUID:{managing_org.external_id}>",
+            str(recipient_org.id),
+        ]
 
     def test_exclude_users_collapses_to_placeholder(self, db_session, factories, capsys):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
