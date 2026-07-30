@@ -204,6 +204,20 @@ class SubmissionDataManager:
         entry_id: str = self.get_entries(group)[add_another_index]["id"]
         return entry_id
 
+    def get_source_entry_id(self, group: Component, *, add_another_index: int) -> str | None:
+        """The id of the entry that this entry repeats over, if this group repeats over another one."""
+        entries = self.get_entries(group)
+        if add_another_index < 0 or add_another_index >= len(entries):
+            return None
+        source_entry_id: str | None = entries[add_another_index].get("source_entry_id")
+        return source_entry_id
+
+    def index_for_entry_id(self, group: Component, entry_id: str) -> int | None:
+        for index, entry in enumerate(self.get_entries(group)):
+            if entry["id"] == entry_id:
+                return index
+        return None
+
     def index_for_source_entry_id(self, group: Component, source_entry_id: str) -> int | None:
         for index, entry in enumerate(self.get_entries(group)):
             if entry.get("source_entry_id") == source_entry_id:

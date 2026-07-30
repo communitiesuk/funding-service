@@ -1032,6 +1032,101 @@ class TestSubmissionHelper:
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
             assert helper.get_answer_summary_for_add_another(q1, add_another_index=1).is_answered is True
 
+    class TestGetAnswerSummaryForRepeatingAddAnother:
+        def _build_repeating_collection(self, factories):
+            source_form = factories.form.build()
+            source = factories.group.build(form=source_form, add_another=True)
+            source_q = factories.question.build(form=source_form, parent=source)
+            container_form = factories.form.build(collection=source_form.collection)
+            container = factories.group.build(form=container_form, add_another=True, add_another_repeats_over=source)
+            container_q = factories.question.build(form=container_form, parent=container)
+            return source, source_q, container, container_q
+
+        def _materialise_entries(self, submission, source, container):
+            # as `reconcile_repeating_entries` would, minus the DB sync, which isn't available in a unit test
+            for source_entry in submission.data_manager.get_entries(source):
+                submission.data_manager.append_entry(container, source_entry_id=source_entry["id"])
+
+        def test_summary_leads_with_the_source_entry_summary(self, factories):
+            source, source_q, container, container_q = self._build_repeating_collection(factories)
+            submission = factories.submission.build(
+                collection=source.form.collection,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+            self._materialise_entries(submission, source, container)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£200"), add_another_index=1)
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_answer_summary_for_add_another(container, add_another_index=0).summary == "Alice — £100"
+            assert helper.get_answer_summary_for_add_another(container, add_another_index=1).summary == "Bob — £200"
+
+            # a question inside the container resolves the same summary as the container itself
+            assert helper.get_answer_summary_for_add_another(container_q, add_another_index=0).summary == "Alice — £100"
+
+        def test_summary_is_the_source_alone_when_the_entry_has_no_answers(self, factories):
+            source, source_q, container, _container_q = self._build_repeating_collection(factories)
+            submission = factories.submission.build(
+                collection=source.form.collection,
+                answers=[FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0)],
+            )
+            self._materialise_entries(submission, source, container)
+
+            helper = SubmissionHelper(submission)
+            summary = helper.get_answer_summary_for_add_another(container, add_another_index=0)
+            assert summary.summary == "Alice"
+            assert summary.is_answered is False
+
+        def test_summary_binds_to_its_own_source_entry_not_its_position(self, factories):
+            source, source_q, container, container_q = self._build_repeating_collection(factories)
+            submission = factories.submission.build(
+                collection=source.form.collection,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+            self._materialise_entries(submission, source, container)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£200"), add_another_index=1)
+
+            # removing the first source entry shifts every remaining index, but each container entry stays
+            # attached to the source entry it was stamped with
+            submission.data_manager.remove_add_another_entry(source, add_another_index=0)
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_answer_summary_for_add_another(container, add_another_index=1).summary == "Bob — £200"
+
+        def test_summary_is_unprefixed_for_a_container_that_does_not_repeat(self, factories):
+            group = factories.group.build(add_another=True)
+            question = factories.question.build(parent=group)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("£100"), add_another_index=0)],
+            )
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_answer_summary_for_add_another(group, add_another_index=0).summary == "£100"
+            assert helper.get_source_entry_summary_for_add_another(group, add_another_index=0) == ""
+
+        def test_source_summary_is_empty_for_an_entry_with_no_source_stamp(self, factories):
+            source, source_q, container, container_q = self._build_repeating_collection(factories)
+            submission = factories.submission.build(
+                collection=source.form.collection,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    # answered without being reconciled first, so the entry carries no `source_entry_id`
+                    FactoryAnswer(container_q, TextSingleLineAnswer("£100"), add_another_index=0),
+                ],
+            )
+
+            helper = SubmissionHelper(submission)
+            assert helper.get_source_entry_summary_for_add_another(container, add_another_index=0) == ""
+            assert helper.get_answer_summary_for_add_another(container, add_another_index=0).summary == "£100"
+
     class TestSentForCertificationBy:
         def test_property_gets_submitted_by_user(self, factories):
             user = factories.user.build()

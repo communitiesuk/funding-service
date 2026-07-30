@@ -1760,7 +1760,9 @@ class TestAskAQuestion:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             keys = soup.find_all("dt", {"class": "govuk-summary-list__key"})
-            assert keys[0].text.strip() == "£100"
+            # an answered entry leads with the summary of the entry it repeats over, so the answers can be
+            # read against the entry they were given for
+            assert keys[0].text.strip() == "Alice — £100"
             assert keys[1].text.strip() == "Enter answer for (Bob)"
 
             rows = soup.find_all("div", {"class": "govuk-summary-list__row"})
@@ -1838,6 +1840,72 @@ class TestAskAQuestion:
             assert submission.data_manager.get_count_for_add_another(container) == 2
             assert submission.data_manager.get(container_q, add_another_index=0) is None
             assert submission.data_manager.get(container_q, add_another_index=1) == TextSingleLineAnswer("£200")
+
+        def _answered_submission(self, factories, db_session, grant_recipient):
+            collection, source, source_q, container, container_q = self._build_source_and_container(
+                factories, grant_recipient.grant
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                grant_recipient=grant_recipient,
+                mode=SubmissionModeEnum.LIVE,
+                answers=[
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Alice"), add_another_index=0),
+                    FactoryAnswer(source_q, TextSingleLineAnswer("Bob"), add_another_index=1),
+                ],
+            )
+            helper = SubmissionHelper(submission)
+            helper.reconcile_repeating_entries(container)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£100"), add_another_index=0)
+            submission.data_manager.set(container_q, TextSingleLineAnswer("£200"), add_another_index=1)
+            helper._sync_submission_data_and_status()
+            db_session.commit()
+            return submission, container, container_q
+
+        def test_get_remove_confirmation_names_the_entry_repeated_over(
+            self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        ):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+            submission, _container, container_q = self._answered_submission(factories, db_session, grant_recipient)
+
+            response = authenticated_grant_recipient_data_provider_client.get(
+                url_for(
+                    "access_grant_funding.ask_a_question",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    question_id=container_q.id,
+                    add_another_index=1,
+                    action="remove",
+                )
+            )
+
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            assert get_h1_text(soup) == "Are you sure you want to remove Bob — £200?"
+
+        def test_get_check_your_answers_card_titles_name_the_entry_repeated_over(
+            self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        ):
+            grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+            submission, container, container_q = self._answered_submission(factories, db_session, grant_recipient)
+
+            response = authenticated_grant_recipient_data_provider_client.get(
+                url_for(
+                    "access_grant_funding.check_your_answers",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    collection_type=submission.collection.type,
+                    submission_id=submission.id,
+                    section_id=container.form.id,
+                )
+            )
+
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            card_titles = [title.text.strip() for title in soup.find_all("h2", {"class": "govuk-summary-card__title"})]
+            assert card_titles == ["Alice — £100", "Bob — £200"]
 
     def test_post_add_first_answer_redirects_to_index_0(
         self, authenticated_grant_recipient_data_provider_client, factories

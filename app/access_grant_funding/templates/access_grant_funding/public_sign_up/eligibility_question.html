@@ -17,7 +17,11 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        <span class="govuk-caption-l">Eligibility</span>
+        {# TODO: Fix: this should just work like standard question pages with guidance #}
+        <span class="govuk-heading-l">Eligibility</span>
+        {% if question.guidance_body %}
+          {{ question.guidance_body | govuk_markdown }}
+        {% endif %}
         {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
 
         {{ form.submit(params={"text": "Continue"}) }}

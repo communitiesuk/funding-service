@@ -99,6 +99,10 @@ class AddAnotherAnswerSummary(NamedTuple):
     is_answered: bool
 
 
+# separates the source entry's summary from a repeating entry's own summary, eg "Alice — £100"
+ADD_ANOTHER_SOURCE_SUMMARY_SEPARATOR = " — "
+
+
 class SubmissionAuthorisationError(Exception):
     def __init__(self, message: str, user: User, submission_id: UUID, required_permission: RoleEnum):
         super().__init__(message)
@@ -1671,6 +1675,45 @@ class SubmissionHelper:
     def get_answer_summary_for_add_another(
         self, component: Component, *, add_another_index: int
     ) -> AddAnotherAnswerSummary:
+        """The summary line for one entry of an add-another container.
+
+        When the container repeats over another group, the source entry's own summary line is shown first:
+        the answers in a repeating entry only make sense alongside the entry they were given for. Chains
+        are blocked, so the source summary is never itself prefixed.
+        """
+        entry_summary = self._get_entry_summary(component, add_another_index=add_another_index)
+        source_summary = self.get_source_entry_summary_for_add_another(component, add_another_index=add_another_index)
+
+        if not source_summary:
+            return entry_summary
+
+        return AddAnotherAnswerSummary(
+            summary=ADD_ANOTHER_SOURCE_SUMMARY_SEPARATOR.join(
+                part for part in (source_summary, entry_summary.summary) if part
+            ),
+            is_answered=entry_summary.is_answered,
+        )
+
+    def get_source_entry_summary_for_add_another(self, component: Component, *, add_another_index: int) -> str:
+        """The summary line of the entry that this entry repeats over, or an empty string if this component
+        isn't in a repeating container (or the source entry can no longer be resolved)."""
+        container = component.add_another_container
+        source = cast("Group", container).repeats_over if container is not None and container.is_group else None
+        if container is None or source is None:
+            return ""
+
+        data_manager = self.submission.data_manager
+        source_entry_id = data_manager.get_source_entry_id(container, add_another_index=add_another_index)
+        if source_entry_id is None:
+            return ""
+
+        source_index = data_manager.index_for_entry_id(source, source_entry_id)
+        if source_index is None:
+            return ""
+
+        return self._get_entry_summary(source, add_another_index=source_index).summary
+
+    def _get_entry_summary(self, component: Component, *, add_another_index: int) -> AddAnotherAnswerSummary:
         if not component.add_another_container:
             raise ValueError("answer summaries can only be generated for components in an add another container")
 

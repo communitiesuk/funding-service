@@ -648,8 +648,9 @@ class FormRunner:
             raise RuntimeError("Question context not set")
 
         if self.is_repeating_container:
-            source = cast("Group", cast("Group", self.component.add_another_container).repeats_over)
-            summary, _ = self.submission.get_answer_summary_for_add_another(source, add_another_index=add_another_index)
+            summary = self.submission.get_source_entry_summary_for_add_another(
+                cast("Group", self.component.add_another_container), add_another_index=add_another_index
+            )
             if summary:
                 return summary
         return str(add_another_index + 1)
