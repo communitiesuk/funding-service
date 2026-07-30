@@ -2533,7 +2533,7 @@ class SetUpGrantRecipientsPage:
 
     def select_organisation(self, org_name: str) -> None:
         self.grant_recipients_combobox.click()
-        self.page.get_by_role("option", name=org_name).click()
+        self.page.get_by_role("option", name=org_name, exact=True).click()
         self.page.keyboard.press("Escape")
 
     def select_status(self, status: GrantRecipientStatusEnum) -> None:
@@ -2632,7 +2632,7 @@ class OverrideGrantRecipientCertifiersPage:
 
     def select_organisation(self, org_name: str) -> None:
         self.organisation_combo_box.click()
-        self.page.get_by_role("option", name=org_name).click()
+        self.page.get_by_role("option", name=org_name, exact=True).click()
 
     def complete_user_details(self, full_name: str, email: str) -> None:
         self.user_full_name_box.fill(full_name)
