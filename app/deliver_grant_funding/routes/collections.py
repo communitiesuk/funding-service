@@ -36,6 +36,7 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_group,
     create_question,
+    delete_collection,
     delete_form,
     delete_question,
     get_all_submissions_with_mode_for_collection,
@@ -443,15 +444,37 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
 
 @deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings",
+    methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@auto_commit_after_request
 def collection_settings(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    delete_form = None
+    if "delete" in request.args:
+        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.collection_settings",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+        if collection.live_submissions:
+            abort(403)
+
+        delete_form = GenericConfirmDeletionForm()
+        if delete_form.validate_on_submit():
+            delete_collection(collection)
+            return redirect(url_for(collection.type.constants.list_endpoint, grant_id=grant_id))
 
     return render_template(
         "deliver_grant_funding/collections/manage_collection.html",
         grant=collection.grant,
         collection=collection,
+        delete_form=delete_form,
     )
 
 
