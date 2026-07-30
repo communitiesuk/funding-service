@@ -50,19 +50,18 @@ def _make_csv(rows: list[tuple[str, str]]) -> io.StringIO:
 
 @pytest.fixture()
 def collection_with_submission_name(db_session, factories):
-    question = factories.question.create(
-        data_type=QuestionDataType.RADIOS,
-        form__collection__allow_multiple_submissions=True,
-        form__collection__multiple_submissions_are_managed_by_service=True,
-        data_source__items=[],
+    collection = factories.collection.create(
+        allow_multiple_submissions=True,
+        allow_multiple_submissions__data_type=QuestionDataType.RADIOS,
+        allow_multiple_submissions__data_source__items=[],
+        multiple_submissions_are_managed_by_service=True,
     )
+    question = collection.submission_name_question
     question.data_source.items = [
         factories.data_source_item.create(data_source=question.data_source, key=key, label=label)
         for key, label in [("alpha", "Alpha"), ("beta", "Beta"), ("charlie", "Charlie"), ("gamma", "Gamma")]
     ]
-    collection = question.form.collection
-    collection.submission_name_question_id = question.id
-    db_session.flush()
+    db_session.commit()
     return collection
 
 
@@ -215,22 +214,6 @@ class TestCreateMultiSubmissions:
         )
         submission_names = {SubmissionHelper(s).submission_name for s in submissions}
         assert submission_names == {"Alpha"}
-
-    def test_aborts_when_no_submission_name_question(self, db_session, factories, system_user, capsys):
-        collection = factories.collection.create(allow_multiple_submissions=True)
-
-        csv_file = _make_csv([("E06000001", "Alpha")])
-
-        _create_multi_submissions(
-            collection_id=collection.id,
-            mode=GrantRecipientModeEnum.LIVE,
-            file=csv_file,
-            service_user_email_address=system_user.email,
-            commit=True,
-        )
-
-        output = capsys.readouterr().out
-        assert "ERROR: Collection does not have a submission name question configured." in output
 
     def test_aborts_when_user_not_found(self, db_session, factories, collection_with_submission_name, capsys):
         collection = collection_with_submission_name

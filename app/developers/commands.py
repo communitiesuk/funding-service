@@ -395,9 +395,10 @@ def seed_grants(file: Path, s3_key: str | None = None) -> None:  # noqa: C901
     db.session.flush()
 
     for grant_data in export_data["grants"]:
-        # Collection.submission_name_question points at components, which don't exist until later - so we have to do
-        # a bit of a dance to clear this out and then write it back after the components are created.
-        collection_submission_name_question_ids = {}
+        # Collection.submission_name_question points at components, which don't exist until later, and the DB requires
+        # a collection with multiple submissions enabled to have one - so we have to do a bit of a dance to clear the
+        # multiple submissions settings out and then write them back after the components are created.
+        collection_multiple_submissions_settings = {}
 
         grant_data["grant"]["id"] = uuid.UUID(grant_data["grant"]["id"])
 
@@ -431,7 +432,13 @@ def seed_grants(file: Path, s3_key: str | None = None) -> None:  # noqa: C901
             collection["id"] = uuid.UUID(collection["id"])
             collection = Collection(**collection)
             if collection.submission_name_question_id is not None:
-                collection_submission_name_question_ids[collection] = collection.submission_name_question_id
+                collection_multiple_submissions_settings[collection] = (
+                    collection.allow_multiple_submissions,
+                    collection.multiple_submissions_are_managed_by_service,
+                    collection.submission_name_question_id,
+                )
+                collection.allow_multiple_submissions = False
+                collection.multiple_submissions_are_managed_by_service = False
                 collection.submission_name_question_id = None
             db.session.add(collection)
 
@@ -492,7 +499,13 @@ def seed_grants(file: Path, s3_key: str | None = None) -> None:  # noqa: C901
             component_reference = ComponentReference(**component_reference)
             db.session.add(component_reference)
 
-        for collection, submission_name_question_id in collection_submission_name_question_ids.items():
+        for collection, (
+            allow_multiple_submissions,
+            multiple_submissions_are_managed_by_service,
+            submission_name_question_id,
+        ) in collection_multiple_submissions_settings.items():
+            collection.allow_multiple_submissions = allow_multiple_submissions
+            collection.multiple_submissions_are_managed_by_service = multiple_submissions_are_managed_by_service
             collection.submission_name_question_id = submission_name_question_id
         db.session.flush()
 

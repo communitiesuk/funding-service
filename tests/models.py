@@ -816,6 +816,41 @@ class _CollectionFactory(SQLAlchemyModelFactory):
             db.session.commit()
 
     @factory.post_generation
+    def allow_multiple_submissions(obj: Collection, create, extracted, **kwargs) -> None:
+        """Enable multiple submissions, auto-creating the required submission name question.
+
+        The DB requires that a collection allowing multiple submissions has a submission name question and
+        vice versa, and the question can only be created after the collection - so both settings are applied
+        together here and committed in a single UPDATE by `commit_the_things_to_clean_the_session`.
+
+        Customise the question with prefixed kwargs, e.g. `allow_multiple_submissions__text="..."`,
+        `allow_multiple_submissions__id=...`, `allow_multiple_submissions__data_type=QuestionDataType.RADIOS`.
+        """
+        if not extracted:
+            return
+
+        question_kwargs = {"data_type": QuestionDataType.TEXT_SINGLE_LINE, **kwargs}
+        if create:
+            question = _QuestionFactory.create(form__collection=obj, **question_kwargs)
+            # Read the id before mutating the collection so a refresh-triggered autoflush can't see
+            # a half-applied state that violates the DB check constraints.
+            question_id = question.id
+            obj.allow_multiple_submissions = True
+            obj.submission_name_question_id = question_id
+        else:
+            question = _QuestionFactory.build(form__collection=obj, **question_kwargs)
+            obj.allow_multiple_submissions = True
+            obj.submission_name_question = question
+            obj.submission_name_question_id = question.id
+
+    @factory.post_generation
+    def multiple_submissions_are_managed_by_service(obj: Collection, create, extracted, **kwargs) -> None:
+        # Declared after `allow_multiple_submissions` and before the final commit hook so the single
+        # flush satisfies ck_multiple_submissions_are_managed_by_service.
+        if extracted:
+            obj.multiple_submissions_are_managed_by_service = True
+
+    @factory.post_generation
     def commit_the_things_to_clean_the_session(obj, create, extracted, **kwargs):
         # Runs after all of the other post_generation hooks (hopefully) and commits anything created to the DB,
         # so that our clean-session-tracking logic has a clean session again.

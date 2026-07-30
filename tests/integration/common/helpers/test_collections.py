@@ -158,14 +158,11 @@ class TestSubmissionHelper:
                 helper.submit_answer_for_question(question.id, form, submission.created_by)
 
         def test_submit_duplicate_submission_name_raises_conflict(self, db_session, factories):
-            question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
             )
-            collection = question.form.collection
-            collection.submission_name_question_id = question.id
-            db_session.flush()
+            question = collection.submission_name_question
 
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)
             factories.submission.create(
@@ -189,14 +186,11 @@ class TestSubmissionHelper:
                 helper.submit_answer_for_question(question.id, form, new_submission.created_by)
 
         def test_submit_duplicate_submission_name_is_case_insensitive(self, db_session, factories):
-            question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
             )
-            collection = question.form.collection
-            collection.submission_name_question_id = question.id
-            db_session.flush()
+            question = collection.submission_name_question
 
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)
             factories.submission.create(
@@ -220,14 +214,11 @@ class TestSubmissionHelper:
                 helper.submit_answer_for_question(question.id, form, new_submission.created_by)
 
         def test_submit_unique_submission_name_succeeds(self, db_session, factories):
-            question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
             )
-            collection = question.form.collection
-            collection.submission_name_question_id = question.id
-            db_session.flush()
+            question = collection.submission_name_question
 
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)
             factories.submission.create(
@@ -251,14 +242,11 @@ class TestSubmissionHelper:
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Beta")
 
         def test_submit_same_name_on_own_submission_succeeds(self, db_session, factories):
-            question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
             )
-            collection = question.form.collection
-            collection.submission_name_question_id = question.id
-            db_session.flush()
+            question = collection.submission_name_question
 
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)
             submission = factories.submission.create(
@@ -277,14 +265,11 @@ class TestSubmissionHelper:
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
 
         def test_submit_duplicate_name_skipped_for_preview_submission(self, db_session, factories):
-            question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
             )
-            collection = question.form.collection
-            collection.submission_name_question_id = question.id
-            db_session.flush()
+            question = collection.submission_name_question
 
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)
             factories.submission.create(
@@ -308,15 +293,12 @@ class TestSubmissionHelper:
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
 
         def test_submit_changed_answer_raises_for_managed_submission_name(self, db_session, factories):
-            question = factories.question.create(
-                id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
-                form__collection__multiple_submissions_are_managed_by_service=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+                multiple_submissions_are_managed_by_service=True,
             )
-            collection = question.form.collection
-            collection.submission_name_question_id = question.id
-            db_session.flush()
+            question = collection.submission_name_question
 
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)
             submission = factories.submission.create(
@@ -1228,13 +1210,11 @@ class TestSubmissionHelper:
     class TestIgnoredFormsForSubmissionStatus:
         @staticmethod
         def _managed_collection(factories, db_session, extra_name_form_questions=0):
-            name_question = factories.question.create(
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
-                form__collection__multiple_submissions_are_managed_by_service=True,
+            collection = factories.collection.create(
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=True,
             )
-            collection = name_question.form.collection
-            collection.submission_name_question_id = name_question.id
+            name_question = collection.submission_name_question
             extra_name_questions = [
                 factories.question.create(form=name_question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
                 for _ in range(extra_name_form_questions)
@@ -1300,15 +1280,9 @@ class TestSubmissionHelper:
             assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
         def test_name_form_counts_when_not_managed_by_service(self, db_session, factories):
-            name_question = factories.question.create(
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
-                form__collection__multiple_submissions_are_managed_by_service=False,
-            )
-            collection = name_question.form.collection
-            collection.submission_name_question_id = name_question.id
+            collection = factories.collection.create(allow_multiple_submissions=True)
+            name_question = collection.submission_name_question
             factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
-            db_session.flush()
             submission = factories.submission.create(collection=collection)
             helper = SubmissionHelper(submission)
 
@@ -1330,21 +1304,6 @@ class TestSubmissionHelper:
             self._answer(helper, question, "data", submission.created_by)
 
             assert helper.status == SubmissionStatusEnum.IN_PROGRESS
-
-        def test_raises_when_managed_multi_submission_has_no_name_question(self, db_session, factories):
-            question = factories.question.create(
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                form__collection__allow_multiple_submissions=True,
-                form__collection__multiple_submissions_are_managed_by_service=False,
-            )
-            collection = question.form.collection
-            submission = factories.submission.create(collection=collection)
-            collection.multiple_submissions_are_managed_by_service = True
-            db_session.flush()
-            helper = SubmissionHelper(submission)
-
-            with pytest.raises(RuntimeError, match="Submission name question is required for multiple submissions"):
-                helper.form_is_managed_by_service(question.form)
 
     class TestRequiresCertification:
         def test_decline_certification_requires_certification(self, factories, submission_awaiting_sign_off, user):
@@ -2088,9 +2047,10 @@ class TestSubmissionHelper:
         ):
             collection = submission_awaiting_sign_off.collection
             managed_form = collection.forms[0]
+            name_question_id = managed_form.cached_questions[0].id
             collection.allow_multiple_submissions = True
             collection.multiple_submissions_are_managed_by_service = True
-            collection.submission_name_question_id = managed_form.cached_questions[0].id
+            collection.submission_name_question_id = name_question_id
 
             unmanaged_form = factories.form.create(collection=collection)
             factories.question.create(form=unmanaged_form)
@@ -2259,9 +2219,10 @@ class TestSubmissionHelper:
         ):
             collection = submission_submitted.collection
             managed_form = collection.forms[0]
+            name_question_id = managed_form.cached_questions[0].id
             collection.allow_multiple_submissions = True
             collection.multiple_submissions_are_managed_by_service = True
-            collection.submission_name_question_id = managed_form.cached_questions[0].id
+            collection.submission_name_question_id = name_question_id
 
             unmanaged_form = factories.form.create(collection=collection)
             factories.question.create(form=unmanaged_form)
@@ -2426,9 +2387,10 @@ class TestSubmissionHelper:
         ):
             collection = submission_submitted.collection
             managed_form = collection.forms[0]
+            name_question_id = managed_form.cached_questions[0].id
             collection.allow_multiple_submissions = True
             collection.multiple_submissions_are_managed_by_service = True
-            collection.submission_name_question_id = managed_form.cached_questions[0].id
+            collection.submission_name_question_id = name_question_id
 
             unmanaged_form = factories.form.create(collection=collection)
             factories.question.create(form=unmanaged_form)

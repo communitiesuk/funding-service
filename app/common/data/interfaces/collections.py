@@ -202,8 +202,13 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     remapped: dict[str, list[dict[str, Any]]] = _remap(bundle)
 
     collection_data = remapped["collections"][0]
-    # Points at a component that won't exist until later, so hold it back and set it once components are flushed.
+    # The submission name question points at a component that won't exist until later, and the DB requires a collection
+    # with multiple submissions enabled to have one - so hold these back and set them once components are flushed.
     submission_name_question_id = collection_data.pop("submission_name_question_id", None)
+    allow_multiple_submissions = collection_data.pop("allow_multiple_submissions", False)
+    multiple_submissions_are_managed_by_service = collection_data.pop(
+        "multiple_submissions_are_managed_by_service", False
+    )
 
     new_collection = Collection(**collection_data)
     db.session.add(new_collection)
@@ -260,6 +265,8 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
     db.session.flush()
 
     if submission_name_question_id:
+        new_collection.allow_multiple_submissions = allow_multiple_submissions
+        new_collection.multiple_submissions_are_managed_by_service = multiple_submissions_are_managed_by_service
         new_collection.submission_name_question_id = submission_name_question_id
 
     return new_collection
@@ -430,7 +437,32 @@ def update_collection(  # noqa: C901
         collection.submission_period_start_date = submission_period_start_date
         collection.submission_period_end_date = submission_period_end_date
 
+    # TODO[FSPT-1537]: Clean all of the multi-submission logic below up when old config pages are gone
+    # Checked before any attributes are modified: the lazy loads here trigger an autoflush, and flushing a
+    # partially-applied update would violate the DB check constraint requiring enabled collections to have a
+    # submission name question.
+    if submission_name_question_id is not NOT_PROVIDED and submission_name_question_id is not None:
+        if (
+            collection.submission_name_question_id is not None
+            and submission_name_question_id != collection.submission_name_question_id
+            and collection.id is not None
+        ):
+            if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
+                raise ValueError(
+                    "Cannot change the submission name question: submissions already exist for this "
+                    f"{collection.type.constants.singular}"
+                )
+
     if allow_multiple_submissions is not NOT_PROVIDED:
+        if allow_multiple_submissions:
+            new_submission_name_question_id = (
+                submission_name_question_id
+                if submission_name_question_id is not NOT_PROVIDED
+                else collection.submission_name_question_id
+            )
+            if new_submission_name_question_id is None:
+                raise ValueError("submission_name_question_id must be set when multiple submissions are enabled")
+
         if (
             not allow_multiple_submissions
             and collection.allow_multiple_submissions
@@ -446,6 +478,7 @@ def update_collection(  # noqa: C901
         collection.allow_multiple_submissions = allow_multiple_submissions
         if not allow_multiple_submissions:
             collection.submission_name_question_id = None
+            collection.multiple_submissions_are_managed_by_service = False
 
     if allow_public_sign_up is not NOT_PROVIDED:
         collection.allow_public_sign_up = allow_public_sign_up
@@ -453,6 +486,9 @@ def update_collection(  # noqa: C901
     if submission_name_question_id is not NOT_PROVIDED:
         if not collection.allow_multiple_submissions:
             raise ValueError("submission_name_question_id cannot be set when allow_multiple_submissions is not enabled")
+
+        if submission_name_question_id is None:
+            raise ValueError("submission_name_question_id cannot be unset while multiple submissions are enabled")
 
         try:
             if (
@@ -2445,7 +2481,10 @@ def delete_collection(collection: Collection) -> None:
         raise ValueError("Cannot delete collection with live submissions")
 
     # Break the collection's reference to the submission name question before the cascade deletes below, otherwise
-    # we get a CircularDependencyError between the collection and that question.
+    # we get a CircularDependencyError between the collection and that question. Multiple submissions must be disabled
+    # in the same statement to satisfy the DB check that enabled collections have a submission name question.
+    collection.allow_multiple_submissions = False
+    collection.multiple_submissions_are_managed_by_service = False
     collection.submission_name_question_id = None
 
     custom_data_sources_to_delete = [

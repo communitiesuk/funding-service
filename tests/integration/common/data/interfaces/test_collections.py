@@ -647,6 +647,45 @@ class TestUpdateCollection:
         assert updated.allow_multiple_submissions is False
         assert updated.submission_name_question_id is None
 
+    def test_update_collection_change_submission_name_question_raises_when_submissions_exist(
+        self, db_session, factories
+    ):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        question = collection.submission_name_question
+        other_question = factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
+        )
+
+        with pytest.raises(ValueError, match="Cannot change the submission name question"):
+            update_collection(collection, submission_name_question_id=other_question.id)
+
+    def test_update_collection_same_submission_name_question_allowed_when_submissions_exist(
+        self, db_session, factories
+    ):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        question = collection.submission_name_question
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
+        )
+
+        updated = update_collection(collection, submission_name_question_id=question.id)
+
+        assert updated.submission_name_question_id == question.id
+
+    def test_update_collection_change_submission_name_question_allowed_when_no_submissions(self, db_session, factories):
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        question = collection.submission_name_question
+        other_question = factories.question.create(form=question.form, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        updated = update_collection(collection, submission_name_question_id=other_question.id)
+
+        assert updated.submission_name_question_id == other_question.id
+
     def test_update_collection_submission_name_question_raises_for_nonexistent_id(self, db_session, factories):
         collection = factories.collection.create(allow_multiple_submissions=True)
 
@@ -3958,15 +3997,12 @@ class TestDeleteCollection:
 
     def test_can_delete_with_submission_name_question_set(self, db_session, factories):
         collection = factories.collection.create(allow_multiple_submissions=True)
-        form = factories.form.create(collection=collection)
-        question = factories.question.create(form=form)
-        collection.submission_name_question_id = question.id
-        db_session.flush()
+        question_id = collection.submission_name_question_id
 
         delete_collection(collection)
 
         assert db_session.get(Collection, collection.id) is None
-        assert db_session.get(Question, question.id) is None
+        assert db_session.get(Question, question_id) is None
 
     def test_delete_collection_cascades_data_sources(self, db_session, factories):
         collection = factories.collection.create()
@@ -5394,13 +5430,8 @@ class TestGetSubmissionListForCollection:
     def test_multi_submission_collection_orders_rows_by_organisation_name_then_submission_name(
         self, db_session, factories
     ):
-        question = factories.question.create(
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.flush()
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        question = collection.submission_name_question
         acme = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
         beta = factories.grant_recipient.create(grant=collection.grant, organisation__name="Beta Ltd")
         for grant_recipient, submission_name in [
@@ -5424,13 +5455,8 @@ class TestGetSubmissionListForCollection:
         ]
 
     def test_uses_submission_name_question_answer_for_name(self, db_session, factories):
-        question = factories.question.create(
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.flush()
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        question = collection.submission_name_question
         grant_recipient = factories.grant_recipient.create(grant=collection.grant)
         factories.submission.create(
             collection=collection,
@@ -5445,13 +5471,11 @@ class TestGetSubmissionListForCollection:
         assert summaries[0].name == "Alpha Project"
 
     def test_uses_radios_name_question_label_for_name(self, db_session, factories):
-        question = factories.question.create(
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.RADIOS,
+        collection = factories.collection.create(
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__data_type=QuestionDataType.RADIOS,
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.flush()
+        question = collection.submission_name_question
         grant_recipient = factories.grant_recipient.create(grant=collection.grant)
         factories.submission.create(
             collection=collection,
@@ -5466,13 +5490,7 @@ class TestGetSubmissionListForCollection:
         assert summaries[0].name == "North region"
 
     def test_falls_back_to_reference_when_name_question_unanswered(self, db_session, factories):
-        question = factories.question.create(
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.flush()
+        collection = factories.collection.create(allow_multiple_submissions=True)
         grant_recipient = factories.grant_recipient.create(grant=collection.grant)
         submission = factories.submission.create(
             collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
@@ -5511,13 +5529,8 @@ class TestGetSubmissionListForCollection:
         assert rows[0].last_updated_at_utc == latest_event_at
 
     def test_constant_query_count_regardless_of_submission_count(self, db_session, factories, track_sql_queries):
-        question = factories.question.create(
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.flush()
+        collection = factories.collection.create(allow_multiple_submissions=True)
+        question = collection.submission_name_question
 
         def _create_submission(name: str) -> None:
             grant_recipient = factories.grant_recipient.create(grant=collection.grant)

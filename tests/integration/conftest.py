@@ -36,7 +36,6 @@ from app.common.data.types import (
     AuthMethodEnum,
     CollectionStatusEnum,
     GrantStatusEnum,
-    QuestionDataType,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -843,17 +842,14 @@ def submission_submitted_multiple_submissions(
     db_session,
     grant_recipient,
 ) -> list[Submission]:
-    question = factories.question.create(
-        id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
-        data_type=QuestionDataType.TEXT_SINGLE_LINE,
-        form__collection__allow_multiple_submissions=True,
-        form__collection__requires_certification=False,
-        form__collection__grant=grant_recipient.grant,
-        form__collection__status=CollectionStatusEnum.OPEN,
+    collection = factories.collection.create(
+        allow_multiple_submissions=True,
+        allow_multiple_submissions__id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"),
+        requires_certification=False,
+        grant=grant_recipient.grant,
+        status=CollectionStatusEnum.OPEN,
     )
-    collection = question.form.collection
-    collection.submission_name_question_id = question.id
-    db_session.flush()
+    question = collection.submission_name_question
     user = factories.user.create()
 
     grant_recipient = factories.grant_recipient.create(grant=collection.grant)

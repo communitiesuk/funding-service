@@ -1635,12 +1635,7 @@ class TestSendEmailsToRecipients:
             submission_period_start_date=datetime.date(2025, 4, 1),
             submission_period_end_date=datetime.date(2025, 4, 30),
         )
-        question = factories.question.create(
-            form__collection=collection,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-        )
-        collection.submission_name_question_id = question.id
-        db_session.commit()
+        question = collection.submission_name_question
 
         org = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
         grant_recipient = factories.grant_recipient.create(grant=grant, organisation=org)

@@ -24,7 +24,14 @@ from app.common.expressions import ExpressionReference
 from app.common.expressions.references import InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
-from tests.utils import AnyStringMatching, get_h1_text, page_has_button, page_has_error, page_has_h2, page_has_link
+from tests.utils import (
+    AnyStringMatching,
+    get_h1_text,
+    page_has_button,
+    page_has_error,
+    page_has_h2,
+    page_has_link,
+)
 
 
 class TestRouteToSubmission:
@@ -241,16 +248,13 @@ class TestRouteToSubmission:
 
 class TestStartNewMultipleSubmission:
     def _create_multi_submission_collection(self, factories, grant):
-        question = factories.question.create(
-            text="What is the project name?",
-            name="project name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            form__collection__grant=grant,
-            form__collection__allow_multiple_submissions=True,
+        collection = factories.collection.create(
+            grant=grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__text="What is the project name?",
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        return collection, question
+        return collection, collection.submission_name_question
 
     @pytest.mark.parametrize(
         "client_fixture, can_access",
@@ -321,14 +325,11 @@ class TestStartNewMultipleSubmission:
         self, authenticated_grant_recipient_data_provider_client, factories, multiple_submissions_are_managed_by_service
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        question = factories.question.create(
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=True,
-            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
 
         response = authenticated_grant_recipient_data_provider_client.get(
             url_for(
@@ -343,24 +344,6 @@ class TestStartNewMultipleSubmission:
             assert response.status_code == 404
         else:
             assert response.status_code == 200
-
-    def test_500_when_submission_name_question_not_set(
-        self, authenticated_grant_recipient_data_provider_client, factories
-    ):
-        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        collection = factories.collection.create(
-            grant=grant_recipient.grant, allow_multiple_submissions=True, submission_name_question_id=None
-        )
-
-        with pytest.raises(RuntimeError, match=f"Collection {collection.id} does not have a submission name question"):
-            authenticated_grant_recipient_data_provider_client.get(
-                url_for(
-                    "access_grant_funding.start_new_multiple_submission",
-                    organisation_id=grant_recipient.organisation.id,
-                    grant_id=grant_recipient.grant.id,
-                    collection_id=collection.id,
-                ),
-            )
 
     def test_redirects_to_submission_list_when_collection_closed(
         self, authenticated_grant_recipient_data_provider_client, factories
@@ -1836,15 +1819,13 @@ class TestAskAQuestion:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        question = factories.question.create(
-            text="Project name",
-            name="project name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=True,
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__text="Project name",
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
+        question = collection.submission_name_question
         factories.submission.create(
             collection=collection,
             grant_recipient=grant_recipient,
@@ -1876,15 +1857,13 @@ class TestAskAQuestion:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        question = factories.question.create(
-            text="Project name",
-            name="project name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=True,
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__text="Project name",
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
+        question = collection.submission_name_question
         factories.submission.create(
             collection=collection,
             grant_recipient=grant_recipient,
@@ -1920,16 +1899,14 @@ class TestAskAQuestion:
         factories,
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        question = factories.question.create(
-            text="Project name",
-            name="project name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=True,
-            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__text="Project name",
+            allow_multiple_submissions__name="project name",
+            multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
+        question = collection.submission_name_question
         submission = factories.submission.create(
             collection=collection,
             grant_recipient=grant_recipient,
@@ -1960,16 +1937,14 @@ class TestAskAQuestion:
         factories,
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        question = factories.question.create(
-            text="Project name",
-            name="project name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=True,
-            form__collection__multiple_submissions_are_managed_by_service=True,
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__text="Project name",
+            allow_multiple_submissions__name="project name",
+            multiple_submissions_are_managed_by_service=True,
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
+        question = collection.submission_name_question
         submission = factories.submission.create(
             collection=collection,
             grant_recipient=grant_recipient,
@@ -2259,16 +2234,14 @@ class TestCheckYourAnswers:
         factories,
     ):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
-        question = factories.question.create(
-            text="Project name",
-            name="project name",
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=True,
-            form__collection__multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__text="Project name",
+            allow_multiple_submissions__name="project name",
+            multiple_submissions_are_managed_by_service=multiple_submissions_are_managed_by_service,
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
+        question = collection.submission_name_question
         submission = factories.submission.create(
             collection=collection,
             grant_recipient=grant_recipient,
@@ -2542,13 +2515,18 @@ class TestConfirmSentForCertification:
         expected_back_link_route,
     ):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
-        question = factories.question.create(
-            form__collection__grant=grant_recipient.grant,
-            form__collection__allow_multiple_submissions=allow_multiple_submissions,
-            form__collection__submission_period_end_date=date(2025, 12, 31),
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            submission_period_end_date=date(2025, 12, 31),
+            allow_multiple_submissions=allow_multiple_submissions,
+        )
+        question = (
+            collection.submission_name_question
+            if allow_multiple_submissions
+            else factories.question.create(form__collection=collection)
         )
         submission = factories.submission.create(
-            collection=question.form.collection,
+            collection=collection,
             grant_recipient=grant_recipient,
             mode=SubmissionModeEnum.LIVE,
             events=[],

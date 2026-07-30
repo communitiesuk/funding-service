@@ -416,6 +416,10 @@ class Collection(BaseModel):
             name="ck_submission_name_question_requires_multiple_submissions",
         ),
         CheckConstraint(
+            "allow_multiple_submissions = false OR submission_name_question_id IS NOT NULL",
+            name="ck_multiple_submissions_requires_name_question",
+        ),
+        CheckConstraint(
             "multiple_submissions_are_managed_by_service = false OR allow_multiple_submissions = true",
             name="ck_multiple_submissions_are_managed_by_service",
         ),

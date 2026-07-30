@@ -1106,11 +1106,10 @@ class TestConfigureMultipleSubmissions:
             QuestionDataType.TEXT_SINGLE_LINE,
         }
 
-        q1 = factories.question.create(
-            form__collection__grant=authenticated_grant_admin_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, allow_multiple_submissions=True
         )
+        q1 = collection.submission_name_question
         q2 = factories.question.create(
             form=q1.form,
             data_type=QuestionDataType.RADIOS,
@@ -1123,8 +1122,6 @@ class TestConfigureMultipleSubmissions:
             form=q1.form,
             data_type=QuestionDataType.CHECKBOXES,
         )
-        collection = q1.form.collection
-        collection.submission_name_question_id = q1.id
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -1145,9 +1142,11 @@ class TestConfigureMultipleSubmissions:
     def test_cant_select_add_another_questions_of_valid_data_type(
         self, app, authenticated_grant_admin_client, factories
     ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, allow_multiple_submissions=True
+        )
         group = factories.group.create(
-            form__collection__grant=authenticated_grant_admin_client.grant,
-            form__collection__allow_multiple_submissions=True,
+            form=collection.submission_name_question.form,
             add_another=True,
         )
         q1 = factories.question.create(
@@ -1159,8 +1158,6 @@ class TestConfigureMultipleSubmissions:
             data_type=QuestionDataType.RADIOS,
             parent=group,
         )
-        collection = q1.form.collection
-        collection.submission_name_question_id = q1.id
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -1179,14 +1176,11 @@ class TestConfigureMultipleSubmissions:
     def test_get_configure_multiple_submissions_prepopulates_when_already_enabled(
         self, authenticated_grant_admin_client, factories
     ):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_admin_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            name="submission_name_field",
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__name="submission_name_field",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
 
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -1203,13 +1197,9 @@ class TestConfigureMultipleSubmissions:
         assert yes_radio is not None
 
     def test_post_disable_multiple_submissions(self, authenticated_grant_admin_client, factories):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_admin_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, allow_multiple_submissions=True
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
 
         response = authenticated_grant_admin_client.post(
             url_for(
@@ -9092,15 +9082,12 @@ class TestListSubmissionsMultipleSubmissions:
     def test_multi_submission_table_shows_submission_submission_name(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_member_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            name="project name",
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.commit()
+        question = collection.submission_name_question
         grant_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant, organisation__name="Acme Corp"
         )
@@ -9136,15 +9123,11 @@ class TestListSubmissionsMultipleSubmissions:
     def test_multi_submission_table_uses_question_name_as_column_header(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_member_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            name="project name",
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.commit()
 
         response = authenticated_grant_member_client.get(
             url_for(
@@ -9301,15 +9284,12 @@ class TestExportCollectionSubmissions:
     def test_csv_includes_submission_name_for_multiple_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_member_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            name="project name",
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.commit()
+        question = collection.submission_name_question
 
         grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
         factories.submission.create(
@@ -9347,15 +9327,12 @@ class TestExportCollectionSubmissions:
     def test_json_includes_name_for_multiple_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
-        question = factories.question.create(
-            form__collection__grant=authenticated_grant_member_client.grant,
-            form__collection__allow_multiple_submissions=True,
-            data_type=QuestionDataType.TEXT_SINGLE_LINE,
-            name="project name",
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            allow_multiple_submissions=True,
+            allow_multiple_submissions__name="project name",
         )
-        collection = question.form.collection
-        collection.submission_name_question_id = question.id
-        db_session.commit()
+        question = collection.submission_name_question
 
         grant_recipient = factories.grant_recipient.create(grant=authenticated_grant_member_client.grant)
         factories.submission.create(
