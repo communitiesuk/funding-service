@@ -69,6 +69,26 @@
       </p>
       <p class="govuk-body"><strong>{{ type_constants.singular | uppercase_first }} status</strong>: {{ reportStatusTag(collection.status) }}</p>
 
+      {% if collection.eligibility_form %}
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility</h2>
+        <p class="govuk-body">Applicants answer this section during sign up, before they start the {{ type_constants.singular }}.</p>
+        {% set eligibility_task_html %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=collection.eligibility_form.id) }}">{{ collection.eligibility_form.title }}</a>
+        {% endset %}
+        {% set eligibility_questions_html %}
+          {{ collection.eligibility_form.cached_questions | length }}
+          questions<span class="govuk-visually-hidden"> in {{ collection.eligibility_form.title }}</span>
+        {% endset %}
+        {{
+          govukSummaryList({
+            "rows": [{
+              "key": {"html": eligibility_task_html, "classes": "govuk-!-font-weight-regular"},
+              "value": {"html": eligibility_questions_html},
+            }]
+          })
+        }}
+      {% endif %}
+
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
       {% if not collection.application_forms %}
         <p class="govuk-body">This {{ type_constants.singular }} has no sections.</p>
@@ -117,26 +137,6 @@
 
       {% if can_edit %}
         <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_section', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Add another section</a>
-      {% endif %}
-
-      {% if collection.eligibility_form %}
-        <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility</h2>
-        <p class="govuk-body">Applicants answer this section during sign up, before they start the {{ type_constants.singular }}.</p>
-        {% set eligibility_task_html %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=collection.eligibility_form.id) }}">{{ collection.eligibility_form.title }}</a>
-        {% endset %}
-        {% set eligibility_questions_html %}
-          {{ collection.eligibility_form.cached_questions | length }}
-          questions<span class="govuk-visually-hidden"> in {{ collection.eligibility_form.title }}</span>
-        {% endset %}
-        {{
-          govukSummaryList({
-            "rows": [{
-              "key": {"html": eligibility_task_html, "classes": "govuk-!-font-weight-regular"},
-              "value": {"html": eligibility_questions_html},
-            }]
-          })
-        }}
       {% endif %}
 
       <h2 class="govuk-heading-m govuk-!-margin-top-5">Manage collection</h2>

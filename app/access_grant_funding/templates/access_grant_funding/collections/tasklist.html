@@ -64,19 +64,17 @@
     </div>
   </div>
 
+  {% set view_link %}
+    <p class="govuk-body govuk-!-margin-top-4 govuk-!-margin-bottom-4">
+      You can
+      <a
+        class="govuk-link govuk-link--no-visited-state"
+        href="{{ url_for('access_grant_funding.all_questions', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_type=runner.submission.collection.type, submission_id=runner.submission.id) }}"
+        >view and download all {{ constants.singular }} questions</a
+      >
+    </p>
+  {% endset %}
   {% if runner.submission.collection.requires_certification %}
-    {% set view_link %}
-      <p class="govuk-body govuk-!-margin-top-4 govuk-!-margin-bottom-4">
-        You can
-        <a
-          class="govuk-link govuk-link--no-visited-state"
-          href="{{ url_for('access_grant_funding.all_questions', organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_type=runner.submission.collection.type, submission_id=runner.submission.id) }}"
-          >view and download all {{ constants.singular }} questions</a
-        >
-      </p>
-    {% endset %}
-
-
     {% set before_submission %}
       {{ view_link }}
       <h2 class="govuk-heading-m">Submit your {{ constants.singular }} to your certifier</h2>

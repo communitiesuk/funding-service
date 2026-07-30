@@ -16,12 +16,24 @@
 
       <p class="govuk-body">Based on your answers, you're eligible to apply for the {{ grant.name }}.</p>
 
-      <p class="govuk-body">Next, create an account and tell us about the organisation you're applying on behalf of.</p>
+      <h2 class="govuk-heading-m">Create an account</h2>
+
+      <p class="govuk-body">We did not find an account with the email address you provided.</p>
+
+      <p class="govuk-body">Before you can apply, you must create an account by adding your organisation details.</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.submit(params={"text": "Continue and create an account"}) }}
+        {{ form.submit(params={"text": "Create an account"}) }}
       </form>
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Get help</h2>
+      <p class="govuk-body">If you need help or have any questions, contact our <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>.</p>
+      <p class="govuk-body">Monday to Friday 9am to 5pm (except public holidays)</p>
     </div>
   </div>
 {% endblock content %}
