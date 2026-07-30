@@ -209,14 +209,25 @@ def _check_registration_journey(collection: Collection) -> ResponseReturnValue |
     return None
 
 
+def _has_eligibility_check(collection: Collection) -> bool:
+    return bool(collection.requires_eligibility_check and collection.eligibility_form)
+
+
+def _last_eligibility_question_url(collection: Collection) -> str:
+    assert collection.eligibility_form is not None
+    last_question = collection.eligibility_form.components[-1]
+    return url_for(
+        "access_grant_funding.public_sign_up_eligibility_question",
+        collection_id=collection.id,
+        question_id=last_question.id,
+    )
+
+
 def _organisation_type_back_url(collection: Collection) -> str:
-    if collection.requires_eligibility_check and collection.eligibility_form:
-        last_question = collection.eligibility_form.components[-1]
-        return url_for(
-            "access_grant_funding.public_sign_up_eligibility_question",
-            collection_id=collection.id,
-            question_id=last_question.id,
-        )
+    # When there's an eligibility check the applicant comes here from the "you are eligible to apply" page; without
+    # one they go straight from giving us their email address to registering their organisation
+    if _has_eligibility_check(collection):
+        return url_for("access_grant_funding.public_sign_up_eligible", collection_id=collection.id)
     return url_for("access_grant_funding.public_sign_up_email", collection_id=collection.id)
 
 
@@ -273,6 +284,27 @@ def public_sign_up_email(collection_id: uuid.UUID) -> ResponseReturnValue:
     return _render_sign_up_page("access_grant_funding/public_sign_up/email.html", collection, form=form)
 
 
+def _eligible_to_create_account(collection: Collection) -> ResponseReturnValue:
+    """Confirm eligibility to an applicant who has no organisation yet, before they register one.
+
+    There's nothing to confirm if they haven't answered any eligibility questions, so they go straight on to
+    registering their organisation.
+    """
+    if not _has_eligibility_check(collection):
+        return redirect(url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=collection.id))
+
+    form = GenericSubmitForm()
+    if form.validate_on_submit():
+        return redirect(url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=collection.id))
+
+    return _render_sign_up_page(
+        "access_grant_funding/public_sign_up/eligible_create_account.html",
+        collection,
+        form=form,
+        back_url=_last_eligibility_question_url(collection),
+    )
+
+
 @access_grant_funding_blueprint.route("/sign-up/<uuid:collection_id>/eligible", methods=["GET", "POST"])
 @auto_commit_after_request
 def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
@@ -298,7 +330,7 @@ def public_sign_up_eligible(collection_id: uuid.UUID) -> ResponseReturnValue:
 
     organisation = _get_organisation_by_email_domain(user.email)
     if organisation is None:
-        return redirect(url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=collection.id))
+        return _eligible_to_create_account(collection)
 
     grant_recipient = get_grant_recipient_or_none(collection.grant_id, organisation.id)
 

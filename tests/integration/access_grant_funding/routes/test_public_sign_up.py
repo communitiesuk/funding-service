@@ -69,6 +69,17 @@ def application_with_eligibility_check(application, factories, db_session):
     return application, question
 
 
+def _answer_eligibility_question(client, application, question, answer="1"):
+    return client.post(
+        url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            collection_id=application.id,
+            question_id=question.id,
+        ),
+        data={question.safe_qid: answer, "submit": "Continue"},
+    )
+
+
 class TestPublicSignUpStart:
     def test_shows_the_grant_and_deadline(self, anonymous_client, application, factories):
         response = anonymous_client.get(
@@ -164,6 +175,44 @@ class TestPublicSignUpEligible:
 
         response = authenticated_no_role_client.get(
             url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id)
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_organisation_type", collection_id=application.id
+        )
+
+    def test_confirms_eligibility_before_you_register_your_own_organisation(
+        self, authenticated_no_role_client, application_with_eligibility_check
+    ):
+        application, question = application_with_eligibility_check
+        _answer_eligibility_question(authenticated_no_role_client, application, question)
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "You are eligible to apply"
+        assert soup.find("form").find("button", {"type": "submit"}).text.strip() == "Continue and create an account"
+        # they have no organisation yet, so there are no organisation details to confirm
+        assert "we think you're applying on behalf of" not in soup.text
+        assert soup.select_one(".govuk-back-link")["href"] == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            collection_id=application.id,
+            question_id=question.id,
+        )
+
+    def test_continuing_to_create_an_account_takes_you_to_register_an_organisation(
+        self, authenticated_no_role_client, application_with_eligibility_check
+    ):
+        application, question = application_with_eligibility_check
+        _answer_eligibility_question(authenticated_no_role_client, application, question)
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.public_sign_up_eligible", collection_id=application.id),
+            data={"submit": "Continue and create an account"},
         )
 
         assert response.status_code == 302
@@ -495,22 +544,12 @@ class TestPublicSignUpEligibilityQuestion:
 
 @pytest.mark.authenticate_as(APPLICANT_EMAIL)
 class TestPublicSignUpClaimsSubmission:
-    def _answer_eligibility_question(self, client, application, question):
-        return client.post(
-            url_for(
-                "access_grant_funding.public_sign_up_eligibility_question",
-                collection_id=application.id,
-                question_id=question.id,
-            ),
-            data={question.safe_qid: "1", "submit": "Continue"},
-        )
-
     def test_answering_eligibility_questions_creates_an_unclaimed_submission(
         self, authenticated_no_role_client, application_with_eligibility_check
     ):
         application, question = application_with_eligibility_check
 
-        self._answer_eligibility_question(authenticated_no_role_client, application, question)
+        _answer_eligibility_question(authenticated_no_role_client, application, question)
 
         submission = get_unclaimed_submission_for_user(
             authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE
@@ -524,7 +563,7 @@ class TestPublicSignUpClaimsSubmission:
         application, question = application_with_eligibility_check
         organisation = factories.organisation.create(name="Barnsley Council", trusted_domains=[TRUSTED_DOMAIN])
 
-        self._answer_eligibility_question(authenticated_no_role_client, application, question)
+        _answer_eligibility_question(authenticated_no_role_client, application, question)
         unclaimed = get_unclaimed_submission_for_user(
             authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE
         )
@@ -558,7 +597,7 @@ class TestPublicSignUpClaimsSubmission:
             collection=application, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
         )
 
-        self._answer_eligibility_question(authenticated_no_role_client, application, question)
+        _answer_eligibility_question(authenticated_no_role_client, application, question)
         unclaimed = get_unclaimed_submission_for_user(
             authenticated_no_role_client.user, application, SubmissionModeEnum.LIVE
         )
@@ -884,3 +923,32 @@ class TestPublicSignUpOrganisationRegistration:
         user = authenticated_no_role_client.user
         db_session.refresh(user)
         assert user.roles == []
+
+    def test_organisation_type_goes_back_to_the_email_page_when_there_is_no_eligibility_check(
+        self, authenticated_no_role_client, application
+    ):
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.select_one(".govuk-back-link")["href"] == url_for(
+            "access_grant_funding.public_sign_up_email", collection_id=application.id
+        )
+
+    def test_organisation_type_goes_back_to_the_eligible_page_after_an_eligibility_check(
+        self, authenticated_no_role_client, application_with_eligibility_check
+    ):
+        application, question = application_with_eligibility_check
+        _answer_eligibility_question(authenticated_no_role_client, application, question)
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.public_sign_up_organisation_type", collection_id=application.id)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.select_one(".govuk-back-link")["href"] == url_for(
+            "access_grant_funding.public_sign_up_eligible", collection_id=application.id
+        )
