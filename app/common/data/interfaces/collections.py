@@ -372,6 +372,7 @@ def update_collection(  # noqa: C901
     submission_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
+    multiple_submissions_are_managed_by_service: bool | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
@@ -446,23 +447,42 @@ def update_collection(  # noqa: C901
         collection.allow_multiple_submissions = allow_multiple_submissions
         if not allow_multiple_submissions:
             collection.submission_name_question_id = None
+            collection.multiple_submissions_are_managed_by_service = False
+
+    if multiple_submissions_are_managed_by_service is not NOT_PROVIDED:
+        if multiple_submissions_are_managed_by_service and not collection.allow_multiple_submissions:
+            raise ValueError(
+                "multiple_submissions_are_managed_by_service cannot be set when allow_multiple_submissions "
+                "is not enabled"
+            )
+        collection.multiple_submissions_are_managed_by_service = multiple_submissions_are_managed_by_service
 
     if allow_public_sign_up is not NOT_PROVIDED:
         collection.allow_public_sign_up = allow_public_sign_up
 
     if submission_name_question_id is not NOT_PROVIDED:
-        if not collection.allow_multiple_submissions:
+        if submission_name_question_id is not None and not collection.allow_multiple_submissions:
             raise ValueError("submission_name_question_id cannot be set when allow_multiple_submissions is not enabled")
 
-        try:
-            if (
-                submission_name_question_id
-                and not (submission_name_question := get_question_by_id(submission_name_question_id))
-                or not submission_name_question.is_question
-            ):
-                raise ValueError("submission_name_question_id must be a question ID")
-        except NoResultFound as e:
-            raise ValueError("submission_name_question_id must be a question ID") from e
+        if (
+            collection.submission_name_question_id is not None
+            and submission_name_question_id != collection.submission_name_question_id
+        ):
+            if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
+                raise ValueError(
+                    "Cannot change the submission name question: submissions already exist for this "
+                    f"{collection.type.constants.singular}"
+                )
+
+        if submission_name_question_id:
+            try:
+                submission_name_question = get_question_by_id(submission_name_question_id)
+                if submission_name_question_id and (
+                    not submission_name_question or not submission_name_question.is_question
+                ):
+                    raise ValueError("submission_name_question_id must be a question ID")
+            except NoResultFound as e:
+                raise ValueError("submission_name_question_id must be a question ID") from e
 
         collection.submission_name_question_id = submission_name_question_id
 

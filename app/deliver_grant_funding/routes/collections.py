@@ -159,6 +159,9 @@ from app.deliver_grant_funding.forms import (
     GroupForm,
     MapDataSetColumnsForm,
     MapNumberColumnsForm,
+    MultipleSubmissionsForm,
+    MultipleSubmissionsNamingForm,
+    MultipleSubmissionsSettingsForm,
     PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
@@ -541,6 +544,206 @@ def collection_configure_reopening(
         grant=collection.grant,
         collection=collection,
         form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/multiple-submissions",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def collection_multiple_submissions(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = MultipleSubmissionsForm(obj=collection)
+
+    if form.validate_on_submit():
+        if form.allow_multiple_submissions.data == "False":
+            try:
+                update_collection(
+                    collection,
+                    allow_multiple_submissions=False,
+                    multiple_submissions_are_managed_by_service=False,
+                    submission_name_question_id=None,
+                    submission_guidance=None,
+                )
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.collection_settings",
+                        grant_id=grant_id,
+                        collection_type=collection_type,
+                        collection_id=collection_id,
+                    )
+                )
+            except ValueError as e:
+                form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.collection_multiple_submissions_naming",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    return render_template(
+        "deliver_grant_funding/collections/multiple_submissions.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/multiple-submissions-naming",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def collection_multiple_submissions_naming(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    mode_arg = request.args.get("mode")
+    default_mode = (
+        mode_arg
+        if mode_arg in {MultipleSubmissionsNamingForm.MANAGED, MultipleSubmissionsNamingForm.USER_NAMED}
+        else MultipleSubmissionsNamingForm.MANAGED
+        if collection.allow_multiple_submissions and collection.multiple_submissions_are_managed_by_service
+        else MultipleSubmissionsNamingForm.USER_NAMED
+        if collection.allow_multiple_submissions
+        else None
+    )
+    form = MultipleSubmissionsNamingForm(data={"submissions_naming": default_mode})
+
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_multiple_submissions_settings",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+                mode=form.submissions_naming.data,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/multiple_submissions_naming.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/multiple-submissions-settings",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def collection_multiple_submissions_settings(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True)
+
+    # Enabling multiple submissions is only saved on this page, together with the submission name question the DB
+    # requires - the naming approach chosen on the previous page is carried through the "mode" query parameter.
+    mode_arg = request.args.get("mode")
+    if mode_arg in {MultipleSubmissionsNamingForm.MANAGED, MultipleSubmissionsNamingForm.USER_NAMED}:
+        managed_by_service = mode_arg == MultipleSubmissionsNamingForm.MANAGED
+    elif collection.allow_multiple_submissions:
+        managed_by_service = collection.multiple_submissions_are_managed_by_service
+    else:
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_multiple_submissions",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    form = MultipleSubmissionsSettingsForm(
+        questions=[
+            q
+            for form in collection.forms
+            for q in form.cached_questions
+            if q.data_type in current_app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"]
+            and not q.add_another_container
+        ],
+        interpolate=SubmissionHelper.get_interpolator(collection=collection),
+        data={
+            "submission_name_question": str(collection.submission_name_question_id)
+            if collection.submission_name_question_id
+            else None,
+            "guidance_body": collection.submission_guidance,
+        },
+    )
+
+    if form.validate_on_submit():
+        try:
+            update_collection(
+                collection,
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=managed_by_service,
+                submission_name_question_id=uuid.UUID(form.submission_name_question.data),
+                submission_guidance=form.guidance_body.data,
+            )
+        except ValueError as e:
+            form.submission_name_question.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+        else:
+            if form.preview.data:
+                return redirect(
+                    url_for(
+                        "deliver_grant_funding.collection_multiple_submissions_settings",
+                        grant_id=grant_id,
+                        collection_type=collection_type,
+                        collection_id=collection_id,
+                        _anchor="preview-guidance",
+                    )
+                )
+
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.collection_settings",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
+
+    if mode_arg:
+        back_link = url_for(
+            "deliver_grant_funding.collection_multiple_submissions_naming",
+            grant_id=grant_id,
+            collection_type=collection_type,
+            collection_id=collection_id,
+            mode=mode_arg,
+        )
+    else:
+        back_link = url_for(
+            "deliver_grant_funding.collection_settings",
+            grant_id=grant_id,
+            collection_type=collection_type,
+            collection_id=collection_id,
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/multiple_submissions_settings.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+        managed_by_service=managed_by_service,
+        back_link=back_link,
     )
 
 
