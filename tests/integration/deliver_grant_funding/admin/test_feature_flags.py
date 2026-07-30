@@ -42,6 +42,7 @@ class TestFeatureFlagsPage:
         assert "Feature flags" in response.text
         assert "PRE_AWARD" in response.text
         assert "NEW_CONTEXT_SOURCES" in response.text
+        assert "NEW_SETTINGS_JOURNEYS" in response.text
         assert "SAMPLE_SESSION_FLAG" in response.text
         assert "pre-award features like applications" in response.text
         assert "context sources for referencing data" in response.text
