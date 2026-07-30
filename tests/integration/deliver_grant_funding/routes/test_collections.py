@@ -69,6 +69,7 @@ from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, Is
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -110,6 +111,7 @@ from tests.integration.utils import build_file_upload_form_data
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
+    enable_session_feature_flag,
     get_form_data,
     get_h1_text,
     get_h2_text,
@@ -455,6 +457,69 @@ class TestChangeCollectionName:
         assert updated_collection.name == "Updated Name"
 
 
+class TestManageCollection:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=uuid.uuid4(),
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "client_fixture",
+        ("authenticated_grant_member_client", "authenticated_grant_admin_client"),
+    )
+    def test_get(self, request: FixtureRequest, client_fixture: str, factories):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant, name="Test Report")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Test Report" in soup.text
+
+    @pytest.mark.parametrize(
+        "collection_type, expected_heading",
+        [
+            (CollectionType.MONITORING_REPORT, "Report settings"),
+            (CollectionType.APPLICATION, "Form settings"),
+        ],
+    )
+    def test_page_heading_uses_correct_singular(
+        self,
+        authenticated_grant_admin_client,
+        factories,
+        collection_type,
+        expected_heading,
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, type=collection_type)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=collection_type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert expected_heading in soup.find("h1").text
+
+
 class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
         response = authenticated_grant_member_client.get(
@@ -738,6 +803,30 @@ class TestListCollectionSections:
         else:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
+
+
+class TestListCollectionSectionsNewSettingsJourneys:
+    @pytest.mark.parametrize("new_settings_journeys_enabled", [True, False])
+    def test_manage_collection_links_only_shown_when_flag_disabled(
+        self, authenticated_grant_admin_client, factories, new_settings_journeys_enabled
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        if new_settings_journeys_enabled:
+            enable_session_feature_flag(authenticated_grant_admin_client, FeatureFlags.NEW_SETTINGS_JOURNEYS)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert ("Manage collection" in soup.text) is not new_settings_journeys_enabled
+        assert (page_has_link(soup, "Configure multiple submissions") is not None) is not new_settings_journeys_enabled
 
 
 class TestCollectionTypeURLMatching:

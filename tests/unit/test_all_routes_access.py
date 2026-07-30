@@ -131,6 +131,7 @@ routes_with_expected_member_only_access = [
     "deliver_grant_funding.list_reports",
     "deliver_grant_funding.list_pre_award_forms",
     "deliver_grant_funding.list_collection_sections",
+    "deliver_grant_funding.collection_settings",
     "deliver_grant_funding.start_test_grant_recipient_journey",
     "deliver_grant_funding.list_section_questions",
     "deliver_grant_funding.list_group_questions",

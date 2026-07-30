@@ -430,6 +430,20 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
 
 
 @deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings",
+)
+@has_deliver_grant_role(RoleEnum.MEMBER)
+def collection_settings(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    return render_template(
+        "deliver_grant_funding/collections/manage_collection.html",
+        grant=collection.grant,
+        collection=collection,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-multiple-submissions",
     methods=["GET", "POST"],
 )

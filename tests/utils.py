@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup, Tag
 from flask_wtf import FlaskForm
 from testcontainers.postgres import PostgresContainer
 
+from app.common.helpers.feature_flags import FeatureFlagBase
 from tests.conftest import FundingServiceTestClient
 
 
@@ -216,6 +217,11 @@ def get_form_data(form: FlaskForm, submit: str = "y") -> dict[str, Any]:
         data["submit"] = "y"
 
     return data
+
+
+def enable_session_feature_flag(client: FundingServiceTestClient, flag: FeatureFlagBase) -> None:
+    with client.session_transaction() as session:
+        session[flag.name] = "on"
 
 
 def get_test_flashes(client: FundingServiceTestClient, category: str | None = None) -> list[Any]:

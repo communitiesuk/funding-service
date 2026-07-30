@@ -16,8 +16,10 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.forms import GenericConfirmDeletionForm
+from app.common.helpers.feature_flags import FeatureFlags
 from tests.utils import (
     AnyStringMatching,
+    enable_session_feature_flag,
     get_form_data,
     page_has_button,
     page_has_link,
@@ -111,6 +113,33 @@ class TestListReports:
 
             if can_edit:
                 assert link.get("href") == expected_link[1]
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_card_shows_settings_link_when_new_settings_journeys_enabled(
+        self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories
+    ):
+        client = request.getfixturevalue(client_fixture)
+        factories.collection.create(grant=client.grant)
+        enable_session_feature_flag(client, FeatureFlags.NEW_SETTINGS_JOURNEYS)
+
+        response = client.get(url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id))
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Change name") is None
+        assert page_has_link(soup, "Delete") is None
+
+        settings_link = page_has_link(soup, "Manage settings" if can_edit else "View settings")
+        assert settings_link is not None
+        assert settings_link.get("href") == AnyStringMatching(
+            r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/settings"
+        )
 
     def test_get_hides_delete_link_with_submissions(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
