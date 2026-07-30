@@ -100,12 +100,14 @@ class ExportData(TypedDict):
 
 
 def _sort_export_data_in_place(export_data: ExportData) -> None:
-    # Python 3.14 sets uuid.NIL and uuid.MAX we should use when we upgrade
-    NIL = uuid.UUID(int=0)
-
     export_data["users"].sort(key=lambda u: u["email"])
     export_data["user_roles"].sort(
-        key=lambda ur: (ur["user_id"], ur.get("organisation_id", NIL), ur.get("grant_id", NIL), ur["permissions"])
+        key=lambda ur: (
+            str(ur["user_id"]),
+            str(ur.get("organisation_id", "")),
+            str(ur.get("grant_id", "")),
+            ur["permissions"],
+        )
     )
 
     # Grant-managing orgs first, then by name
@@ -320,8 +322,10 @@ def export_grants(  # noqa: C901
 
                 export_data["user_roles"].append(to_dict(role))
 
-    _sort_export_data_in_place(export_data)
+    # Replace unstable IDs (eg the grant-managing org's, which changes each time an environment is seeded) before
+    # sorting, so that the export ordering doesn't depend on per-environment UUIDs.
     export_data = _handle_org_ids_for_export(export_data)
+    _sort_export_data_in_place(export_data)
 
     export_json = current_app.json.dumps(export_data, indent=2, sort_keys=True)
     match output:
