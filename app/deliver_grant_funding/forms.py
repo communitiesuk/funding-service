@@ -1059,6 +1059,16 @@ class CertificationSettingsForm(FlaskForm):
     submit = SubmitField("Save certification setting", widget=GovSubmitInput())
 
 
+class ReopeningSettingsForm(FlaskForm):
+    allow_submission_reopening = RadioField(
+        "Can submissions be reopened?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether submissions can be reopened")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Save reopening setting", widget=GovSubmitInput())
+
+
 class CollectionSettingsSelectSectionForm(FlaskForm):
     section = RadioField(
         "Select a section",

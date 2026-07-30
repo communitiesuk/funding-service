@@ -1822,6 +1822,27 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
             assert helper.can_be_reopened_by_user(user) == expected_result
 
+        @pytest.mark.parametrize("mode", [SubmissionModeEnum.TEST, SubmissionModeEnum.LIVE])
+        def test_when_collection_does_not_allow_reopening(self, factories, mode, mocker):
+            submission = factories.submission.build(
+                mode=mode,
+                collection__status=CollectionStatusEnum.OPEN,
+                collection__grant__status=GrantStatusEnum.LIVE,
+                collection__allow_submission_reopening=False,
+            )
+            user = factories.user.build()
+            mocker.patch(
+                "app.common.helpers.collections.SubmissionHelper.is_submitted",
+                new_callable=mocker.PropertyMock,
+                return_value=True,
+            )
+            mocker.patch(
+                "app.common.helpers.collections.AuthorisationHelper.has_deliver_grant_role",
+                return_value=True,
+            )
+            helper = SubmissionHelper(submission)
+            assert helper.can_be_reopened_by_user(user) is False
+
     class TestCanBeAssessedByUser:
         @pytest.mark.parametrize(
             "grant_status, is_submitted, expected_result",

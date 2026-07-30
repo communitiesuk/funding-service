@@ -112,6 +112,7 @@ from app.common.expressions.registry import get_managed_validators_by_data_type,
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import (
     AllSubmissionsHelper,
+    CollectionDoesNotAllowReopeningError,
     CollectionDoesNotAllowValidationError,
     CollectionIsNotOpenError,
     SubmissionAuthorisationError,
@@ -160,6 +161,7 @@ from app.deliver_grant_funding.forms import (
     PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
+    ReopeningSettingsForm,
     ReopenSubmissionForm,
     RequestChangesSubmissionForm,
     RequestOrAllowChangesSubmissionForm,
@@ -480,6 +482,39 @@ def collection_configure_certification(
 
     return render_template(
         "deliver_grant_funding/collections/configure_certification.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/reopening-submissions",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def collection_configure_reopening(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = ReopeningSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        update_collection(collection, allow_submission_reopening=form.allow_submission_reopening.data == "True")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_reopening.html",
         grant=collection.grant,
         collection=collection,
         form=form,
@@ -3531,6 +3566,11 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
             )
         except SubmissionAuthorisationError:
             form.form_errors.append("You do not have permission to reopen this submission")
+        except CollectionDoesNotAllowReopeningError:
+            form.form_errors.append(
+                "You cannot reopen this submission because the "
+                f"{submission_helper.collection.type.constants.singular} does not allow reopening submissions"
+            )
         except CollectionIsNotOpenError:
             form.form_errors.append("You cannot reopen this submission because the report is not open")
         except SubmissionIsNotSubmittedError:
@@ -3601,6 +3641,11 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
             )
         except SubmissionAuthorisationError:
             form.form_errors.append("You do not have permission to request changes to this submission")
+        except CollectionDoesNotAllowReopeningError:
+            form.form_errors.append(
+                "You cannot request changes because the "
+                f"{submission_helper.collection.type.constants.singular} does not allow reopening submissions"
+            )
         except CollectionIsNotOpenError:
             form.form_errors.append("You cannot request changes because the report is not open")
         except SubmissionIsNotSubmittedError:
