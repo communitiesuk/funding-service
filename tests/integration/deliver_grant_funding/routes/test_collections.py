@@ -412,6 +412,27 @@ class TestChangeCollectionName:
             updated_collection = db_session.get(Collection, collection.id)
             assert updated_collection.name == "Updated Name"
 
+    def test_post_update_name_redirects_to_settings_when_new_settings_journeys_enabled(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Original Name")
+        enable_session_feature_flag(authenticated_grant_admin_client, FeatureFlags.NEW_SETTINGS_JOURNEYS)
+
+        form = SetUpCollectionForm(data={"name": "Updated Name"}, collection_type=CollectionType.MONITORING_REPORT)
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.change_collection_name",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r"^/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/settings$")
+
     def test_post_update_name_duplicate(self, authenticated_grant_admin_client, factories):
         factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Existing Report")
         collection2 = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Another Report")
@@ -518,6 +539,37 @@ class TestManageCollection:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert expected_heading in soup.find("h1").text
+
+    @pytest.mark.parametrize(
+        "client_fixture, can_edit",
+        (
+            ("authenticated_grant_member_client", False),
+            ("authenticated_grant_admin_client", True),
+        ),
+    )
+    def test_shows_collection_name_row(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(grant=client.grant, name="Q4 Report")
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        name_row = next(row for row in soup.select(".govuk-summary-list__row") if "Report name" in row.text)
+        assert "Q4 Report" in name_row.select_one(".govuk-summary-list__value").text
+        change_link = name_row.find("a")
+        assert (change_link is not None) is can_edit
+        if change_link:
+            assert change_link.get("href") == AnyStringMatching(
+                r"^/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/change-name$"
+            )
 
 
 class TestAddSection:

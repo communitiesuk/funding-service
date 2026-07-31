@@ -4,12 +4,17 @@
 {% set type_constants = collection.type.constants %}
 {% set page_title = type_constants.plural | uppercase_first %}
 {% set active_item_identifier = type_constants.active_nav %}
+{% if feature_flags.NEW_SETTINGS_JOURNEYS.is_enabled %}
+  {% set back_link = url_for("deliver_grant_funding.collection_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
+{% else %}
+  {% set back_link = url_for(type_constants.list_endpoint, grant_id=grant.id) %}
+{% endif %}
 
 {% block beforeContent %}
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for(type_constants.list_endpoint, grant_id=grant.id),
+      "href": back_link,
     })
   }}
 {% endblock %}
@@ -18,14 +23,19 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">{{ collection.name }}</span>
-      <h1 class="govuk-heading-l">Change the name for this {{ type_constants.singular }}</h1>
+      {% if feature_flags.NEW_SETTINGS_JOURNEYS.is_enabled %}
+        <h1 class="govuk-heading-l">Change {{ type_constants.singular }} name</h1>
+      {% else %}
+        <h1 class="govuk-heading-l">Change the name for this {{ type_constants.singular }}</h1>
+      {% endif %}
+      <p class="govuk-hint">The {{ type_constants.singular }} name automatically ends with ‘{{ type_constants.singular }}’ and will show with the grant name in emails to Access grant funding users.</p>
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{ form.name(params={"label": {"text": type_constants.singular | uppercase_first ~ " name", "classes": "govuk-visually-hidden"} }) }}
 
         <div class="govuk-button-group">
           {{ form.submit(params={"text": "Update " ~ type_constants.singular ~ " name"}) }}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for(type_constants.list_endpoint, grant_id=grant.id) }}">Cancel</a>
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link }}">Cancel</a>
         </div>
       </form>
     </div>
