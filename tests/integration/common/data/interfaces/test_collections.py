@@ -34,6 +34,7 @@ from app.common.data.interfaces.collections import (
     delete_question,
     get_all_submissions_with_mode_for_collection,
     get_collection,
+    get_collection_by_slug,
     get_collections_by_status_excluding_draft_grants,
     get_collections_with_dates_near_today_excluding_draft_grants,
     get_expression,
@@ -191,6 +192,23 @@ class TestGetCollection:
                 assert ds.organisation_items
 
         assert len(three_data_source_queries) == baseline_queries
+
+
+class TestGetCollectionBySlug:
+    def test_get_collection_by_slug(self, factories):
+        collection = factories.collection.create(slug="my-collection")
+        result = get_collection_by_slug(grant_id=collection.grant_id, slug="my-collection")
+
+        assert result.id is collection.id
+
+    def test_get_collection_by_slug_not_found(self, factories):
+        collection = factories.collection.create(slug="my-collection")
+
+        with pytest.raises(NoResultFound):
+            get_collection_by_slug(grant_id=collection.grant_id, slug="not-a-real-slug")
+
+        with pytest.raises(NoResultFound):
+            get_collection_by_slug(grant_id=uuid.uuid4(), slug="my-collection")
 
 
 class TestCreateCollection:

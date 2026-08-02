@@ -301,6 +301,10 @@ def get_collection(
     return db.session.scalars(select(Collection).where(*filters).options(*options)).unique().one()
 
 
+def get_collection_by_slug(grant_id: UUID, slug: str) -> Collection:
+    return db.session.scalars(select(Collection).where(Collection.grant_id == grant_id, Collection.slug == slug)).one()
+
+
 def get_collections_by_status_excluding_draft_grants(statuses: list[CollectionStatusEnum]) -> Sequence[Collection]:
     statement = (
         select(Collection)
