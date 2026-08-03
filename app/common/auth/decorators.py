@@ -19,7 +19,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisation
-from app.common.data.types import AuthMethodEnum, GrantStatusEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, CollectionType, GrantStatusEnum, RoleEnum
 from app.common.helpers.feature_flags import FeatureFlagBase
 
 
@@ -288,7 +288,15 @@ def collection_is_editable() -> Callable[[Callable[..., ResponseReturnValue]], C
                     f"You cannot edit the “{collection.name}” {collection.type} as it is {collection.status}",
                     "error",
                 )
-                return redirect(url_for("deliver_grant_funding.list_reports", grant_id=collection.grant_id))
+                match collection.type:
+                    case CollectionType.APPLICATION:
+                        return redirect(
+                            url_for("deliver_grant_funding.list_pre_award_forms", grant_id=collection.grant_id)
+                        )
+                    case CollectionType.MONITORING_REPORT:
+                        return redirect(url_for("deliver_grant_funding.list_reports", grant_id=collection.grant_id))
+                    case _:
+                        raise ValueError(f"Unknown collection type: {collection.type}")
 
             return func(*args, **kwargs)
 
