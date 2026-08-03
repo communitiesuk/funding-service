@@ -615,6 +615,91 @@ class TestManageCollection:
         assert "No" in reopening_row.select_one(".govuk-summary-list__value").text
         assert "Change" in reopening_row.find("a").text
 
+    def test_shows_delete_link_when_no_live_submissions(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("a", class_="app-link--destructive")
+
+    def test_hides_delete_link_when_live_submissions_exist(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not soup.find("a", class_="app-link--destructive")
+
+    def test_get_with_delete_parameter_shows_confirmation(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Yes, delete this report")
+
+    def test_post_delete_confirmation_deletes_collection(self, authenticated_grant_admin_client, factories, db_session):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                delete="",
+            ),
+            data={"confirm_deletion": "Yes, delete this report"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(r"^/deliver/grant/[a-z0-9-]{36}/reports$")
+        assert db_session.get(Collection, collection.id) is None
+
+    def test_post_delete_with_live_submissions_returns_403(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                delete="",
+            )
+        )
+
+        assert response.status_code == 403
+
 
 class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
