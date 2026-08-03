@@ -147,6 +147,7 @@ from app.deliver_grant_funding.forms import (
     AddGuidanceForm,
     AddSectionForm,
     ApproveOrRejectSubmissionForm,
+    CertificationSettingsForm,
     CollectionCreationMethodForm,
     CollectionSettingsForm,
     ConditionsOperatorForm,
@@ -449,6 +450,39 @@ def collection_settings(grant_id: UUID, collection_type: CollectionType, collect
         "deliver_grant_funding/collections/manage_collection.html",
         grant=collection.grant,
         collection=collection,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/certification",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def collection_configure_certification(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = CertificationSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        update_collection(collection, requires_certification=form.requires_certification.data == "True")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_certification.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
     )
 
 

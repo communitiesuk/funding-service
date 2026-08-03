@@ -370,7 +370,7 @@ class Collection(BaseModel):
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
     reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
-    requires_certification: Mapped[bool | None]
+    requires_certification: Mapped[bool]
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
     allow_validation: Mapped[bool] = mapped_column(default=False)
@@ -409,10 +409,6 @@ class Collection(BaseModel):
 
     __table_args__ = (
         UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),
-        CheckConstraint(
-            "requires_certification IS NOT NULL OR type != 'MONITORING_REPORT'",
-            name="ck_monitoring_certification_not_null",
-        ),
         CheckConstraint(
             "submission_name_question_id IS NULL OR allow_multiple_submissions = true",
             name="ck_submission_name_question_requires_multiple_submissions",

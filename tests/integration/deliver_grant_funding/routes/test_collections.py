@@ -571,6 +571,28 @@ class TestManageCollection:
                 r"^/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/change-name$"
             )
 
+    def test_shows_requires_certification_row(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_certification=False
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        certification_row = next(
+            row for row in soup.select(".govuk-summary-list__row") if "Requires certification" in row.text
+        )
+        assert "No" in certification_row.select_one(".govuk-summary-list__value").text
+        assert "Change" in certification_row.find("a").text
+
 
 class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
@@ -1139,6 +1161,111 @@ class TestConfigureMultipleSubmissions:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Select a question to use as the submission name")
+
+
+class TestConfigureCertification:
+    def test_get_renders_form(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_certification=True
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_certification",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Do submissions require certification?" in soup.text
+
+    def test_get_prepopulates_when_enabled(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_certification=True
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_certification",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        yes_radio = soup.find("input", checked=True)
+        assert yes_radio.find_next_sibling("label").text.strip() == "Yes"
+
+    @pytest.mark.parametrize("requires_certification", [True, False])
+    def test_post_saves_setting(self, authenticated_grant_admin_client, factories, requires_certification):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, requires_certification=not requires_certification
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_certification",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"requires_certification": requires_certification, "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.collection_settings",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+        )
+        assert collection.requires_certification is requires_certification
+
+    def test_post_redirects_without_saving_when_collection_not_editable(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            status=CollectionStatusEnum.OPEN,
+            requires_certification=False,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_certification",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"requires_certification": True, "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_reports", grant_id=authenticated_grant_admin_client.grant.id
+        )
+        assert collection.requires_certification is False
+
+    def test_grant_member_cannot_access(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_certification",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 403
 
 
 class TestConfigurePublicSignUp:

@@ -1049,6 +1049,16 @@ class PublicSignUpSettingsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class CertificationSettingsForm(FlaskForm):
+    requires_certification = RadioField(
+        "Do submissions require certification?",
+        choices=[(True, "Yes"), (False, "No, allow submitting without certification")],
+        validators=[DataRequired("Select whether certification is required")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Save certification setting", widget=GovSubmitInput())
+
+
 class CollectionSettingsSelectSectionForm(FlaskForm):
     section = RadioField(
         "Select a section",

@@ -205,6 +205,23 @@ class TestCreateCollection:
         from_db = db_session.get(Collection, collection.id)
         assert from_db is not None
 
+    @pytest.mark.parametrize(
+        "type_, expected_requires_certification",
+        [
+            (CollectionType.MONITORING_REPORT, True),
+            (CollectionType.APPLICATION, False),
+        ],
+    )
+    def test_create_collection_requires_certification_by_default_based_on_type(
+        self, db_session, factories, type_, expected_requires_certification
+    ):
+        g = factories.grant.create()
+        u = factories.user.create()
+
+        collection = create_collection(name="test collection", user=u, grant=g, type_=type_)
+
+        assert collection.requires_certification is expected_requires_certification
+
     def test_create_collection_name_is_unique_per_grant(self, db_session, factories):
         grants = factories.grant.create_batch(2)
         u = factories.user.create()
