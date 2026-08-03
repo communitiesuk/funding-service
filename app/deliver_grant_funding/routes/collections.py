@@ -3647,7 +3647,10 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
                 f"{submission_helper.collection.type.constants.singular} does not allow reopening submissions"
             )
         except CollectionIsNotOpenError:
-            form.form_errors.append("You cannot request changes because the report is not open")
+            form.form_errors.append(
+                f"You cannot request changes because the {submission_helper.collection.type.constants.singular} is not "
+                "open"
+            )
         except SubmissionIsNotSubmittedError:
             form.form_errors.append("You cannot request changes because the submission has not been submitted")
 
@@ -3694,7 +3697,10 @@ def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> Respons
         except SubmissionAuthorisationError:
             form.form_errors.append("You do not have permission to assess this submission")
         except CollectionDoesNotAllowValidationError:
-            form.form_errors.append("You cannot assess this submission because the report does not allow validation")
+            form.form_errors.append(
+                f"You cannot assess this submission because the {submission_helper.collection.type.constants.singular} "
+                "does not allow validation"
+            )
         except SubmissionIsNotSubmittedError:
             form.form_errors.append("You cannot assess this submission because it has not been submitted")
         except SubmissionIsAlreadyAssessedError:
