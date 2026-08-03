@@ -51,6 +51,20 @@
           } if can_edit else {}
         })
       %}
+      {%
+        do rows.append({
+          "key": {"text": "Allow reopening submissions"},
+          "value": {"text": "Yes" if collection.allow_submission_reopening else "No"},
+          "actions": {
+            "items": [{
+              "href": url_for("deliver_grant_funding.collection_configure_reopening", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+              "classes": "govuk-link--no-visited-state",
+              "text": "Change",
+              "visuallyHiddenText": "reopening submissions setting"
+            }]
+          } if can_edit else {}
+        })
+      %}
 
       {{ govukSummaryList({"rows": rows}) }}
     </div>

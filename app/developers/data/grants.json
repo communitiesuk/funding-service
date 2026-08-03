@@ -5,6 +5,7 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": false,
           "created_by_id": "b538317c-82d9-41ae-82e7-a0578bc7ea0c",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -24,6 +25,7 @@
         {
           "allow_multiple_submissions": true,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": false,
           "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -41,15 +43,16 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": true,
           "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
           "id": "4032990c-110c-460b-a3e8-107c6bebcb6d",
           "multiple_submissions_are_managed_by_service": false,
-          "name": "Validation form",
+          "name": "Validation",
           "reminder_email_business_days_before_closing": 5,
           "requires_certification": false,
-          "slug": "validation-form",
+          "slug": "validation",
           "status": "Draft",
           "submission_period_end_date": "Sun, 31 May 2026 00:00:00 GMT",
           "submission_period_start_date": "Fri, 01 May 2026 00:00:00 GMT",
@@ -58,6 +61,7 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -73,6 +77,7 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": false,
           "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -88,6 +93,7 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
@@ -107,6 +113,7 @@
         {
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
           "allow_validation": false,
           "created_by_id": "62ee98f5-cf10-4848-95a4-5b6280529046",
           "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",

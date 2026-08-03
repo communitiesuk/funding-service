@@ -224,6 +224,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "type.value": "Type",
         "allow_multiple_submissions": "Allow multiple submissions",
         "multiple_submissions_are_managed_by_service": "Allow managed submissions only",
+        "allow_submission_reopening": "Allow reopening submissions",
         "allow_public_sign_up": "Allow public sign up",
         "allow_validation": "Allow validation",
     }
@@ -241,6 +242,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "submission_guidance",
         "allow_multiple_submissions",
         "multiple_submissions_are_managed_by_service",
+        "allow_submission_reopening",
         "allow_public_sign_up",
         "allow_validation",
     ]

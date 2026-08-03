@@ -131,6 +131,10 @@ class CollectionDoesNotAllowValidationError(Exception):
     pass
 
 
+class CollectionDoesNotAllowReopeningError(Exception):
+    pass
+
+
 class SubmissionIsNotSubmittedError(Exception):
     pass
 
@@ -1365,7 +1369,7 @@ class SubmissionHelper:
         )
 
     def can_be_reopened_by_user(self, user: User) -> bool:
-        if not self.is_submitted:
+        if not self.is_submitted or not self.collection.allow_submission_reopening:
             return False
         if self.is_test:
             if self.collection.is_closed:
@@ -1399,6 +1403,11 @@ class SubmissionHelper:
                 user,
                 self.id,
                 RoleEnum.MEMBER,
+            )
+
+        if not self.collection.allow_submission_reopening:
+            raise CollectionDoesNotAllowReopeningError(
+                f"Could not reopen submission id={self.id} because the collection does not allow reopening submissions."
             )
 
         if not self.collection.is_open_for_changes:
@@ -1442,6 +1451,12 @@ class SubmissionHelper:
                 user,
                 self.id,
                 RoleEnum.MEMBER,
+            )
+
+        if not self.collection.allow_submission_reopening:
+            raise CollectionDoesNotAllowReopeningError(
+                f"Could not request changes to submission id={self.id} "
+                "because the collection does not allow reopening submissions."
             )
 
         if not self.collection.is_open_for_changes:

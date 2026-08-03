@@ -593,6 +593,28 @@ class TestManageCollection:
         assert "No" in certification_row.select_one(".govuk-summary-list__value").text
         assert "Change" in certification_row.find("a").text
 
+    def test_shows_reopening_setting_row(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, allow_submission_reopening=False
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        reopening_row = next(
+            row for row in soup.select(".govuk-summary-list__row") if "Allow reopening submissions" in row.text
+        )
+        assert "No" in reopening_row.select_one(".govuk-summary-list__value").text
+        assert "Change" in reopening_row.find("a").text
+
 
 class TestAddSection:
     def test_404(self, authenticated_grant_member_client):
@@ -1259,6 +1281,108 @@ class TestConfigureCertification:
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_certification",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 403
+
+
+class TestConfigureReopening:
+    def test_get_renders_form(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_reopening",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Can submissions be reopened?" in soup.text
+        assert "Grant policy team users can request or allow changes to submissions" in soup.text
+
+    def test_get_prepopulates_when_enabled(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_reopening",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        yes_radio = soup.find("input", checked=True)
+        assert yes_radio.find_next_sibling("label").text.strip() == "Yes"
+
+    @pytest.mark.parametrize("allow_submission_reopening", [True, False])
+    def test_post_saves_setting(self, authenticated_grant_admin_client, factories, allow_submission_reopening):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_submission_reopening=not allow_submission_reopening,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_reopening",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_submission_reopening": allow_submission_reopening, "submit": "Save reopening setting"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.collection_settings",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+        )
+        assert collection.allow_submission_reopening is allow_submission_reopening
+
+    def test_post_redirects_without_saving_when_collection_not_editable(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_reopening",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_submission_reopening": False, "submit": "Save reopening setting"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_reports", grant_id=authenticated_grant_admin_client.grant.id
+        )
+        assert collection.allow_submission_reopening is True
+
+    def test_grant_member_cannot_access(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_reopening",
                 grant_id=authenticated_grant_member_client.grant.id,
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
@@ -9836,6 +9960,28 @@ class TestReopenSubmission:
         )
         assert helper.status == SubmissionStatusEnum.IN_PROGRESS
 
+    def test_post_blocked_when_collection_does_not_allow_reopening(
+        self, authenticated_grant_member_client, submission_submitted
+    ):
+        submission_submitted.collection.allow_submission_reopening = False
+        helper = SubmissionHelper(submission_submitted)
+        form = ReopenSubmissionForm(data={"reopened_reason": "as discussed"})
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.reopen_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You cannot reopen this submission because the report does not allow reopening submissions" in soup.text
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+
 
 class TestRequestOrAllowChanges:
     def test_get_request_or_allow_changes_page_1(self, authenticated_grant_member_client, submission_submitted):
@@ -9897,6 +10043,31 @@ class TestRequestOrAllowChanges:
 
 
 class TestRequestChangesSubmission:
+    def test_post_blocked_when_collection_does_not_allow_reopening(
+        self, authenticated_grant_member_client, submission_submitted, db_session
+    ):
+        submission_submitted.collection.allow_submission_reopening = False
+        helper = SubmissionHelper(submission_submitted)
+        form = RequestChangesSubmissionForm(
+            data={"changes_requested_reason": "Please update it all", "section_ids": []},
+            submission_helper=SubmissionHelper(submission_submitted),
+        )
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.request_changes_submission",
+                grant_id=submission_submitted.collection.grant.id,
+                submission_id=submission_submitted.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You cannot request changes because the report does not allow reopening submissions" in soup.text
+        assert helper.status == SubmissionStatusEnum.SUBMITTED
+
     def test_get_request_changes_submission_page(self, authenticated_grant_member_client, submission_submitted):
         response = authenticated_grant_member_client.get(
             url_for(
