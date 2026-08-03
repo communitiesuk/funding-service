@@ -380,6 +380,7 @@ class Collection(BaseModel):
         "Question", foreign_keys=[submission_name_question_id]
     )
     submission_guidance: Mapped[str | None]
+    prospectus_url: Mapped[str | None]
 
     # Prevents grant recipients from creating their own submissions in a multi-submission collection; where we set this
     # to be true, we need to generate the initial submissions for them.
