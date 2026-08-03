@@ -240,6 +240,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "submission_period_start_date",
         "submission_period_end_date",
         "submission_guidance",
+        "prospectus_url",
         "allow_multiple_submissions",
         "multiple_submissions_are_managed_by_service",
         "allow_submission_reopening",
