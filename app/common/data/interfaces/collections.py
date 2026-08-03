@@ -100,7 +100,7 @@ def create_collection(*, name: str, user: User, grant: Grant, type_: CollectionT
         grant=grant,
         slug=slugify(name),
         type=type_,
-        requires_certification=True,  # note: this'll need to change when we have more than just monitoring reports
+        requires_certification=type_ == CollectionType.MONITORING_REPORT,
     )
     db.session.add(collection)
     return collection
