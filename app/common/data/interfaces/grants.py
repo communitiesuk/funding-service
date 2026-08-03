@@ -13,6 +13,7 @@ from app.common.data.interfaces.exceptions import (
 from app.common.data.models import Collection, Grant, Organisation
 from app.common.data.models_user import User
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
+from app.common.utils import slugify
 from app.extensions import db
 from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import NOT_PROVIDED, TNotProvided
@@ -114,6 +115,7 @@ def create_grant(
     grant: Grant = Grant(
         ggis_number=ggis_number,
         name=name,
+        slug=slugify(name),
         code=code,
         description=description,
         primary_contact_name=primary_contact_name,
@@ -143,6 +145,7 @@ def update_grant(  # noqa: C901
         grant.ggis_number = ggis_number
     if name is not NOT_PROVIDED:
         grant.name = name
+        grant.slug = slugify(name)
 
     # NOTE: as/when we start to have a lot of defined state transitions, we might want to have a better state machine
     #       representation such as sqlalchemy-fsm (but all of the libs for this I've looked at lately seem to be

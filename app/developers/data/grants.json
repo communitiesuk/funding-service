@@ -1541,6 +1541,7 @@
         "name": "Cheeseboards in parks",
         "primary_contact_email": "john.cheese@test.communities.gov.uk",
         "primary_contact_name": "John Cheese",
+        "slug": "cheeseboards-in-parks",
         "status": "live"
       },
       "grant_recipients": [
