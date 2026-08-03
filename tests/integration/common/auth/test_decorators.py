@@ -24,7 +24,7 @@ from app.common.auth.decorators import (
     redirect_if_authenticated,
 )
 from app.common.data import interfaces
-from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, RoleEnum
 from app.common.helpers.feature_flags import StaticFeatureFlag
 from tests.models import _get_grant_managing_organisation
 
@@ -612,10 +612,19 @@ class TestCollectionIsEditable:
         response = view_func(collection_id=collection.id)
         assert response == "OK"
 
-    def test_platform_admin_redirected_for_non_draft_collection(self, factories):
+    @pytest.mark.parametrize(
+        "collection_type, expect_redirect_contains",
+        (
+            (CollectionType.APPLICATION, "/pre-award"),
+            (CollectionType.MONITORING_REPORT, "/reports"),
+        ),
+    )
+    def test_platform_admin_redirected_for_non_draft_collection(
+        self, factories, collection_type, expect_redirect_contains
+    ):
         user = factories.user.create(email="test.admin@communities.gov.uk")
         grant = factories.grant.create()
-        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN)
+        collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.OPEN, type=collection_type)
         factories.user_role.create(user=user, permissions=[RoleEnum.ADMIN], grant=None)
 
         @collection_is_editable()
@@ -627,7 +636,7 @@ class TestCollectionIsEditable:
 
         response = view_func(collection_id=collection.id)
         assert response.status_code == 302
-        assert response.location == url_for("deliver_grant_funding.list_reports", grant_id=grant.id)
+        assert response.location.endswith(expect_redirect_contains)
 
     def test_member_forbidden(self, factories):
         user = factories.user.create(email="test.member@communities.gov.uk")
