@@ -10,6 +10,8 @@ from pydantic import BaseModel, RootModel
 from sqlalchemy import TypeDecorator
 from sqlalchemy.dialects.postgresql import JSONB
 
+from app.types import NOT_PROVIDED, TNotProvided
+
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
     from app.common.data.models import Collection, Form, Question
@@ -589,7 +591,7 @@ class OrganisationData(BaseModel):
     companies_house_number: str | None = None
     charity_commission_number: str | None = None
     custom_code: str | None = None
-    domains: list[str] | None = None
+    domains: list[str] | TNotProvided = NOT_PROVIDED
 
 
 class AuditEventType(enum.Enum):

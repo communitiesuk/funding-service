@@ -9,6 +9,7 @@ from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptio
 from app.common.data.models import Organisation
 from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus
 from app.extensions import db
+from app.types import NOT_PROVIDED
 
 
 def get_organisations(
@@ -88,7 +89,7 @@ def upsert_organisations(
             }
             # for now domains shouldn't be overriden if not provided, this differs from the other organisation
             # properties and we'll need to review when we decide how they should be managed in bulk
-            if org.domains is not None:
+            if org.domains is not NOT_PROVIDED:
                 values["domains"] = org.domains
             db.session.execute(
                 postgresql_upsert(Organisation)
