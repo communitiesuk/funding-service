@@ -60,6 +60,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    TimelineEvent,
     TraceLevelEnum,
 )
 from app.common.filters import format_date
@@ -124,7 +125,7 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
         overdue_collections = get_overdue_open_collections_excluding_draft_grants()
 
         nearby_collections = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
-        timeline_events = []
+        timeline_events: list[TimelineEvent] = []
         for collection in nearby_collections:
             if (
                 collection.submission_period_start_date
