@@ -120,6 +120,24 @@ class TestGetOrganisations:
 
         assert result == []
 
+    def test_domain_returns_empty_when_no_matches(self, factories, db_session):
+        factories.organisation.create(name="Org 1", domains=["a-domain.com"])
+
+        result = get_organisations(domain="b-domain.com")
+
+        assert result == []
+
+    def test_domain_filters_organisations_by_domain(self, factories, db_session):
+        org1 = factories.organisation.create(name="Org 1", domains=["a-domain.com", "b-domain.com"])
+        org2 = factories.organisation.create(name="Org 2", domains=["b-domain.com"])
+        factories.organisation.create(name="Org 3", domains=["a-domain.com"])
+        factories.organisation.create(name="Org 4", domains=["c-domain.com"])
+
+        result = get_organisations(domain="b-domain.com")
+
+        assert len(result) == 2
+        assert result == [org1, org2]
+
 
 class TestGetOrganisationCount:
     def test_returns_count_of_non_grant_managing_organisations(self, factories, db_session):
@@ -148,6 +166,7 @@ class TestUpsertOrganisations:
             active_date=datetime.date(2020, 1, 1),
             retirement_date=None,
             iati_id="GB-GOV-123",
+            domains=["test.gov.uk"],
         )
 
         upsert_organisations([new_org])
@@ -161,6 +180,7 @@ class TestUpsertOrganisations:
         assert org_from_db.active_date == datetime.date(2020, 1, 1)
         assert org_from_db.retirement_date is None
         assert org_from_db.iati_id == "GB-GOV-123"
+        assert org_from_db.domains == ["test.gov.uk"]
 
     def test_inserts_multiple_new_organisations(self, db_session):
         orgs = [
@@ -243,6 +263,7 @@ class TestUpsertOrganisations:
             name="Old Name",
             type=OrganisationType.CENTRAL_GOVERNMENT,
             can_manage_grants=False,
+            domains=["old-domain.gov.uk"],
         )
 
         updated_org = OrganisationData(
@@ -252,6 +273,7 @@ class TestUpsertOrganisations:
             active_date=datetime.date(2021, 5, 15),
             retirement_date=None,
             iati_id="GB-GOV-123",
+            domains=["new-domain.gov.uk"],
         )
 
         upsert_organisations([updated_org])
@@ -261,6 +283,7 @@ class TestUpsertOrganisations:
         assert org_from_db.id == existing_org.id
         assert org_from_db.name == "New Name"
         assert org_from_db.active_date == datetime.date(2021, 5, 15)
+        assert org_from_db.domains == ["new-domain.gov.uk"]
 
     def test_sets_status_to_active_when_no_retirement_date(self, db_session):
         org = OrganisationData(
@@ -500,3 +523,36 @@ class TestUpsertOrganisations:
         db_session.expire_all()
         final_count = db_session.query(Organisation).count()
         assert final_count == initial_count
+
+    @pytest.mark.parametrize(
+        "new_domains, expected_domains",
+        [(None, ["old-domain.gov.uk"]), ([], []), (["new-domain.gov.uk"], ["new-domain.gov.uk"])],
+    )
+    def test_does_not_override_existing_domains_if_not_provided(
+        self, factories, db_session, new_domains, expected_domains
+    ):
+        factories.organisation.create(
+            external_id="GB-GOV-123",
+            name="Old Name",
+            type=OrganisationType.CENTRAL_GOVERNMENT,
+            can_manage_grants=False,
+            domains=["old-domain.gov.uk"],
+        )
+
+        updated_org = OrganisationData(
+            external_id="GB-GOV-123",
+            name="New Name",
+            type=OrganisationType.CENTRAL_GOVERNMENT,
+            active_date=datetime.date(2021, 5, 15),
+            retirement_date=None,
+            iati_id="GB-GOV-123",
+        )
+
+        if new_domains is not None:
+            updated_org.domains = new_domains
+
+        upsert_organisations([updated_org])
+
+        db_session.expire_all()
+        org_from_db = db_session.query(Organisation).filter_by(external_id="GB-GOV-123").one()
+        assert org_from_db.domains == expected_domains

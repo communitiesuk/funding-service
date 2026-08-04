@@ -589,6 +589,7 @@ class OrganisationData(BaseModel):
     companies_house_number: str | None = None
     charity_commission_number: str | None = None
     custom_code: str | None = None
+    domains: list[str] | None = None
 
 
 class AuditEventType(enum.Enum):

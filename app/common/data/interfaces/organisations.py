@@ -16,6 +16,7 @@ def get_organisations(
     mode: OrganisationModeEnum = OrganisationModeEnum.LIVE,
     with_ids: list[UUID] | None = None,
     with_external_ids: list[str] | None = None,
+    domain: str | None = None,
 ) -> Sequence[Organisation]:
     if with_ids is not None and with_external_ids is not None:
         raise ValueError("Cannot specify both with_ids and with_external_ids")
@@ -30,6 +31,9 @@ def get_organisations(
 
     if with_external_ids is not None:
         statement = statement.where(Organisation.external_id.in_(with_external_ids))
+
+    if domain is not None:
+        statement = statement.where(Organisation.domains.contains([domain]))
 
     statement = statement.order_by(Organisation.name)
 
@@ -82,6 +86,10 @@ def upsert_organisations(
                 "charity_commission_number": org.charity_commission_number,
                 "custom_code": org.custom_code,
             }
+            # for now domains shouldn't be overriden if not provided, this differs from the other organisation
+            # properties and we'll need to review when we decide how they should be managed in bulk
+            if org.domains is not None:
+                values["domains"] = org.domains
             db.session.execute(
                 postgresql_upsert(Organisation)
                 .values(**values)
