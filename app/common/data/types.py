@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
-    from app.common.data.models import Form, Question
+    from app.common.data.models import Collection, Form, Question
     from app.deliver_grant_funding.forms import GroupDisplayOptionsForm, QuestionForm
 
 scalars = str | int | float | bool | None
@@ -674,3 +674,11 @@ class DataSourceSchemaPostgresType(TypeDecorator):
         if value is None:
             return None
         return DataSourceSchema.model_validate(value)
+
+
+class TimelineEvent(typing.TypedDict):
+    date: datetime.date
+    type: Literal["opening", "closing", "reminder"]
+    collection: "Collection"
+    is_today: bool
+    is_past: bool
