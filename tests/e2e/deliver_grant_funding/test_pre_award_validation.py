@@ -163,7 +163,7 @@ def test_pre_award_validation_setup(
     collection_lifecycle_tasklist_page.navigate()
     collection_lifecycle_tasklist_page.click_task("Set up organisations")
     tsv_data = (
-        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
         f"MHCLG-TEST-ORG-REJECT\t{reject_org_name}\tCentral Government\t\t\n"
         f"MHCLG-TEST-ORG-APPROVE\t{approve_org_name}\tCentral Government\t\t\n"
     )

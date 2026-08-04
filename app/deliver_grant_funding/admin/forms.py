@@ -36,6 +36,7 @@ from app.common.filters import format_date_short
 from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
 from app.common.utils import comma_join_items, uppercase_first
+from app.types import NOT_PROVIDED
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -91,7 +92,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
     # the text box.
     organisations_data = TextAreaField(
         "Organisation TSV data",
-        default="organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n",
+        default="organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n",
         validators=[DataRequired()],
         widget=GovTextArea(),
     )
@@ -100,9 +101,14 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
     def validate_organisations_data(self, field: TextAreaField) -> None:
         assert field.data
 
-        if field.data.splitlines()[0] != "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date":
+        if (
+            field.data.splitlines()[0]
+            != "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)"
+        ):
             field.errors.append(  # ty: ignore[unresolved-attribute]
-                "The header row must be exactly: organisation-id\torganisation-name\ttype\tactive-date\tretirement-date"
+                "The header row must be exactly: "
+                "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\t"
+                "domains(optional)"
             )
 
         try:
@@ -119,6 +125,11 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         for row in tsv_reader:
             org_type = OrganisationType(row[2])
             external_id = row[0]
+            domains = (
+                [domain.strip() for domain in row[5].split(",") if domain.strip()]
+                if len(row) > 5 and row[5]
+                else NOT_PROVIDED
+            )
 
             if org_type == OrganisationType.OTHER:
                 prefix = cast(str, org_type.external_id_prefix)
@@ -140,6 +151,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
                         active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
                         retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
                         custom_code=custom_code,
+                        domains=domains,
                     )
                 )
             else:
@@ -152,6 +164,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
                         type=org_type,
                         active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
                         retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                        domains=domains,
                         **{org_type.typed_id_field: typed_id},
                     )
                 )
