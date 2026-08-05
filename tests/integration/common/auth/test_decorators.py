@@ -22,6 +22,7 @@ from app.common.auth.decorators import (
     is_deliver_org_member,
     is_platform_admin,
     redirect_if_authenticated,
+    validate_public_sign_off,
 )
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, RoleEnum
@@ -466,6 +467,80 @@ class TestRedirectIfAuthenticated:
             return "OK"
 
         response = test_authenticated_redirect()
+        assert response == "OK"
+
+
+class TestValidatePublicSignOff:
+    def test_unknown_grant_slug(self, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        @validate_public_sign_off
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NoResultFound):
+            view_func(grant_slug="not-a-real-grant", collection_slug=collection.slug)
+
+    def test_unknown_collection_slug(self, factories):
+        grant = factories.grant.create(slug="grant-slug")
+
+        @validate_public_sign_off
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NoResultFound):
+            view_func(grant_slug=grant.slug, collection_slug="not-a-real-collection")
+
+    def test_grant_not_live(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @validate_public_sign_off
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+    def test_collection_not_open(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.CLOSED, allow_public_sign_up=True
+        )
+
+        @validate_public_sign_off
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+    def test_collection_not_allowed_public_sign_up(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=False
+        )
+
+        @validate_public_sign_off
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+    def test_open_for_public_sign_up(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @validate_public_sign_off
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
         assert response == "OK"
 
 
