@@ -16,7 +16,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
-from app.common.data.interfaces.organisations import get_organisation
+from app.common.data.interfaces.organisations import get_organisation, get_organisations
 from app.common.data.types import RoleEnum
 from app.common.markdown import convert_text_to_govuk_markup
 
@@ -136,4 +136,31 @@ def public_sign_off_start_page(grant_slug: str, collection_slug: str) -> Respons
         "access_grant_funding/public_sign_off_start_page.html",
         grant=grant,
         collection=collection,
+    )
+
+
+@access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>/eligible")
+@validate_public_sign_off
+@access_grant_funding_login_required
+def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    user = interfaces.user.get_current_user()
+    email_domain = user.email.split("@")[-1]
+    organisations = get_organisations(domain=email_domain)
+
+    if len(organisations) == 0:
+        return abort(400, "No organisation found for this email domain")
+    if len(organisations) > 1:
+        return abort(400, "Multiple organisations found for this email domain")
+
+    organisation = organisations[0]
+
+    return render_template(
+        "access_grant_funding/eligible_to_apply.html",
+        grant=grant,
+        collection=collection,
+        organisation=organisation,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )

@@ -44,8 +44,13 @@ def public_request_a_link_to_sign_in(grant_slug: str, collection_slug: str) -> R
         magic_link = interfaces.magic_link.create_magic_link(
             user=user,
             email=email,
-            # TODO: change redirect later
-            redirect_to_path=sanitise_redirect_url(url_for("access_grant_funding.index")),
+            redirect_to_path=sanitise_redirect_url(
+                url_for(
+                    "access_grant_funding.eligible_to_apply",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            ),
             collection=collection,
         )
 
