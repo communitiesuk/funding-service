@@ -52,7 +52,10 @@
 
 
         {% set write_guidance_html %}
-          {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": ""}, "formGroup": {"classes": "app-context-aware--container", "afterInput": {"html": addDataButton} } }) }}
+          <div data-module="context-aware-editor" data-toolbar-enabled="true" data-allow-headings="true" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context></div>
+            {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-context-aware-editor-target": ""} }) }}
+          </div>
 
           {{ govukDetails(params={"summaryText": "Formatting help (Markdown)", "html": guidanceHelp()}) }}
           {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
