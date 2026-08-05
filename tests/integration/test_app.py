@@ -6,7 +6,7 @@ import pytest
 from bs4 import BeautifulSoup
 from flask import Flask, url_for
 from flask_sqlalchemy_lite import SQLAlchemy
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from app import create_app
 from tests.utils import build_db_config, get_link_hrefs, get_service_name_text

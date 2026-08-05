@@ -23,7 +23,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import SessionTransaction
 from sqlalchemy_utils import create_database, database_exists
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
 from app import create_app
