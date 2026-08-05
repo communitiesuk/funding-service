@@ -1,8 +1,8 @@
-"""Add domains to organistions
+"""Add domains to organisations
 
 Revision ID: 077_organisation_domains
 Revises: 076_add_prospector_url_col
-Create Date: 2026-08-04 09:22:55.818272
+Create Date: 2026-08-05 14:59:13.605320
 
 """
 
@@ -18,7 +18,9 @@ depends_on = None
 
 def upgrade() -> None:
     with op.batch_alter_table("organisation", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("domains", postgresql.ARRAY(sa.String()), server_default="{}", nullable=False))
+        batch_op.add_column(
+            sa.Column("domains", postgresql.ARRAY(postgresql.CITEXT()), server_default="{}", nullable=False)
+        )
 
 
 def downgrade() -> None:

@@ -138,6 +138,16 @@ class TestGetOrganisations:
         assert len(result) == 2
         assert result == [org1, org2]
 
+    def test_domain_filters_organisations_by_domain_case_insensitive(self, factories, db_session):
+        org1 = factories.organisation.create(name="Org 1", domains=["a-domain.com"])
+        org2 = factories.organisation.create(name="Org 2", domains=["A-DoMaIn.COM"])
+        factories.organisation.create(name="Org 3", domains=["b-domain.com"])
+
+        result = get_organisations(domain="A-DOMAIN.COM")
+
+        assert len(result) == 2
+        assert result == [org1, org2]
+
 
 class TestGetOrganisationCount:
     def test_returns_count_of_non_grant_managing_organisations(self, factories, db_session):

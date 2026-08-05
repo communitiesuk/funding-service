@@ -13,7 +13,6 @@ from sqlalchemy import (
     Date,
     ForeignKey,
     Index,
-    String,
     Text,
     UniqueConstraint,
     and_,
@@ -27,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import CITEXT, JSONB
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
@@ -264,8 +263,8 @@ class Organisation(BaseModel):
 
     # if organisation domains need more specific check constraints it should be moved out to its own
     # table, for now we'll store a simple and always available set of strings
-    domains: Mapped[list[str]] = mapped_column(
-        MutableList.as_mutable(postgresql.ARRAY(String)), nullable=False, default=list, server_default="{}"
+    domains: Mapped[list[CIStr]] = mapped_column(
+        MutableList.as_mutable(postgresql.ARRAY(CITEXT)), nullable=False, default=list, server_default="{}"
     )
 
     @property
