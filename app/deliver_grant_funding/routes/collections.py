@@ -73,7 +73,7 @@ from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
     InvalidReferenceInExpression,
 )
-from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_collection_with_submitted_submissions
+from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_collection_with_locked_submissions
 from app.common.data.interfaces.grants import get_all_deliver_grants_by_user, get_grant
 from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.interfaces.user import get_current_user
@@ -3992,10 +3992,10 @@ def replace_data_set(
         data={"name": data_source.name},
         collection=collection,
         all_organisations=[gr.organisation for gr in grant_recipients],
-        submitted_orgs=[
+        locked_orgs=[
             gr.organisation
-            for gr in get_grant_recipients_for_collection_with_submitted_submissions(
-                collection.grant, collection_id=collection_id, submission_mode=SubmissionModeEnum.LIVE
+            for gr in get_grant_recipients_for_collection_with_locked_submissions(
+                collection.grant, collection_id=collection_id
             )
         ],
     )
@@ -4054,10 +4054,10 @@ def replace_data_set(
         gr_errors=gr_errors,
         form=form,
         data_source=data_source,
-        removed_column_submitted_errors=removed_columns,
-        removed_column_org_submitted_errors=removed_column_orgs,
-        changed_column_submitted_errors=changed_columns,
-        changed_column_org_submitted_errors=changed_column_orgs,
+        removed_column_locked_errors=removed_columns,
+        removed_column_org_locked_errors=removed_column_orgs,
+        changed_column_locked_errors=changed_columns,
+        changed_column_org_locked_errors=changed_column_orgs,
     )
 
 

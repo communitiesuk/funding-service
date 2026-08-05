@@ -13227,6 +13227,7 @@ class TestReplaceDataSet:
         if can_access:
             assert response.status_code == 200
             assert f"{collection.name} Replace access test data set" in get_h1_text(soup)
+            assert "first make sure the column is not being referenced in a form" in soup.text
         else:
             assert response.status_code == 403
 
@@ -13523,7 +13524,8 @@ class TestReplaceDataSet:
         element = error_summary.find_all("a")[-1]
 
         assert re.sub(r"\s+", " ", cast(str, element.text).strip()) == (
-            "Data in column Decimal number cannot be changed for grant recipients who have already submitted: Rivendell"
+            "Data in column Decimal number cannot be changed for grant recipients who’ve submitted or are awaiting "
+            "sign off: Rivendell"
         )
 
     def test_upload_with_mismatched_grant_recipients_redirects(

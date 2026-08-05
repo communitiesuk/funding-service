@@ -1142,7 +1142,7 @@ class UploadDataSetForm(FlaskForm):
         existing_data_source_names: list[str | None],
         collection: Collection,
         existing_datasource: DataSource | None = None,
-        submitted_orgs: list[Organisation] | None = None,
+        locked_orgs: list[Organisation] | None = None,
         all_organisations: list[Organisation] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -1150,7 +1150,7 @@ class UploadDataSetForm(FlaskForm):
         self._existing_data_source_names = existing_data_source_names or []
         self.existing_datasource = existing_datasource
         self.data_errors = []
-        self.submitted_orgs = submitted_orgs or []
+        self.locked_orgs = locked_orgs or []
         self.all_organisations = all_organisations or []
         self.collection = collection
         self.removed_column_errors = {}
@@ -1214,7 +1214,7 @@ class UploadDataSetForm(FlaskForm):
     ) -> None:
         removed_column_errors = {}
         changed_column_errors = {}
-        for org in self.submitted_orgs:
+        for org in self.locked_orgs:
             existing_org_item = existing_datasource.get_filtered_organisation_item(org.external_id)
             if not existing_org_item:
                 # Nothing to validate if there was no data for this org in the first place

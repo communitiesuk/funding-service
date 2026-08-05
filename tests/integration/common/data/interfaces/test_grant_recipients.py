@@ -10,7 +10,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient_data_providers_count,
     get_grant_recipients,
     get_grant_recipients_count,
-    get_grant_recipients_for_collection_with_submitted_submissions,
+    get_grant_recipients_for_collection_with_locked_submissions,
     get_grant_recipients_for_organisation,
     get_grant_recipients_with_outstanding_submissions_for_collection,
 )
@@ -832,125 +832,83 @@ class TestGetGrantRecipientDataProviderRoles:
         assert result[0].user_id == member_user.id
 
 
-class TestGetGrantRecipientsSubmittedForCollection:
-    def test_returns_grant_recipients_with_correct_status(self, factories, db_session, track_sql_queries):
+class TestGetGrantRecipientsWithLockedSubmissionsForCollection:
+    def test_returns_recipients_with_submitted_or_awaiting_sign_off_submissions(
+        self, factories, db_session, track_sql_queries
+    ):
         grant = factories.grant.create()
-        org1 = factories.organisation.create(name="Organisation 1")
-        org2 = factories.organisation.create(name="Organisation 2")
-        org3 = factories.organisation.create(name="Organisation 3")
-        org4 = factories.organisation.create(name="Organisation 4")
-        org5 = factories.organisation.create(name="Organisation 5")
+        awaiting_sign_off_org = factories.organisation.create(name="Awaiting sign off organisation")
+        submitted_org = factories.organisation.create(name="Submitted organisation")
+        submitted_with_changes_org = factories.organisation.create(name="Submitted with changes organisation")
+        in_progress_org = factories.organisation.create(name="In progress organisation")
+        not_started_org = factories.organisation.create(name="Not started organisation")
+        wrong_collection_org = factories.organisation.create(name="Wrong collection organisation")
+        wrong_mode_org = factories.organisation.create(name="Wrong mode organisation")
 
-        gr1 = factories.grant_recipient.create(grant=grant, organisation=org1)
-        user1 = factories.user.create()
-        factories.user_role.create(
-            user=user1,
-            organisation=org1,
-            grant=grant,
-            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        awaiting_sign_off_gr = factories.grant_recipient.create(grant=grant, organisation=awaiting_sign_off_org)
+        submitted_gr = factories.grant_recipient.create(grant=grant, organisation=submitted_org)
+        submitted_with_changes_gr = factories.grant_recipient.create(
+            grant=grant, organisation=submitted_with_changes_org
         )
-        user2 = factories.user.create()
-        factories.user_role.create(
-            user=user2,
-            organisation=org1,
-            grant=grant,
-            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-        )
-        gr2 = factories.grant_recipient.create(grant=grant, organisation=org2)
-        gr3 = factories.grant_recipient.create(grant=grant, organisation=org3)
-        factories.grant_recipient.create(grant=grant, organisation=org4)
-        gr5 = factories.grant_recipient.create(grant=grant, organisation=org5)
+        in_progress_gr = factories.grant_recipient.create(grant=grant, organisation=in_progress_org)
+        factories.grant_recipient.create(grant=grant, organisation=not_started_org)
+        wrong_collection_gr = factories.grant_recipient.create(grant=grant, organisation=wrong_collection_org)
+        wrong_mode_gr = factories.grant_recipient.create(grant=grant, organisation=wrong_mode_org)
 
         question = factories.question.create(form__collection__grant=grant)
         collection = question.form.collection
+        other_question = factories.question.create(form__collection__grant=grant)
+        other_collection = other_question.form.collection
 
-        # gr1 has submitted, so should be in the list
-        s1 = factories.submission.create(
-            grant_recipient=gr1,
-            collection=collection,
-            mode=SubmissionModeEnum.LIVE,
-            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
-        )
-        factories.submission_event.create(
-            submission=s1,
-            related_entity_id=collection.forms[0].id,
-            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        )
-        factories.submission_event.create(submission=s1, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
-        s1.status = SubmissionStatusEnum.SUBMITTED
-
-        # gr2 has submitted so should be in the list
-        s2 = factories.submission.create(
-            grant_recipient=gr2,
-            collection=collection,
-            mode=SubmissionModeEnum.LIVE,
-            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
-        )
-        factories.submission_event.create(
-            submission=s2,
-            related_entity_id=collection.forms[0].id,
-            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        )
-        factories.submission_event.create(submission=s2, event_type=SubmissionEventType.SUBMISSION_SUBMITTED)
-        s2.status = SubmissionStatusEnum.SUBMITTED
-
-        # gr3 is in progress so should not be in the list
-        s3 = factories.submission.create(
-            grant_recipient=gr3,
-            collection=collection,
-            mode=SubmissionModeEnum.LIVE,
-            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
-        )
-        factories.submission_event.create(
-            submission=s3,
-            related_entity_id=collection.forms[0].id,
-            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        )
-        s3.status = SubmissionStatusEnum.IN_PROGRESS
-
-        # org 4 has not started their report yet so should not be in the list
-
-        question2 = factories.question.create(form__collection__grant=grant)
-        collection2 = question2.form.collection
-        s1_wrong_collection = factories.submission.create(
-            grant_recipient=gr5,
-            collection=collection2,
-            mode=SubmissionModeEnum.LIVE,
-            answers=[FactoryAnswer(question2, TextSingleLineAnswer("Blue"))],
-        )
-        factories.submission_event.create(
-            submission=s1_wrong_collection,
-            related_entity_id=collection.forms[0].id,
-            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        )
-        factories.submission_event.create(
-            submission=s1_wrong_collection, event_type=SubmissionEventType.SUBMISSION_SUBMITTED
-        )
-        s1_wrong_collection.status = SubmissionStatusEnum.SUBMITTED
-
-        s2_wrong_collection = factories.submission.create(
-            grant_recipient=gr2,
-            collection=collection2,
-            mode=SubmissionModeEnum.LIVE,
-            answers=[FactoryAnswer(question2, TextSingleLineAnswer("Blue"))],
-        )
-        factories.submission_event.create(
-            submission=s2_wrong_collection,
-            related_entity_id=collection.forms[0].id,
-            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
-        )
-        factories.submission_event.create(
-            submission=s2_wrong_collection, event_type=SubmissionEventType.SUBMISSION_SUBMITTED
-        )
-        s2_wrong_collection.status = SubmissionStatusEnum.SUBMITTED
+        for grant_recipient, status, submission_mode, submission_collection, answer_question in [
+            (
+                awaiting_sign_off_gr,
+                SubmissionStatusEnum.AWAITING_SIGN_OFF,
+                SubmissionModeEnum.LIVE,
+                collection,
+                question,
+            ),
+            (submitted_gr, SubmissionStatusEnum.SUBMITTED, SubmissionModeEnum.LIVE, collection, question),
+            (
+                submitted_with_changes_gr,
+                SubmissionStatusEnum.SUBMITTED_WITH_CHANGES,
+                SubmissionModeEnum.LIVE,
+                collection,
+                question,
+            ),
+            (in_progress_gr, SubmissionStatusEnum.IN_PROGRESS, SubmissionModeEnum.LIVE, collection, question),
+            (
+                wrong_collection_gr,
+                SubmissionStatusEnum.SUBMITTED,
+                SubmissionModeEnum.LIVE,
+                other_collection,
+                other_question,
+            ),
+            (wrong_mode_gr, SubmissionStatusEnum.SUBMITTED, SubmissionModeEnum.TEST, collection, question),
+        ]:
+            submission = factories.submission.create(
+                grant_recipient=grant_recipient,
+                collection=submission_collection,
+                mode=submission_mode,
+                answers=[FactoryAnswer(answer_question, TextSingleLineAnswer("Blue"))],
+            )
+            submission.status = status
+            factories.submission_event.create(
+                submission=submission,
+                related_entity_id=submission_collection.forms[0].id,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            )
 
         db_session.expire_all()
         with track_sql_queries() as queries:
-            result = get_grant_recipients_for_collection_with_submitted_submissions(
+            result = get_grant_recipients_for_collection_with_locked_submissions(
                 grant, collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE
             )
 
-        assert len(result) == 2
-        assert {gr.organisation_id for gr in result} == {org1.id, org2.id}
+        assert {gr.organisation_id for gr in result} == {
+            awaiting_sign_off_org.id,
+            submitted_org.id,
+            submitted_with_changes_org.id,
+        }
         # collection, grant, grant_recipient, organisation
         assert len(queries) == 4

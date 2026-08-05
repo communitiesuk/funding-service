@@ -712,7 +712,7 @@ class TestUploadDataSetForm:
             existing_data_source_names=[],
             existing_datasource=data_source,
             collection=collection,
-            submitted_orgs=[gr1.organisation],
+            locked_orgs=[gr1.organisation],
         )
         form.process(data)
 
@@ -729,7 +729,7 @@ class TestUploadDataSetForm:
                 create_gr_org_items=True,
             )
             form = UploadDataSetForm(
-                existing_data_source_names=[], existing_datasource=data_source, collection=collection, submitted_orgs=[]
+                existing_data_source_names=[], existing_datasource=data_source, collection=collection, locked_orgs=[]
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -756,7 +756,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr1.organisation],
+                locked_orgs=[gr1.organisation],
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -783,7 +783,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr1.organisation],
+                locked_orgs=[gr1.organisation],
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -810,7 +810,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr1.organisation],
+                locked_orgs=[gr1.organisation],
             )
             form._validate_data_for_existing_submissions(
                 existing_datasource=data_source,
@@ -837,7 +837,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr.organisation],
+                locked_orgs=[gr.organisation],
             )
             with pytest.raises(ValidationError) as e:
                 form._validate_data_for_existing_submissions(
@@ -866,7 +866,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr.organisation],
+                locked_orgs=[gr.organisation],
             )
             with pytest.raises(StopValidation) as e:
                 form._validate_data_for_existing_submissions(
@@ -896,7 +896,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr.organisation],
+                locked_orgs=[gr.organisation],
             )
             with pytest.raises(StopValidation) as e:
                 form._validate_data_for_existing_submissions(
@@ -926,7 +926,7 @@ class TestUploadDataSetForm:
                 existing_data_source_names=[],
                 existing_datasource=data_source,
                 collection=collection,
-                submitted_orgs=[gr.organisation],
+                locked_orgs=[gr.organisation],
             )
             with pytest.raises(StopValidation) as e:
                 form._validate_data_for_existing_submissions(

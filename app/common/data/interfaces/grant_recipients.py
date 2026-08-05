@@ -13,7 +13,6 @@ from app.common.data.types import (
     GrantRecipientStatusEnum,
     RoleEnum,
     SubmissionModeEnum,
-    SubmissionStatusEnum,
 )
 from app.extensions import db
 
@@ -72,11 +71,14 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     return grant_recipients_with_outstanding_submissions
 
 
-def get_grant_recipients_for_collection_with_submitted_submissions(
-    grant: Grant, *, collection_id: uuid.UUID, submission_mode: SubmissionModeEnum
+def get_grant_recipients_for_collection_with_locked_submissions(
+    grant: Grant, *, collection_id: uuid.UUID, submission_mode: SubmissionModeEnum = SubmissionModeEnum.LIVE
 ) -> Sequence[GrantRecipient]:
     """
-    Gets all the grant recipients who have a submission with status == SUBMITTED for the given collection.
+    Gets all the grant recipients who have a submission whose data should no longer be changed by replacing a data set.
+
+    Submissions are treated as locked once they have been submitted or are awaiting sign off, as grant recipient users
+    cannot update their answers in those states.
 
     """
     return db.session.scalars(
@@ -86,7 +88,7 @@ def get_grant_recipients_for_collection_with_submitted_submissions(
             GrantRecipient.grant_id == grant.id,
             Submission.collection_id == collection_id,
             Submission.mode == submission_mode,
-            Submission.status == SubmissionStatusEnum.SUBMITTED,
+            Submission.has_answers_locked_status,
         )
         .options(selectinload(GrantRecipient.organisation))
     ).all()
