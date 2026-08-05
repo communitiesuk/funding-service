@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Mapping, cast
 
 from bs4 import BeautifulSoup, Tag
 from flask_wtf import FlaskForm
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from app.common.helpers.feature_flags import FeatureFlagBase
 from tests.conftest import FundingServiceTestClient
