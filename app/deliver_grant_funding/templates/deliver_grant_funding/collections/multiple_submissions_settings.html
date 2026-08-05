@@ -1,0 +1,91 @@
+{% extends "deliver_grant_funding/grant_base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/details/macro.html" import govukDetails %}
+{% from "govuk_frontend_jinja/components/warning-text/macro.html" import govukWarningText %}
+{% from "common/govuk/tabs/macro.html" import govukTabs %}
+{% from "common/partials/guidance-help.html" import guidanceHelp %}
+
+{% set page_title = "Multiple submissions settings - " ~ collection.name %}
+{% set type_constants = collection.type.constants %}
+{% set active_item_identifier = type_constants.active_nav %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+        "text": "Back",
+        "href": back_link
+    })
+  }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">{{ collection.name }}</span>
+      <h1 class="govuk-heading-l">Multiple submissions settings</h1>
+
+      {% if managed_by_service %}
+        {{
+          govukWarningText(params={
+            "text": "Contact the Platform team to set up specific multiple submissions correctly.",
+            "iconFallbackText": "Warning",
+          })
+        }}
+      {% endif %}
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {% set submission_name_hint = "The first " ~ type_constants.singular ~ " question users must answer to give their submission a unique name." %}
+        {% if managed_by_service %}
+          {% set guidance_hint = "For example, ‘Complete one " ~ type_constants.singular ~ " for each of your listed projects.’" %}
+        {% else %}
+          {% set guidance_hint = "For example, ‘Create and submit a separate " ~ type_constants.singular ~ " for each of your projects.’" %}
+        {% endif %}
+
+        {{
+          form.submission_name_question(params={
+            "label": {"text": form.submission_name_question.label.text, "classes": "govuk-label--m"},
+            "hint": {"text": submission_name_hint},
+          })
+        }}
+
+
+        {% set write_guidance_html %}
+          <div data-module="context-aware-editor" data-toolbar-enabled="true" data-allow-headings="true" data-i18n="{}">
+            <div class="govuk-!-display-none" data-context></div>
+            {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-context-aware-editor-target": ""} }) }}
+          </div>
+
+          {{ govukDetails(params={"summaryText": "Formatting help (Markdown)", "html": guidanceHelp()}) }}
+          {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
+        {% endset %}
+
+
+        {% set preview_guidance_html %}
+          <div class="app-context-aware-editor__preview-intro">
+            <h2 class="govuk-heading-m">Preview your guidance below</h2>
+            <p class="govuk-body">Below is a preview of how your guidance content will be shown to grant recipients.</p>
+          </div>
+          <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ collection.submission_guidance | govuk_markdown }}</div>
+        {% endset %}
+
+        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=collection.id) }}">
+          {{
+            govukTabs(params={
+              "items": [
+                {"label": "Write guidance", "id": "write-guidance", "panel": {"html": write_guidance_html} },
+                {"label": "Preview guidance", "id": "preview-guidance", "panel": {"html": preview_guidance_html} },
+              ],
+            })
+          }}
+        </div>
+
+        <div class="govuk-button-group">
+          {{ form.submit }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.collection_settings', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

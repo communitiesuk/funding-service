@@ -73,6 +73,9 @@ routes_with_expected_grant_admin_only_access = [
     "deliver_grant_funding.collection_configure_multiple_submissions",
     "deliver_grant_funding.collection_configure_certification",
     "deliver_grant_funding.collection_configure_reopening",
+    "deliver_grant_funding.collection_multiple_submissions",
+    "deliver_grant_funding.collection_multiple_submissions_naming",
+    "deliver_grant_funding.collection_multiple_submissions_settings",
     "deliver_grant_funding.collection_configure_public_sign_up",
     "deliver_grant_funding.set_guidance_for_multiple_submissions",
     "deliver_grant_funding.upload_data_set",
@@ -127,6 +130,9 @@ routes_with_expected_collection_is_editable_decorator = [
     "deliver_grant_funding.edit_calculated_condition",
     "deliver_grant_funding.collection_configure_certification",
     "deliver_grant_funding.collection_configure_reopening",
+    "deliver_grant_funding.collection_multiple_submissions",
+    "deliver_grant_funding.collection_multiple_submissions_naming",
+    "deliver_grant_funding.collection_multiple_submissions_settings",
 ]
 routes_with_expected_member_only_access = [
     "deliver_grant_funding.grant_homepage",

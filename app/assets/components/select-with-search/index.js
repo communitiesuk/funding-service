@@ -1,9 +1,10 @@
 import Choices from "choices.js";
 
 /**
- * Select with search, vendored from the exemplar in xgovuk-flask-admin (which in turn adapts the
- * select-with-search component from govuk_publishing_components). Progressive enhancement of a
- * <select data-module="select-with-search"> using Choices.js.
+ * Select with search, adapted from govuk_publishing_components.
+ * Progressive enhancement of a <select data-module="select-with-search"> using Choices.js.
+ *
+ * https://github.com/alphagov/govuk_publishing_components/blob/d1840a1fcf5f8367dd10ad7aede9ce78184da019/app/assets/javascripts/govuk_publishing_components/components/select-with-search.js
  *
  * Extended to support per-option hint text: any <option data-hint="..."> has its hint rendered
  * below the option label in the dropdown. Hints are also included in search behaviour.
@@ -14,13 +15,15 @@ export default function selectWithSearch(selectEl) {
         return;
     }
 
+    const selectOneText = "Select one";
+    const blankOptionText = "Select none";
     const placeholderOption = selectEl.querySelector(
         'option[value=""]:first-child',
     );
     if (placeholderOption && placeholderOption.textContent === "") {
         placeholderOption.textContent = selectEl.multiple
             ? "Select all that apply"
-            : "Select one";
+            : selectOneText;
     }
 
     const describedBy = selectEl.getAttribute("aria-describedby") || "";
@@ -36,7 +39,7 @@ export default function selectWithSearch(selectEl) {
         }
     }
 
-    new Choices(selectEl, {
+    const choices = new Choices(selectEl, {
         allowHTML: false,
         searchPlaceholderValue: "Search in list",
         shouldSort: false,
@@ -52,6 +55,21 @@ export default function selectWithSearch(selectEl) {
         callbackOnInit() {
             if (this.dropdown.type === "select-multiple") {
                 this.containerInner.element.prepend(this.input.element);
+            } else {
+                // Update text for blank option in the hidden select
+                const selectElement = this.passedElement.element;
+                if (selectElement.id.search("blank") > 0) {
+                    selectElement.firstChild.innerText = blankOptionText;
+                }
+                // Update text for blank option in the choices dropdown
+                // choices.js 'lastChild' in this context is the listbox of choices:
+                const listbox = this.dropdown.element.lastChild;
+                // choices.js 'firstChild' in this context is the first option.
+                // This always displays "Select One" for selects with a blank option:
+                var blankOption = listbox.firstChild;
+                if (blankOption && blankOption.textContent === selectOneText) {
+                    blankOption.innerText = blankOptionText;
+                }
             }
             this.itemList.element.setAttribute("aria-labelledby", labelId);
         },
@@ -73,4 +91,21 @@ export default function selectWithSearch(selectEl) {
             };
         },
     });
+
+    // Reset blank 'Select One' to 'Select None' on each change
+    // This is because choices.js rebuilds the widget on each
+    // change event and resets the text. We can't use the preferred
+    // refresh method as this loses the current state of the dropdown.
+    const selectElement = choices.passedElement.element;
+    const listbox = choices.dropdown.element.lastChild;
+    selectElement.addEventListener(
+        "change",
+        function (event) {
+            var blankOption = listbox.firstChild;
+            if (blankOption && blankOption.textContent === selectOneText) {
+                blankOption.innerText = blankOptionText;
+            }
+        },
+        false,
+    );
 }

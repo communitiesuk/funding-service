@@ -82,6 +82,71 @@
           } if can_edit else {}
         })
       %}
+      {%
+        do rows.append({
+          "key": {"text": "Allow multiple submissions"},
+          "value": {"text": "Yes" if collection.allow_multiple_submissions else "No"},
+          "actions": {
+            "items": [{
+              "href": url_for("deliver_grant_funding.collection_multiple_submissions", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+              "classes": "govuk-link--no-visited-state",
+              "text": "Change",
+              "visuallyHiddenText": "multiple submissions setting"
+            }]
+          } if can_edit else {}
+        })
+      %}
+
+      {% if collection.allow_multiple_submissions %}
+        {%
+          do rows.append({
+            "key": {"text": "How submissions are named"},
+            "value": {"text": "Grant policy team will provide a list of names" if collection.multiple_submissions_are_managed_by_service else "Users will create and name each submission"},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.collection_multiple_submissions_naming", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "multiple submissions naming setting"
+              }]
+            } if can_edit else {}
+          })
+        %}
+        {% set submission_name_value_html %}
+          {{ collection.submission_name_question.text if collection.submission_name_question else "Not set" }}
+          {% if collection.multiple_submissions_are_managed_by_service %}
+            <p class="govuk-body govuk-!-margin-top-2 govuk-hint">Contact the Platform team to set up submission names</p>
+          {% endif %}
+        {% endset %}
+        {%
+          do rows.append({
+            "key": {"text": "Question for submission name"},
+            "value": {"html": submission_name_value_html},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.collection_multiple_submissions_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "multiple submissions name"
+              }]
+            } if can_edit else {}
+          })
+        %}
+        {%
+          do rows.append({
+            "key": {"text": "Guidance for multiple submissions (optional)"},
+            "value": {"html": collection.submission_guidance | replace("\n", "<br>" | safe) if collection.submission_guidance else "Not set"},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.collection_multiple_submissions_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "multiple submissions guidance"
+              }]
+            } if can_edit else {}
+          })
+        %}
+      {% endif %}
 
       {{ govukSummaryList({"rows": rows}) }}
 

@@ -1049,6 +1049,53 @@ class PublicSignUpSettingsForm(FlaskForm):
     submit = SubmitField(widget=GovSubmitInput())
 
 
+class MultipleSubmissionsForm(FlaskForm):
+    allow_multiple_submissions = RadioField(
+        "Are organisations allowed to have multiple submissions?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[DataRequired("Select whether organisations are allowed to have multiple submissions")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+
+class MultipleSubmissionsNamingForm(FlaskForm):
+    MANAGED = "managed-by-service"
+    USER_NAMED = "named-by-user"
+
+    submissions_naming = RadioField(
+        "How will the submissions be named?",
+        choices=[
+            (MANAGED, "Grant policy team will provide a list of names"),
+            (USER_NAMED, "Users will create and name each submission"),
+        ],
+        validators=[DataRequired("Select how the submissions will be named")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Save and continue", widget=GovSubmitInput())
+
+
+class MultipleSubmissionsSettingsForm(FlaskForm):
+    submission_name_question = SelectField(
+        "Which question should be used for the submission name?",
+        choices=[],
+        widget=MHCLGSelectWithSearch(),
+        validators=[DataRequired("Select a question to use as the submission name")],
+    )
+    guidance_body = StringField(
+        "Add guidance (optional)",
+        widget=GovTextArea(),
+        filters=[strip_string_if_not_empty],
+    )
+    preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
+    submit = SubmitField("Save submissions settings", widget=GovSubmitInput())
+
+    def __init__(self, questions: list[Question], *args: Any, interpolate: Callable[[str], str], **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.submission_name_question.choices = [("", "")] + [(str(q.id), interpolate(q.text)) for q in questions]
+
+
 class CertificationSettingsForm(FlaskForm):
     requires_certification = RadioField(
         "Do submissions require certification?",
