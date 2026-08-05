@@ -474,9 +474,12 @@ class Collection(BaseModel):
 
     @property
     def public_sign_up(self) -> str:
-        # TODO: link to the grants/ collection public sign up page when registered as an endpoint in Access
-        # url is just a placeholder for now
-        return url_for("auth.request_a_link_to_sign_in", _external=True)
+        return url_for(
+            "access_grant_funding.public_sign_off_start_page",
+            grant_slug=self.grant.slug,
+            collection_slug=self.slug,
+            _external=True,
+        )
 
     def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
         return [form.title for form in self.forms if str(form.id) in form_ids]
