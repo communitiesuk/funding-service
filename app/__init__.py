@@ -266,18 +266,6 @@ def create_app() -> Flask:  # noqa: C901
             sentry_sdk.set_user({"email": user.email, "name": user.name, "id": user_id})
         return user
 
-    # This section is needed for url_for("foo", _external=True) to
-    # automatically generate http scheme when this sample is
-    # running on localhost, and to generate https scheme when it is
-    # deployed behind reversed proxy.
-    # See also #proxy_setups section at
-    # flask.palletsprojects.com/en/1.0.x/deploying/wsgi-standalone
-    from werkzeug.middleware.proxy_fix import ProxyFix
-
-    app.wsgi_app = (  # ty: ignore[invalid-assignment]
-        ProxyFix(app.wsgi_app, x_proto=app.config["PROXY_FIX_PROTO"], x_host=app.config["PROXY_FIX_HOST"])
-    )
-
     # Configure templates
     app.jinja_loader = ChoiceLoader(
         [
