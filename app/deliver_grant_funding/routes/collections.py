@@ -696,7 +696,7 @@ def collection_multiple_submissions_settings(
                 allow_multiple_submissions=True,
                 multiple_submissions_are_managed_by_service=managed_by_service,
                 submission_name_question_id=uuid.UUID(form.submission_name_question.data),
-                submission_guidance=form.guidance_body.data,
+                submission_guidance=None if managed_by_service else form.guidance_body.data,
             )
         except ValueError as e:
             form.submission_name_question.errors.append(str(e))  # ty: ignore[unresolved-attribute]

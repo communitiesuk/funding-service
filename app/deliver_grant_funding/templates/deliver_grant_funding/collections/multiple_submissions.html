@@ -24,6 +24,7 @@
         {{
           form.allow_multiple_submissions(params={
             "fieldset": {"legend": {"text": form.allow_multiple_submissions.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} },
+            "hint": {"text": "Multiple submissions will allow Access grant funding users to submit the " ~ type_constants.singular ~ " more than once."},
           })
         }}
 

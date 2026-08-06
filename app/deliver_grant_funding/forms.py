@@ -1077,18 +1077,18 @@ class MultipleSubmissionsNamingForm(FlaskForm):
 
 class MultipleSubmissionsSettingsForm(FlaskForm):
     submission_name_question = SelectField(
-        "Which question should be used for the submission name?",
+        "Which question should be used for the submission names?",
         choices=[],
         widget=MHCLGSelectWithSearch(),
         validators=[DataRequired("Select a question to use as the submission name")],
     )
     guidance_body = StringField(
-        "Add guidance (optional)",
+        "Add guidance for completing multiple submissions (optional)",
         widget=GovTextArea(),
         filters=[strip_string_if_not_empty],
     )
     preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
-    submit = SubmitField("Save submissions settings", widget=GovSubmitInput())
+    submit = SubmitField("Save setting", widget=GovSubmitInput())
 
     def __init__(self, questions: list[Question], *args: Any, interpolate: Callable[[str], str], **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)

@@ -1843,14 +1843,38 @@ class TestMultipleSubmissionsSettings:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Multiple submissions settings"
-        assert "Which question should be used for the submission name?" in soup.text
-        assert "Add guidance (optional)" in soup.text
-        assert "Contact the Platform team to set up specific multiple submissions correctly." not in soup.text
+        assert "Which question will users answer to provide the submission name?" in soup.text
+        assert "Add guidance for completing multiple submissions (optional)" in soup.text
+        assert "Contact the Platform team" not in soup.text
 
-    def test_get_renders_form_when_already_enabled(self, authenticated_grant_admin_client, factories):
+    def test_get_renders_managed_mode_without_guidance_component(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.get(
+            self._url(authenticated_grant_admin_client, collection, mode=MultipleSubmissionsNamingForm.MANAGED)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Multiple submission names"
+        assert "Which question should be used for the submission names?" in soup.text
+        assert "Add guidance for completing multiple submissions (optional)" not in soup.text
+        assert soup.find("textarea") is None
+
+    @pytest.mark.parametrize(
+        "managed_by_service, expected_h1",
+        [
+            (False, "Multiple submissions settings"),
+            (True, "Multiple submission names"),
+        ],
+    )
+    def test_get_renders_form_when_already_enabled(
+        self, authenticated_grant_admin_client, factories, managed_by_service, expected_h1
+    ):
         question = factories.question.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
             form__collection__allow_multiple_submissions=True,
+            form__collection__multiple_submissions_are_managed_by_service=managed_by_service,
             data_type=QuestionDataType.TEXT_SINGLE_LINE,
         )
         collection = question.form.collection
@@ -1860,7 +1884,7 @@ class TestMultipleSubmissionsSettings:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Multiple submissions settings"
+        assert get_h1_text(soup) == expected_h1
 
     @pytest.mark.parametrize("mode", [MultipleSubmissionsNamingForm.MANAGED, MultipleSubmissionsNamingForm.USER_NAMED])
     def test_shows_platform_team_warning_only_for_managed_mode(self, authenticated_grant_admin_client, factories, mode):
@@ -1872,7 +1896,10 @@ class TestMultipleSubmissionsSettings:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        warning_shown = "Contact the Platform team to set up specific multiple submissions correctly." in soup.text
+        warning_shown = (
+            "Contact the Platform team with the list of submission names once you have created the "
+            "submission name question." in soup.text
+        )
         assert warning_shown is (mode == MultipleSubmissionsNamingForm.MANAGED)
 
     def test_can_only_select_from_supported_question_types(self, app, authenticated_grant_admin_client, factories):
@@ -1979,14 +2006,14 @@ class TestMultipleSubmissionsSettings:
         assert "Existing guidance content" in textarea.text
 
     @pytest.mark.parametrize(
-        "mode, expected_managed_by_service",
+        "mode, expected_managed_by_service, expected_guidance",
         [
-            (MultipleSubmissionsNamingForm.MANAGED, True),
-            (MultipleSubmissionsNamingForm.USER_NAMED, False),
+            (MultipleSubmissionsNamingForm.MANAGED, True, None),
+            (MultipleSubmissionsNamingForm.USER_NAMED, False, "New guidance content"),
         ],
     )
-    def test_post_enables_multiple_submissions_with_question_and_guidance(
-        self, authenticated_grant_admin_client, factories, mode, expected_managed_by_service
+    def test_post_enables_multiple_submissions_saving_guidance_only_for_user_named_mode(
+        self, authenticated_grant_admin_client, factories, mode, expected_managed_by_service, expected_guidance
     ):
         question = factories.question.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
@@ -1999,7 +2026,7 @@ class TestMultipleSubmissionsSettings:
             data={
                 "submission_name_question": str(question.id),
                 "guidance_body": "New guidance content",
-                "submit": "Save submissions settings",
+                "submit": "y",
             },
             follow_redirects=False,
         )
@@ -2014,7 +2041,30 @@ class TestMultipleSubmissionsSettings:
         assert collection.allow_multiple_submissions is True
         assert collection.multiple_submissions_are_managed_by_service is expected_managed_by_service
         assert collection.submission_name_question_id == question.id
-        assert collection.submission_guidance == "New guidance content"
+        assert collection.submission_guidance == expected_guidance
+
+    def test_post_switching_to_managed_mode_clears_existing_guidance(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__allow_multiple_submissions=True,
+            form__collection__submission_guidance="Old guidance",
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+        collection = question.form.collection
+        collection.submission_name_question_id = question.id
+
+        response = authenticated_grant_admin_client.post(
+            self._url(authenticated_grant_admin_client, collection, mode=MultipleSubmissionsNamingForm.MANAGED),
+            data={
+                "submission_name_question": str(question.id),
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert collection.multiple_submissions_are_managed_by_service is True
+        assert collection.submission_guidance is None
 
     def test_post_updates_question_and_guidance_when_already_enabled(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
@@ -2031,7 +2081,7 @@ class TestMultipleSubmissionsSettings:
             data={
                 "submission_name_question": str(other_question.id),
                 "guidance_body": "Updated guidance",
-                "submit": "Save submissions settings",
+                "submit": "y",
             },
             follow_redirects=False,
         )
@@ -2058,7 +2108,7 @@ class TestMultipleSubmissionsSettings:
             data={
                 "submission_name_question": str(other_question.id),
                 "guidance_body": "",
-                "submit": "Save submissions settings",
+                "submit": "y",
             },
         )
 
@@ -2086,7 +2136,7 @@ class TestMultipleSubmissionsSettings:
             data={
                 "submission_name_question": str(question.id),
                 "guidance_body": "Updated guidance",
-                "submit": "Save submissions settings",
+                "submit": "y",
             },
             follow_redirects=False,
         )
@@ -2132,7 +2182,7 @@ class TestMultipleSubmissionsSettings:
             data={
                 "submission_name_question": str(question.id),
                 "guidance_body": "",
-                "submit": "Save submissions settings",
+                "submit": "y",
             },
             follow_redirects=False,
         )
@@ -2145,7 +2195,7 @@ class TestMultipleSubmissionsSettings:
 
         response = authenticated_grant_admin_client.post(
             self._url(authenticated_grant_admin_client, collection, mode=MultipleSubmissionsNamingForm.USER_NAMED),
-            data={"guidance_body": "", "submit": "Save submissions settings"},
+            data={"guidance_body": "", "submit": "y"},
         )
 
         assert response.status_code == 200
@@ -2203,7 +2253,7 @@ class TestConfigurePublicSignUp:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data={"allow_public_sign_up": True, "submit": "Save"},
+            data={"allow_public_sign_up": True, "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2223,7 +2273,7 @@ class TestConfigurePublicSignUp:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data={"allow_public_sign_up": False, "submit": "Save"},
+            data={"allow_public_sign_up": False, "submit": "y"},
             follow_redirects=False,
         )
 
@@ -2243,7 +2293,7 @@ class TestConfigurePublicSignUp:
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
             ),
-            data={"allow_public_sign_up": True, "submit": "Save"},
+            data={"allow_public_sign_up": True, "submit": "y"},
         )
 
         assert response.status_code == 200
