@@ -5,7 +5,8 @@
 {% from "common/govuk/tabs/macro.html" import govukTabs %}
 {% from "common/partials/guidance-help.html" import guidanceHelp %}
 
-{% set page_title = "Multiple submissions settings - " ~ collection.name %}
+{% set page_heading = "Multiple submission names" if managed_by_service else "Multiple submissions settings" %}
+{% set page_title = page_heading ~ " - " ~ collection.name %}
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
@@ -22,64 +23,81 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">{{ collection.name }}</span>
-      <h1 class="govuk-heading-l">Multiple submissions settings</h1>
+      <h1 class="govuk-heading-l">{{ page_heading }}</h1>
 
       {% if managed_by_service %}
         {{
           govukWarningText(params={
-            "text": "Contact the Platform team to set up specific multiple submissions correctly.",
+            "text": "Contact the Platform team with the list of submission names once you have created the submission name question.",
             "iconFallbackText": "Warning",
           })
         }}
       {% endif %}
 
+
+      {% set setup_help_html %}
+        <p class="govuk-body">To create the submission name question:</p>
+        <ul class="govuk-list govuk-list--bullet">
+          <li>create a single line of text question as the first question in the {{ type_constants.singular }}</li>
+          {% if managed_by_service %}
+            <li>use question text like ‘Which project are you submitting for?’ which will be shown as read only to Access grant funding users</li>
+          {% else %}
+            <li>help users provide a descriptive and unique submission name with question text like ‘Which project are you submitting for?’</li>
+          {% endif %}
+        </ul>
+      {% endset %}
+      {{ govukDetails(params={"summaryText": "Setting up the submission name question", "html": setup_help_html}) }}
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        {% set submission_name_hint = "The first " ~ type_constants.singular ~ " question users must answer to give their submission a unique name." %}
         {% if managed_by_service %}
-          {% set guidance_hint = "For example, ‘Complete one " ~ type_constants.singular ~ " for each of your listed projects.’" %}
-        {% else %}
-          {% set guidance_hint = "For example, ‘Create and submit a separate " ~ type_constants.singular ~ " for each of your projects.’" %}
-        {% endif %}
-
-        {{
-          form.submission_name_question(params={
-            "label": {"text": form.submission_name_question.label.text, "classes": "govuk-label--m"},
-            "hint": {"text": submission_name_hint},
-          })
-        }}
-
-
-        {% set write_guidance_html %}
-          <div data-module="context-aware-editor" data-toolbar-enabled="true" data-allow-headings="true" data-i18n="{}">
-            <div class="govuk-!-display-none" data-context></div>
-            {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-context-aware-editor-target": ""} }) }}
-          </div>
-
-          {{ govukDetails(params={"summaryText": "Formatting help (Markdown)", "html": guidanceHelp()}) }}
-          {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
-        {% endset %}
-
-
-        {% set preview_guidance_html %}
-          <div class="app-context-aware-editor__preview-intro">
-            <h2 class="govuk-heading-m">Preview your guidance below</h2>
-            <p class="govuk-body">Below is a preview of how your guidance content will be shown to grant recipients.</p>
-          </div>
-          <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ collection.submission_guidance | govuk_markdown }}</div>
-        {% endset %}
-
-        <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=collection.id) }}">
           {{
-            govukTabs(params={
-              "items": [
-                {"label": "Write guidance", "id": "write-guidance", "panel": {"html": write_guidance_html} },
-                {"label": "Preview guidance", "id": "preview-guidance", "panel": {"html": preview_guidance_html} },
-              ],
+            form.submission_name_question(params={
+              "label": {"text": form.submission_name_question.label.text, "classes": "govuk-label--m"},
             })
           }}
-        </div>
+        {% else %}
+          {{
+            form.submission_name_question(params={
+              "label": {"text": "Which question will users answer to provide the submission name?", "classes": "govuk-label--m"},
+              "hint": {"text": "The first " ~ type_constants.singular ~ " question users must answer to give their submission a unique name."},
+            })
+          }}
+
+          {% set guidance_hint = "For example, ‘Create and submit a separate " ~ type_constants.singular ~ " for each of your projects.’" %}
+
+
+          {% set write_guidance_html %}
+            <div data-module="context-aware-editor" data-toolbar-enabled="true" data-allow-headings="true" data-i18n="{}">
+              <div class="govuk-!-display-none" data-context></div>
+              {{ form.guidance_body(params={"label": {"classes": "govuk-label--m"}, "hint": {"text": guidance_hint}, "rows": 15, "attributes": {"data-ajax-markdown-source": "", "data-context-aware-editor-target": ""} }) }}
+            </div>
+
+            {{ govukDetails(params={"summaryText": "Formatting help (Markdown)", "html": guidanceHelp()}) }}
+            {{ form.preview(params={"classes": "govuk-button--secondary app-context-aware-editor__preview-button", "attributes": {"data-ajax-markdown-trigger": "true"} }) }}
+          {% endset %}
+
+
+          {% set preview_guidance_html %}
+            <div class="app-context-aware-editor__preview-intro">
+              <h2 class="govuk-heading-m">Preview your guidance below</h2>
+              <p class="govuk-body">Below is a preview of how your guidance content will be shown to grant recipients.</p>
+            </div>
+            <div class="app-context-aware-editor__preview-area" data-ajax-markdown-target="">{{ collection.submission_guidance | govuk_markdown }}</div>
+          {% endset %}
+
+          <div data-module="ajax-markdown-preview" data-ajax-markdown-endpoint="{{ url_for('deliver_grant_funding.api.preview_guidance', collection_id=collection.id) }}">
+            {{
+              govukTabs(params={
+                "items": [
+                  {"label": "Write guidance", "id": "write-guidance", "panel": {"html": write_guidance_html} },
+                  {"label": "Preview guidance", "id": "preview-guidance", "panel": {"html": preview_guidance_html} },
+                ],
+              })
+            }}
+          </div>
+        {% endif %}
 
         <div class="govuk-button-group">
           {{ form.submit }}
