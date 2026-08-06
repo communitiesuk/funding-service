@@ -2721,7 +2721,6 @@ class SetUpGrantRecipientsPage:
         self.heading = heading or page.get_by_role("heading", name="Set up grant recipients")
 
         self.grant_recipients_combobox = page.locator(".choices", has=page.locator(".choices__input#recipients"))
-        expect(self.grant_recipients_combobox).to_be_visible()
 
         self.set_up_button = page.get_by_role("button", name="Set up grant recipients")
 
@@ -2734,14 +2733,14 @@ class SetUpGrantRecipientsPage:
     def select_organisation(self, org_name: str) -> None:
         expect(self.grant_recipients_combobox).to_be_visible()
         self.grant_recipients_combobox.click()
-        self.page.get_by_role("option", name=org_name).click()
+        self.page.get_by_role("option", name=org_name, exact=True).click()
         self.page.keyboard.press("Escape")
 
     def select_organisations(self, org_names: list[str]) -> None:
         expect(self.grant_recipients_combobox).to_be_visible()
         self.grant_recipients_combobox.click()
         for org_name in org_names:
-            self.page.get_by_role("option", name=org_name).click()
+            self.page.get_by_role("option", name=org_name, exact=True).click()
         self.page.keyboard.press("Escape")
 
     def select_status(self, status: GrantRecipientStatusEnum) -> None:
