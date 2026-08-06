@@ -125,11 +125,10 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         for row in tsv_reader:
             org_type = OrganisationType(row[2])
             external_id = row[0]
-            domains = (
-                [domain.strip() for domain in row[5].split(",") if domain.strip()]
-                if len(row) > 5 and row[5]
-                else NOT_PROVIDED
-            )
+            # domains will be replaced or ignored, there is deliberately no way to clear domnains in bulk
+            # domains can be cleared from individual organisations in the edit interface (unless required in future)
+            parsed_domains = [domain.strip() for domain in row[5].split(",") if domain.strip()] if len(row) > 5 else []
+            domains = parsed_domains or NOT_PROVIDED
 
             if org_type == OrganisationType.OTHER:
                 prefix = cast(str, org_type.external_id_prefix)

@@ -2469,7 +2469,7 @@ class TestManageOrganisations:
 
         tsv_data = (
             "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
-            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\ta-test.gov.uk,b-test.gov.uk"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t a-test.gov.uk , b-test.gov.uk "
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
@@ -2510,20 +2510,35 @@ class TestManageOrganisations:
         org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
         assert org.domains == ["existing.gov.uk"]
 
-        empty_tsv_data_clears = (
+        whitespace_tsv_data_no_override = (
             "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t "
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
-            data={"organisations_data": empty_tsv_data_clears, "submit": "y"},
+            data={"organisations_data": whitespace_tsv_data_no_override, "submit": "y"},
             follow_redirects=True,
         )
         assert response.status_code == 200
 
         org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
-        assert org.domains == []
+        assert org.domains == ["existing.gov.uk"]
+
+        separators_only_tsv_data_no_override = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t , ,"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": separators_only_tsv_data_no_override, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.domains == ["existing.gov.uk"]
 
 
 class TestSetupGrantRecipients:
