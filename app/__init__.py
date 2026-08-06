@@ -71,6 +71,7 @@ from app.extensions import (
     login_manager,
     migrate,
     notification_service,
+    psycopg_citext,
     record_sqlalchemy_queries,
     register_signals,
     s3_service,
@@ -222,6 +223,7 @@ def create_app() -> Flask:  # noqa: C901
     logging.init_app(app)
     patch_sqlalchemy_lite_async()
     db.init_app(app)
+    psycopg_citext.init_app(app, db)
     auto_commit_after_request.init_app(app)
     migrate.init_app(
         app,

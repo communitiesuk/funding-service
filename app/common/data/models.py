@@ -25,8 +25,10 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import CITEXT, JSONB
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.ext.orderinglist import OrderingList, ordering_list
 from sqlalchemy.orm import Mapped, aliased, column_property, foreign, mapped_column, relationship, remote
 from sqlalchemy_json import mutable_json_type
@@ -258,6 +260,12 @@ class Organisation(BaseModel):
     retirement_date: Mapped[datetime.date | None] = mapped_column(nullable=True)
     can_manage_grants: Mapped[bool] = mapped_column(default=False)
     mode: Mapped[OrganisationModeEnum] = mapped_column(default=OrganisationModeEnum.LIVE)
+
+    # if organisation domains need more specific check constraints it should be moved out to its own
+    # table, for now we'll store a simple and always available set of strings
+    domains: Mapped[list[CIStr]] = mapped_column(
+        MutableList.as_mutable(postgresql.ARRAY(CITEXT)), nullable=False, default=list, server_default="{}"
+    )
 
     @property
     def typed_id(self) -> str:

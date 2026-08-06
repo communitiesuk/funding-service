@@ -2811,6 +2811,7 @@
   "organisations": [
     {
       "can_manage_grants": true,
+      "domains": [],
       "external_id": "GB-GOV-27",
       "iati_id": "GB-GOV-27",
       "id": "<UUID:GB-GOV-27>",
@@ -2821,6 +2822,7 @@
     },
     {
       "can_manage_grants": false,
+      "domains": [],
       "external_id": "T0001",
       "id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
       "mode": "live",
@@ -2831,6 +2833,7 @@
     },
     {
       "can_manage_grants": false,
+      "domains": [],
       "external_id": "T0001",
       "id": "04dc200e-bbf3-43c3-9e92-a722cdaea799",
       "mode": "test",

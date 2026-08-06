@@ -182,6 +182,7 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
         "companies_house_number",
         "charity_commission_number",
         "custom_code",
+        "domains",
     ]
     column_labels = {
         "iati_id": "IATI ID",

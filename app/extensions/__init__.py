@@ -8,6 +8,7 @@ from app.common.data.models_user import User
 from app.common.markdown import FlaskGOVUKMarkdown
 from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExtension
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
+from app.extensions.psycopg_citext import PsycopgCitextExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
 from app.services.notify import NotificationService
 from app.services.s3 import S3Service
@@ -21,6 +22,7 @@ talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
 login_manager = LoginManager()
 record_sqlalchemy_queries = RecordSqlalchemyQueriesExtension()
+psycopg_citext = PsycopgCitextExtension()
 govuk_markdown = FlaskGOVUKMarkdown()
 
 try:
@@ -51,5 +53,6 @@ __all__ = [
     "flask_assets_vite",
     "login_manager",
     "record_sqlalchemy_queries",
+    "psycopg_citext",
     "register_signals",
 ]
