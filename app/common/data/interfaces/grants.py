@@ -36,6 +36,10 @@ def get_grant(grant_id: UUID, with_all_collections: bool = False) -> Grant:
     )
 
 
+def get_grant_by_slug(slug: str) -> Grant:
+    return db.session.scalars(select(Grant).where(Grant.slug == slug)).one()
+
+
 def grant_name_exists(name: str, exclude_grant_id: UUID | None = None) -> bool:
     statement = select(Grant).where(Grant.name == name)
     if exclude_grant_id:

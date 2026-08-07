@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pytest
 from _pytest._code import ExceptionInfo
+from sqlalchemy.exc import NoResultFound
 
 from app.common.data.interfaces.exceptions import StateTransitionError
 from app.common.data.interfaces.grants import (
@@ -10,6 +11,7 @@ from app.common.data.interfaces.grants import (
     get_all_deliver_grants_by_user,
     get_all_grants,
     get_grant,
+    get_grant_by_slug,
     grant_name_exists,
     update_grant,
 )
@@ -62,6 +64,18 @@ class TestGetGrant:
         result = get_grant(grant.id, with_all_collections=True)
 
         assert result.collections[0].type == CollectionType.APPLICATION  # APPLICATION type is 1st
+
+
+class TestGetGrantBySlug:
+    def test_get_grant_by_slug(self, factories):
+        grant = factories.grant.create(slug="my-grant")
+        result = get_grant_by_slug("my-grant")
+
+        assert result.id == grant.id
+
+    def test_get_grant_by_slug_not_found(self, factories):
+        with pytest.raises(NoResultFound):
+            get_grant_by_slug("not-a-real-slug")
 
 
 class TestGetAllDeliverGrantsByUser:

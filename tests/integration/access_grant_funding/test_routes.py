@@ -1,10 +1,11 @@
+import datetime
 import uuid
 
 import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.types import RoleEnum
+from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, RoleEnum
 from tests.utils import get_h1_text, get_h2_text
 
 
@@ -173,3 +174,194 @@ class TestCookieBanner:
 
         # as no JS has run, the cookie banner should be hidden
         assert soup.find_all("div", class_="govuk-cookie-banner")[0].attrs.get("hidden", None) is not None
+
+
+class TestPublicSignOffStartPage:
+    def test_404_when_grant_slug_unknown(self, anonymous_client, factories):
+        collection = factories.collection.create(
+            grant__status=GrantStatusEnum.LIVE,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+            slug="collection-slug",
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug="not-a-real-grant",
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_404_when_collection_slug_unknown(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug="not-a-real-collection",
+            )
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "grant_status, collection_status, allow_public_sign_up, expected_status",
+        (
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, True, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, False, 404),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, True, 404),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, True, 404),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, True, 404),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, True, 404),
+        ),
+    )
+    def test_anonymous_access_depends_on_status_and_allow_public_sign_up(
+        self,
+        anonymous_client,
+        factories,
+        grant_status,
+        collection_status,
+        allow_public_sign_up,
+        expected_status,
+    ):
+        grant = factories.grant.create(status=grant_status, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            allow_public_sign_up=allow_public_sign_up,
+            slug="collection-slug",
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == expected_status
+
+    def test_page_content_with_prospectus_url(self, anonymous_client, factories):
+        grant = factories.grant.create(
+            status=GrantStatusEnum.LIVE, name="Test grant name", slug="grant-slug", description="Some grant description"
+        )
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+            prospectus_url="https://example.com/prospectus",
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == f"Apply for the {grant.name}"
+        assert "Some grant description" in soup.get_text()
+        assert soup.find("meta", attrs={"name": "robots"})["content"] == "noindex, nofollow"
+        assert soup.find("a", href="https://example.com/prospectus") is not None
+
+    def test_page_content_without_prospectus_url(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+            prospectus_url=None,
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "prospectus" not in soup.get_text().lower()
+
+    def test_page_content_with_submission_deadline(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+            submission_period_end_date=datetime.date(2026, 8, 30),
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Deadline for applications" in soup.get_text()
+        assert "30 August 2026" in soup.get_text()
+
+    def test_page_content_without_submission_deadline(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+            submission_period_end_date=None,
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Deadline for applications" not in soup.get_text()
+
+    def test_page_start_button_href(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_off_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        start_button = soup.find("a", {"class": "govuk-button"})
+        assert start_button is not None
+        assert "Start now" in start_button.get_text(strip=True)
+        # TODO: link to auth.public_request_a_link_to_sign_in once that route is registered
+        assert start_button.get("href") == url_for("auth.request_a_link_to_sign_in")
