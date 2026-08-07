@@ -1287,7 +1287,7 @@ def test_setup_grant_and_collection(
     user_name = "MHCLG Test User"
     user_email = "fsd-post-award@levellingup.gov.uk"
     tsv_data = (
-        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+        "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
         f"MHCLG-TEST-ORG\t{org_name}\tCentral Government\t\t\n"
     )
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)

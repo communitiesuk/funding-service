@@ -2147,7 +2147,10 @@ class TestManageOrganisations:
 
         textarea = soup.find("textarea", {"id": "organisations_data"})
         assert textarea is not None
-        assert "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n" in textarea.get_text()
+        assert (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            in textarea.get_text()
+        )
 
     def test_post_creates_new_organisations(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -2158,7 +2161,7 @@ class TestManageOrganisations:
         initial_test_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\n"
             "E06000001\tTest Council\tUnitary Authority\t15/06/2021\t"
         )
@@ -2212,7 +2215,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "12345678\tTest Charity\tCharity\t01/01/2020\t\n"
             "87654321\tTest Company\tCompany\t15/06/2021\t"
         )
@@ -2241,7 +2244,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "CC-12345678\tPrefixed Charity\tCharity\t01/01/2020\t"
         )
 
@@ -2268,12 +2271,13 @@ class TestManageOrganisations:
             name="Old Name",
             type=OrganisationType.CENTRAL_GOVERNMENT,
             can_manage_grants=False,
+            domains=["old.gov.uk", "b-old.gov.uk"],
         )
         initial_count = get_organisation_count()
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
-            "GB-GOV-123\tUpdated Name\tCentral Government\t01/01/2020\t"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            "GB-GOV-123\tUpdated Name\tCentral Government\t01/01/2020\t\tnew.gov.uk"
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
@@ -2290,8 +2294,10 @@ class TestManageOrganisations:
 
         org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
         assert org.name == "Updated Name"
+        assert org.domains == ["new.gov.uk"]
         org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.TEST).one()
         assert org.name == "Updated Name (test)"
+        assert org.domains == ["new.gov.uk"]
 
     def test_post_creates_retired_organisation(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -2300,7 +2306,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "GB-GOV-123\tRetired Department\tCentral Government\t01/01/2020\t31/12/2023"
         )
 
@@ -2325,7 +2331,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "\tSome Other Org\tOther\t01/01/2020\t"
         )
 
@@ -2351,7 +2357,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "FS-MYCUSTOMID\tExplicit Other Org\tOther\t01/01/2020\t"
         )
 
@@ -2374,7 +2380,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "BADPREFIX-123\tBad Other Org\tOther\t01/01/2020\t"
         )
 
@@ -2406,7 +2412,11 @@ class TestManageOrganisations:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(
             soup,
-            "The header row must be exactly: organisation-id\torganisation-name\ttype\tactive-date\tretirement-date",
+            (
+                "The header row must be exactly: "
+                "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\t"
+                "domains(optional)"
+            ),
         )
 
     def test_post_with_invalid_organisation_type_shows_error(
@@ -2416,7 +2426,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "GB-GOV-123\tTest Department\tInvalid Type\t01/01/2020\t"
         )
 
@@ -2437,7 +2447,7 @@ class TestManageOrganisations:
         collection = factories.collection.create(grant=grant)
 
         tsv_data = (
-            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\n"
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
             "GB-GOV-123\tTest Department\tCentral Government\t2020-01-01\t"
         )
 
@@ -2450,6 +2460,85 @@ class TestManageOrganisations:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "The tab-separated data is not valid:")
+
+    def test_post_creates_organisations_with_domains(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        tsv_data = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t a-test.gov.uk , b-test.gov.uk "
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": tsv_data, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.domains == ["a-test.gov.uk", "b-test.gov.uk"]
+
+    def test_post_optional_domains_does_not_override_when_no_domains_set(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        org = factories.organisation.create(
+            external_id="GB-GOV-123",
+            name="Test Department",
+            type=OrganisationType.CENTRAL_GOVERNMENT,
+            can_manage_grants=False,
+            domains=["existing.gov.uk"],
+        )
+
+        none_tsv_data_no_override = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": none_tsv_data_no_override, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.domains == ["existing.gov.uk"]
+
+        whitespace_tsv_data_no_override = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t "
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": whitespace_tsv_data_no_override, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.domains == ["existing.gov.uk"]
+
+        separators_only_tsv_data_no_override = (
+            "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)\n"
+            "GB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t\t , ,"
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            data={"organisations_data": separators_only_tsv_data_no_override, "submit": "y"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.domains == ["existing.gov.uk"]
 
 
 class TestSetupGrantRecipients:
