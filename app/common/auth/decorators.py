@@ -12,14 +12,15 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     get_collection,
+    get_collection_by_slug,
     get_component_by_id,
     get_expression_by_id,
     get_form_by_id,
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
-from app.common.data.interfaces.grants import get_grant
+from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation
-from app.common.data.types import AuthMethodEnum, CollectionType, GrantStatusEnum, RoleEnum
+from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, GrantStatusEnum, RoleEnum
 from app.common.helpers.feature_flags import FeatureFlagBase
 
 
@@ -83,6 +84,32 @@ def redirect_if_authenticated[**P](
             if user.email.endswith(internal_domains):
                 return redirect(url_for("deliver_grant_funding.list_grants"))
             return redirect(url_for("access_grant_funding.index"))
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def collection_is_open_for_sign_up[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        if "grant_slug" not in kwargs or (grant_slug := cast(str, kwargs["grant_slug"])) is None:
+            raise ValueError("Grant slug required.")
+
+        if "collection_slug" not in kwargs or (collection_slug := cast(str, kwargs["collection_slug"])) is None:
+            raise ValueError("Collection slug required.")
+
+        grant = get_grant_by_slug(grant_slug)
+        collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+        if grant.status != GrantStatusEnum.LIVE:
+            return abort(404)
+        if collection.status != CollectionStatusEnum.OPEN:
+            return abort(404)
+        if not collection.allow_public_sign_up:
+            return abort(404)
 
         return func(*args, **kwargs)
 

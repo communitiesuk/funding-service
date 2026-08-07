@@ -11,6 +11,7 @@ from app import GrantStatusEnum
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
+    collection_is_open_for_sign_up,
     deliver_grant_funding_login_required,
     has_access_grant_recipient_role,
     has_access_grant_role,
@@ -466,6 +467,100 @@ class TestRedirectIfAuthenticated:
             return "OK"
 
         response = test_authenticated_redirect()
+        assert response == "OK"
+
+
+class TestCollectionIsOpenForSignUp:
+    def test_without_grant_slug(self, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(ValueError, match="Grant slug required"):
+            view_func(grant_slug=None, collection_slug=collection.slug)
+
+    def test_without_collection_slug(self, factories):
+        grant = factories.grant.create(slug="grant-slug")
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(ValueError, match="Collection slug required"):
+            view_func(grant_slug=grant.slug, collection_slug=None)
+
+    def test_unknown_grant_slug(self, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NoResultFound):
+            view_func(grant_slug="not-a-real-grant", collection_slug=collection.slug)
+
+    def test_unknown_collection_slug(self, factories):
+        grant = factories.grant.create(slug="grant-slug")
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NoResultFound):
+            view_func(grant_slug=grant.slug, collection_slug="not-a-real-collection")
+
+    def test_grant_not_live(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+    def test_collection_not_open(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.CLOSED, allow_public_sign_up=True
+        )
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+    def test_collection_not_allowed_public_sign_up(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=False
+        )
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+    def test_open_for_public_sign_up(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
         assert response == "OK"
 
 

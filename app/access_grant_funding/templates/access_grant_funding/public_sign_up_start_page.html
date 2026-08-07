@@ -1,0 +1,44 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% set page_title = "Apply for the " ~ grant.name %}
+
+{% block head %}
+  {{ super() }}
+  <meta name="robots" content="noindex, nofollow" />
+{% endblock head %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-xl">{{ page_title }}</h1>
+      <p class="govuk-body">
+        {{ grant.description }}
+        {% if collection.prospectus_url %}
+          Read full details in the <a class="govuk-link" href="{{ collection.prospectus_url }}" target="_blank" rel="noopener noreferrer">grant's prospectus (opens in new tab)</a>.
+        {% endif %}
+      </p>
+
+      <p class="govuk-body">To apply for this grant, you must meet the eligibility criteria.</p>
+
+      <p class="govuk-body">If you’re eligible, you’ll be able to access the application form by either:</p>
+      <ul class="govuk-list govuk-list--bullet">
+        <li>signing in with an existing account (if your organisation is already set up)</li>
+        <li>creating a new account by adding your organisation details</li>
+      </ul>
+
+      {% if collection.submission_period_end_date %}
+        <p class="govuk-body"><strong>Deadline for applications:</strong> {{ format_date_short(collection.submission_period_end_date) }}</p>
+      {% endif %}
+
+      {# TODO: link to auth.public_request_a_link_to_sign_in once that route is registered #}
+      {{
+        govukButton({
+          "text": "Start now",
+          "isStartButton": true,
+          "href": url_for("auth.request_a_link_to_sign_in")
+        })
+      }}
+    </div>
+  </div>
+{% endblock content %}
