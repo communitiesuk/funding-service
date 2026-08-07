@@ -495,6 +495,28 @@ class TestSignOutView:
             assert "_user_id" not in session
             assert "auth" not in session
 
+    def test_get_with_signing_up_for_collection_redirects_to_start_page_and_clears_flag(
+        self, authenticated_grant_recipient_member_client, factories
+    ):
+        client = authenticated_grant_recipient_member_client
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+
+        with client.session_transaction() as session:
+            session["signing_up_for_collection_id"] = collection.id
+
+        response = client.get(url_for("auth.sign_out"), follow_redirects=False)
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+        with client.session_transaction() as session:
+            assert "_user_id" not in session
+            assert "auth" not in session
+            assert "signing_up_for_collection_id" not in session
+
 
 class TestSSOSignInView:
     def test_get(self, anonymous_client):

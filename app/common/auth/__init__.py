@@ -287,6 +287,17 @@ def sign_out() -> ResponseReturnValue:
     sentry_sdk.set_user(None)
 
     auth_method = session.pop("auth", None)
+
+    if collection_id := session.pop("signing_up_for_collection_id", None):
+        collection = interfaces.collections.get_collection(collection_id)
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=collection.grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
     match auth_method:
         case AuthMethodEnum.SSO:
             return redirect(url_for("auth.sso_sign_in"))
