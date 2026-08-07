@@ -366,3 +366,82 @@ class TestPublicSignOffStartPage:
         assert start_button.get("href") == url_for(
             "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
         )
+
+
+class TestEligibleToApplyPage:
+    def test_get_redirects_when_not_authenticated(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = anonymous_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+        assert response.status_code == 302
+
+    def test_get_404s_for_unknown_grant(self, authenticated_no_role_client, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.eligible_to_apply",
+                grant_slug="not-a-real-grant",
+                collection_slug=collection.slug,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_get_404s_when_grant_or_collection_not_eligible(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.DRAFT, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+        assert response.status_code == 404
+
+    def test_get_400s_when_no_organisation_matches_email_domain(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.authenticate_as("test@shared-domain.com")
+    def test_get_400s_when_multiple_organisations_match_email_domain(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.organisation.create(name="Org A", domains=["shared-domain.com"])
+        factories.organisation.create(name="Org B", domains=["shared-domain.com"])
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_with_known_grant_and_collection(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You are eligible to apply" in get_h1_text(soup)
+        assert "Test grant name" in soup.text
+        assert "Test Organisation" in soup.text
