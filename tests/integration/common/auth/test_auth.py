@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
-from app.common.data.types import RoleEnum
+from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, RoleEnum
 from tests.models import _get_grant_managing_organisation
 from tests.utils import AnyStringMatching, get_h1_text, page_has_error, page_has_h2
 
@@ -148,6 +148,129 @@ class TestMagicLinkSignInView:
             assert "next" not in session
 
 
+class TestPublicRequestALinkToSignInView:
+    def test_get_404s_for_unknown_grant(self, anonymous_client, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        response = anonymous_client.get(
+            url_for(
+                "auth.public_request_a_link_to_sign_in",
+                grant_slug="not-a-real-grant",
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_404s_for_unknown_collection(self, anonymous_client, factories):
+        grant = factories.grant.create(slug="grant-slug")
+
+        response = anonymous_client.get(
+            url_for(
+                "auth.public_request_a_link_to_sign_in",
+                grant_slug=grant.slug,
+                collection_slug="not-a-real-collection",
+            )
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "grant_status, collection_status, allow_public_sign_up, expected_status",
+        (
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, True, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, False, 404),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, True, 404),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, True, 404),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, True, 404),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, True, 404),
+        ),
+    )
+    def test_get_depends_on_status_and_allow_public_sign_up(
+        self, anonymous_client, factories, grant_status, collection_status, allow_public_sign_up, expected_status
+    ):
+        grant = factories.grant.create(slug="grant-slug", status=grant_status)
+        collection = factories.collection.create(
+            slug="collection-slug",
+            grant=grant,
+            status=collection_status,
+            allow_public_sign_up=allow_public_sign_up,
+        )
+
+        response = anonymous_client.get(
+            url_for("auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == expected_status
+
+    def test_get_with_known_grant_and_collection(self, anonymous_client, factories):
+        grant = factories.grant.create(slug="grant-slug", name="Test grant name", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "auth.public_request_a_link_to_sign_in",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Enter your work email address" in get_h1_text(soup)
+        assert "Test grant name" in soup.text
+
+    def test_post_allows_unknown_email(self, anonymous_client, factories, mock_notification_service_calls, db_session):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+        )
+
+        response = anonymous_client.post(
+            url_for(
+                "auth.public_request_a_link_to_sign_in",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            ),
+            data={"email_address": "new-applicant@example.com"},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Check your email" in get_h1_text(soup)
+        assert "new-applicant@example.com" in soup.text
+
+        assert len(mock_notification_service_calls) == 1
+        assert mock_notification_service_calls[0].kwargs["personalisation"]["magic_link"] == AnyStringMatching(
+            r"http://funding\.communities\.gov\.localhost:8080/sign-in/.*"
+        )
+
+        magic_link = db_session.scalar(select(MagicLink).where(MagicLink.email == "new-applicant@example.com"))
+        assert magic_link.user is None
+        assert magic_link.collection_id == collection.id
+        assert magic_link.redirect_to_path == url_for("access_grant_funding.index")
+
+        assert mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"] == url_for(
+            "auth.public_request_a_link_to_sign_in",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            _external=True,
+        )
+
+        request_new_link = soup.find("a", string="request a new link")
+        assert request_new_link["href"] == url_for(
+            "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+
 class TestCheckEmailPage:
     def test_get(self, anonymous_client, factories):
         magic_link = factories.magic_link.create(email="test@communities.gov.uk")
@@ -155,6 +278,30 @@ class TestCheckEmailPage:
         assert response.status_code == 200
         assert b"Check your email" in response.data
         assert b"test@communities.gov.uk" in response.data
+
+    def test_get_magic_link_without_collection_link_redirect_to_usual_flow(self, anonymous_client, factories):
+        magic_link = factories.magic_link.create(email="test@communities.gov.uk")
+
+        response = anonymous_client.get(url_for("auth.check_email", magic_link_id=magic_link.id))
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        request_new_link = soup.find("a", string="request a new link")
+        assert request_new_link["href"] == url_for("auth.request_a_link_to_sign_in")
+
+    def test_get_public_sign_off_magic_link_request_new_link_goes_to_public_flow(self, anonymous_client, factories):
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        magic_link = factories.magic_link.create(email="new-applicant@example.com", collection=collection)
+
+        response = anonymous_client.get(url_for("auth.check_email", magic_link_id=magic_link.id))
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        request_new_link = soup.find("a", string="request a new link")
+        assert request_new_link["href"] == url_for(
+            "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
+        )
 
 
 class TestClaimMagicLinkView:
@@ -194,6 +341,27 @@ class TestClaimMagicLinkView:
         response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
         assert response.status_code == 302
         assert response.location == url_for("auth.request_a_link_to_sign_in", link_expired=True)
+
+    def test_redirect_on_expired_public_sign_off_magic_link_preserves_grant_and_collection(
+        self, anonymous_client, factories
+    ):
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        magic_link = factories.magic_link.create(
+            user__email="test@example.com",
+            redirect_to_path="/my-redirect",
+            collection=collection,
+            expires_at_utc=datetime.datetime.now() - datetime.timedelta(hours=1),
+        )
+
+        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "auth.public_request_a_link_to_sign_in",
+            link_expired=True,
+            grant_slug="grant-slug",
+            collection_slug="collection-slug",
+        )
 
     def test_get_without_session_flag_does_not_auto_submit(self, anonymous_client, factories):
         magic_link = factories.magic_link.create()
@@ -593,6 +761,17 @@ class TestSSOGetTokenView:
 class TestAuthenticatedUserRedirect:
     def test_magic_link_get(self, authenticated_no_role_client):
         response = authenticated_no_role_client.get(url_for("auth.request_a_link_to_sign_in"))
+        assert response.status_code == 302
+
+    def test_public_magic_link_get(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for("auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
         assert response.status_code == 302
 
     def test_sso_get(self, authenticated_no_role_client):

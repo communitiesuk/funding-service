@@ -363,5 +363,6 @@ class TestPublicSignOffStartPage:
         start_button = soup.find("a", {"class": "govuk-button"})
         assert start_button is not None
         assert "Start now" in start_button.get_text(strip=True)
-        # TODO: link to auth.public_request_a_link_to_sign_in once that route is registered
-        assert start_button.get("href") == url_for("auth.request_a_link_to_sign_in")
+        assert start_button.get("href") == url_for(
+            "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
+        )

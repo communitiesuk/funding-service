@@ -54,6 +54,15 @@ class TestCreateMagicLink:
         assert old_magic_link.expires_at_utc == datetime.strptime("2024-10-01 10:05:00", freeze_time_format)
         assert new_magic_link.expires_at_utc == datetime.strptime("2024-10-01 10:20:00", freeze_time_format)
 
+    def test_create_magic_link_with_collection(self, factories):
+        collection = factories.collection.create()
+
+        magic_link = interfaces.magic_link.create_magic_link(
+            email="new_user@email.com", user=None, redirect_to_path="/", collection=collection
+        )
+
+        assert magic_link.collection == collection
+
 
 class TestGetMagicLink:
     def test_get_magic_link_by_id(self, db_session, factories):
