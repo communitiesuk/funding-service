@@ -1,5 +1,6 @@
 import datetime
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from bs4 import BeautifulSoup
@@ -148,13 +149,13 @@ class TestMagicLinkSignInView:
             assert "next" not in session
 
 
-class TestPublicRequestALinkToSignInView:
+class TestCollectionRequestALinkToPublicSignUpView:
     def test_get_404s_for_unknown_grant(self, anonymous_client, factories):
         collection = factories.collection.create(slug="collection-slug")
 
         response = anonymous_client.get(
             url_for(
-                "auth.public_request_a_link_to_sign_in",
+                "auth.collection_request_a_link_to_public_sign_up",
                 grant_slug="not-a-real-grant",
                 collection_slug=collection.slug,
             )
@@ -167,7 +168,7 @@ class TestPublicRequestALinkToSignInView:
 
         response = anonymous_client.get(
             url_for(
-                "auth.public_request_a_link_to_sign_in",
+                "auth.collection_request_a_link_to_public_sign_up",
                 grant_slug=grant.slug,
                 collection_slug="not-a-real-collection",
             )
@@ -197,7 +198,11 @@ class TestPublicRequestALinkToSignInView:
         )
 
         response = anonymous_client.get(
-            url_for("auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for(
+                "auth.collection_request_a_link_to_public_sign_up",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
         )
 
         assert response.status_code == expected_status
@@ -213,7 +218,7 @@ class TestPublicRequestALinkToSignInView:
 
         response = anonymous_client.get(
             url_for(
-                "auth.public_request_a_link_to_sign_in",
+                "auth.collection_request_a_link_to_public_sign_up",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )
@@ -235,7 +240,7 @@ class TestPublicRequestALinkToSignInView:
 
         response = anonymous_client.post(
             url_for(
-                "auth.public_request_a_link_to_sign_in",
+                "auth.collection_request_a_link_to_public_sign_up",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             ),
@@ -259,7 +264,7 @@ class TestPublicRequestALinkToSignInView:
         assert magic_link.redirect_to_path == url_for("access_grant_funding.index")
 
         assert mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"] == url_for(
-            "auth.public_request_a_link_to_sign_in",
+            "auth.collection_request_a_link_to_public_sign_up",
             grant_slug=grant.slug,
             collection_slug=collection.slug,
             _external=True,
@@ -267,7 +272,7 @@ class TestPublicRequestALinkToSignInView:
 
         request_new_link = soup.find("a", string="request a new link")
         assert request_new_link["href"] == url_for(
-            "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
+            "auth.collection_request_a_link_to_public_sign_up", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
 
@@ -300,7 +305,7 @@ class TestCheckEmailPage:
         soup = BeautifulSoup(response.data, "html.parser")
         request_new_link = soup.find("a", string="request a new link")
         assert request_new_link["href"] == url_for(
-            "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
+            "auth.collection_request_a_link_to_public_sign_up", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
 
@@ -357,7 +362,7 @@ class TestClaimMagicLinkView:
         response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
         assert response.status_code == 302
         assert response.location == url_for(
-            "auth.public_request_a_link_to_sign_in",
+            "auth.collection_request_a_link_to_public_sign_up",
             link_expired=True,
             grant_slug="grant-slug",
             collection_slug="collection-slug",
@@ -438,6 +443,37 @@ class TestClaimMagicLinkView:
 
         assert response.status_code == 302
         assert "Magic link claim page submitted: auto_submit=True" in caplog.messages
+
+    def test_post_with_collection_sets_signing_up_session_flag(self, anonymous_client, factories):
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        magic_link = factories.magic_link.create(email="new-applicant@example.com", collection=collection)
+
+        response = anonymous_client.post(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
+            json={"submit": "yes"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        with anonymous_client.session_transaction() as session:
+            assert session["signing_up_for_collection_id"] == collection.id
+
+    def test_post_without_collection_clears_signing_up_session_flag(self, anonymous_client, factories):
+        magic_link = factories.magic_link.create(email="test@communities.gov.uk")
+
+        with anonymous_client.session_transaction() as session:
+            session["signing_up_for_collection_id"] = uuid4()
+
+        response = anonymous_client.post(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
+            json={"submit": "yes"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        with anonymous_client.session_transaction() as session:
+            assert "signing_up_for_collection_id" not in session
 
 
 class TestSignOutView:
@@ -770,7 +806,11 @@ class TestAuthenticatedUserRedirect:
         )
 
         response = authenticated_no_role_client.get(
-            url_for("auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for(
+                "auth.collection_request_a_link_to_public_sign_up",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
         )
         assert response.status_code == 302
 

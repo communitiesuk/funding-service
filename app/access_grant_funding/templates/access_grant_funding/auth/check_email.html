@@ -15,7 +15,7 @@
       <p class="govuk-body">
         Check your spam or junk folders – if it still has not arrived,
         <a
-          href="{{ url_for('auth.public_request_a_link_to_sign_in', grant_slug=collection.grant.slug, collection_slug=collection.slug) if collection else url_for('auth.request_a_link_to_sign_in') }}"
+          href="{{ url_for('auth.collection_request_a_link_to_public_sign_up', grant_slug=collection.grant.slug, collection_slug=collection.slug) if collection else url_for('auth.request_a_link_to_sign_in') }}"
           class="govuk-link govuk-link--no-visited-state"
           >request a new link</a
         >.

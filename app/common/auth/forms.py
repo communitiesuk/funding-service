@@ -20,9 +20,9 @@ class SignInForm(FlaskForm):
     )
     submit = SubmitField("Request sign in link", widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, is_public_sign_off: bool = False, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, is_public_sign_in: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-        if not is_public_sign_off:
-            # If not public sign off, we expect the user to exist in the system
+        if not is_public_sign_in:
+            # If not public sign in, we expect the user to exist in the system
             self.email_address.validators = [*self.email_address.validators, AccessGrantFundingEmail()]

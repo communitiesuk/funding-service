@@ -341,7 +341,7 @@ class TestPublicSignUpStartPage:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Deadline for applications" not in soup.get_text()
 
-    def test_page_start_button_href(self, anonymous_client, factories):
+    def test_page_start_button(self, anonymous_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
             grant=grant,
@@ -360,9 +360,34 @@ class TestPublicSignUpStartPage:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        start_button = soup.find("a", {"class": "govuk-button"})
+        form = soup.find("form")
+        assert form is not None
+        assert form.get("method", "").lower() == "post"
+        start_button = form.find("button", {"class": "govuk-button"})
         assert start_button is not None
         assert "Start now" in start_button.get_text(strip=True)
-        assert start_button.get("href") == url_for(
-            "auth.public_request_a_link_to_sign_in", grant_slug=grant.slug, collection_slug=collection.slug
+
+    def test_post_sets_signing_up_session_flag_and_redirects(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
         )
+
+        response = anonymous_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "auth.collection_request_a_link_to_public_sign_up", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+        with anonymous_client.session_transaction() as flask_session:
+            assert flask_session["signing_up_for_collection_id"] == collection.id

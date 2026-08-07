@@ -8,7 +8,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("access_grant_funding.public_sign_off_start_page", grant_slug=grant.slug, collection_slug=collection.slug),
+      "href": url_for("access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug),
     })
   }}
 {% endblock %}
@@ -30,7 +30,7 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Enter your work email address
       {% endset %}
-      <form method="post" action="{{ url_for('auth.public_request_a_link_to_sign_in', grant_slug=grant.slug, collection_slug=collection.slug) }}" novalidate>
+      <form method="post" action="{{ url_for('auth.collection_request_a_link_to_public_sign_up', grant_slug=grant.slug, collection_slug=collection.slug) }}" novalidate>
         {{ form.csrf_token }}
         {{
           form.email_address(

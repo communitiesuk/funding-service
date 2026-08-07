@@ -7,7 +7,7 @@ from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import redirect_if_authenticated, validate_public_sign_off
+from app.common.auth.decorators import collection_is_open_for_sign_up, redirect_if_authenticated
 from app.common.auth.forms import SignInForm
 from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
@@ -26,16 +26,16 @@ auth_blueprint = Blueprint(
 @auth_blueprint.route(
     "/request-a-link-to-sign-in/<string:grant_slug>/<string:collection_slug>", methods=["GET", "POST"]
 )
-@validate_public_sign_off
+@collection_is_open_for_sign_up
 @redirect_if_authenticated
 @auto_commit_after_request
-def public_request_a_link_to_sign_in(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     link_expired = request.args.get("link_expired", False)
 
     grant = interfaces.grants.get_grant_by_slug(grant_slug)
     collection = interfaces.collections.get_collection_by_slug(grant.id, collection_slug)
 
-    form = SignInForm(is_public_sign_off=True)
+    form = SignInForm(is_public_sign_in=True)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
@@ -54,7 +54,7 @@ def public_request_a_link_to_sign_in(grant_slug: str, collection_slug: str) -> R
             magic_link_url=url_for("auth.claim_magic_link", magic_link_code=magic_link.code, _external=True),
             magic_link_expires_at_utc=magic_link.expires_at_utc,
             request_new_magic_link_url=url_for(
-                "auth.public_request_a_link_to_sign_in",
+                "auth.collection_request_a_link_to_public_sign_up",
                 grant_slug=grant_slug,
                 collection_slug=collection_slug,
                 _external=True,
@@ -66,7 +66,7 @@ def public_request_a_link_to_sign_in(grant_slug: str, collection_slug: str) -> R
         return redirect(url_for("auth.check_email", magic_link_id=magic_link.id))
 
     return render_template(
-        "access_grant_funding/auth/public_sign_off_magic_link.html",
+        "access_grant_funding/auth/public_sign_up_magic_link.html",
         form=form,
         link_expired=link_expired,
         grant=grant,
@@ -146,7 +146,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
             if magic_link.collection:
                 return redirect(
                     url_for(
-                        "auth.public_request_a_link_to_sign_in",
+                        "auth.collection_request_a_link_to_public_sign_up",
                         link_expired=True,
                         grant_slug=magic_link.collection.grant.slug,
                         collection_slug=magic_link.collection.slug,
@@ -170,6 +170,11 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
             return abort(400)
 
         session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        if magic_link.collection:
+            session["signing_up_for_collection_id"] = magic_link.collection_id
+        else:
+            session.pop("signing_up_for_collection_id", None)
 
         auto_submit = session.pop("magic_link_requested", False)
         current_app.logger.info(
