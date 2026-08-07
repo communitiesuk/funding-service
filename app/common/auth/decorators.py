@@ -90,13 +90,16 @@ def redirect_if_authenticated[**P](
     return wrapper
 
 
-def validate_public_sign_off[**P](
+def collection_is_open_for_sign_up[**P](
     func: Callable[P, ResponseReturnValue],
 ) -> Callable[P, ResponseReturnValue]:
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
-        grant_slug = cast(str, kwargs["grant_slug"])
-        collection_slug = cast(str, kwargs["collection_slug"])
+        if "grant_slug" not in kwargs or (grant_slug := cast(str, kwargs["grant_slug"])) is None:
+            raise ValueError("Grant slug required.")
+
+        if "collection_slug" not in kwargs or (collection_slug := cast(str, kwargs["collection_slug"])) is None:
+            raise ValueError("Collection slug required.")
 
         grant = get_grant_by_slug(grant_slug)
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)

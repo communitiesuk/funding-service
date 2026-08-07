@@ -7,10 +7,10 @@ from flask.typing import ResponseReturnValue
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
+    collection_is_open_for_sign_up,
     has_access_grant_recipient_role,
     has_access_grant_role,
     is_access_org_member,
-    validate_public_sign_off,
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
@@ -127,13 +127,13 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
 
 
 @access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>")
-@validate_public_sign_off
-def public_sign_off_start_page(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@collection_is_open_for_sign_up
+def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     return render_template(
-        "access_grant_funding/public_sign_off_start_page.html",
+        "access_grant_funding/public_sign_up_start_page.html",
         grant=grant,
         collection=collection,
     )

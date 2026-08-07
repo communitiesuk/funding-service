@@ -475,7 +475,7 @@ class Collection(BaseModel):
     @property
     def public_sign_up(self) -> str:
         return url_for(
-            "access_grant_funding.public_sign_off_start_page",
+            "access_grant_funding.public_sign_up_start_page",
             grant_slug=self.grant.slug,
             collection_slug=self.slug,
             _external=True,

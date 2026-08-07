@@ -176,7 +176,7 @@ class TestCookieBanner:
         assert soup.find_all("div", class_="govuk-cookie-banner")[0].attrs.get("hidden", None) is not None
 
 
-class TestPublicSignOffStartPage:
+class TestPublicSignUpStartPage:
     def test_404_when_grant_slug_unknown(self, anonymous_client, factories):
         collection = factories.collection.create(
             grant__status=GrantStatusEnum.LIVE,
@@ -187,7 +187,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug="not-a-real-grant",
                 collection_slug=collection.slug,
             )
@@ -200,7 +200,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug="not-a-real-collection",
             )
@@ -238,7 +238,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )
@@ -260,7 +260,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )
@@ -286,7 +286,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )
@@ -308,7 +308,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )
@@ -331,7 +331,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )
@@ -352,7 +352,7 @@ class TestPublicSignOffStartPage:
 
         response = anonymous_client.get(
             url_for(
-                "access_grant_funding.public_sign_off_start_page",
+                "access_grant_funding.public_sign_up_start_page",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
             )

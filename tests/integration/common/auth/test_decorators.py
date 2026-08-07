@@ -11,6 +11,7 @@ from app import GrantStatusEnum
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
+    collection_is_open_for_sign_up,
     deliver_grant_funding_login_required,
     has_access_grant_recipient_role,
     has_access_grant_role,
@@ -22,7 +23,6 @@ from app.common.auth.decorators import (
     is_deliver_org_member,
     is_platform_admin,
     redirect_if_authenticated,
-    validate_public_sign_off,
 )
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, RoleEnum
@@ -470,11 +470,31 @@ class TestRedirectIfAuthenticated:
         assert response == "OK"
 
 
-class TestValidatePublicSignOff:
+class TestCollectionIsOpenForSignUp:
+    def test_without_grant_slug(self, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(ValueError, match="Grant slug required"):
+            view_func(grant_slug=None, collection_slug=collection.slug)
+
+    def test_without_collection_slug(self, factories):
+        grant = factories.grant.create(slug="grant-slug")
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(ValueError, match="Collection slug required"):
+            view_func(grant_slug=grant.slug, collection_slug=None)
+
     def test_unknown_grant_slug(self, factories):
         collection = factories.collection.create(slug="collection-slug")
 
-        @validate_public_sign_off
+        @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
             return "OK"
 
@@ -484,7 +504,7 @@ class TestValidatePublicSignOff:
     def test_unknown_collection_slug(self, factories):
         grant = factories.grant.create(slug="grant-slug")
 
-        @validate_public_sign_off
+        @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
             return "OK"
 
@@ -497,7 +517,7 @@ class TestValidatePublicSignOff:
             slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
         )
 
-        @validate_public_sign_off
+        @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
             return "OK"
 
@@ -510,7 +530,7 @@ class TestValidatePublicSignOff:
             slug="collection-slug", grant=grant, status=CollectionStatusEnum.CLOSED, allow_public_sign_up=True
         )
 
-        @validate_public_sign_off
+        @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
             return "OK"
 
@@ -523,7 +543,7 @@ class TestValidatePublicSignOff:
             slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=False
         )
 
-        @validate_public_sign_off
+        @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
             return "OK"
 
@@ -536,7 +556,7 @@ class TestValidatePublicSignOff:
             slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
         )
 
-        @validate_public_sign_off
+        @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
             return "OK"
 
