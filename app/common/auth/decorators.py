@@ -42,6 +42,18 @@ def access_grant_funding_login_required[**P](
             sentry_sdk.set_user(None)
             return abort(500)
 
+        if collection_id := session.get("signing_up_for_collection_id"):
+            collection = get_collection(collection_id)
+            # TODO: once the "Eligible" page (and the router that decides whether the user has completed
+            # eligibility) exists, redirect there instead of back to the start page.
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_start_page",
+                    grant_slug=collection.grant.slug,
+                    collection_slug=collection.slug,
+                )
+            )
+
         return func(*args, **kwargs)
 
     return wrapper
@@ -114,6 +126,33 @@ def collection_is_open_for_sign_up[**P](
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def is_signing_up[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        user = interfaces.user.get_current_user()
+
+        if user.is_authenticated and session.get("signing_up_for_collection_id"):
+            return func(*args, **kwargs)
+
+        if "grant_slug" not in kwargs or (grant_slug := cast(str, kwargs["grant_slug"])) is None:
+            raise ValueError("Grant slug required.")
+
+        if "collection_slug" not in kwargs or (collection_slug := cast(str, kwargs["collection_slug"])) is None:
+            raise ValueError("Collection slug required.")
+
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+
+    return collection_is_open_for_sign_up(wrapper)
 
 
 def is_deliver_grant_funding_user[**P](

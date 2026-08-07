@@ -4,12 +4,15 @@ import uuid
 from sqlalchemy import and_, func, select, update
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
+from app.common.data.models import Collection
 from app.common.data.models_user import MagicLink, User
 from app.extensions import db
 
 
 @flush_and_rollback_on_exceptions
-def create_magic_link(email: str, *, user: User | None, redirect_to_path: str) -> MagicLink:
+def create_magic_link(
+    email: str, *, user: User | None, redirect_to_path: str, collection: Collection | None = None
+) -> MagicLink:
     # This db query checks if any magic links exist for this user/email and if so it expires the magic link before
     # creating a new one.
     db.session.execute(
@@ -22,6 +25,7 @@ def create_magic_link(email: str, *, user: User | None, redirect_to_path: str) -
         email=email,
         user=user,
         redirect_to_path=redirect_to_path,
+        collection=collection,
         expires_at_utc=func.now() + datetime.timedelta(minutes=15),
     )
 

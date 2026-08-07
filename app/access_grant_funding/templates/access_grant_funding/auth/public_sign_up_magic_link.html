@@ -1,0 +1,55 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Access grant funding" %}
+
+{% block beforeContent %}
+  {{
+    govukBackLink({
+      "text": "Back",
+      "href": url_for("access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug),
+    })
+  }}
+{% endblock %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if link_expired %}
+        {{
+          govukNotificationBanner(
+            params={
+              "titleText": "Link expired",
+              "text": "Your link has expired. Request a new link to sign in."
+            }
+          )
+        }}
+      {% endif %}
+      {% set email_label_html %}
+        <span class="govuk-caption-l">{{ grant.name }}</span>
+        Enter your work email address
+      {% endset %}
+      <form method="post" action="{{ url_for('auth.collection_request_a_link_to_public_sign_up', grant_slug=grant.slug, collection_slug=collection.slug) }}" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.email_address(
+            params={
+              "type": "email",
+              "autocomplete": "email",
+              "spellcheck": false,
+              "classes": "govuk-input--width-20",
+              "label": {
+                "html": email_label_html,
+                "isPageHeading": true,
+                "classes": "govuk-label--xl"
+              },
+              "hint": {"text": "You’ll need to verify your email address - we’ll only use it if you are eligible to apply"}
+            }
+          )
+        }}
+        {{ form.submit(params={"text": "Continue"}) }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}

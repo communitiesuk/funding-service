@@ -35,7 +35,7 @@ from sqlalchemy_json import mutable_json_type
 
 from app.common.collections.types import DataSourceAnswerTypes, DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.models_user import Invitation, User, UserRole
+from app.common.data.models_user import Invitation, MagicLink, User, UserRole
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import (
     IN_PROGRESS_STATUSES,
@@ -413,6 +413,7 @@ class Collection(BaseModel):
     )
 
     data_sources: Mapped[list[DataSource]] = relationship("DataSource", back_populates="collection")
+    magic_links: Mapped[list[MagicLink]] = relationship("MagicLink", back_populates="collection")
 
     def s3_key_prefix(self, submission_mode: SubmissionModeEnum) -> str:
         return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{submission_mode}/{self.id}"
