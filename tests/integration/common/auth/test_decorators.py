@@ -22,6 +22,7 @@ from app.common.auth.decorators import (
     is_deliver_org_admin,
     is_deliver_org_member,
     is_platform_admin,
+    is_signing_up,
     redirect_if_authenticated,
 )
 from app.common.data import interfaces
@@ -85,6 +86,26 @@ class TestAccessGrantFundingLoginRequired:
         response = test_access_grant_funding_login_required()
         assert response.status_code == 302
         assert response.location == url_for("auth.request_a_link_to_sign_in")
+
+    def test_signing_up_for_collection_redirects_to_start_page(self, app, factories):
+        @access_grant_funding_login_required
+        def test_access_grant_funding_login_required():
+            return "OK"
+
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = test_access_grant_funding_login_required()
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
 
     def test_no_session_auth_variable(self, factories, app) -> None:
         @access_grant_funding_login_required
@@ -562,6 +583,114 @@ class TestCollectionIsOpenForSignUp:
 
         response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
         assert response == "OK"
+
+
+class TestIsSigningUp:
+    def test_without_grant_slug(self, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(ValueError, match="Grant slug required"):
+            view_func(grant_slug=None, collection_slug=collection.slug)
+
+    def test_without_collection_slug(self, factories):
+        grant = factories.grant.create(slug="grant-slug")
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(ValueError, match="Collection slug required"):
+            view_func(grant_slug=grant.slug, collection_slug=None)
+
+    def test_authenticated_and_signing_up_gets_response(self, app, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+        assert response == "OK"
+
+    def test_anonymous_user_redirects_to_start_page(self, app, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_anonymous_user_with_session_flag_redirects_to_start_page(self, app, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_authenticated_without_session_flag_redirects_to_start_page(self, app, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_still_guarded_by_collection_is_open_for_sign_up(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.DRAFT)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        with pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
 
 
 class TestHasDeliverGrantRole:
