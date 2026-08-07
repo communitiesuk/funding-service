@@ -169,14 +169,16 @@ def test_pre_award_validation_setup(
     )
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
     set_up_orgs_page.fill_organisations_tsv_data(tsv_data)
-    set_up_orgs_page.click_set_up_organisations()
+    set_up_orgs_page.click_set_up_organisations(expected_organisations_created=2)
 
     collection_lifecycle_tasklist_page.click_task("Set up grant recipients")
     set_up_grant_recipients_page = SetUpGrantRecipientsPage(page, domain, grant_id, collection_id)
     set_up_grant_recipients_page.select_organisation(reject_org_name)
     set_up_grant_recipients_page.select_organisation(approve_org_name)
     set_up_grant_recipients_page.select_status(GrantRecipientStatusEnum.ALLOCATED)
-    set_up_grant_recipients_page.click_set_up_grant_recipients()
+    set_up_grant_recipients_page.click_set_up_grant_recipients(
+        expected_message="Created 2 grant recipients and 2 test grant recipients."
+    )
 
     # Set grant LIVE and collection OPEN via admin shortcuts
     grant_settings_page = PlatformAdminGrantSettingsPage(page, domain, grant_id)
