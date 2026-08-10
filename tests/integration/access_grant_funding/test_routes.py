@@ -4,11 +4,13 @@ import uuid
 import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
+from flask_login import login_user
 from sqlalchemy import select
 
 from app.common.data.models import GrantRecipient
 from app.common.data.models_user import UserRole
 from app.common.data.types import (
+    AuthMethodEnum,
     CollectionStatusEnum,
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
@@ -256,6 +258,44 @@ class TestPublicSignUpStartPage:
 
         assert response.status_code == expected_status
 
+    @pytest.mark.parametrize(
+        "grant_status, collection_status, expected_status",
+        (
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 404),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
+        ),
+    )
+    def test_deliver_grant_member_access_depends_on_status(
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
+    ):
+        grant = factories.grant.create(status=grant_status, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            allow_public_sign_up=True,
+            slug="collection-slug",
+        )
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+
+        login_user(user)
+        with anonymous_client.session_transaction() as flask_session:
+            flask_session["auth"] = AuthMethodEnum.SSO
+        db_session.commit()
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == expected_status
+
     def test_page_content_with_prospectus_url(self, anonymous_client, factories):
         grant = factories.grant.create(
             status=GrantStatusEnum.LIVE, name="Test grant name", slug="grant-slug", description="Some grant description"
@@ -402,6 +442,33 @@ class TestPublicSignUpStartPage:
         with anonymous_client.session_transaction() as flask_session:
             assert flask_session["signing_up_for_collection_id"] == collection.id
 
+    def test_post_as_member_deliver_user_skips_magic_link_and_redirects_to_eligibility(
+        self, authenticated_grant_member_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+        with authenticated_grant_member_client.session_transaction() as flask_session:
+            assert flask_session["signing_up_for_collection_id"] == collection.id
+
 
 class TestEligibleToApplyPage:
     def test_get_redirects_when_not_authenticated(self, anonymous_client, factories):
@@ -478,6 +545,46 @@ class TestEligibleToApplyPage:
         )
 
         assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "grant_status, collection_status, expected_status",
+        (
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 404),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
+        ),
+    )
+    def test_deliver_grant_member_access_depends_on_status(
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
+    ):
+        grant = factories.grant.create(status=grant_status, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            allow_public_sign_up=True,
+            slug="collection-slug",
+        )
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.organisation.create(
+            name="Test Organisation",
+            domains=[user.email.split("@")[-1]],
+            mode=OrganisationModeEnum.TEST,
+        )
+
+        login_user(user)
+        with anonymous_client.session_transaction() as flask_session:
+            flask_session["auth"] = AuthMethodEnum.SSO
+            flask_session["signing_up_for_collection_id"] = collection.id
+        db_session.commit()
+
+        response = anonymous_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == expected_status
 
     @pytest.mark.authenticate_as("test@no-matching-org.com")
     def test_get_400s_when_no_organisation_matches_email_domain(self, authenticated_no_role_client, factories):
@@ -627,26 +734,31 @@ class TestEligibleToApplyPage:
             assert "signing_up_for_collection_id" not in flask_session
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_post_skips_grant_recipient_and_permission_for_deliver_user(
-        self, authenticated_grant_member_client, factories, db_session
-    ):
-        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+    def test_post_as_deliver_user_redirects_to_submission_page(self, authenticated_grant_member_client, factories):
+        grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        factories.question.create(form__collection=collection)
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], mode=OrganisationModeEnum.TEST
+        )
+        factories.grant_recipient.create(grant=grant, organisation=organisation, mode=GrantRecipientModeEnum.TEST)
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
 
         with authenticated_grant_member_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
 
         response = authenticated_grant_member_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            follow_redirects=True,
         )
 
-        assert response.status_code == 302
-        assert response.location == url_for("access_grant_funding.index")
-
-        assert db_session.scalars(select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)).all() == []
-
-        with authenticated_grant_member_client.session_transaction() as flask_session:
-            assert "signing_up_for_collection_id" not in flask_session
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Testing grant recipient journey" in soup.text
