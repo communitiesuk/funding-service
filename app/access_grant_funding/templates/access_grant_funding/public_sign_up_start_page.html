@@ -31,14 +31,16 @@
         <p class="govuk-body"><strong>Deadline for applications:</strong> {{ format_date_short(collection.submission_period_end_date) }}</p>
       {% endif %}
 
-      {# TODO: link to auth.public_request_a_link_to_sign_in once that route is registered #}
-      {{
-        govukButton({
-          "text": "Start now",
-          "isStartButton": true,
-          "href": url_for("auth.request_a_link_to_sign_in")
-        })
-      }}
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          govukButton({
+            "text": "Start now",
+            "isStartButton": true,
+            "type": "submit"
+          })
+        }}
+      </form>
     </div>
   </div>
 {% endblock content %}

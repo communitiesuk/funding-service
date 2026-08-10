@@ -1,7 +1,7 @@
 from functools import partial
 from uuid import UUID
 
-from flask import abort, current_app, redirect, render_template, url_for
+from flask import abort, current_app, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -18,6 +18,7 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation
 from app.common.data.types import RoleEnum
+from app.common.forms import GenericSubmitForm
 from app.common.markdown import convert_text_to_govuk_markup
 
 
@@ -126,14 +127,26 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
     )
 
 
-@access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>")
+@access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>", methods=["GET", "POST"])
 @collection_is_open_for_sign_up
 def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
+    form = GenericSubmitForm()
+    if form.validate_on_submit():
+        session["signing_up_for_collection_id"] = collection.id
+        return redirect(
+            url_for(
+                "auth.collection_request_a_link_to_public_sign_up",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+
     return render_template(
         "access_grant_funding/public_sign_up_start_page.html",
         grant=grant,
         collection=collection,
+        form=form,
     )

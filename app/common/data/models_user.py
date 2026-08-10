@@ -14,7 +14,7 @@ from app.common.data.base import BaseModel, CIStr
 from app.common.data.types import RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
+    from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
 
 
 class User(BaseModel):
@@ -198,11 +198,13 @@ class MagicLink(BaseModel):
     email: Mapped[CIStr] = mapped_column(nullable=True)
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("collection.id"), nullable=True)
     redirect_to_path: Mapped[str]
     expires_at_utc: Mapped[datetime]
     claimed_at_utc: Mapped[datetime | None]
 
     user: Mapped[User] = relationship("User", back_populates="magic_links")
+    collection: Mapped[Collection] = relationship("Collection", back_populates="magic_links")
 
     __table_args__ = (Index(None, code, unique=True, postgresql_where="claimed_at_utc IS NOT NULL"),)
 
