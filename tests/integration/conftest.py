@@ -71,10 +71,10 @@ def setup_db_container() -> Generator[PostgresContainer, None, None]:
 @pytest.fixture(scope="session")
 def db(setup_db_container: PostgresContainer, app: Flask) -> Generator[SQLAlchemy, None, None]:
     with app.app_context():
-        no_db = not database_exists(app.config["SQLALCHEMY_ENGINES"]["default"])
+        no_db = not database_exists(app.config["SQLALCHEMY_ENGINES"]["default"]["url"])
 
         if no_db:
-            create_database(app.config["SQLALCHEMY_ENGINES"]["default"])
+            create_database(app.config["SQLALCHEMY_ENGINES"]["default"]["url"])
 
         # Run alembic migrations. We do this is a separate python process because it loads and executes a bunch
         # of code from app/common/data/migrations/env.py. This does things like set up loggers, which interferes with
