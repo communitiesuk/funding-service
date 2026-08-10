@@ -261,7 +261,9 @@ class TestCollectionRequestALinkToPublicSignUpView:
         magic_link = db_session.scalar(select(MagicLink).where(MagicLink.email == "new-applicant@example.com"))
         assert magic_link.user is None
         assert magic_link.collection_id == collection.id
-        assert magic_link.redirect_to_path == url_for("access_grant_funding.index")
+        assert magic_link.redirect_to_path == url_for(
+            "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
+        )
 
         assert mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"] == url_for(
             "auth.collection_request_a_link_to_public_sign_up",
