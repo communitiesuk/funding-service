@@ -44,11 +44,9 @@ def access_grant_funding_login_required[**P](
 
         if collection_id := session.get("signing_up_for_collection_id"):
             collection = get_collection(collection_id)
-            # TODO: once the "Eligible" page (and the router that decides whether the user has completed
-            # eligibility) exists, redirect there instead of back to the start page.
             return redirect(
                 url_for(
-                    "access_grant_funding.public_sign_up_start_page",
+                    "access_grant_funding.eligible_to_apply",
                     grant_slug=collection.grant.slug,
                     collection_slug=collection.slug,
                 )

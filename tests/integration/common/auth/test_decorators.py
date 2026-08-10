@@ -87,7 +87,7 @@ class TestAccessGrantFundingLoginRequired:
         assert response.status_code == 302
         assert response.location == url_for("auth.request_a_link_to_sign_in")
 
-    def test_signing_up_for_collection_redirects_to_start_page(self, app, factories):
+    def test_signing_up_for_collection_redirects_to_eligible_page(self, app, factories):
         @access_grant_funding_login_required
         def test_access_grant_funding_login_required():
             return "OK"
@@ -104,7 +104,7 @@ class TestAccessGrantFundingLoginRequired:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+            "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
     def test_no_session_auth_variable(self, factories, app) -> None:
