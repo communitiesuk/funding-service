@@ -165,6 +165,7 @@ routes_with_expected_member_only_access = [
 
 routes_with_expected_access_grant_funding_logged_in_access = [
     "access_grant_funding.index",
+    "access_grant_funding.eligible_to_apply",
 ]
 
 routes_with_expected_access_grant_funding_grant_recipient_role = [
