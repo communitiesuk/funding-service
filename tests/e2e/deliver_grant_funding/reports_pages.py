@@ -361,18 +361,11 @@ class GrantReportsPage(ReportsBasePage):
         expect(submissions_list_page.heading).to_be_visible()
         return submissions_list_page
 
-    def click_change_name(self, report_name: str, grant_name: str) -> ChangeReportNamePage:
-        self.page.get_by_role("link", name="Change name").click()
+    def click_manage_settings(self, report_name: str) -> ChangeReportNamePage:
+        self.page.get_by_role("link", name=f"Manage settings for {report_name}").click()
         change_report_name_page = ChangeReportNamePage(self.page, self.domain, self.grant_name)
         expect(change_report_name_page.heading).to_be_visible()
         return change_report_name_page
-
-    def delete_report(self, report_name: str, grant_name: str) -> GrantReportsPage:
-        self.page.get_by_role("link", name="Delete").click()
-        self.page.get_by_role("button", name="Yes, delete this report").click()
-        reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
-        expect(reports_page.heading).to_be_visible()
-        return reports_page
 
 
 class GrantPreAwardFormsPage(ReportsBasePage):

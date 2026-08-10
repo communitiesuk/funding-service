@@ -90,15 +90,7 @@
   {% endset %}
 
   {% set actions = [] %}
-  {% if feature_flags.NEW_SETTINGS_JOURNEYS.is_enabled %}
-    {% do actions.append({"text": "Manage settings" if can_edit else "View settings", "visuallyHiddenText": " for " ~ collection.name, "href": url_for("deliver_grant_funding.collection_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id), "classes": "govuk-link--no-visited-state" }) %}
-  {% elif can_edit %}
-    {% do actions.append({"text": "Change name", "visuallyHiddenText": collection.title, "href": url_for("deliver_grant_funding.change_collection_name", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id), "classes": "govuk-link--no-visited-state" }) %}
-    {% if not collection.live_submissions %}
-      {% set delete_url = url_for("deliver_grant_funding.list_reports", grant_id=grant.id, delete=collection.id) if collection.is_monitoring_collection else url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id, delete=collection.id) %}
-      {% do actions.append({"text": "Delete", "visuallyHiddenText": collection.title, "href": delete_url, "classes": "govuk-link--no-visited-state" }) %}
-    {% endif %}
-  {% endif %}
+  {% do actions.append({"text": "Manage settings" if can_edit else "View settings", "visuallyHiddenText": " for " ~ collection.name, "href": url_for("deliver_grant_funding.collection_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id), "classes": "govuk-link--no-visited-state" }) %}
 
   {# TODO: see if this logic can be moved out to a macro that can factor in collection type if it needs to (for things like labels) #}
   {{
