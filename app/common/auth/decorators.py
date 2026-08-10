@@ -114,10 +114,18 @@ def collection_is_open_for_sign_up[**P](
         grant = get_grant_by_slug(grant_slug)
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
-        if grant.status != GrantStatusEnum.LIVE:
-            return abort(404)
-        if collection.status != CollectionStatusEnum.OPEN:
-            return abort(404)
+        user = interfaces.user.get_current_user()
+        if AuthorisationHelper.has_deliver_grant_role(grant_id=grant.id, role=RoleEnum.MEMBER, user=user):
+            if grant.status not in (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE):
+                return abort(404)
+            if collection.status not in (CollectionStatusEnum.DRAFT, CollectionStatusEnum.OPEN):
+                return abort(404)
+        else:
+            if grant.status != GrantStatusEnum.LIVE:
+                return abort(404)
+            if collection.status != CollectionStatusEnum.OPEN:
+                return abort(404)
+
         if not collection.allow_public_sign_up:
             return abort(404)
 
