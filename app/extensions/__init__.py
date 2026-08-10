@@ -14,7 +14,7 @@ from app.services.companies_house import CompaniesHouseService
 from app.services.notify import NotificationService
 from app.services.s3 import S3Service
 
-db = SQLAlchemy(engine_options={"echo": False, "connect_args": {"prepare_threshold": None}})
+db = SQLAlchemy()  # Engine options live in config's SQLALCHEMY_ENGINES
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 notification_service = NotificationService()
