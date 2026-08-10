@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from email_validator import EmailNotValidError
 from sqlalchemy import func, select
 
 from app.common.data import interfaces
@@ -152,6 +153,24 @@ class TestGetUserByAzureAdSubjectId:
         user = interfaces.user.get_user_by_azure_ad_subject_id(azure_ad_subject_id="some_string_value")
         assert user is None
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
+
+
+class TestGetEmailDomain:
+    def test_get_email_domain(self, factories):
+        user = factories.user.create(email="test@example-org.com")
+
+        assert interfaces.user.get_email_domain(user) == "example-org.com"
+
+    def test_get_email_domain_with_subdomain(self, factories):
+        user = factories.user.create(email="test@sub.example-org.com")
+
+        assert interfaces.user.get_email_domain(user) == "sub.example-org.com"
+
+    def test_get_broken_email_address(self, factories):
+        user = factories.user.create(email="testexample-org.com")
+
+        with pytest.raises(EmailNotValidError):
+            interfaces.user.get_email_domain(user)
 
 
 class TestSetUserLastLoggedInAt:
