@@ -8,6 +8,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient,
     get_grant_recipient_data_provider_roles,
     get_grant_recipient_data_providers_count,
+    get_grant_recipient_or_none,
     get_grant_recipients,
     get_grant_recipients_count,
     get_grant_recipients_for_collection_with_locked_submissions,
@@ -453,6 +454,25 @@ class TestGetGrantRecipient:
 
         with pytest.raises(NoResultFound):
             get_grant_recipient(grant.id, organisation2.id)
+
+
+class TestGetGrantRecipientOrNone:
+    def test_returns_grant_recipient_for_organisation_and_grant(self, factories):
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+
+        result = get_grant_recipient_or_none(grant.id, organisation.id)
+        assert result is not None
+        assert result.grant == grant
+        assert result.organisation == organisation
+
+    def test_returns_none_when_no_grant_recipient_exists(self, factories):
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+
+        assert get_grant_recipient_or_none(grant.id, organisation.id) is None
 
 
 class TestGetGrantRecipientsCount:
