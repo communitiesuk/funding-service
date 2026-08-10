@@ -508,6 +508,70 @@ class TestUploadDataSetForm:
         assert "The file must be a CSV" in form.file.errors[0]
 
     @pytest.mark.parametrize("is_existing", (True, False))
+    def test_non_utf8_file_is_decoded_via_encoding_detection(self, factories, is_existing):
+        # eg a CSV saved from Excel/Windows as "CSV" rather than "CSV UTF-8", which uses cp1252 rather than
+        # UTF-8. This shouldn't be rejected outright - we should detect the encoding and decode it anyway.
+        csv_content = (
+            "Organisation ID,Grant recipient,Amount\n"
+            "E123,Lothlorien,\xa31000\n"
+            "E124,Rivendell,\xa32000\n"
+            "E125,Gondor,\xa33000\n"
+        )
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("cp1252")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(
+            existing_data_source_names=[],
+            existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
+            if is_existing
+            else None,
+            collection=factories.collection.build(),
+        )
+        form.process(data)
+
+        assert form.validate() is True
+        assert form.file.errors == []
+
+    @pytest.mark.parametrize("is_existing", (True, False))
+    def test_unreadable_file_raises_error(self, factories, is_existing):
+        file = FileStorage(
+            stream=io.BytesIO(b"\x00\x01\x02\xff\xfe\xfd\x80\x81\x00\x00"),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(
+            existing_data_source_names=[],
+            existing_datasource=factories.data_source.build(type=DataSourceType.GRANT_RECIPIENT)
+            if is_existing
+            else None,
+            collection=factories.collection.build(),
+        )
+        form.process(data)
+
+        assert form.validate() is False
+        assert (
+            form.file.errors[0]
+            == "We could not read this file because it is not a valid CSV file,"
+            + " or it may be damaged. Check the file and try again."
+        )
+
+    @pytest.mark.parametrize("is_existing", (True, False))
     def test_empty_csv_raises_error(self, factories, is_existing):
         file = FileStorage(
             stream=io.BytesIO(b""),

@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 from io import StringIO
 from typing import TYPE_CHECKING, Sequence
 
+from charset_normalizer import from_bytes
 from flask import current_app
 from pydantic import BaseModel, Field
 from werkzeug.datastructures import FileStorage
@@ -34,6 +35,35 @@ from app.extensions import s3_service
 
 if TYPE_CHECKING:
     from app.common.data.models import DataSource, DataSourceOrganisationItem, GrantRecipient
+
+
+class CSVDecodeError(Exception):
+    pass
+
+
+def decode_csv_bytes(raw_bytes: bytes) -> str:
+    """
+    Decode uploaded CSV bytes, tolerating files that weren't saved as UTF-8.
+
+    Our data set templates are generated as utf-8-sig, so we try that first as it should cover most use cases.
+    If that fails, we try cp1252 (Windows-1252) in isolation, since that's what Excel writes when a user picks
+    "CSV (Comma delimited)" instead of "CSV UTF-8" - the most common cause of non-UTF-8 uploads for our users. Only if
+    that also fails do we fall back to best-guess detection, rather than forcing users to re-save their file in a
+    specific format.
+    """
+    try:
+        return raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+
+    best_match = from_bytes(raw_bytes, cp_isolation=["cp1252"]).best() or from_bytes(raw_bytes).best()
+    if best_match is None:
+        raise CSVDecodeError(
+            "We could not read this file because it is not a valid CSV file, "
+            + "or it may be damaged. Check the file and try again."
+        )
+
+    return str(best_match)
 
 
 class CellError(BaseModel):
