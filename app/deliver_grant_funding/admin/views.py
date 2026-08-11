@@ -15,6 +15,7 @@ from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
+from app.common.data.interfaces.background_jobs import enqueue_open_collection_for_submissions_job
 from app.common.data.interfaces.collections import (
     get_collection,
     get_collections_by_status_excluding_draft_grants,
@@ -903,6 +904,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             try:
                 update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+                enqueue_open_collection_for_submissions_job(collection)
                 flash(
                     f"{collection.name} is now locked and form designers cannot make any more changes.",
                     "success",
