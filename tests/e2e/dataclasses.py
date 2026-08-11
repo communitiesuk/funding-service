@@ -54,6 +54,8 @@ class DataReferenceConfig:
     question_text: str | None = None
     section_text: str | None = None
     collection_text: str | None = None
+    data_set_name: str | None = None
+    column_name: str | None = None
 
 
 @dataclasses.dataclass
@@ -85,6 +87,7 @@ class QuestionDict(TypedDict):
     type: QuestionDataType
     text: str
     display_text: str
+    text_reference: NotRequired[DataReferenceConfig]
     hint: NotRequired[TextFieldWithData]  # Allows testing the 'Reference data' journey
     display_hint: NotRequired[str]  # For use with the 'Reference data' journey
     answers: list[QuestionResponse]
