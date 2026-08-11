@@ -594,7 +594,9 @@ class TestEligibleToApplyPage:
         assert response.status_code == expected_status
 
     @pytest.mark.authenticate_as("test@no-matching-org.com")
-    def test_get_400s_when_no_organisation_matches_email_domain(self, authenticated_no_role_client, factories):
+    def test_get_shows_create_account_page_when_no_organisation_matches_email_domain(
+        self, authenticated_no_role_client, factories
+    ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
@@ -607,7 +609,9 @@ class TestEligibleToApplyPage:
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert b"We did not find an account with the email address you provided." in response.data
+        assert b"Create an account" in response.data
 
     @pytest.mark.authenticate_as("test@shared-domain.com")
     def test_get_400s_when_multiple_organisations_match_email_domain(self, authenticated_no_role_client, factories):

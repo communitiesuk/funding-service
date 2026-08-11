@@ -186,9 +186,13 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
     organisations = get_organisations(domain=email_domain, mode=organisation_mode)
 
-    # TODO: Update when adding the create org flow
     if len(organisations) == 0:
-        return abort(400, "No organisation found for this email domain")
+        return render_template(
+            "access_grant_funding/eligible_to_apply.html",
+            grant=grant,
+            collection=collection,
+            service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+        )
     # TODO: Update when adding the choose org form
     if len(organisations) > 1:
         return abort(400, "Multiple organisations found for this email domain")
