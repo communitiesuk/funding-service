@@ -4,6 +4,7 @@ from uuid import UUID
 from flask import abort, current_app, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
+from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
@@ -18,7 +19,7 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_or_create_grant_recipient_pair
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
-from app.common.data.interfaces.organisations import get_organisation, get_organisations
+from app.common.data.interfaces.organisations import get_matched_organisations, get_organisation
 from app.common.data.types import (
     GrantRecipientStatusEnum,
     OrganisationModeEnum,
@@ -184,23 +185,48 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
 
     organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
-    organisations = get_organisations(domain=email_domain, mode=organisation_mode)
+    matched_orgs = get_matched_organisations(user, email_domain, mode=organisation_mode)
 
-    if len(organisations) == 0:
+    # No organisations matched, show message and link to sign up a new organisation
+    if len(matched_orgs.all) == 0:
         return render_template(
             "access_grant_funding/eligible_to_apply.html",
             grant=grant,
             collection=collection,
             service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
         )
-    # TODO: Update when adding the choose org form
-    if len(organisations) > 1:
-        return abort(400, "Multiple organisations found for this email domain")
 
-    organisation = organisations[0]
+    # One organisation matched case
+    if len(matched_orgs.all) == 1:
+        organisations = None
+        organisation = matched_orgs.all[0]
+        form = GenericSubmitForm()
+    # Multiple organisations matched case, show radio buttons to select one
+    elif len(matched_orgs.all) > 1:
+        organisations = matched_orgs
+        organisation = matched_orgs.all[0]  # default to first
+        form = EligibleOrganisationSelectionForm(
+            matched_orgs.role_matched_orgs,
+            matched_orgs.domain_matched_orgs,
+            email_domain,
+        )
 
-    form = GenericSubmitForm()
     if form.validate_on_submit():
+        # For multiple organisation match case, get the selected organisation
+        if isinstance(form, EligibleOrganisationSelectionForm):
+            selected = form.organisation.data
+            # If user selected to create a new organisation
+            if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
+                # TODO: wire up to the create-account/org flow once it exists
+                return redirect(
+                    url_for(
+                        "access_grant_funding.eligible_to_apply",
+                        grant_slug=grant_slug,
+                        collection_slug=collection_slug,
+                    )
+                )
+            organisation = get_organisation(UUID(selected))
+
         session.pop("signing_up_for_collection_id", None)
 
         # Deliver users testing this journey must already have access to a TEST grant recipient for this
@@ -232,6 +258,7 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         grant=grant,
         collection=collection,
         organisation=organisation,
+        organisations=organisations,
         form=form,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )

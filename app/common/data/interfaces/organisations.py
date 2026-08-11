@@ -7,7 +7,8 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
 from app.common.data.models import Organisation
-from app.common.data.types import OrganisationData, OrganisationModeEnum, OrganisationStatus
+from app.common.data.models_user import User, UserRole
+from app.common.data.types import MatchedOrganisations, OrganisationData, OrganisationModeEnum, OrganisationStatus
 from app.extensions import db
 from app.types import NOT_PROVIDED
 
@@ -39,6 +40,31 @@ def get_organisations(
     statement = statement.order_by(Organisation.name)
 
     return db.session.scalars(statement).all()
+
+
+def get_organisations_from_user_roles(
+    user: User, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> Sequence[Organisation]:
+    statement = (
+        select(Organisation)
+        .join(UserRole, UserRole.organisation_id == Organisation.id)
+        .where(UserRole.user_id == user.id, Organisation.mode == mode)
+        .order_by(Organisation.name)
+        .distinct()
+    )
+    return db.session.scalars(statement).all()
+
+
+def get_matched_organisations(
+    user: User, email_domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> MatchedOrganisations:
+    domain_matched_orgs = list(get_organisations(domain=email_domain, mode=mode))
+    domain_matched_ids = {org.id for org in domain_matched_orgs}
+    role_matched_orgs = [
+        org for org in get_organisations_from_user_roles(user, mode=mode) if org.id not in domain_matched_ids
+    ]
+
+    return MatchedOrganisations(role_matched_orgs=role_matched_orgs, domain_matched_orgs=domain_matched_orgs)
 
 
 def get_organisation(organisation_id: UUID) -> Organisation:

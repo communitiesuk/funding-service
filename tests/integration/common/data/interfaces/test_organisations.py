@@ -2,13 +2,21 @@ import datetime
 
 import pytest
 
-from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
+from app.common.data.interfaces.organisations import (
+    get_matched_organisations,
+    get_organisation_count,
+    get_organisations,
+    get_organisations_from_user_roles,
+    upsert_organisations,
+)
+from app.common.data.interfaces.user import add_permissions_to_user
 from app.common.data.models import Organisation
 from app.common.data.types import (
     OrganisationData,
     OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
+    RoleEnum,
 )
 
 
@@ -147,6 +155,89 @@ class TestGetOrganisations:
 
         assert len(result) == 2
         assert result == [org1, org2]
+
+
+class TestGetOrganisationsFromUserRoles:
+    def test_returns_organisations_user_has_a_role_for(self, factories):
+        user = factories.user.create()
+        org = factories.organisation.create(name="Org 1")
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = get_organisations_from_user_roles(user)
+
+        assert len(result) == 1
+        assert result[0].id == org.id
+
+    def test_returns_empty_list_when_user_has_no_organisation_roles(self, factories):
+        user = factories.user.create()
+
+        result = get_organisations_from_user_roles(user)
+
+        assert result == []
+
+    def test_does_not_return_organisations_for_other_users(self, factories):
+        user = factories.user.create()
+        other_user = factories.user.create()
+        org = factories.organisation.create(name="Org 1")
+        add_permissions_to_user(other_user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = get_organisations_from_user_roles(user)
+
+        assert result == []
+
+    def test_respects_mode_filter(self, factories):
+        user = factories.user.create()
+        live_org = factories.organisation.create(name="Live Org", mode=OrganisationModeEnum.LIVE)
+        test_org = factories.organisation.create(name="Test Org", mode=OrganisationModeEnum.TEST)
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=live_org.id)
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=test_org.id)
+
+        result = get_organisations_from_user_roles(user, mode=OrganisationModeEnum.TEST)
+
+        assert len(result) == 1
+        assert result[0].id == test_org.id
+
+
+class TestGetMatchedOrganisations:
+    def test_returns_domain_matched_organisation(self, factories):
+        user = factories.user.create(email="test@example-org.com")
+        org = factories.organisation.create(name="Org 1", domains=["example-org.com"])
+
+        result = get_matched_organisations(user, "example-org.com")
+
+        assert result.domain_matched_orgs == [org]
+        assert result.role_matched_orgs == []
+        assert result.all == [org]
+
+    def test_returns_role_matched_organisation(self, factories):
+        user = factories.user.create(email="test@no-matching-domain.com")
+        org = factories.organisation.create(name="Org 1", domains=["a-different-domain.com"])
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = get_matched_organisations(user, "no-matching-domain.com")
+
+        assert result.domain_matched_orgs == []
+        assert result.role_matched_orgs == [org]
+        assert result.all == [org]
+
+    def test_role_matched_organisations_exclude_domain_matches(self, factories):
+        user = factories.user.create(email="test@example-org.com")
+        org = factories.organisation.create(name="Org 1", domains=["example-org.com"])
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = get_matched_organisations(user, "example-org.com")
+
+        assert result.domain_matched_orgs == [org]
+        assert result.role_matched_orgs == []
+        assert result.all == [org]
+
+    def test_returns_no_matches_when_nothing_matches(self, factories):
+        user = factories.user.create(email="test@no-matching-domain.com")
+        factories.organisation.create(name="Org 1", domains=["a-different-domain.com"])
+
+        result = get_matched_organisations(user, "no-matching-domain.com")
+
+        assert result.all == []
 
 
 class TestGetOrganisationCount:
