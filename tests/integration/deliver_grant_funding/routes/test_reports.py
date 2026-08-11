@@ -5,23 +5,14 @@ from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
 from flask import url_for
 
-from app.common.data.models import (
-    Collection,
-)
 from app.common.data.types import (
     CollectionStatusEnum,
     CollectionType,
     DataSourceType,
     GrantStatusEnum,
-    SubmissionModeEnum,
 )
-from app.common.forms import GenericConfirmDeletionForm
-from app.common.helpers.feature_flags import FeatureFlags
 from tests.utils import (
     AnyStringMatching,
-    enable_session_feature_flag,
-    get_form_data,
-    page_has_button,
     page_has_link,
 )
 
@@ -101,11 +92,6 @@ class TestListReports:
                 "Add sections",
                 AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/add-section"),
             ),
-            (
-                "Change name",
-                AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/change-name"),
-            ),
-            ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/reports\?delete")),
         ]
         for expected_link in expected_links:
             link = page_has_link(soup, expected_link[0])
@@ -121,57 +107,19 @@ class TestListReports:
             ("authenticated_grant_admin_client", True),
         ),
     )
-    def test_card_shows_settings_link_when_new_settings_journeys_enabled(
-        self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories
-    ):
+    def test_card_shows_settings_link(self, request: FixtureRequest, client_fixture: str, can_edit: bool, factories):
         client = request.getfixturevalue(client_fixture)
         factories.collection.create(grant=client.grant)
-        enable_session_feature_flag(client, FeatureFlags.NEW_SETTINGS_JOURNEYS)
 
         response = client.get(url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id))
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_link(soup, "Change name") is None
-        assert page_has_link(soup, "Delete") is None
-
         settings_link = page_has_link(soup, "Manage settings" if can_edit else "View settings")
         assert settings_link is not None
         assert settings_link.get("href") == AnyStringMatching(
             r"/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/settings"
         )
-
-    def test_get_hides_delete_link_with_submissions(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.change_collection_name",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert not page_has_link(soup, "Delete")
-
-    def test_get_with_delete_parameter_no_submissions(self, authenticated_grant_admin_client, factories):
-        report = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.list_reports",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                delete=report.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_button(soup, "Yes, delete this report")
 
     def test_get_shows_missing_data_tag_for_data_sets(self, authenticated_platform_admin_client, factories):
         grant = factories.grant.create()
@@ -208,54 +156,6 @@ class TestListReports:
         data_missing_tags = soup.select(".govuk-tag")
         tag_texts = [tag.text.strip() for tag in data_missing_tags]
         assert tag_texts.count("Data missing") == 1
-
-    @pytest.mark.parametrize(
-        "client_fixture, can_delete",
-        (
-            ("authenticated_grant_member_client", False),
-            ("authenticated_grant_admin_client", True),
-        ),
-    )
-    def test_post_delete(self, request: FixtureRequest, client_fixture: str, can_delete: bool, factories, db_session):
-        client = request.getfixturevalue(client_fixture)
-        report = factories.collection.create(grant=client.grant, name="Test Report")
-
-        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
-        response = client.post(
-            url_for("deliver_grant_funding.list_reports", grant_id=client.grant.id, delete=report.id),
-            data=get_form_data(form),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
-
-        deleted_report = db_session.get(Collection, report.id)
-        assert (deleted_report is None) == can_delete
-
-    @pytest.mark.parametrize(
-        "collection_status", [status for status in CollectionStatusEnum if status != CollectionStatusEnum.DRAFT]
-    )
-    @pytest.mark.parametrize(
-        "client_fixture", ("authenticated_grant_admin_client", "authenticated_platform_admin_client")
-    )
-    def test_get_no_change_or_delete_links_when_report_not_draft(
-        self, factories, collection_status, client_fixture, request
-    ):
-        client = request.getfixturevalue(client_fixture)
-        grant = client.grant if client.grant else factories.grant.create()
-        factories.collection.create(grant=grant, name="Test Report", status=collection_status)
-
-        response = client.get(url_for("deliver_grant_funding.list_reports", grant_id=grant.id))
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-
-        change_name_link = page_has_link(soup, "Change name")
-        delete_link = page_has_link(soup, "Delete")
-
-        assert change_name_link is None
-        assert delete_link is None
 
     @pytest.mark.parametrize(
         "status, number_of_open_collections, expected",

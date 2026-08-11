@@ -83,8 +83,6 @@ class TestListPreAwardForms:
         expected_links = [
             ("Create another form", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/set-up")),
             ("Add sections", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/add-section")),
-            ("Change name", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/change-name")),
-            ("Delete", AnyStringMatching(r"/deliver/grant/[a-z0-9-]{36}/pre-award\?delete")),
         ]
         for expected_link in expected_links:
             link = page_has_link(soup, expected_link[0])
@@ -146,9 +144,7 @@ class TestListPreAwardForms:
     @pytest.mark.parametrize(
         "client_fixture", ("authenticated_grant_admin_client", "authenticated_platform_admin_client")
     )
-    def test_get_no_change_or_delete_links_when_form_not_draft(
-        self, factories, collection_status, client_fixture, request
-    ):
+    def test_view_not_manage_settings_when_form_not_draft(self, factories, collection_status, client_fixture, request):
         client = request.getfixturevalue(client_fixture)
         grant = client.grant if client.grant else factories.grant.create()
         grant.allow_pre_award = True
@@ -161,11 +157,7 @@ class TestListPreAwardForms:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
 
-        change_name_link = page_has_link(soup, "Change name")
-        delete_link = page_has_link(soup, "Delete")
-
-        assert change_name_link is None
-        assert delete_link is None
+        assert page_has_link(soup, "View settings") is not None
 
     def test_404_when_pre_award_flag_disabled(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(

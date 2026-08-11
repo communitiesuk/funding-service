@@ -69,7 +69,6 @@ from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, Is
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -112,7 +111,6 @@ from tests.integration.utils import build_file_upload_form_data
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
-    enable_session_feature_flag,
     get_form_data,
     get_h1_text,
     get_h2_text,
@@ -347,29 +345,11 @@ class TestChangeCollectionName:
             soup = BeautifulSoup(response.data, "html.parser")
             assert "Test Report" in soup.text
 
-    def test_get_with_delete_parameter_with_live_submissions(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE)
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.change_collection_name",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-                delete="",
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert not page_has_button(soup, "Yes, delete this report")
-
     @pytest.mark.parametrize(
         "collection_type, expected_redirect_pattern",
         [
-            (CollectionType.MONITORING_REPORT, r"^/deliver/grant/[a-z0-9-]{36}/reports$"),
-            (CollectionType.APPLICATION, r"^/deliver/grant/[a-z0-9-]{36}/pre-award$"),
+            (CollectionType.MONITORING_REPORT, r"^/deliver/grant/[a-z0-9-]{36}/reports/[a-z0-9-]{36}/settings$"),
+            (CollectionType.APPLICATION, r"^/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/settings$"),
         ],
     )
     @pytest.mark.parametrize(
@@ -413,11 +393,8 @@ class TestChangeCollectionName:
             updated_collection = db_session.get(Collection, collection.id)
             assert updated_collection.name == "Updated Name"
 
-    def test_post_update_name_redirects_to_settings_when_new_settings_journeys_enabled(
-        self, authenticated_grant_admin_client, factories
-    ):
+    def test_post_update_name_redirects_to_settings(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Original Name")
-        enable_session_feature_flag(authenticated_grant_admin_client, FeatureFlags.NEW_SETTINGS_JOURNEYS)
 
         form = SetUpCollectionForm(data={"name": "Updated Name"}, collection_type=CollectionType.MONITORING_REPORT)
         response = authenticated_grant_admin_client.post(
@@ -452,31 +429,6 @@ class TestChangeCollectionName:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "A report with this name already exists")
-
-    def test_update_name_when_delete_banner_showing_does_not_delete(
-        self, authenticated_grant_admin_client, factories, db_session
-    ):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Original Name")
-
-        form = SetUpCollectionForm(data={"name": "Updated Name"}, collection_type=CollectionType.MONITORING_REPORT)
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.change_collection_name",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-                delete="",
-            ),
-            data=get_form_data(form),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/reports$")
-
-        updated_collection = db_session.get(Collection, collection.id)
-        assert updated_collection is not None
-        assert updated_collection.name == "Updated Name"
 
 
 class TestManageCollection:
@@ -1088,30 +1040,6 @@ class TestListCollectionSections:
         else:
             assert response.status_code == 302
             assert response.location == AnyStringMatching("^/deliver/grant/[a-z0-9-]{36}/submissions/[a-z0-9-]{36}$")
-
-
-class TestListCollectionSectionsNewSettingsJourneys:
-    @pytest.mark.parametrize("new_settings_journeys_enabled", [True, False])
-    def test_manage_collection_links_only_shown_when_flag_disabled(
-        self, authenticated_grant_admin_client, factories, new_settings_journeys_enabled
-    ):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        if new_settings_journeys_enabled:
-            enable_session_feature_flag(authenticated_grant_admin_client, FeatureFlags.NEW_SETTINGS_JOURNEYS)
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.list_collection_sections",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert ("Manage collection" in soup.text) is not new_settings_journeys_enabled
-        assert (page_has_link(soup, "Configure multiple submissions") is not None) is not new_settings_journeys_enabled
 
 
 class TestCollectionTypeURLMatching:
@@ -2313,41 +2241,6 @@ class TestConfigurePublicSignUp:
         )
 
         assert response.status_code == 403
-
-
-class TestReportSectionsConfigurePublicSignUp:
-    def test_link_hidden_when_grant_pre_award_disabled(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.list_collection_sections",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "Configure public sign up" not in soup.text
-
-    def test_link_hidden_when_grant_pre_award_enabled(self, authenticated_grant_admin_client, factories):
-        authenticated_grant_admin_client.grant.allow_pre_award = True
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.list_collection_sections",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "Configure public sign up" in soup.text
 
 
 class TestSetGuidanceForMultipleSubmissions:

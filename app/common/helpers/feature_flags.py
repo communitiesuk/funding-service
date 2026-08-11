@@ -119,14 +119,9 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
-class NewSettingsJourneysFeatureFlag(SessionFeatureFlag):
-    description = "Show the new manage report/form settings page and journeys."
-
-
 class FeatureFlags:
     PRE_AWARD = PreAwardGrantFeatureFlag()
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
-    NEW_SETTINGS_JOURNEYS = NewSettingsJourneysFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:

@@ -421,16 +421,14 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
         assert form.name.data
         try:
             update_collection(collection, name=form.name.data)
-            if FeatureFlags.NEW_SETTINGS_JOURNEYS.is_enabled:
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.collection_settings",
-                        grant_id=collection.grant_id,
-                        collection_type=collection.type,
-                        collection_id=collection.id,
-                    )
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.collection_settings",
+                    grant_id=collection.grant_id,
+                    collection_type=collection.type,
+                    collection_id=collection.id,
                 )
-            return redirect(url_for(collection.type.constants.list_endpoint, grant_id=collection.grant_id))
+            )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
             form.name.errors.append(  # ty: ignore[unresolved-attribute]
