@@ -136,7 +136,6 @@ jobs:
         # these conditions when prod joins express_enabled_workspaces in
         # funding-service-terraform.
         id: start_express
-        if: ${{ inputs.environment != 'prod' }}
         # Don't let an Express hiccup block an App Runner deploy while the
         # migration beds in. Remove once dual deploys have been green a while.
         continue-on-error: true
@@ -163,7 +162,7 @@ jobs:
         # the service to settle and fails if it settled on anything other than
         # the image above (i.e. the canary was rolled back).
         id: wait_express
-        if: ${{ inputs.environment != 'prod' && steps.start_express.outcome == 'success' }}
+        if: ${{ steps.start_express.outcome == 'success' }}
         continue-on-error: true
         env:
           ENVIRONMENT: ${{ inputs.environment }}
