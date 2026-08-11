@@ -143,8 +143,6 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
-        session["signing_up_for_collection_id"] = collection.id
-
         # Deliver users, members of the grant, skip magic link journey
         user = interfaces.user.get_current_user()
         if user.is_authenticated and AuthorisationHelper.has_deliver_grant_role(
@@ -158,6 +156,7 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
                 )
             )
 
+        session["signing_up_for_collection_id"] = collection.id
         return redirect(
             url_for(
                 "auth.collection_request_a_link_to_public_sign_up",

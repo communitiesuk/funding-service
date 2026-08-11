@@ -635,6 +635,22 @@ class TestIsSigningUp:
         response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
         assert response == "OK"
 
+    def test_deliver_grant_member_gets_response_without_session_flag(self, factories, user):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+        assert response == "OK"
+
     def test_anonymous_user_redirects_to_start_page(self, app, factories):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(

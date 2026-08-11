@@ -445,7 +445,7 @@ class TestPublicSignUpStartPage:
     def test_post_as_member_deliver_user_skips_magic_link_and_redirects_to_eligibility(
         self, authenticated_grant_member_client, factories
     ):
-        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
             grant=grant,
             status=CollectionStatusEnum.OPEN,
@@ -467,7 +467,7 @@ class TestPublicSignUpStartPage:
         )
 
         with authenticated_grant_member_client.session_transaction() as flask_session:
-            assert flask_session["signing_up_for_collection_id"] == collection.id
+            assert "signing_up_for_collection_id" not in flask_session
 
 
 class TestEligibleToApplyPage:
