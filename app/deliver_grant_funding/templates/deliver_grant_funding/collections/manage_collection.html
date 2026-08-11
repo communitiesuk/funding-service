@@ -132,20 +132,22 @@
             } if can_edit else {}
           })
         %}
-        {%
-          do rows.append({
-            "key": {"text": "Guidance for multiple submissions (optional)"},
-            "value": {"html": collection.submission_guidance | replace("\n", "<br>" | safe) if collection.submission_guidance else "Not set"},
-            "actions": {
-              "items": [{
-                "href": url_for("deliver_grant_funding.collection_multiple_submissions_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
-                "classes": "govuk-link--no-visited-state",
-                "text": "Change",
-                "visuallyHiddenText": "multiple submissions guidance"
-              }]
-            } if can_edit else {}
-          })
-        %}
+        {% if not collection.multiple_submissions_are_managed_by_service %}
+          {%
+            do rows.append({
+              "key": {"text": "Guidance for multiple submissions (optional)"},
+              "value": {"html": collection.submission_guidance | replace("\n", "<br>" | safe) if collection.submission_guidance else "Not set"},
+              "actions": {
+                "items": [{
+                  "href": url_for("deliver_grant_funding.collection_multiple_submissions_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+                  "classes": "govuk-link--no-visited-state",
+                  "text": "Change",
+                  "visuallyHiddenText": "multiple submissions guidance"
+                }]
+              } if can_edit else {}
+            })
+          %}
+        {% endif %}
       {% endif %}
 
       {{ govukSummaryList({"rows": rows}) }}
