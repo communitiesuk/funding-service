@@ -39,7 +39,7 @@ dependencies = [
     "boto3==1.43.63",
     "types-boto3[s3]==1.43.63",
     "alembic==1.18.5",
-    "charset-normalizer==3.4.7",
+    "charset-normalizer==3.4.9",
 ]
 
 [dependency-groups]
