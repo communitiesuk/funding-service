@@ -1015,7 +1015,9 @@ class TestEligibleToApplyPage:
         assert b"Create an organisation" in response.data
 
     @pytest.mark.authenticate_as("test@shared-domain.com")
-    def test_get_400s_when_multiple_organisations_match_email_domain(self, authenticated_no_role_client, factories):
+    def test_get_shows_organisation_options_when_multiple_organisations_match_email_domain(
+        self, authenticated_no_role_client, factories
+    ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
@@ -1030,7 +1032,10 @@ class TestEligibleToApplyPage:
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 200
+        assert b"Org A" in response.data
+        assert b"Org B" in response.data
+        assert b"Sign up a new organisation to apply" in response.data
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_get_with_known_grant_and_collection(self, authenticated_no_role_client, factories):

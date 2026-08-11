@@ -24,7 +24,27 @@
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <h1 class="govuk-heading-l">You are eligible to apply</h1>
 
-      {% if organisation %}
+      {% if organisations %}
+        <p class="govuk-body">Based on your answers, you’re eligible to apply for the {{ grant.name }}.</p>
+
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{ form.organisation() }}
+          {{
+            govukButton({
+              "text": "Continue",
+              "type": "submit"
+            })
+          }}
+        </form>
+
+        <h2 class="govuk-heading-m">Get help</h2>
+        <p class="govuk-body">
+          If you need help or have any questions, contact our
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>.
+        </p>
+        <p class="govuk-body">Monday to Friday 9am to 5pm (except public holidays)</p>
+      {% elif organisation %}
         <p class="govuk-body">Based on your answers, you’re eligible to apply for the {{ grant.name }}</p>
         <p class="govuk-body">Based on your email, we think you’re applying on behalf of <strong>{{ organisation.name }}</strong></p>
 
