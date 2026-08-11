@@ -61,10 +61,12 @@ from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIE
 from app.deliver_grant_funding.data_sets import (
     BritishPoundsError,
     CellError,
+    CSVDecodeError,
     DataTypeError,
     DecimalError,
     PrefixError,
     SuffixError,
+    decode_csv_bytes,
     validate_csv_cell_against_column_mapping,
 )
 from app.deliver_grant_funding.session_models import DataSetColumnMapping
@@ -1443,7 +1445,10 @@ class UploadDataSetForm(FlaskForm):
 
         field.data.stream.seek(0)
         try:
-            content = field.data.stream.read().decode("utf-8-sig")
+            try:
+                content = decode_csv_bytes(field.data.stream.read())
+            except CSVDecodeError as e:
+                raise ValidationError(str(e)) from e
             reader = csv.DictReader(io.StringIO(content))
             fieldnames = [fieldname.strip() for fieldname in reader.fieldnames or []]
             reader.fieldnames = fieldnames

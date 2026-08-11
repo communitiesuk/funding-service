@@ -138,6 +138,7 @@ from app.deliver_grant_funding.data_sets import (
     build_current_data_set_view,
     build_data_display_rows_with_missing_tags,
     build_data_set_upload_s3_key,
+    decode_csv_bytes,
     find_grant_recipient_mismatches,
     format_data_set_csv_data_for_column_type,
     generate_latest_csv_template,
@@ -4037,7 +4038,7 @@ def download_latest_data_set_template(
 
 def _parse_data_set_csv(file_storage: FileStorage) -> tuple[list[str], TUnvalidatedDataSetRows]:
     file_storage.stream.seek(0)
-    content = file_storage.stream.read().decode("utf-8-sig")
+    content = decode_csv_bytes(file_storage.stream.read())
     file_storage.stream.seek(0)
 
     reader = csv.DictReader(io.StringIO(content))
