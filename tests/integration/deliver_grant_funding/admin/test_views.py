@@ -6369,6 +6369,94 @@ class TestGrantRecipientChangeStatus:
         assert page_has_flash(soup, "Invalid status selected")
 
 
+class TestCollectionDeletePreviewSubmissions:
+    def test_action_appears_on_list_page(self, authenticated_platform_admin_client, factories, db_session):
+        factories.collection.create()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/collection/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        action_button = soup.find("button", string=lambda t: t and "Delete preview submissions" in t)
+        assert action_button is not None
+
+    def test_deletes_preview_submissions_only_for_selected_collections(
+        self, authenticated_platform_admin_client, factories, db_session, mock_s3_service_calls
+    ):
+        collection = factories.collection.create(
+            create_submissions__preview=2, create_submissions__test=1, create_submissions__live=1
+        )
+        other_collection = factories.collection.create(grant=collection.grant, create_submissions__preview=1)
+
+        for submission in collection.preview_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/collection/action/",
+            data={
+                "action": "delete_preview_submissions",
+                "rowid": str(collection.id),
+                "url": "/deliver/admin/collection/",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        db_session.expire_all()
+        assert collection.preview_submissions == []
+        assert len(collection.test_submissions) == 1
+        assert len(collection.live_submissions) == 1
+        assert len(other_collection.preview_submissions) == 1
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "2 preview submissions were deleted")
+
+        assert len(mock_s3_service_calls.delete_prefix_calls) == 1
+        assert (
+            mock_s3_service_calls.delete_prefix_calls[0].args[0] == f"uploaded-submission-files/preview/{collection.id}"
+        )
+
+    def test_creates_an_audit_event_per_deleted_submission(
+        self, authenticated_platform_admin_client, factories, db_session, mock_s3_service_calls
+    ):
+        collection = factories.collection.create(create_submissions__preview=2)
+        preview_submission_ids = {str(submission.id) for submission in collection.preview_submissions}
+
+        authenticated_platform_admin_client.post(
+            "/deliver/admin/collection/action/",
+            data={
+                "action": "delete_preview_submissions",
+                "rowid": str(collection.id),
+                "url": "/deliver/admin/collection/",
+            },
+        )
+
+        audit_events = db_session.execute(
+            AuditEvent.__table__.select().where(AuditEvent.event_type == AuditEventType.PLATFORM_ADMIN_DB_EVENT)
+        ).fetchall()
+        assert len(audit_events) == 2
+        assert all(row.data["model_class"] == "Submission" and row.data["action"] == "delete" for row in audit_events)
+        assert {row.data["model_id"] for row in audit_events} == preview_submission_ids
+
+    def test_non_platform_admin_cannot_run_action(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        collection = factories.collection.create(create_submissions__preview=1)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            "/deliver/admin/collection/action/",
+            data={
+                "action": "delete_preview_submissions",
+                "rowid": str(collection.id),
+                "url": "/deliver/admin/collection/",
+            },
+        )
+        assert response.status_code == 403
+
+        db_session.expire_all()
+        assert len(collection.preview_submissions) == 1
+
+
 class TestAdminDashboard:
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_grant_stats(self, authenticated_platform_admin_client, factories, db_session):

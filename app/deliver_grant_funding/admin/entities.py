@@ -28,7 +28,7 @@ from app.common.audit import (
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.audit import track_audit_event
-from app.common.data.interfaces.collections import delete_collection
+from app.common.data.interfaces.collections import delete_all_collection_preview_submissions, delete_collection
 from app.common.data.interfaces.grant_recipients import delete_grant_recipients
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import (
@@ -49,6 +49,7 @@ from app.common.data.types import (
     OrganisationType,
     RoleEnum,
     SubmissionEventType,
+    SubmissionModeEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.common.security.utils import sanitise_redirect_url
@@ -58,7 +59,7 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
 )
 from app.deliver_grant_funding.helpers import preview_guidance_response
-from app.extensions import db, notification_service
+from app.extensions import db, notification_service, s3_service
 from app.metrics import MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
@@ -261,6 +262,41 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
                 emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
 
         super().after_model_change(form, model, is_created)
+
+    @action(
+        "delete_preview_submissions",
+        "Delete preview submissions",
+        "Are you sure you want to delete all preview submissions for the selected collections?",
+    )
+    def delete_preview_submissions(self, ids: list[str]) -> None:
+        user = get_current_user()
+        collections = self.session.session.execute(select(Collection).where(Collection.id.in_(ids))).scalars().all()
+
+        count = 0
+        for collection in collections:
+            audit_events = [
+                create_database_model_change_for_delete(submission, user)
+                for submission in collection.preview_submissions
+            ]
+            delete_all_collection_preview_submissions(collection)
+            for audit_event in audit_events:
+                track_audit_event(audit_event, user)
+            count += len(audit_events)
+
+        self.session.session.commit()
+
+        for collection in collections:
+            s3_service.delete_prefix(collection.s3_key_prefix(submission_mode=SubmissionModeEnum.PREVIEW))
+
+        flash(
+            ngettext(
+                "%(count)s preview submission was deleted.",
+                "%(count)s preview submissions were deleted.",
+                count,
+                count=count,
+            ),
+            "success",
+        )
 
 
 class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
