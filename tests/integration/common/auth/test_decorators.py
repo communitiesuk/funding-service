@@ -679,6 +679,30 @@ class TestIsSigningUp:
             "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
+    def test_authenticated_with_mismatched_session_collection_redirects_to_start_page(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        other_collection = factories.collection.create(
+            slug="other-collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        @is_signing_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+        session["signing_up_for_collection_id"] = other_collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
     def test_still_guarded_by_collection_is_open_for_sign_up(self, factories):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.DRAFT)
         collection = factories.collection.create(

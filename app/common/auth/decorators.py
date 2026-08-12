@@ -133,14 +133,17 @@ def is_signing_up[**P](
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
         user = interfaces.user.get_current_user()
 
-        if user.is_authenticated and session.get("signing_up_for_collection_id"):
-            return func(*args, **kwargs)
-
         if "grant_slug" not in kwargs or (grant_slug := cast(str, kwargs["grant_slug"])) is None:
             raise ValueError("Grant slug required.")
 
         if "collection_slug" not in kwargs or (collection_slug := cast(str, kwargs["collection_slug"])) is None:
             raise ValueError("Collection slug required.")
+
+        grant = get_grant_by_slug(grant_slug)
+        collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+        if user.is_authenticated and session.get("signing_up_for_collection_id") == collection.id:
+            return func(*args, **kwargs)
 
         return redirect(
             url_for(
