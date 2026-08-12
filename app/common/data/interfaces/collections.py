@@ -948,6 +948,9 @@ def get_form_by_id(form_id: UUID, grant_id: UUID | None = None, with_all_questio
             selectinload(Form._all_components).joinedload(Component.expressions),
             # get any nested components in one go
             selectinload(Form._all_components).selectinload(Component.components).joinedload(Component.expressions),
+            # avoid N+1 lazy-loading owned_component_references for every component for eg. when the template checks
+            # `is_self_conditional` (which walks `owned_component_references`) for each question in the list
+            selectinload(Form._all_components).selectinload(Component.owned_component_references),
             # eagerly populate the forms top level components - this is a redundant query but leaves as much as possible
             # with the ORM
             selectinload(Form.components).joinedload(Component.expressions),
