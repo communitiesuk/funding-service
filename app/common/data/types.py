@@ -308,17 +308,6 @@ class CollectionStatusEnum(enum.StrEnum):
         return ordered_list_of_names.index(self.name) > ordered_list_of_names.index(other.name)
 
 
-class BackgroundJobStatusEnum(enum.StrEnum):
-    PENDING = "Pending"
-    RUNNING = "Running"
-    COMPLETED = "Completed"
-    FAILED = "Failed"
-
-
-class BackgroundJobTypeEnum(enum.StrEnum):
-    OPEN_COLLECTION_FOR_SUBMISSIONS = "Open collection for submissions"
-
-
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"

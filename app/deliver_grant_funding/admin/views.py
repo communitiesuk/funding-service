@@ -14,8 +14,8 @@ from flask import abort, current_app, flash, make_response, redirect, send_file,
 from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 
-from app.common.data.interfaces.background_jobs import enqueue_open_collection_for_submissions_job
 from app.common.data.interfaces.collections import (
     get_collection,
     get_collections_by_status_excluding_draft_grants,
@@ -904,7 +904,6 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             try:
                 update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
-                enqueue_open_collection_for_submissions_job(collection)
                 flash(
                     f"{collection.name} is now locked and form designers cannot make any more changes.",
                     "success",
@@ -1290,6 +1289,70 @@ class PlatformAdminDeveloperToolsView(FlaskAdminPlatformAdminAccessibleMixin, Ba
             return response
 
         return redirect(url_for("developer_tools.index"))
+
+
+class PlatformAdminBackgroundJobsView(FlaskAdminPlatformAdminAccessibleMixin, BaseView):
+    @expose("/")
+    def index(self) -> Any:
+        try:
+            queue_items = db.session.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        status::text AS status,
+                        entrypoint,
+                        dedupe_key,
+                        priority,
+                        attempts,
+                        created,
+                        updated,
+                        heartbeat,
+                        execute_after,
+                        encode(payload, 'escape') AS payload,
+                        headers
+                    FROM pgqueuer
+                    ORDER BY created DESC
+                    LIMIT 200
+                    """
+                )
+            ).mappings()
+
+            scheduled_items = db.session.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        status::text AS status,
+                        entrypoint,
+                        expression,
+                        next_run,
+                        last_run,
+                        heartbeat,
+                        created,
+                        updated
+                    FROM pgqueuer_schedules
+                    ORDER BY entrypoint, expression
+                    """
+                )
+            ).mappings()
+        except ProgrammingError as e:
+            if getattr(e.orig, "sqlstate", None) != "42P01":
+                raise
+            db.session.rollback()
+            return self.render(
+                "deliver_grant_funding/admin/background-jobs.html",
+                pgqueuer_installed=False,
+                queue_items=[],
+                scheduled_items=[],
+            )
+
+        return self.render(
+            "deliver_grant_funding/admin/background-jobs.html",
+            pgqueuer_installed=True,
+            queue_items=list(queue_items),
+            scheduled_items=list(scheduled_items),
+        )
 
 
 class PlatformAdminFeatureFlagsView(FlaskAdminPlatformMemberAccessibleMixin, BaseView):

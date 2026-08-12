@@ -1,98 +1,124 @@
 import datetime
 import uuid
+from collections.abc import Sequence
 
+from pgqueuer.queries import Queries
+from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
-from app.common.data.models import BackgroundJob, Collection
-from app.common.data.types import BackgroundJobStatusEnum, BackgroundJobTypeEnum, CollectionStatusEnum
+from app.common.data.interfaces.collections import get_collection, update_collection
+from app.common.data.models import Collection, Grant
+from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
 from app.extensions import db
 
+OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT = "open_collection_for_submissions"
+SCAN_COLLECTION_OPENINGS_SCHEDULE = "scan_collection_openings"
 
-def open_collection_for_submissions_idempotency_key(collection: Collection) -> str:
-    return f"collection:{collection.id}:open-for-submissions"
+
+class OpenCollectionForSubmissionsJob(BaseModel):
+    collection_id: uuid.UUID
+    submission_period_start_date: datetime.date | None = None
+
+    @property
+    def dedupe_key(self) -> str:
+        return f"{OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT}:{self.collection_id}"
 
 
-def enqueue_open_collection_for_submissions_job(collection: Collection) -> BackgroundJob:
-    """Create the background job that will eventually open a scheduled collection.
-
-    This is intentionally small for the PoC.
-    """
-    if not collection.submission_period_start_date:
-        raise ValueError("Cannot enqueue open collection job without a submission period start date")
-
-    idempotency_key = open_collection_for_submissions_idempotency_key(collection)
-    run_after_utc = datetime.datetime.combine(
-        collection.submission_period_start_date,
-        datetime.time.min,
-    )
-
-    db.session.execute(
-        insert(BackgroundJob)
-        .values(
-            id=uuid.uuid4(),
-            job_type=BackgroundJobTypeEnum.OPEN_COLLECTION_FOR_SUBMISSIONS,
-            status=BackgroundJobStatusEnum.PENDING,
-            idempotency_key=idempotency_key,
-            payload={"collection_id": str(collection.id)},
-            run_after_utc=run_after_utc,
-            collection_id=collection.id,
+def get_collections_to_schedule_opening() -> Sequence[Collection]:
+    statement = (
+        select(Collection)
+        .join(Collection.grant)
+        .where(
+            Collection.status == CollectionStatusEnum.SCHEDULED,
+            Collection.submission_period_start_date.isnot(None),
+            Grant.status == GrantStatusEnum.LIVE,
         )
-        .on_conflict_do_nothing(index_elements=["idempotency_key"])
+        .order_by(Collection.submission_period_start_date, Collection.created_at_utc)
     )
-    job = db.session.scalar(select(BackgroundJob).where(BackgroundJob.idempotency_key == idempotency_key))
-    if not job:
-        raise RuntimeError(f"Could not enqueue or find background job for {idempotency_key}")
-    return job
+    return db.session.scalars(statement).unique().all()
 
 
-def claim_next_due_background_job(*, now: datetime.datetime | None = None) -> BackgroundJob | None:
-    now = now or datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-    job = db.session.scalar(
-        select(BackgroundJob)
-        .where(BackgroundJob.status == BackgroundJobStatusEnum.PENDING)
-        .where(BackgroundJob.run_after_utc <= now)
-        .order_by(BackgroundJob.run_after_utc, BackgroundJob.created_at_utc)
-        .with_for_update(skip_locked=True)
-        .limit(1)
+def _execute_after_for_submission_start_date(submission_period_start_date: datetime.date) -> datetime.timedelta:
+    run_at = datetime.datetime.combine(submission_period_start_date, datetime.time.min, tzinfo=datetime.UTC)
+    return max(run_at - datetime.datetime.now(datetime.UTC), datetime.timedelta())
+
+
+async def enqueue_or_update_open_collection_for_submissions_job(
+    queries: Queries,
+    job: OpenCollectionForSubmissionsJob,
+) -> bool:
+    if job.submission_period_start_date is None:
+        raise ValueError("Cannot queue collection opening job without a submission start date")
+
+    payload = job.model_dump_json().encode()
+    execute_after = _execute_after_for_submission_start_date(job.submission_period_start_date)
+
+    updated_rows = await queries.driver.fetch(
+        """
+        UPDATE pgqueuer
+        SET
+            payload = $1,
+            execute_after = NOW() + $2::interval,
+            updated = NOW()
+        WHERE dedupe_key = $3
+        AND entrypoint = $4
+        AND status = 'queued'
+        RETURNING id
+        """,
+        payload,
+        execute_after,
+        job.dedupe_key,
+        OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT,
     )
-    if not job:
-        return None
+    if updated_rows:
+        return True
 
-    job.status = BackgroundJobStatusEnum.RUNNING
-    job.attempts += 1
-    job.locked_at_utc = now
-    return job
-
-
-def mark_background_job_completed(job: BackgroundJob, *, now: datetime.datetime | None = None) -> None:
-    now = now or datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-    job.status = BackgroundJobStatusEnum.COMPLETED
-    job.completed_at_utc = now
-    job.failed_at_utc = None
-    job.last_error = None
+    job_ids = await queries.enqueue(
+        OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT,
+        payload,
+        execute_after=execute_after,
+        dedupe_key=job.dedupe_key,
+        on_conflict="skip",
+    )
+    return job_ids[0] is not None
 
 
-def mark_background_job_failed(job: BackgroundJob, *, error: Exception, now: datetime.datetime | None = None) -> None:
-    now = now or datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
-    job.status = BackgroundJobStatusEnum.FAILED
-    job.failed_at_utc = now
-    job.last_error = str(error)
+async def enqueue_collection_opening_jobs(queries: Queries) -> int:
+    queued_count = 0
+    jobs = [
+        OpenCollectionForSubmissionsJob(
+            collection_id=collection.id,
+            submission_period_start_date=collection.submission_period_start_date,
+        )
+        for collection in get_collections_to_schedule_opening()
+        if collection.submission_period_start_date
+    ]
+    db.session.rollback()
+
+    for job in jobs:
+        if await enqueue_or_update_open_collection_for_submissions_job(queries, job):
+            queued_count += 1
+
+    return queued_count
 
 
-def open_collection_for_submissions(job: BackgroundJob) -> None:
-    from app.common.data.interfaces.collections import update_collection
-
-    collection = job.collection
-    if not collection:
-        raise ValueError(f"Background job {job.id} has no collection")
+def open_collection_for_submissions(job: OpenCollectionForSubmissionsJob) -> bool:
+    collection = get_collection(job.collection_id)
 
     if collection.status == CollectionStatusEnum.OPEN:
-        return
+        return False
 
     if collection.status != CollectionStatusEnum.SCHEDULED:
         raise ValueError(
             f"Cannot open collection {collection.id} from status {collection.status.value}; expected Scheduled to open"
         )
 
+    if collection.grant.status != GrantStatusEnum.LIVE:
+        return False
+
+    today = datetime.datetime.now(datetime.UTC).date()
+    if collection.submission_period_start_date is None or collection.submission_period_start_date > today:
+        return False
+
     update_collection(collection, status=CollectionStatusEnum.OPEN)
+    return True

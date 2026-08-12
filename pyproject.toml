@@ -39,6 +39,7 @@ dependencies = [
     "boto3==1.43.63",
     "types-boto3[s3]==1.43.58",
     "alembic==1.18.5",
+    "pgqueuer==1.2.0",
 ]
 
 [dependency-groups]

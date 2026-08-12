@@ -10,6 +10,7 @@ from alembic.operations import MigrationScript
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from alembic.script.base import _slug_re
+from alembic_postgresql_enum import Config, set_configuration
 from alembic_utils.pg_extension import PGExtension
 from alembic_utils.replaceable_entity import register_entities
 from flask import current_app
@@ -53,6 +54,20 @@ target_metadata = BaseModel.metadata
 
 config.set_main_option("sqlalchemy.url", get_engine_url())
 target_db = current_app.extensions["migrate"].db
+PGQUEUER_TABLES = {"pgqueuer", "pgqueuer_log", "pgqueuer_statistics", "pgqueuer_schedules"}
+PGQUEUER_ENUMS = {"pgqueuer_status"}
+
+
+def include_name(name: str | None, type_: str, parent_names: dict[str, str | None]) -> bool:
+    del parent_names
+    if type_ == "table" and name in PGQUEUER_TABLES:
+        return False
+    if type_ in {"function", "trigger"} and name and "pgqueuer" in name:
+        return False
+    return True
+
+
+set_configuration(Config(include_name=lambda name: name not in PGQUEUER_ENUMS))
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -128,6 +143,8 @@ def run_migrations_online() -> None:
     conf_args = current_app.extensions["migrate"].configure_args
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
+    if conf_args.get("include_name") is None:
+        conf_args["include_name"] = include_name
 
     connectable = get_engine()
 
