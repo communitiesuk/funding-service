@@ -570,11 +570,77 @@ class TestUpdateCollection:
         updated = update_collection(
             collection,
             allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=False,
             submission_name_question_id=question.id,
+            submission_guidance="  Some guidance  ",
         )
 
         assert updated.allow_multiple_submissions is True
+        assert updated.multiple_submissions_are_managed_by_service is False
         assert updated.submission_name_question_id == question.id
+        assert updated.submission_guidance == "Some guidance"
+
+    def test_update_collection_enable_multiple_submissions_managed_by_service(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=True,
+            submission_name_question_id=question.id,
+            submission_guidance=None,
+        )
+
+        assert updated.allow_multiple_submissions is True
+        assert updated.multiple_submissions_are_managed_by_service is True
+        assert updated.submission_name_question_id == question.id
+        assert updated.submission_guidance is None
+
+    def test_update_collection_enable_multiple_submissions_stores_blank_guidance_as_none(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=False,
+            submission_name_question_id=question.id,
+            submission_guidance="   ",
+        )
+
+        assert updated.submission_guidance is None
+
+    @pytest.mark.parametrize(
+        "partial_settings",
+        [
+            {"allow_multiple_submissions": True},
+            {"multiple_submissions_are_managed_by_service": True},
+            {"submission_name_question_id": None},
+            {"submission_guidance": "Some guidance"},
+            {"allow_multiple_submissions": True, "multiple_submissions_are_managed_by_service": False},
+            {"allow_multiple_submissions": False, "submission_name_question_id": None, "submission_guidance": None},
+        ],
+    )
+    def test_update_collection_multiple_submission_settings_raise_unless_all_provided(
+        self, db_session, factories, partial_settings
+    ):
+        collection = factories.collection.create()
+
+        with pytest.raises(ValueError, match="must all be provided together"):
+            update_collection(collection, **partial_settings)
+
+    def test_update_collection_enable_multiple_submissions_without_question_raises(self, db_session, factories):
+        collection = factories.collection.create()
+
+        with pytest.raises(ValueError, match="submission_name_question_id must be provided"):
+            update_collection(
+                collection,
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=False,
+                submission_name_question_id=None,
+                submission_guidance=None,
+            )
 
     def test_update_collection_enable_public_sign_Up(self, db_session, factories):
         collection = factories.collection.create()
@@ -590,38 +656,50 @@ class TestUpdateCollection:
 
         assert updated.allow_public_sign_up is False
 
-    def test_update_collection_disable_multiple_submissions_clears_question(self, db_session, factories):
+    def test_update_collection_disable_multiple_submissions_clears_settings(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         collection = question.form.collection
         collection.allow_multiple_submissions = True
         collection.submission_name_question_id = question.id
+        collection.multiple_submissions_are_managed_by_service = True
+        collection.submission_guidance = "Existing guidance"
         db_session.commit()
 
-        updated = update_collection(collection, allow_multiple_submissions=False)
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=False,
+            multiple_submissions_are_managed_by_service=False,
+            submission_name_question_id=None,
+            submission_guidance=None,
+        )
 
         assert updated.allow_multiple_submissions is False
+        assert updated.multiple_submissions_are_managed_by_service is False
         assert updated.submission_name_question_id is None
+        assert updated.submission_guidance is None
 
-    def test_update_collection_submission_name_question_raises_when_not_multiple(self, db_session, factories):
+    @pytest.mark.parametrize(
+        "setting", ["multiple_submissions_are_managed_by_service", "submission_name_question_id", "submission_guidance"]
+    )
+    def test_update_collection_disable_multiple_submissions_raises_for_enabled_values(
+        self, db_session, factories, setting
+    ):
         collection = factories.collection.create()
         question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        enabled_values = {
+            "multiple_submissions_are_managed_by_service": True,
+            "submission_name_question_id": question.id,
+            "submission_guidance": "Some guidance",
+        }
+        settings = {
+            "allow_multiple_submissions": False,
+            "multiple_submissions_are_managed_by_service": False,
+            "submission_name_question_id": None,
+            "submission_guidance": None,
+        } | {setting: enabled_values[setting]}
 
-        with pytest.raises(ValueError, match="submission_name_question_id cannot be set"):
-            update_collection(
-                collection,
-                allow_multiple_submissions=False,
-                submission_name_question_id=question.id,
-            )
-
-    def test_update_collection_submission_name_question_raises_when_multiple_not_provided(self, db_session, factories):
-        collection = factories.collection.create()
-        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
-
-        with pytest.raises(ValueError, match="submission_name_question_id cannot be set"):
-            update_collection(
-                collection,
-                submission_name_question_id=question.id,
-            )
+        with pytest.raises(ValueError, match="allow_multiple_submissions cannot be set to False"):
+            update_collection(collection, **settings)
 
     def test_update_collection_disable_multiple_submissions_raises_when_submissions_exist(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
@@ -636,7 +714,13 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(ValueError, match="Cannot disable multiple submissions"):
-            update_collection(collection, allow_multiple_submissions=False)
+            update_collection(
+                collection,
+                allow_multiple_submissions=False,
+                multiple_submissions_are_managed_by_service=False,
+                submission_name_question_id=None,
+                submission_guidance=None,
+            )
 
     def test_update_collection_disable_multiple_submissions_allows_preview_submissions(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
@@ -650,84 +734,40 @@ class TestUpdateCollection:
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
         )
 
-        update_collection(collection, allow_multiple_submissions=False)
+        update_collection(
+            collection,
+            allow_multiple_submissions=False,
+            multiple_submissions_are_managed_by_service=False,
+            submission_name_question_id=None,
+            submission_guidance=None,
+        )
 
         assert collection.allow_multiple_submissions is False
 
-    def test_update_collection_disable_multiple_submissions_allowed_when_no_submissions(self, db_session, factories):
-        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        collection = question.form.collection
-        collection.allow_multiple_submissions = True
-        collection.submission_name_question_id = question.id
-        db_session.commit()
-
-        updated = update_collection(collection, allow_multiple_submissions=False)
-
-        assert updated.allow_multiple_submissions is False
-        assert updated.submission_name_question_id is None
-
     def test_update_collection_submission_name_question_raises_for_nonexistent_id(self, db_session, factories):
-        collection = factories.collection.create(allow_multiple_submissions=True)
+        collection = factories.collection.create()
 
-        with pytest.raises(ValueError):
-            update_collection(collection, submission_name_question_id=uuid.uuid4())
+        with pytest.raises(ValueError, match="submission_name_question_id must be a question ID"):
+            update_collection(
+                collection,
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=False,
+                submission_name_question_id=uuid.uuid4(),
+                submission_guidance=None,
+            )
 
     def test_update_collection_submission_name_question_raises_for_group(self, db_session, factories):
-        collection = factories.collection.create(allow_multiple_submissions=True)
+        collection = factories.collection.create()
         group = factories.group.create(form__collection=collection)
 
-        with pytest.raises(ValueError):
-            update_collection(collection, submission_name_question_id=group.id)
-
-    def test_update_collection_clear_submission_name_question_allowed_when_multiple_not_allowed(
-        self, db_session, factories
-    ):
-        collection = factories.collection.create()
-
-        updated = update_collection(collection, submission_name_question_id=None)
-
-        assert updated.submission_name_question_id is None
-
-    def test_update_collection_enable_multiple_submissions_managed_by_service(self, db_session, factories):
-        collection = factories.collection.create()
-        question = factories.question.create(form__collection=collection, data_type=QuestionDataType.TEXT_SINGLE_LINE)
-
-        updated = update_collection(
-            collection,
-            allow_multiple_submissions=True,
-            multiple_submissions_are_managed_by_service=True,
-            submission_name_question_id=question.id,
-        )
-
-        assert updated.allow_multiple_submissions is True
-        assert updated.multiple_submissions_are_managed_by_service is True
-
-    def test_update_collection_managed_by_service_raises_when_multiple_not_allowed(self, db_session, factories):
-        collection = factories.collection.create()
-
-        with pytest.raises(ValueError, match="multiple_submissions_are_managed_by_service cannot be set"):
-            update_collection(collection, multiple_submissions_are_managed_by_service=True)
-
-    def test_update_collection_managed_by_service_false_allowed_when_multiple_not_allowed(self, db_session, factories):
-        collection = factories.collection.create()
-
-        updated = update_collection(collection, multiple_submissions_are_managed_by_service=False)
-
-        assert updated.multiple_submissions_are_managed_by_service is False
-
-    def test_update_collection_disable_multiple_submissions_clears_managed_by_service(self, db_session, factories):
-        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        collection = question.form.collection
-        collection.allow_multiple_submissions = True
-        collection.submission_name_question_id = question.id
-        collection.multiple_submissions_are_managed_by_service = True
-        db_session.commit()
-
-        updated = update_collection(collection, allow_multiple_submissions=False)
-
-        assert updated.allow_multiple_submissions is False
-        assert updated.multiple_submissions_are_managed_by_service is False
-        assert updated.submission_name_question_id is None
+        with pytest.raises(ValueError, match="submission_name_question_id must be a question ID"):
+            update_collection(
+                collection,
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=False,
+                submission_name_question_id=group.id,
+                submission_guidance=None,
+            )
 
     def test_update_collection_change_submission_name_question_raises_when_live_submissions_exist(
         self, db_session, factories
@@ -745,7 +785,13 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(ValueError, match="Cannot change the submission name question"):
-            update_collection(collection, submission_name_question_id=other_question.id)
+            update_collection(
+                collection,
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=False,
+                submission_name_question_id=other_question.id,
+                submission_guidance=None,
+            )
 
     def test_update_collection_change_submission_name_question_raises_when_test_submissions_exist(
         self, db_session, factories
@@ -763,24 +809,13 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(ValueError, match="Cannot change the submission name question"):
-            update_collection(collection, submission_name_question_id=other_question.id)
-
-    def test_update_collection_clear_submission_name_question_raises_when_submissions_exist(
-        self, db_session, factories
-    ):
-        question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
-        collection = question.form.collection
-        collection.allow_multiple_submissions = True
-        collection.submission_name_question_id = question.id
-        db_session.flush()
-        factories.submission.create(
-            collection=collection,
-            mode=SubmissionModeEnum.LIVE,
-            answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
-        )
-
-        with pytest.raises(ValueError, match="Cannot change the submission name question"):
-            update_collection(collection, submission_name_question_id=None)
+            update_collection(
+                collection,
+                allow_multiple_submissions=True,
+                multiple_submissions_are_managed_by_service=False,
+                submission_name_question_id=other_question.id,
+                submission_guidance=None,
+            )
 
     def test_update_collection_same_submission_name_question_allowed_when_submissions_exist(
         self, db_session, factories
@@ -796,7 +831,13 @@ class TestUpdateCollection:
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
         )
 
-        updated = update_collection(collection, submission_name_question_id=question.id)
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=False,
+            submission_name_question_id=question.id,
+            submission_guidance=None,
+        )
 
         assert updated.submission_name_question_id == question.id
 
@@ -813,7 +854,13 @@ class TestUpdateCollection:
             answers=[FactoryAnswer(question, TextSingleLineAnswer("Project A"))],
         )
 
-        updated = update_collection(collection, submission_name_question_id=other_question.id)
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=False,
+            submission_name_question_id=other_question.id,
+            submission_guidance=None,
+        )
 
         assert updated.submission_name_question_id == other_question.id
 
@@ -825,23 +872,15 @@ class TestUpdateCollection:
         collection.submission_name_question_id = question.id
         db_session.commit()
 
-        updated = update_collection(collection, submission_name_question_id=other_question.id)
+        updated = update_collection(
+            collection,
+            allow_multiple_submissions=True,
+            multiple_submissions_are_managed_by_service=False,
+            submission_name_question_id=other_question.id,
+            submission_guidance=None,
+        )
 
         assert updated.submission_name_question_id == other_question.id
-
-    def test_update_collection_submission_guidance(self, db_session, factories):
-        collection = factories.collection.create()
-
-        updated = update_collection(collection, submission_guidance="## Some markdown heading")
-
-        assert updated.submission_guidance == "## Some markdown heading"
-
-    def test_update_collection_clear_submission_guidance(self, db_session, factories):
-        collection = factories.collection.create(submission_guidance="Existing guidance")
-
-        updated = update_collection(collection, submission_guidance=None)
-
-        assert updated.submission_guidance is None
 
     def test_update_collection_without_arguments(self, db_session, factories):
         collection = factories.collection.create(
