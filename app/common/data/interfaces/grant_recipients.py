@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from sqlalchemy import String, cast, delete, func, select
+from sqlalchemy import String, cast, delete, func, select, text
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
@@ -133,6 +133,34 @@ def get_grant_recipient_or_none(grant_id: uuid.UUID, organisation_id: uuid.UUID)
         .options(joinedload(GrantRecipient.grant), joinedload(GrantRecipient.organisation))
     )
     return db.session.scalars(statement).one_or_none()
+
+
+def get_or_create_grant_recipient(
+    grant: Grant,
+    organisation: Organisation,
+    status: GrantRecipientStatusEnum,
+    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
+) -> GrantRecipient:
+    # Acquire a transaction-scoped advisory lock keyed on (grant, organisation) BEFORE reading, to
+    # prevent the double-click race condition: without the lock, two concurrent requests can both
+    # read no existing grant recipient and each proceed to create one before either commits. The
+    # lock serialises them so the second request re-reads after the first commits and finds the
+    # grant recipient the first request created, rather than creating a duplicate. See
+    # get_or_create_submission for the same pattern applied to submissions.
+    db.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{grant.id}:{organisation.id}"},
+    )
+
+    existing = get_grant_recipient_or_none(grant.id, organisation.id)
+    if existing:
+        return existing
+
+    create_grant_recipients(grant=grant, organisation_ids=[organisation.id], status=status, mode=mode)
+
+    grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
+    assert grant_recipient is not None
+    return grant_recipient
 
 
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:

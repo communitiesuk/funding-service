@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
@@ -14,6 +15,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipients_for_collection_with_locked_submissions,
     get_grant_recipients_for_organisation,
     get_grant_recipients_with_outstanding_submissions_for_collection,
+    get_or_create_grant_recipient,
 )
 from app.common.data.models import GrantRecipient
 from app.common.data.types import (
@@ -473,6 +475,43 @@ class TestGetGrantRecipientOrNone:
         organisation = factories.organisation.create()
 
         assert get_grant_recipient_or_none(grant.id, organisation.id) is None
+
+
+class TestGetOrCreateGrantRecipient:
+    def test_creates_grant_recipient_when_none_exists(self, factories, db_session):
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+
+        result = get_or_create_grant_recipient(grant, organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert result.grant == grant
+        assert result.organisation == organisation
+        assert result.status == GrantRecipientStatusEnum.APPLYING
+
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).all()
+        assert len(grant_recipients) == 1
+
+    def test_returns_existing_grant_recipient_without_creating_duplicate(self, factories, db_session):
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+        existing = factories.grant_recipient.create(
+            grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
+        )
+
+        result = get_or_create_grant_recipient(grant, organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert result.id == existing.id
+
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).all()
+        assert len(grant_recipients) == 1
 
 
 class TestGetGrantRecipientsCount:
