@@ -169,7 +169,7 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     user = interfaces.user.get_current_user()
-    email_domain = interfaces.user.get_email_domain(user)
+    email_domain = user.email_domain
 
     # TODO: Filter by LIVE org when public sign off
     # If logged in deliver user testing this journey, filter for TEST organisation.

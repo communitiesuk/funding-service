@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from itertools import groupby
 from typing import cast
 
-from email_validator import validate_email
 from flask import current_app
 from flask_login import current_user
 from sqlalchemy import and_, func, or_, update
@@ -39,10 +38,6 @@ def get_user_by_email(email_address: str) -> User | None:
 
 def get_user_by_azure_ad_subject_id(azure_ad_subject_id: str) -> User | None:
     return db.session.execute(select(User).where(User.azure_ad_subject_id == azure_ad_subject_id)).scalar_one_or_none()
-
-
-def get_email_domain(user: User) -> str:
-    return validate_email(user.email, check_deliverability=False).domain
 
 
 def get_users_with_permission(

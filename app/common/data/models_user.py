@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from email_validator import validate_email
 from pytz import utc
 from sqlalchemy import CheckConstraint, ColumnElement, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy import Enum as SqlEnum
@@ -139,6 +140,10 @@ class User(BaseModel):
 
     def get_id(self) -> str | None:
         return str(self.id)
+
+    @property
+    def email_domain(self) -> str:
+        return validate_email(self.email, check_deliverability=False).domain
 
 
 class UserRole(BaseModel):
