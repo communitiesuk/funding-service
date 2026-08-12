@@ -1177,6 +1177,39 @@ class TestGetFormById:
 
         assert count == 10 and queries == []
 
+    def test_get_form_with_all_questions_does_not_n_plus_1_on_component_references(
+        self, db_session, factories, track_sql_queries
+    ):
+        form = factories.form.create()
+        form_id = form.id
+        independent_question = factories.question.create(form=form, name="allocation amount")
+        factories.question.create_batch(
+            5,
+            form=form,
+            hint=InterpolationStatement(
+                "Referencing " + ExpressionReference.from_question(independent_question).wrapped
+            ),
+        )
+
+        with track_sql_queries() as queries:
+            from_db = get_form_by_id(form_id=form_id, with_all_questions=True)
+
+        # Expected queries:
+        # * Load the form
+        # * Load all flat components and their expressions
+        # * Load any nested components and their expressions
+        # * Load every component's set of owned component references
+        # * Load the form's top-level components and their expressions (redundant, but left with the ORM)
+        assert len(queries) == 5
+
+        count = 0
+        with track_sql_queries() as queries:
+            for component in from_db.cached_all_components:
+                for _ocr in component.owned_component_references:
+                    count += 1
+
+        assert count == 5 and len(queries) == 0
+
     def test_get_form_with_grant(self, db_session, factories, track_sql_queries):
         form = factories.form.create()
 
