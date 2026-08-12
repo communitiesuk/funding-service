@@ -377,9 +377,9 @@ def update_collection(  # noqa: C901
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     multiple_submissions_are_managed_by_service: bool | TNotProvided = NOT_PROVIDED,
-    allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
+    allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
@@ -461,9 +461,6 @@ def update_collection(  # noqa: C901
             )
         collection.multiple_submissions_are_managed_by_service = multiple_submissions_are_managed_by_service
 
-    if allow_public_sign_up is not NOT_PROVIDED:
-        collection.allow_public_sign_up = allow_public_sign_up
-
     if submission_name_question_id is not NOT_PROVIDED:
         if submission_name_question_id is not None and not collection.allow_multiple_submissions:
             raise ValueError("submission_name_question_id cannot be set when allow_multiple_submissions is not enabled")
@@ -493,6 +490,9 @@ def update_collection(  # noqa: C901
     if submission_guidance is not NOT_PROVIDED:
         stripped = submission_guidance.strip() if submission_guidance else None
         collection.submission_guidance = stripped or None
+
+    if allow_public_sign_up is not NOT_PROVIDED:
+        collection.allow_public_sign_up = allow_public_sign_up
 
     if reminder_email_business_days_before_closing is not NOT_PROVIDED:
         collection.reminder_email_business_days_before_closing = reminder_email_business_days_before_closing
