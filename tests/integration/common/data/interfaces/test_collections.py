@@ -28,6 +28,7 @@ from app.common.data.interfaces.collections import (
     create_form,
     create_group,
     create_question,
+    delete_all_collection_preview_submissions,
     delete_collection,
     delete_collection_preview_submissions_created_by_user,
     delete_form,
@@ -5862,6 +5863,52 @@ class TestResetAllTestSubmissions:
         assert len(remaining_test) == 0
         assert len(remaining_live) == 2
         assert len(remaining_live_events) == 2
+
+
+class TestDeleteAllCollectionPreviewSubmissions:
+    def test_deletes_all_preview_submissions_and_their_events(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__preview=3)
+        preview_submission_ids = [s.id for s in collection.preview_submissions]
+
+        for submission in collection.preview_submissions:
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        delete_all_collection_preview_submissions(collection)
+
+        remaining_submissions = db_session.query(Submission).where(Submission.id.in_(preview_submission_ids)).all()
+        remaining_events = (
+            db_session.query(SubmissionEvent).where(SubmissionEvent.submission_id.in_(preview_submission_ids)).all()
+        )
+
+        assert len(remaining_submissions) == 0
+        assert len(remaining_events) == 0
+
+    def test_does_not_delete_live_or_test_submissions_or_other_collections_submissions(self, db_session, factories):
+        collection = factories.collection.create(
+            create_submissions__preview=2, create_submissions__test=1, create_submissions__live=2
+        )
+        other_collection = factories.collection.create(create_submissions__preview=2)
+
+        for submission in (
+            collection.preview_submissions
+            + collection.test_submissions
+            + collection.live_submissions
+            + other_collection.preview_submissions
+        ):
+            factories.submission_event.create(submission=submission, created_by=submission.created_by)
+
+        delete_all_collection_preview_submissions(collection)
+
+        remaining_preview = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.PREVIEW).all()
+        remaining_test = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.TEST).all()
+        remaining_live = db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.LIVE).all()
+        remaining_events = db_session.query(SubmissionEvent).all()
+
+        assert {s.collection_id for s in remaining_preview} == {other_collection.id}
+        assert len(remaining_preview) == 2
+        assert len(remaining_test) == 1
+        assert len(remaining_live) == 2
+        assert len(remaining_events) == 5
 
 
 class TestValidateReference:
