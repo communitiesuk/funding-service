@@ -377,9 +377,9 @@ def update_collection(  # noqa: C901
     submission_period_end_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
     allow_multiple_submissions: bool | TNotProvided = NOT_PROVIDED,
     multiple_submissions_are_managed_by_service: bool | TNotProvided = NOT_PROVIDED,
-    allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
+    allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
@@ -435,64 +435,81 @@ def update_collection(  # noqa: C901
         collection.submission_period_start_date = submission_period_start_date
         collection.submission_period_end_date = submission_period_end_date
 
-    if allow_multiple_submissions is not NOT_PROVIDED:
+    if (
+        allow_multiple_submissions is not NOT_PROVIDED
+        or multiple_submissions_are_managed_by_service is not NOT_PROVIDED
+        or submission_name_question_id is not NOT_PROVIDED
+        or submission_guidance is not NOT_PROVIDED
+    ):
         if (
-            not allow_multiple_submissions
-            and collection.allow_multiple_submissions
-            and collection.submission_name_question_id is not None
-            and collection.id is not None
+            allow_multiple_submissions is NOT_PROVIDED
+            or multiple_submissions_are_managed_by_service is NOT_PROVIDED
+            or submission_name_question_id is NOT_PROVIDED
+            or submission_guidance is NOT_PROVIDED
         ):
-            if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
-                raise ValueError(
-                    "Cannot disable multiple submissions: submissions already exist for this "
-                    f"{collection.type.constants.singular}"
-                )
-
-        collection.allow_multiple_submissions = allow_multiple_submissions
-        if not allow_multiple_submissions:
-            collection.submission_name_question_id = None
-            collection.multiple_submissions_are_managed_by_service = False
-
-    if multiple_submissions_are_managed_by_service is not NOT_PROVIDED:
-        if multiple_submissions_are_managed_by_service and not collection.allow_multiple_submissions:
             raise ValueError(
-                "multiple_submissions_are_managed_by_service cannot be set when allow_multiple_submissions "
-                "is not enabled"
+                "allow_multiple_submissions, multiple_submissions_are_managed_by_service, "
+                "submission_name_question_id and submission_guidance must all be provided together"
             )
-        collection.multiple_submissions_are_managed_by_service = multiple_submissions_are_managed_by_service
 
-    if allow_public_sign_up is not NOT_PROVIDED:
-        collection.allow_public_sign_up = allow_public_sign_up
+        if allow_multiple_submissions:
+            if submission_name_question_id is None:
+                raise ValueError("submission_name_question_id must be provided when enabling multiple submissions")
 
-    if submission_name_question_id is not NOT_PROVIDED:
-        if submission_name_question_id is not None and not collection.allow_multiple_submissions:
-            raise ValueError("submission_name_question_id cannot be set when allow_multiple_submissions is not enabled")
+            if (
+                collection.submission_name_question_id is not None
+                and submission_name_question_id != collection.submission_name_question_id
+            ):
+                if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
+                    raise ValueError(
+                        "Cannot change the submission name question: submissions already exist for this "
+                        f"{collection.type.constants.singular}"
+                    )
 
-        if (
-            collection.submission_name_question_id is not None
-            and submission_name_question_id != collection.submission_name_question_id
-        ):
-            if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
-                raise ValueError(
-                    "Cannot change the submission name question: submissions already exist for this "
-                    f"{collection.type.constants.singular}"
-                )
-
-        if submission_name_question_id:
             try:
                 submission_name_question = get_question_by_id(submission_name_question_id)
-                if submission_name_question_id and (
-                    not submission_name_question or not submission_name_question.is_question
-                ):
+                if not submission_name_question or not submission_name_question.is_question:
                     raise ValueError("submission_name_question_id must be a question ID")
             except NoResultFound as e:
                 raise ValueError("submission_name_question_id must be a question ID") from e
 
-        collection.submission_name_question_id = submission_name_question_id
+            stripped_guidance = submission_guidance.strip() if submission_guidance else None
 
-    if submission_guidance is not NOT_PROVIDED:
-        stripped = submission_guidance.strip() if submission_guidance else None
-        collection.submission_guidance = stripped or None
+            collection.allow_multiple_submissions = True
+            collection.multiple_submissions_are_managed_by_service = multiple_submissions_are_managed_by_service
+            collection.submission_name_question_id = submission_name_question_id
+            collection.submission_guidance = stripped_guidance or None
+
+        else:
+            if (
+                collection.allow_multiple_submissions
+                and collection.submission_name_question_id is not None
+                and collection.id is not None
+            ):
+                if len(collection.live_submissions) > 0 or len(collection.test_submissions) > 0:
+                    raise ValueError(
+                        "Cannot disable multiple submissions: submissions already exist for this "
+                        f"{collection.type.constants.singular}"
+                    )
+
+            if (
+                multiple_submissions_are_managed_by_service is not False
+                or submission_name_question_id is not None
+                or submission_guidance is not None
+            ):
+                raise ValueError(
+                    "allow_multiple_submissions cannot be set to False when "
+                    "multiple_submissions_are_managed_by_service is not False, submission_name_question_id is not None "
+                    "or submission_guidance is not None"
+                )
+
+            collection.allow_multiple_submissions = False
+            collection.submission_name_question_id = None
+            collection.multiple_submissions_are_managed_by_service = False
+            collection.submission_guidance = None
+
+    if allow_public_sign_up is not NOT_PROVIDED:
+        collection.allow_public_sign_up = allow_public_sign_up
 
     if reminder_email_business_days_before_closing is not NOT_PROVIDED:
         collection.reminder_email_business_days_before_closing = reminder_email_business_days_before_closing
