@@ -4,15 +4,18 @@ import io
 
 import pytest
 from bs4 import BeautifulSoup
+from sqlalchemy import select
 
 from app import CollectionAdminEmailTypeEnum
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_user, get_user_by_email
-from app.common.data.models import Grant, Organisation
+from app.common.data.models import BackgroundJob, Grant, Organisation
 from app.common.data.models_audit import AuditEvent
 from app.common.data.types import (
     AuditEventType,
+    BackgroundJobStatusEnum,
+    BackgroundJobTypeEnum,
     CollectionStatusEnum,
     CollectionType,
     DataSourceType,
@@ -4287,6 +4290,17 @@ class TestScheduleReport:
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
+        background_job = db_session.scalar(
+            select(BackgroundJob).where(
+                BackgroundJob.idempotency_key == f"collection:{collection.id}:open-for-submissions"
+            )
+        )
+        assert background_job is not None
+        assert background_job.job_type == BackgroundJobTypeEnum.OPEN_COLLECTION_FOR_SUBMISSIONS
+        assert background_job.status == BackgroundJobStatusEnum.PENDING
+        assert background_job.collection_id == collection.id
+        assert background_job.payload == {"collection_id": str(collection.id)}
+        assert background_job.run_after_utc == datetime.datetime(2024, 4, 1)
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now locked")

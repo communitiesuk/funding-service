@@ -42,6 +42,8 @@ from app.common.data.types import (
     MONITORING_COLLECTIONS,
     PRE_AWARD_COLLECTIONS,
     SUBMITTED_STATUSES,
+    BackgroundJobStatusEnum,
+    BackgroundJobTypeEnum,
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
@@ -484,6 +486,34 @@ class Collection(BaseModel):
 
     def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
         return [form.title for form in self.forms if str(form.id) in form_ids]
+
+
+class BackgroundJob(BaseModel):
+    __tablename__ = "background_job"
+
+    job_type: Mapped[BackgroundJobTypeEnum] = mapped_column(
+        SqlEnum(BackgroundJobTypeEnum, name="background_job_type", validate_strings=True)
+    )
+    status: Mapped[BackgroundJobStatusEnum] = mapped_column(
+        SqlEnum(BackgroundJobStatusEnum, name="background_job_status", validate_strings=True),
+        default=BackgroundJobStatusEnum.PENDING,
+    )
+    idempotency_key: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    run_after_utc: Mapped[datetime.datetime]
+    attempts: Mapped[int] = mapped_column(default=0)
+    locked_at_utc: Mapped[datetime.datetime | None]
+    completed_at_utc: Mapped[datetime.datetime | None]
+    failed_at_utc: Mapped[datetime.datetime | None]
+    last_error: Mapped[str | None]
+
+    collection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("collection.id"), nullable=True)
+    collection: Mapped[Collection | None] = relationship("Collection")
+
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_background_job_idempotency_key"),
+        Index("ix_background_job_pending", "status", "run_after_utc"),
+    )
 
 
 class Submission(BaseModel):
