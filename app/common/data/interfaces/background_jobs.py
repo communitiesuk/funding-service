@@ -17,86 +17,50 @@ SCAN_COLLECTION_OPENINGS_SCHEDULE = "scan_collection_openings"
 
 class OpenCollectionForSubmissionsJob(BaseModel):
     collection_id: uuid.UUID
-    submission_period_start_date: datetime.date | None = None
 
     @property
     def dedupe_key(self) -> str:
         return f"{OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT}:{self.collection_id}"
 
 
-def get_collections_to_schedule_opening() -> Sequence[Collection]:
+def get_collection_ids_due_to_open(*, today: datetime.date | None = None) -> Sequence[uuid.UUID]:
+    today = today or datetime.datetime.now(datetime.UTC).date()
     statement = (
-        select(Collection)
+        select(Collection.id)
         .join(Collection.grant)
         .where(
             Collection.status == CollectionStatusEnum.SCHEDULED,
             Collection.submission_period_start_date.isnot(None),
+            Collection.submission_period_start_date <= today,
             Grant.status == GrantStatusEnum.LIVE,
         )
         .order_by(Collection.submission_period_start_date, Collection.created_at_utc)
     )
-    return db.session.scalars(statement).unique().all()
+    return db.session.scalars(statement).all()
 
 
-def _execute_after_for_submission_start_date(submission_period_start_date: datetime.date) -> datetime.timedelta:
-    run_at = datetime.datetime.combine(submission_period_start_date, datetime.time.min, tzinfo=datetime.UTC)
-    return max(run_at - datetime.datetime.now(datetime.UTC), datetime.timedelta())
-
-
-async def enqueue_or_update_open_collection_for_submissions_job(
+async def enqueue_open_collection_for_submissions_job(
     queries: Queries,
     job: OpenCollectionForSubmissionsJob,
 ) -> bool:
-    if job.submission_period_start_date is None:
-        raise ValueError("Cannot queue collection opening job without a submission start date")
-
-    payload = job.model_dump_json().encode()
-    execute_after = _execute_after_for_submission_start_date(job.submission_period_start_date)
-
-    updated_rows = await queries.driver.fetch(
-        """
-        UPDATE pgqueuer
-        SET
-            payload = $1,
-            execute_after = NOW() + $2::interval,
-            updated = NOW()
-        WHERE dedupe_key = $3
-        AND entrypoint = $4
-        AND status = 'queued'
-        RETURNING id
-        """,
-        payload,
-        execute_after,
-        job.dedupe_key,
-        OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT,
-    )
-    if updated_rows:
-        return True
-
     job_ids = await queries.enqueue(
         OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT,
-        payload,
-        execute_after=execute_after,
+        job.model_dump_json().encode(),
         dedupe_key=job.dedupe_key,
         on_conflict="skip",
     )
     return job_ids[0] is not None
 
 
-async def enqueue_collection_opening_jobs(queries: Queries) -> int:
+async def enqueue_due_collection_opening_jobs(queries: Queries) -> int:
     queued_count = 0
     jobs = [
-        OpenCollectionForSubmissionsJob(
-            collection_id=collection.id,
-            submission_period_start_date=collection.submission_period_start_date,
-        )
-        for collection in get_collections_to_schedule_opening()
-        if collection.submission_period_start_date
+        OpenCollectionForSubmissionsJob(collection_id=collection_id)
+        for collection_id in get_collection_ids_due_to_open()
     ]
-    db.session.rollback()
 
     for job in jobs:
-        if await enqueue_or_update_open_collection_for_submissions_job(queries, job):
+        if await enqueue_open_collection_for_submissions_job(queries, job):
             queued_count += 1
 
     return queued_count
