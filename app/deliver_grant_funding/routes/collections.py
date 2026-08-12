@@ -152,7 +152,6 @@ from app.deliver_grant_funding.forms import (
     ApproveOrRejectSubmissionForm,
     CertificationSettingsForm,
     CollectionCreationMethodForm,
-    CollectionSettingsForm,
     ConditionsOperatorForm,
     GroupAddAnotherOptionsForm,
     GroupAddAnotherSummaryForm,
@@ -177,7 +176,6 @@ from app.deliver_grant_funding.forms import (
     SelectDataSourceQuestionForm,
     SelectDataSourceSectionForm,
     SetUpCollectionForm,
-    SubmissionGuidanceForm,
     TestGrantRecipientJourneyForm,
     UploadDataSetForm,
 )
@@ -747,69 +745,6 @@ def collection_multiple_submissions_settings(
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-multiple-submissions",
-    methods=["GET", "POST"],
-)
-@has_deliver_grant_role(RoleEnum.ADMIN)
-@auto_commit_after_request
-def collection_configure_multiple_submissions(
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
-) -> ResponseReturnValue:
-    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=True)
-
-    form = CollectionSettingsForm(
-        questions=[
-            q
-            for form in collection.forms
-            for q in form.cached_questions
-            if q.data_type in current_app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"]
-            and not q.add_another_container
-        ],
-        obj=collection if request.method == "GET" else None,
-    )
-    if form.validate_on_submit():
-        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
-            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
-
-        else:
-            if form.allow_multiple_submissions.data == "False":
-                try:
-                    update_collection(collection, allow_multiple_submissions=False)
-                    return redirect(
-                        url_for(
-                            "deliver_grant_funding.list_collection_sections",
-                            grant_id=grant_id,
-                            collection_type=collection_type,
-                            collection_id=collection_id,
-                        )
-                    )
-                except ValueError as e:
-                    form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[unresolved-attribute]
-
-            else:
-                update_collection(
-                    collection,
-                    allow_multiple_submissions=True,
-                    submission_name_question_id=uuid.UUID(form.submission_name_question.data),
-                )
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.list_collection_sections",
-                        grant_id=grant_id,
-                        collection_type=collection_type,
-                        collection_id=collection_id,
-                    )
-                )
-
-    return render_template(
-        "deliver_grant_funding/collections/configure_multiple_submissions.html",
-        grant=collection.grant,
-        collection=collection,
-        form=form,
-    )
-
-
-@deliver_grant_funding_blueprint.route(
     "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-public-sign-up",
     methods=["GET", "POST"],
 )
@@ -838,64 +773,6 @@ def collection_configure_public_sign_up(
 
     return render_template(
         "deliver_grant_funding/collections/configure_public_sign_up.html",
-        grant=collection.grant,
-        collection=collection,
-        form=form,
-    )
-
-
-@deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/set-guidance-for-multiple-submissions",
-    methods=["GET", "POST"],
-)
-@has_deliver_grant_role(RoleEnum.ADMIN)
-@auto_commit_after_request
-def set_guidance_for_multiple_submissions(
-    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
-) -> ResponseReturnValue:
-    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
-    if not collection.allow_multiple_submissions:
-        return redirect(
-            url_for(
-                "deliver_grant_funding.list_collection_sections",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
-            )
-        )
-
-    form = SubmissionGuidanceForm()
-    if not form.is_submitted():
-        form.guidance_body.data = collection.submission_guidance
-
-    if form.validate_on_submit():
-        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
-            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
-        else:
-            update_collection(collection, submission_guidance=form.guidance_body.data)
-
-            if form.preview.data:
-                return redirect(
-                    url_for(
-                        "deliver_grant_funding.set_guidance_for_multiple_submissions",
-                        grant_id=grant_id,
-                        collection_type=collection_type,
-                        collection_id=collection_id,
-                        _anchor="preview-guidance",
-                    )
-                )
-
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.list_collection_sections",
-                    grant_id=grant_id,
-                    collection_type=collection_type,
-                    collection_id=collection_id,
-                )
-            )
-
-    return render_template(
-        "deliver_grant_funding/collections/set_guidance_for_multiple_submissions.html",
         grant=collection.grant,
         collection=collection,
         form=form,

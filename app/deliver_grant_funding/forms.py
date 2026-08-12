@@ -1011,36 +1011,6 @@ class TestGrantRecipientJourneyForm(FlaskForm):
     submit = SubmitField("Start test submission journey", widget=GovSubmitInput())
 
 
-class CollectionSettingsForm(FlaskForm):
-    allow_multiple_submissions = RadioField(
-        "Should this collection allow multiple submissions per grant recipient?",
-        choices=[(True, "Yes"), (False, "No")],
-        validators=[DataRequired("Select whether the collection should allow multiple submissions")],
-        widget=GovRadioInput(),
-    )
-    submission_name_question = SelectField(
-        "Which question should be used to uniquely identify each submission?",
-        choices=[],
-        widget=MHCLGAccessibleAutocomplete(),
-        validators=[Optional()],
-    )
-    submit = SubmitField(widget=GovSubmitInput())
-
-    def __init__(self, questions: list[Question], *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.submission_name_question.choices = [("", "")] + [(str(q.id), q.text) for q in questions]
-
-        if kwargs["obj"]:
-            self.submission_name_question.data = str(kwargs["obj"].submission_name_question_id)
-
-    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> Any:
-        if self.allow_multiple_submissions.data == "True":
-            self.submission_name_question.validators = [DataRequired("Select a question to use as the submission name")]
-
-        return super().validate(extra_validators)
-
-
 class PublicSignUpSettingsForm(FlaskForm):
     allow_public_sign_up = RadioField(
         "Should this collection allow public self sign up?",
@@ -1130,17 +1100,6 @@ class CollectionSettingsSelectSectionForm(FlaskForm):
     def __init__(self, *args: Any, collection_forms: list[Form], **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.section.choices = [(str(f.id), f.title) for f in collection_forms]
-
-
-class SubmissionGuidanceForm(FlaskForm):
-    guidance_body = StringField(
-        "Set guidance for multiple submissions",
-        description="Use Markdown if you need to format your guidance content. Formatting help can be found below.",
-        widget=GovTextArea(),
-        filters=[strip_string_if_not_empty],
-    )
-    preview = SubmitField("Save and preview guidance", widget=GovSubmitInput())
-    submit = SubmitField("Save guidance", widget=GovSubmitInput())
 
 
 class CollectionSettingsSelectQuestionForm(FlaskForm):
