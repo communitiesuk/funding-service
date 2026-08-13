@@ -152,15 +152,10 @@ def get_or_create_grant_recipient(
         {"key": f"{grant.id}:{organisation.id}"},
     )
 
-    existing = get_grant_recipient_or_none(grant.id, organisation.id)
-    if existing:
+    if existing := get_grant_recipient_or_none(grant.id, organisation.id):
         return existing
 
-    create_grant_recipients(grant=grant, organisation_ids=[organisation.id], status=status, mode=mode)
-
-    grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
-    assert grant_recipient is not None
-    return grant_recipient
+    return create_grant_recipient(grant=grant, organisation=organisation, status=status, mode=mode)
 
 
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
@@ -175,6 +170,18 @@ def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = Gran
 @flush_and_rollback_on_exceptions
 def delete_grant_recipients(grant: Grant) -> None:
     db.session.execute(delete(GrantRecipient).where(GrantRecipient.grant_id == grant.id))
+
+
+@flush_and_rollback_on_exceptions()
+def create_grant_recipient(
+    grant: Grant,
+    organisation: Organisation,
+    status: GrantRecipientStatusEnum,
+    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
+) -> GrantRecipient:
+    grant_recipient = GrantRecipient(grant_id=grant.id, organisation_id=organisation.id, mode=mode, status=status)
+    db.session.add(grant_recipient)
+    return grant_recipient
 
 
 @flush_and_rollback_on_exceptions()

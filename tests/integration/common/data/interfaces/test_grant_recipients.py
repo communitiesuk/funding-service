@@ -4,6 +4,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.grant_recipients import (
+    create_grant_recipient,
     create_grant_recipients,
     delete_grant_recipients,
     get_grant_recipient,
@@ -475,6 +476,25 @@ class TestGetGrantRecipientOrNone:
         organisation = factories.organisation.create()
 
         assert get_grant_recipient_or_none(grant.id, organisation.id) is None
+
+
+class TestCreateGrantRecipient:
+    def test_creates_grant_recipient_for_organisation(self, factories, db_session):
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+
+        result = create_grant_recipient(grant, organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert result.grant == grant
+        assert result.organisation == organisation
+        assert result.status == GrantRecipientStatusEnum.APPLYING
+
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).all()
+        assert len(grant_recipients) == 1
 
 
 class TestGetOrCreateGrantRecipient:
