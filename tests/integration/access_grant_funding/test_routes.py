@@ -8,7 +8,14 @@ from sqlalchemy import select
 
 from app.common.data.models import GrantRecipient
 from app.common.data.models_user import UserRole
-from app.common.data.types import CollectionStatusEnum, GrantRecipientStatusEnum, GrantStatusEnum, RoleEnum
+from app.common.data.types import (
+    CollectionStatusEnum,
+    GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
+    GrantStatusEnum,
+    OrganisationModeEnum,
+    RoleEnum,
+)
 from tests.utils import get_h1_text, get_h2_text
 
 
@@ -536,7 +543,18 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation",
+            domains=["example-org.com"],
+            external_id="org-1",
+            mode=OrganisationModeEnum.LIVE,
+        )
+        test_organisation = factories.organisation.create(
+            name="Test Organisation (test)",
+            domains=["example-org.com"],
+            external_id="org-1",
+            mode=OrganisationModeEnum.TEST,
+        )
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
 
@@ -557,6 +575,14 @@ class TestEligibleToApplyPage:
             )
         ).one()
         assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
+
+        test_grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == test_organisation.id
+            )
+        ).one()
+        assert test_grant_recipient.status == GrantRecipientStatusEnum.APPLYING
+        assert test_grant_recipient.mode == GrantRecipientModeEnum.TEST
 
         user_role = db_session.scalars(
             select(UserRole).where(

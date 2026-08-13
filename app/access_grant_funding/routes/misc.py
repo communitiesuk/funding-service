@@ -16,7 +16,7 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
-from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_or_create_grant_recipient
+from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_or_create_grant_recipient_pair
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation, get_organisations
 from app.common.data.types import GrantRecipientStatusEnum, OrganisationModeEnum, RoleEnum
@@ -188,7 +188,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         if AuthorisationHelper.is_deliver_grant_funding_user(user):
             return redirect(url_for("access_grant_funding.index"))
 
-        get_or_create_grant_recipient(grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING)
+        get_or_create_grant_recipient_pair(
+            grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
+        )
 
         interfaces.user.add_permissions_to_user(
             user=user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=organisation.id, grant_id=grant.id

@@ -17,11 +17,13 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipients_for_organisation,
     get_grant_recipients_with_outstanding_submissions_for_collection,
     get_or_create_grant_recipient,
+    get_or_create_grant_recipient_pair,
 )
 from app.common.data.models import GrantRecipient
 from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
+    OrganisationModeEnum,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -531,6 +533,35 @@ class TestGetOrCreateGrantRecipient:
                 GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
             )
         ).all()
+        assert len(grant_recipients) == 1
+
+
+class TestGetOrCreateGrantRecipientPair:
+    def test_creates_both_grant_recipients_when_counterpart_organisation_exists(self, factories):
+        grant = factories.grant.create()
+        live_organisation = factories.organisation.create(external_id="org-1", mode=OrganisationModeEnum.LIVE)
+        test_organisation = factories.organisation.create(external_id="org-1", mode=OrganisationModeEnum.TEST)
+
+        pair = get_or_create_grant_recipient_pair(grant, live_organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert pair[OrganisationModeEnum.LIVE] is not None
+        assert pair[OrganisationModeEnum.LIVE].organisation == live_organisation
+        assert pair[OrganisationModeEnum.LIVE].mode == GrantRecipientModeEnum.LIVE
+        assert pair[OrganisationModeEnum.TEST] is not None
+        assert pair[OrganisationModeEnum.TEST].organisation == test_organisation
+        assert pair[OrganisationModeEnum.TEST].mode == GrantRecipientModeEnum.TEST
+
+    def test_only_creates_one_grant_recipient_when_counterpart_organisation_missing(self, factories, db_session):
+        grant = factories.grant.create()
+        live_organisation = factories.organisation.create(external_id="org-2", mode=OrganisationModeEnum.LIVE)
+
+        pair = get_or_create_grant_recipient_pair(grant, live_organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert pair[OrganisationModeEnum.LIVE] is not None
+        assert pair[OrganisationModeEnum.LIVE].organisation == live_organisation
+        assert pair[OrganisationModeEnum.TEST] is None
+
+        grant_recipients = db_session.scalars(select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)).all()
         assert len(grant_recipients) == 1
 
 

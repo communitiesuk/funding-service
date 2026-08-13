@@ -6,11 +6,13 @@ from sqlalchemy import String, cast, delete, func, select, text
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
+from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
+    OrganisationModeEnum,
     RoleEnum,
     SubmissionModeEnum,
 )
@@ -156,6 +158,35 @@ def get_or_create_grant_recipient(
         return existing
 
     return create_grant_recipient(grant=grant, organisation=organisation, status=status, mode=mode)
+
+
+def get_or_create_grant_recipient_pair(
+    grant: Grant, organisation: Organisation, status: GrantRecipientStatusEnum
+) -> dict[OrganisationModeEnum, GrantRecipient | None]:
+    """
+    Get_or_create a GrantRecipient for the given organisation, along with the equivalent GrantRecipient for its
+    LIVE/TEST counterpart organisation (same external_id, opposite mode), if that counterpart organisation exists.
+    """
+
+    is_mode_live = organisation.mode == OrganisationModeEnum.LIVE
+    other_mode = OrganisationModeEnum.TEST if is_mode_live else OrganisationModeEnum.LIVE
+    other_organisations = get_organisations(with_external_ids=[organisation.external_id], mode=other_mode)
+
+    organisations_by_mode: dict[OrganisationModeEnum, Organisation] = {organisation.mode: organisation}
+    if other_organisations:
+        organisations_by_mode[other_mode] = other_organisations[0]
+
+    grant_recipients_by_mode: dict[OrganisationModeEnum, GrantRecipient | None] = {
+        OrganisationModeEnum.LIVE: None,
+        OrganisationModeEnum.TEST: None,
+    }
+
+    for mode, org in organisations_by_mode.items():
+        grant_recipients_by_mode[mode] = get_or_create_grant_recipient(
+            grant=grant, organisation=org, status=status, mode=GrantRecipientModeEnum.from_similar(mode)
+        )
+
+    return grant_recipients_by_mode
 
 
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
