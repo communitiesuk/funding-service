@@ -82,9 +82,6 @@ jobs:
 
           echo "ecr_image_location=$ECR_IMAGE_LOCATION" >> $GITHUB_OUTPUT
 
-      - name: Update ECS image location
-        run: ./scripts/update-ecs-task-image.py "${{ steps.ecr_info.outputs.ecr_image_location }}"
-
       - name: Check for migrations
         id: changes
         env:
