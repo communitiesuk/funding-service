@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from collections.abc import Sequence
+from typing import ClassVar
 
 from pgqueuer.queries import Queries
 from pydantic import BaseModel
@@ -11,16 +12,17 @@ from app.common.data.models import Collection, Grant
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
 from app.extensions import db
 
-OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT = "open_collection_for_submissions"
 SCAN_COLLECTION_OPENINGS_SCHEDULE = "scan_collection_openings"
 
 
 class OpenCollectionForSubmissionsJob(BaseModel):
+    entrypoint: ClassVar[str] = "open_collection_for_submissions"
+
     collection_id: uuid.UUID
 
     @property
     def dedupe_key(self) -> str:
-        return f"{OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT}:{self.collection_id}"
+        return f"{self.entrypoint}:{self.collection_id}"
 
 
 def get_collection_ids_due_to_open(*, today: datetime.date | None = None) -> Sequence[uuid.UUID]:
@@ -44,7 +46,7 @@ async def enqueue_open_collection_for_submissions_job(
     job: OpenCollectionForSubmissionsJob,
 ) -> bool:
     job_ids = await queries.enqueue(
-        OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT,
+        job.entrypoint,
         job.model_dump_json().encode(),
         dedupe_key=job.dedupe_key,
         on_conflict="skip",

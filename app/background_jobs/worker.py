@@ -11,9 +11,9 @@ from pgqueuer.db import PsycopgDriver
 from pgqueuer.domain.types import QueueExecutionMode
 from pgqueuer.models import Job, Schedule
 from pgqueuer.queries import Queries
+from sqlalchemy.engine import make_url
 
 from app.common.data.interfaces.background_jobs import (
-    OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT,
     SCAN_COLLECTION_OPENINGS_SCHEDULE,
     OpenCollectionForSubmissionsJob,
     enqueue_due_collection_opening_jobs,
@@ -23,8 +23,8 @@ from app.extensions import db
 
 
 def _pgqueuer_dsn() -> str:
-    # hacky for PoC
-    return current_app.config["SQLALCHEMY_ENGINES"]["default"].replace("postgresql+psycopg://", "postgresql://", 1)
+    url = make_url(current_app.config["SQLALCHEMY_ENGINES"]["default"])
+    return url.set(drivername="postgresql").render_as_string(hide_password=False)
 
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ async def _pgqueuer() -> AsyncIterator[PgQueuer]:
         pgq = PgQueuer(PsycopgDriver(connection))
         queries = cast(Queries, pgq.queries)
 
-        @pgq.entrypoint(OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT)
+        @pgq.entrypoint(OpenCollectionForSubmissionsJob.entrypoint)
         async def _open_collection_for_submissions(job: Job) -> None:
             if job.payload is None:
                 raise ValueError(f"Job {job.id} has no payload")
@@ -73,7 +73,7 @@ async def run_worker(*, once: bool, once_timeout_seconds: int) -> None:
     async with _pgqueuer() as pgq:
         queries = cast(Queries, pgq.queries)
         if once:
-            if await queries.queued_work([OPEN_COLLECTION_FOR_SUBMISSIONS_ENTRYPOINT]) == 0:
+            if await queries.queued_work([OpenCollectionForSubmissionsJob.entrypoint]) == 0:
                 return
             try:
                 await asyncio.wait_for(

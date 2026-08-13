@@ -1,6 +1,7 @@
 from flask_admin import Admin
 from flask_sqlalchemy_lite import SQLAlchemy
 
+from app.deliver_grant_funding.admin.background_jobs import BACKGROUND_JOB_ADMIN_VIEWS
 from app.deliver_grant_funding.admin.entities import (
     PlatformAdminAuditEventView,
     PlatformAdminCollectionView,
@@ -16,7 +17,6 @@ from app.deliver_grant_funding.admin.entities import (
     PlatformAdminUserView,
 )
 from app.deliver_grant_funding.admin.views import (
-    PlatformAdminBackgroundJobsView,
     PlatformAdminCollectionLifecycleView,
     PlatformAdminDataAnalysisView,
     PlatformAdminDeltaCertifiersView,
@@ -63,11 +63,13 @@ def register_admin_views(flask_admin: Admin, db_: SQLAlchemy) -> None:
             name="Feature flags", endpoint="feature_flags", url="feature-flags", category="Developer tools"
         )
     )
-    flask_admin.add_view(
-        PlatformAdminBackgroundJobsView(
-            name="Background jobs",
-            endpoint="background_jobs_admin",
-            url="background-jobs",
-            category="Developer tools",
+    for view in BACKGROUND_JOB_ADMIN_VIEWS:
+        flask_admin.add_view(
+            view.view_class(
+                db_,
+                name=view.name,
+                endpoint=view.endpoint,
+                url=view.url,
+                category=view.category,
+            )
         )
-    )
