@@ -717,7 +717,7 @@ class MapDataSetColumnsPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"Map {data_set_name} data columns"),
+            heading=page.get_by_role("heading", name=f"Format {data_set_name} data"),
         )
         self.data_set_name = data_set_name
 
@@ -739,7 +739,7 @@ class MapDataSetNumberColumnsPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"Map {data_set_name} number columns"),
+            heading=page.get_by_role("heading", name=f"Format {data_set_name} number columns"),
         )
         self.data_set_name = data_set_name
 
