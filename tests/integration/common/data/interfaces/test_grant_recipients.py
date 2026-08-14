@@ -539,8 +539,8 @@ class TestGetOrCreateGrantRecipient:
 class TestGetOrCreateGrantRecipientPair:
     def test_creates_both_grant_recipients_when_counterpart_organisation_exists(self, factories):
         grant = factories.grant.create()
-        live_organisation = factories.organisation.create(external_id="org-1", mode=OrganisationModeEnum.LIVE)
-        test_organisation = factories.organisation.create(external_id="org-1", mode=OrganisationModeEnum.TEST)
+        live_organisation = factories.organisation.create(external_id="org-1", with_matching_test_org=True)
+        test_organisation = live_organisation.matching_test_organisation
 
         pair = get_or_create_grant_recipient_pair(grant, live_organisation, status=GrantRecipientStatusEnum.APPLYING)
 
@@ -550,6 +550,48 @@ class TestGetOrCreateGrantRecipientPair:
         assert pair[OrganisationModeEnum.TEST] is not None
         assert pair[OrganisationModeEnum.TEST].organisation == test_organisation
         assert pair[OrganisationModeEnum.TEST].mode == GrantRecipientModeEnum.TEST
+
+    def test_reuses_both_grant_recipients_when_they_already_exist(self, factories, db_session):
+        grant = factories.grant.create()
+        live_organisation = factories.organisation.create(external_id="org-3", with_matching_test_org=True)
+        test_organisation = live_organisation.matching_test_organisation
+
+        existing_live_grant_recipient = factories.grant_recipient.create(
+            grant=grant, organisation=live_organisation, mode=GrantRecipientModeEnum.LIVE
+        )
+        existing_test_grant_recipient = factories.grant_recipient.create(
+            grant=grant, organisation=test_organisation, mode=GrantRecipientModeEnum.TEST
+        )
+
+        pair = get_or_create_grant_recipient_pair(grant, live_organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert pair[OrganisationModeEnum.LIVE] is not None
+        assert pair[OrganisationModeEnum.LIVE].id == existing_live_grant_recipient.id
+        assert pair[OrganisationModeEnum.TEST] is not None
+        assert pair[OrganisationModeEnum.TEST].id == existing_test_grant_recipient.id
+
+        grant_recipients = db_session.scalars(select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)).all()
+        assert len(grant_recipients) == 2
+
+    def test_reuses_existing_and_creates_missing_grant_recipient(self, factories, db_session):
+        grant = factories.grant.create()
+        live_organisation = factories.organisation.create(external_id="org-4", with_matching_test_org=True)
+        test_organisation = live_organisation.matching_test_organisation
+
+        existing_live_grant_recipient = factories.grant_recipient.create(
+            grant=grant, organisation=live_organisation, mode=GrantRecipientModeEnum.LIVE
+        )
+
+        pair = get_or_create_grant_recipient_pair(grant, live_organisation, status=GrantRecipientStatusEnum.APPLYING)
+
+        assert pair[OrganisationModeEnum.LIVE] is not None
+        assert pair[OrganisationModeEnum.LIVE].id == existing_live_grant_recipient.id
+        assert pair[OrganisationModeEnum.TEST] is not None
+        assert pair[OrganisationModeEnum.TEST].organisation == test_organisation
+        assert pair[OrganisationModeEnum.TEST].mode == GrantRecipientModeEnum.TEST
+
+        grant_recipients = db_session.scalars(select(GrantRecipient).where(GrantRecipient.grant_id == grant.id)).all()
+        assert len(grant_recipients) == 2
 
     def test_only_creates_one_grant_recipient_when_counterpart_organisation_missing(self, factories, db_session):
         grant = factories.grant.create()

@@ -170,23 +170,29 @@ def get_or_create_grant_recipient_pair(
 
     is_mode_live = organisation.mode == OrganisationModeEnum.LIVE
     other_mode = OrganisationModeEnum.TEST if is_mode_live else OrganisationModeEnum.LIVE
-    other_organisations = get_organisations(with_external_ids=[organisation.external_id], mode=other_mode)
 
-    organisations_by_mode: dict[OrganisationModeEnum, Organisation] = {organisation.mode: organisation}
-    if other_organisations:
-        organisations_by_mode[other_mode] = other_organisations[0]
+    other_mode_organisations = get_organisations(with_external_ids=[organisation.external_id], mode=other_mode)
+    other_mode_organisation = other_mode_organisations[0] if other_mode_organisations else None
 
-    grant_recipients_by_mode: dict[OrganisationModeEnum, GrantRecipient | None] = {
-        OrganisationModeEnum.LIVE: None,
-        OrganisationModeEnum.TEST: None,
-    }
+    grant_recipient = get_or_create_grant_recipient(
+        grant=grant,
+        organisation=organisation,
+        status=status,
+        mode=GrantRecipientModeEnum.from_similar(organisation.mode),
+    )
 
-    for mode, org in organisations_by_mode.items():
-        grant_recipients_by_mode[mode] = get_or_create_grant_recipient(
-            grant=grant, organisation=org, status=status, mode=GrantRecipientModeEnum.from_similar(mode)
+    other_mode_grant_recipient = (
+        get_or_create_grant_recipient(
+            grant=grant,
+            organisation=other_mode_organisation,
+            status=status,
+            mode=GrantRecipientModeEnum.from_similar(other_mode),
         )
+        if other_mode_organisation
+        else None
+    )
 
-    return grant_recipients_by_mode
+    return {organisation.mode: grant_recipient, other_mode: other_mode_grant_recipient}
 
 
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
