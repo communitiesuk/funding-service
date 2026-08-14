@@ -576,12 +576,17 @@ class TestCollectionIsOpenForSignUp:
             (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, False),
         ),
     )
-    def test_deliver_grant_member_depends_on_status(self, factories, user, grant_status, collection_status, is_open):
+    def test_deliver_user_testing_access_depends_on_status(
+        self, app, factories, user, grant_status, collection_status, is_open
+    ):
         grant = factories.grant.create(slug="grant-slug", status=grant_status)
+        can_manage_grants_organisation = grant.organisation
         collection = factories.collection.create(
             slug="collection-slug", grant=grant, status=collection_status, allow_public_sign_up=True
         )
-        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(
+            user=user, organisation=can_manage_grants_organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
 
         @collection_is_open_for_sign_up
         def view_func(grant_slug: str, collection_slug: str):
@@ -589,12 +594,13 @@ class TestCollectionIsOpenForSignUp:
 
         login_user(user)
 
-        if is_open:
-            response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
-            assert response == "OK"
-        else:
-            with pytest.raises(NotFound):
-                view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+        with app.test_request_context(f"/access/grant/{grant.slug}/{collection.slug}"):
+            if is_open:
+                response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+                assert response == "OK"
+            else:
+                with pytest.raises(NotFound):
+                    view_func(grant_slug=grant.slug, collection_slug=collection.slug)
 
 
 class TestIsSigningUp:
@@ -635,12 +641,16 @@ class TestIsSigningUp:
         response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
         assert response == "OK"
 
-    def test_deliver_grant_member_gets_response_without_session_flag(self, factories, user):
+    def test_deliver_user_testing_access_gets_response_without_session_flag(self, app, factories, user):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        can_manage_grants_organisation = grant.organisation
+
         collection = factories.collection.create(
             slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
         )
-        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(
+            user=user, organisation=can_manage_grants_organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
 
         @is_signing_up
         def view_func(grant_slug: str, collection_slug: str):
@@ -648,8 +658,9 @@ class TestIsSigningUp:
 
         login_user(user)
 
-        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
-        assert response == "OK"
+        with app.test_request_context(f"/access/grant/{grant.slug}/{collection.slug}"):
+            response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+            assert response == "OK"
 
     def test_anonymous_user_redirects_to_start_page(self, app, factories):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)

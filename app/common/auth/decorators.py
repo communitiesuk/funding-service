@@ -115,7 +115,7 @@ def collection_is_open_for_sign_up[**P](
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
         user = interfaces.user.get_current_user()
-        if AuthorisationHelper.has_deliver_grant_role(grant_id=grant.id, role=RoleEnum.MEMBER, user=user):
+        if AuthorisationHelper.is_deliver_user_testing_access(user):
             if grant.status not in (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE):
                 return abort(404)
             if collection.status not in (CollectionStatusEnum.DRAFT, CollectionStatusEnum.OPEN):
@@ -153,11 +153,9 @@ def is_signing_up[**P](
         if user.is_authenticated and session.get("signing_up_for_collection_id") == collection.id:
             return func(*args, **kwargs)
 
-        # Deliver users testing this journey are authorised via their grant role
-        if user.is_authenticated:
-            grant = get_grant_by_slug(grant_slug)
-            if AuthorisationHelper.has_deliver_grant_role(grant_id=grant.id, role=RoleEnum.MEMBER, user=user):
-                return func(*args, **kwargs)
+        # Deliver users testing this journey
+        if user.is_authenticated and AuthorisationHelper.is_deliver_user_testing_access(user):
+            return func(*args, **kwargs)
 
         return redirect(
             url_for(

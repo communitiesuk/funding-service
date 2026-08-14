@@ -20,7 +20,6 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipient, get
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation, get_organisations
 from app.common.data.types import (
-    GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
     OrganisationModeEnum,
     RoleEnum,
@@ -143,11 +142,9 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
-        # Deliver users, members of the grant, skip magic link journey
+        # Deliver users testing this journey skip the magic link journey
         user = interfaces.user.get_current_user()
-        if user.is_authenticated and AuthorisationHelper.has_deliver_grant_role(
-            grant_id=grant.id, role=RoleEnum.MEMBER, user=user
-        ):
+        if user.is_authenticated and AuthorisationHelper.is_deliver_user_testing_access(user):
             return redirect(
                 url_for(
                     "access_grant_funding.eligible_to_apply",
@@ -184,13 +181,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
 
     user = interfaces.user.get_current_user()
     email_domain = user.email_domain
-    has_deliver_grant_role = AuthorisationHelper.has_deliver_grant_role(
-        grant_id=grant.id, role=RoleEnum.MEMBER, user=user
-    )
+    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
 
-    organisation_mode = OrganisationModeEnum.TEST if has_deliver_grant_role else OrganisationModeEnum.LIVE
-    grant_recipient_mode = GrantRecipientModeEnum.TEST if has_deliver_grant_role else GrantRecipientModeEnum.LIVE
-
+    organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
     organisations = get_organisations(domain=email_domain, mode=organisation_mode)
 
     # TODO: Update when adding the create org flow
@@ -206,7 +199,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     if form.validate_on_submit():
         session.pop("signing_up_for_collection_id", None)
 
-        if not has_deliver_grant_role:
+        # Deliver users testing this journey must already have access to a TEST grant recipient for this
+        # organisation and grant - we don't create one for them. route_to_submission will error if they don't
+        if not is_deliver_testing:
             get_or_create_grant_recipient_pair(
                 grant=grant,
                 organisation=organisation,
