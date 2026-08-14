@@ -5,21 +5,24 @@ from flask import abort, current_app, redirect, render_template, session, url_fo
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_open_for_sign_up,
     has_access_grant_recipient_role,
     has_access_grant_role,
     is_access_org_member,
+    is_signing_up,
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
-from app.common.data.interfaces.grant_recipients import get_grant_recipient
+from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_or_create_grant_recipient_pair
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
-from app.common.data.interfaces.organisations import get_organisation
-from app.common.data.types import RoleEnum
+from app.common.data.interfaces.organisations import get_organisation, get_organisations
+from app.common.data.types import GrantRecipientStatusEnum, OrganisationModeEnum, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.markdown import convert_text_to_govuk_markup
+from app.extensions import auto_commit_after_request
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -149,4 +152,64 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
         grant=grant,
         collection=collection,
         form=form,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligible-to-apply", methods=["GET", "POST"]
+)
+@is_signing_up
+@auto_commit_after_request
+def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    user = interfaces.user.get_current_user()
+    email_domain = user.email_domain
+
+    # TODO: Filter by LIVE org when public sign off
+    # If logged in deliver user testing this journey, filter for TEST organisation.
+    organisations = get_organisations(domain=email_domain, mode=OrganisationModeEnum.LIVE)
+
+    # TODO: Update when adding the create org flow
+    if len(organisations) == 0:
+        return abort(400, "No organisation found for this email domain")
+    # TODO: Update when adding the choose org form
+    if len(organisations) > 1:
+        return abort(400, "Multiple organisations found for this email domain")
+
+    organisation = organisations[0]
+
+    form = GenericSubmitForm()
+    if form.validate_on_submit():
+        session.pop("signing_up_for_collection_id", None)
+
+        # TODO: Rewise when adding the Deliver user testing flow
+        if AuthorisationHelper.is_deliver_grant_funding_user(user):
+            return redirect(url_for("access_grant_funding.index"))
+
+        get_or_create_grant_recipient_pair(
+            grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
+        )
+
+        interfaces.user.add_permissions_to_user(
+            user=user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=organisation.id, grant_id=grant.id
+        )
+
+        return redirect(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+    return render_template(
+        "access_grant_funding/eligible_to_apply.html",
+        grant=grant,
+        collection=collection,
+        organisation=organisation,
+        form=form,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )

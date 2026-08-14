@@ -167,6 +167,10 @@ routes_with_expected_access_grant_funding_logged_in_access = [
     "access_grant_funding.index",
 ]
 
+routes_with_expected_is_signing_up_access = [
+    "access_grant_funding.eligible_to_apply",
+]
+
 routes_with_expected_access_grant_funding_grant_recipient_role = [
     "access_grant_funding.list_organisations",
 ]
@@ -394,6 +398,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app, subtests):  # noqa: C
             #       and will likely have access through their org, this should be updated as part of that work
             elif rule.endpoint in routes_with_expected_access_grant_funding_logged_in_access:
                 assert "@access_grant_funding_login_required" in decorators
+            elif rule.endpoint in routes_with_expected_is_signing_up_access:
+                assert "@is_signing_up" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_org_access:
                 assert "@is_access_org_member" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_has_data_provider_role_access:
@@ -429,6 +435,7 @@ def test_routes_list_is_valid(app):
         + routes_with_expected_platform_admin_only_access
         + routes_with_access_controlled_by_flask_admin
         + routes_with_expected_access_grant_funding_logged_in_access
+        + routes_with_expected_is_signing_up_access
         + routes_with_expected_access_grant_funding_grant_recipient_role
         + routes_with_expected_access_grant_funding_org_access
         + routes_with_expected_access_grant_funding_has_member_role_access
