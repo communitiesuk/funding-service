@@ -1120,6 +1120,47 @@ class TestUpdateCollection:
         from_db = db_session.get(Collection, collection.id)
         assert from_db.reminder_email_business_days_before_closing == 7
 
+    def test_enabling_public_sign_up_creates_eligibility_form(self, db_session, factories):
+        collection = factories.collection.create(allow_public_sign_up=False)
+
+        update_collection(collection, allow_public_sign_up=True)
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.allow_public_sign_up is True
+        assert from_db.eligibility_form is not None
+        assert from_db.eligibility_form.is_eligibility_section is True
+
+    def test_enabling_public_sign_up_does_not_duplicate_eligibility_form(self, db_session, factories):
+        collection = factories.collection.create(allow_public_sign_up=False)
+        update_collection(collection, allow_public_sign_up=True)
+        existing_eligibility_form = collection.eligibility_form
+
+        update_collection(collection, allow_public_sign_up=True)
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.eligibility_form.id == existing_eligibility_form.id
+        assert len([form for form in from_db.forms if form.is_eligibility_section]) == 1
+
+    def test_disabling_public_sign_up_deletes_eligibility_form(self, db_session, factories):
+        collection = factories.collection.create(allow_public_sign_up=False)
+        update_collection(collection, allow_public_sign_up=True)
+        assert collection.eligibility_form is not None
+
+        update_collection(collection, allow_public_sign_up=False)
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.allow_public_sign_up is False
+        assert from_db.eligibility_form is None
+
+    def test_disabling_public_sign_up_when_no_eligibility_form_works(self, db_session, factories):
+        collection = factories.collection.create(allow_public_sign_up=False)
+
+        update_collection(collection, allow_public_sign_up=False)
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.allow_public_sign_up is False
+        assert from_db.eligibility_form is None
+
 
 class TestGetSubmission:
     def test_get_submission(self, db_session, factories):
@@ -1289,14 +1330,26 @@ class TestGetFormById:
         assert len(queries) == 0
 
 
-def test_create_form(db_session, factories):
-    collection = factories.collection.create()
-    form = create_form(title="Test Form", collection=collection)
-    assert form is not None
-    assert form.id is not None
-    assert form.title == "Test Form"
-    assert form.order == 0
-    assert form.slug == "test-form"
+class TestCreateForm:
+    def test_create_form(self, factories):
+        collection = factories.collection.create()
+
+        form = create_form(title="Test Form", collection=collection)
+
+        assert form is not None
+        assert form.id is not None
+        assert form.title == "Test Form"
+        assert form.order == 0
+        assert form.slug == "test-form"
+        assert form.is_eligibility_section is False
+
+    @pytest.mark.parametrize("is_eligibility_section", [True, False])
+    def test_is_eligibility_section_explicit(self, factories, is_eligibility_section):
+        collection = factories.collection.create()
+
+        form = create_form(title="Test Form", collection=collection, is_eligibility_section=is_eligibility_section)
+
+        assert form.is_eligibility_section is is_eligibility_section
 
 
 def test_form_name_unique_in_collection(db_session, factories):
