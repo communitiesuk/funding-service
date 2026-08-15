@@ -96,6 +96,20 @@
           } if can_edit else {}
         })
       %}
+      {%
+        do rows.append({
+          "key": {"text": "Prospectus link"},
+          "value": {"text": collection.prospectus_url if collection.prospectus_url else "Not provided"},
+          "actions": {
+            "items": [{
+              "href": url_for("deliver_grant_funding.collection_configure_prospectus_link", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+              "classes": "govuk-link--no-visited-state",
+              "text": "Change",
+              "visuallyHiddenText": "prospectus link"
+            }]
+          } if can_edit else {}
+        })
+      %}
 
       {% if collection.allow_multiple_submissions %}
         {%

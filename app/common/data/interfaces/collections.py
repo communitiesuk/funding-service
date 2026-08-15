@@ -380,6 +380,7 @@ def update_collection(  # noqa: C901
     submission_name_question_id: uuid.UUID | None | TNotProvided = NOT_PROVIDED,
     submission_guidance: str | None | TNotProvided = NOT_PROVIDED,
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
+    prospectus_url: str | None | TNotProvided = NOT_PROVIDED,
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
@@ -510,6 +511,9 @@ def update_collection(  # noqa: C901
 
     if allow_public_sign_up is not NOT_PROVIDED:
         collection.allow_public_sign_up = allow_public_sign_up
+
+    if prospectus_url is not NOT_PROVIDED:
+        collection.prospectus_url = prospectus_url or None
 
     if reminder_email_business_days_before_closing is not NOT_PROVIDED:
         collection.reminder_email_business_days_before_closing = reminder_email_business_days_before_closing
