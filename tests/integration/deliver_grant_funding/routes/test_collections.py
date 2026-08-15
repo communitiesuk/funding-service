@@ -2173,101 +2173,6 @@ class TestMultipleSubmissionsSettings:
 
 
 class TestConfigurePublicSignUp:
-    def test_get_configure_public_sign_up(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.collection_configure_public_sign_up",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert "Should this collection allow public self sign up?" in soup.text
-
-    def test_get_configure_public_sign_up_prepopulates_when_already_enabled(
-        self, authenticated_grant_admin_client, factories
-    ):
-        collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant,
-            allow_public_sign_up=True,
-        )
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.collection_configure_public_sign_up",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        yes_radio = soup.find("input", {"value": "True"})
-        assert yes_radio is not None
-
-    def test_post_enable_public_sign_up(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.collection_configure_public_sign_up",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            ),
-            data={"allow_public_sign_up": True, "submit": "y"},
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert collection.allow_public_sign_up is True
-
-    def test_post_disable_public_sign_up(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant,
-            allow_public_sign_up=True,
-        )
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.collection_configure_public_sign_up",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            ),
-            data={"allow_public_sign_up": False, "submit": "y"},
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert collection.allow_public_sign_up is False
-
-    def test_post_shows_error_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant,
-            status=CollectionStatusEnum.OPEN,
-        )
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.collection_configure_public_sign_up",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            ),
-            data={"allow_public_sign_up": True, "submit": "y"},
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "You cannot change this setting as the collection is not currently editable")
-
     def test_grant_member_cannot_access(self, authenticated_grant_member_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
 
@@ -2281,6 +2186,115 @@ class TestConfigurePublicSignUp:
         )
 
         assert response.status_code == 403
+
+    def test_get_redirects_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_reports", grant_id=authenticated_grant_admin_client.grant.id
+        )
+
+    def test_post_redirects_without_saving_when_collection_not_editable(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=False,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": True, "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_reports", grant_id=authenticated_grant_admin_client.grant.id
+        )
+        assert collection.allow_public_sign_up is False
+
+    def test_get_renders_form(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Can any organisation sign up and access this report?" in soup.text
+
+    def test_get_prepopulates_when_enabled(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            allow_public_sign_up=True,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        yes_radio = soup.find("input", checked=True)
+        assert yes_radio.find_next_sibling("label").text.strip() == "Yes"
+
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_post_saves_setting(self, authenticated_grant_admin_client, factories, allow_public_sign_up):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, allow_public_sign_up=not allow_public_sign_up
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": allow_public_sign_up, "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.collection_settings",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            collection_type=CollectionType.MONITORING_REPORT,
+            collection_id=collection.id,
+        )
+        assert collection.allow_public_sign_up is allow_public_sign_up
 
 
 class TestMoveSection:
