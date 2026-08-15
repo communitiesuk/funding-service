@@ -672,14 +672,6 @@ class Submission(BaseModel):
             & not_(cls.is_submitted)
         )
 
-    __table_args__ = (
-        CheckConstraint(
-            # confirmed in 032_entity_modes
-            "mode = 'PREVIEW' OR grant_recipient_id IS NOT NULL",
-            name="ck_grant_recipient_if_live",
-        ),
-    )
-
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"
 
