@@ -128,3 +128,23 @@ class TestExpressionConstraints:
             managed_name=None,
             context={"question_id": "abc"},
         )
+
+
+class TestFormConstraints:
+    def test_only_one_eligibility_section_per_collection(self, factories):
+        collection = factories.collection.create()
+        factories.form.create(collection=collection, is_eligibility_section=True)
+
+        with pytest.raises(IntegrityError) as error:
+            factories.form.create(collection=collection, is_eligibility_section=True)
+
+        assert 'duplicate key value violates unique constraint "uq_form_eligibility_collection"' in error.value.args[0]
+
+    def test_multiple_non_eligibility_forms_allowed_per_collection(self, factories):
+        collection = factories.collection.create()
+        factories.form.create(collection=collection, is_eligibility_section=False)
+        factories.form.create(collection=collection, is_eligibility_section=False)
+
+    def test_eligibility_section_allowed_across_different_collections(self, factories):
+        factories.form.create(is_eligibility_section=True)
+        factories.form.create(is_eligibility_section=True)
