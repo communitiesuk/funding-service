@@ -408,7 +408,7 @@ class SubmissionHelper:
 
         form_statuses_by_id = {
             form.id: self.get_status_for_form(form)
-            for form in self.collection.forms
+            for form in self.collection.application_forms
             if not self.form_is_managed_by_service(form)
         }
 
@@ -729,7 +729,7 @@ class SubmissionHelper:
 
     @cached_property
     def all_needed_forms_are_completed(self) -> bool:
-        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
+        form_statuses = {self.get_status_for_form(form) for form in self.collection.application_forms}
         return form_statuses <= {
             TasklistSectionStatusEnum.COMPLETED,
             TasklistSectionStatusEnum.NOT_NEEDED,
