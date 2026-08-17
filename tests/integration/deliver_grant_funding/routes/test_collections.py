@@ -10533,6 +10533,36 @@ class TestViewSubmission:
         assert "Upload a supporting document" in soup.text
         assert "test-document.pdf" in soup.text
 
+    def test_eligibility_form_excluded_from_submission_responses(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+            create_completed_submissions_each_question_type__use_random_data=False,
+        )
+        eligibility_form = factories.form.create(
+            collection=collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        factories.question.create(form=eligibility_form, text="Are you eligible to apply?")
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=collection.test_submissions[0].id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        # Eligibility section should not show up on Deliver's submission page
+        assert "Eligibility questions" not in soup.text
+        assert "Are you eligible to apply?" not in soup.text
+        # Other sections do show up
+        assert "Export test form" in soup.text
+        assert "What is your name?" in soup.text
+
     # TODO: combine into above test when feature flag removed
     def test_ff_metadata_and_tab_panels_are_displayed(self, authenticated_grant_member_client, submission_submitted):
         grant = authenticated_grant_member_client.grant
@@ -10566,6 +10596,37 @@ class TestViewSubmission:
 
         timeline_panel = soup.select_one("#timeline")
         assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
+
+    def test_ff_eligibility_form_excluded_from_submission_responses(
+        self, authenticated_grant_member_client, factories, submission_submitted
+    ):
+        grant = authenticated_grant_member_client.grant
+        grant.allow_pre_award = True
+
+        eligibility_form = factories.form.create(
+            collection=submission_submitted.collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        factories.question.create(form=eligibility_form, text="Are you eligible to apply?")
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant.id,
+                submission_id=submission_submitted.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        nav_items = [item.text.strip() for item in soup.select(".app-section-nav-list__item")]
+        # Eligibility section should not show up on Deliver's submission page
+        assert "Eligibility questions" not in nav_items
+        assert "Are you eligible to apply?" not in soup.text
+        # Other sections do show up
+        application_form = submission_submitted.collection.forms[0]
+        assert application_form.title in nav_items
+        assert "Question answer" in soup.text
 
     @pytest.mark.parametrize(
         "client_fixture, submission_fixture, can_see_button",

@@ -148,6 +148,39 @@ class TestViewLockedReport:
             "Date submitted:",
         ]
 
+    def test_eligibility_form_excluded_from_locked_report(
+        self,
+        authenticated_grant_recipient_certifier_client,
+        factories,
+        submission_submitted,
+    ):
+        eligibility_form = factories.form.create(
+            collection=submission_submitted.collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        factories.question.create(form=eligibility_form, text="Are you eligible to apply?")
+
+        grant_recipient = authenticated_grant_recipient_certifier_client.grant_recipient
+        response = authenticated_grant_recipient_certifier_client.get(
+            url_for(
+                "access_grant_funding.view_locked_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission_submitted.collection.type,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        nav_items = [item.text.strip() for item in soup.select(".app-section-nav-list__item")]
+        # Eligibility section should not show up on Access' submission page
+        assert "Eligibility questions" not in nav_items
+        assert "Are you eligible to apply?" not in soup.text
+        # Other sections do show up
+        application_form = submission_submitted.collection.forms[0]
+        assert application_form.title in nav_items
+        assert "Question answer" in soup.text
+
     def test_get_view_locked_report_collection_closed(
         self,
         authenticated_grant_recipient_certifier_client,

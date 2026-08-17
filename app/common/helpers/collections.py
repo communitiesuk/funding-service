@@ -770,7 +770,7 @@ class SubmissionHelper:
 
     def get_ordered_visible_forms(self) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
-        return sorted(self.collection.forms, key=lambda f: f.order)
+        return sorted(self.collection.application_forms, key=lambda f: f.order)
 
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None
