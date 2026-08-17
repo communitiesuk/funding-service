@@ -1003,14 +1003,24 @@ def create_form(*, title: str, collection: Collection, is_eligibility_section: b
         slug=slugify(title),
         is_eligibility_section=is_eligibility_section,
     )
-    collection.forms.append(form)
+    if is_eligibility_section:
+        # The eligibility section is always answered first; inserting at 0 lets the `ordering_list` renumber
+        # every other form, so defer the order uniqueness constraint until commit like other multi-row reorders.
+        collection.forms.insert(0, form)
+        db.session.execute(text("SET CONSTRAINTS uq_form_order_collection DEFERRED"))
+    else:
+        collection.forms.append(form)
     db.session.add(form)
     return form
 
 
 @flush_and_rollback_on_exceptions
 def move_form_up(form: Form) -> Form:
+    if form.is_eligibility_section:
+        return form
     swap_form = form.collection.forms[form.order - 1]
+    if swap_form.is_eligibility_section:
+        return form
     _check_form_order_dependency(form, swap_form)
     _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
     return form
@@ -1018,6 +1028,8 @@ def move_form_up(form: Form) -> Form:
 
 @flush_and_rollback_on_exceptions
 def move_form_down(form: Form) -> Form:
+    if form.is_eligibility_section:
+        return form
     swap_form = form.collection.forms[form.order + 1]
     _check_form_order_dependency(form, swap_form)
     _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
