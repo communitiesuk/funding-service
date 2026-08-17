@@ -1351,6 +1351,19 @@ class TestCreateForm:
 
         assert form.is_eligibility_section is is_eligibility_section
 
+    def test_eligibility_form_is_always_inserted_first(self, factories):
+        collection = factories.collection.create()
+        form_a = create_form(title="Form A", collection=collection)
+        form_b = create_form(title="Form B", collection=collection)
+
+        eligibility_form = create_form(
+            title="Eligibility questions", collection=collection, is_eligibility_section=True
+        )
+
+        assert eligibility_form.order == 0
+        assert form_a.order == 1
+        assert form_b.order == 2
+
 
 def test_form_name_unique_in_collection(db_session, factories):
     collection = factories.collection.create()
@@ -1382,6 +1395,42 @@ def test_move_form_up_down(db_session, factories):
 
     assert form1.order == 0
     assert form2.order == 1
+
+
+class TestMoveFormUpDownEligibility:
+    def test_move_form_up_does_nothing_for_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        create_form(title="Form A", collection=collection)
+        eligibility_form = create_form(
+            title="Eligibility questions", collection=collection, is_eligibility_section=True
+        )
+
+        move_form_up(eligibility_form)
+
+        assert eligibility_form.order == 0
+
+    def test_move_form_down_does_nothing_for_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        create_form(title="Form A", collection=collection)
+        eligibility_form = create_form(
+            title="Eligibility questions", collection=collection, is_eligibility_section=True
+        )
+
+        move_form_down(eligibility_form)
+
+        assert eligibility_form.order == 0
+
+    def test_move_form_up_cannot_swap_with_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        form_a = create_form(title="Form A", collection=collection)
+        eligibility_form = create_form(
+            title="Eligibility questions", collection=collection, is_eligibility_section=True
+        )
+
+        move_form_up(form_a)
+
+        assert eligibility_form.order == 0
+        assert form_a.order == 1
 
 
 def test_get_question(db_session, factories):
