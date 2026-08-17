@@ -843,6 +843,27 @@ class TestSubmissionHelper:
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.NOT_NEEDED
             assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NO_QUESTIONS
 
+        def test_submission_status_ignores_unanswered_eligibility_form(self, factories):
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            eligibility_form = factories.form.create(collection=question.form.collection, is_eligibility_section=True)
+            factories.question.create(form=eligibility_form)
+
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            helper.submit_answer_for_question(
+                question.id,
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
+                submission.created_by,
+            )
+            helper.toggle_form_completed(question.form, submission.created_by, True)
+
+            # the eligibility form's unanswered question doesn't block completion
+            assert helper.all_needed_forms_are_completed is True
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
+
         def test_submission_status_based_on_forms(self, db_session, factories, mock_notification_service_calls):
             org = factories.organisation.create()
             grant = factories.grant.create()
