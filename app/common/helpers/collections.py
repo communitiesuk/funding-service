@@ -1314,7 +1314,7 @@ class SubmissionHelper:
                 declined_reason=declined_reason,
                 related_entity_id=self.id,
             )
-            for form in self.collection.forms:
+            for form in self.collection.application_forms:
                 if not self.form_is_managed_by_service(form):
                     self.add_submission_event(
                         event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
@@ -1428,7 +1428,7 @@ class SubmissionHelper:
             submission_data=self.submission.data_manager.data,
             related_entity_id=self.id,
         )
-        for form in self.collection.forms:
+        for form in self.collection.application_forms:
             if not self.form_is_managed_by_service(form):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
@@ -1479,7 +1479,7 @@ class SubmissionHelper:
             submission_data=self.submission.data_manager.data,
             related_entity_id=self.id,
         )
-        for form in self.collection.forms:
+        for form in self.collection.application_forms:
             if (not section_ids or form.id in section_ids) and not self.form_is_managed_by_service(form):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
