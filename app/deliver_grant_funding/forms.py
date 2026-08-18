@@ -1081,7 +1081,7 @@ class CertificationSettingsForm(FlaskForm):
 class ProspectusLinkSettingsForm(FlaskForm):
     prospectus_url = StringField(
         label="Add a link to the prospectus (optional)",
-        validators=[Optional(), URL(message="Enter a website address in the correct format, like https://www.gov.uk")],
+        validators=[Optional(), URL(message="Enter a link in the correct format, like https://www.gov.uk")],
         widget=GovTextInput(),
     )
     submit = SubmitField("Update prospectus", widget=GovSubmitInput())

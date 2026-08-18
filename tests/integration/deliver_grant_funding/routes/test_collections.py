@@ -1393,7 +1393,7 @@ class TestConfigureProspectusLink:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Enter a website address in the correct format, like https://www.gov.uk" in soup.text
+        assert "Enter a link in the correct format, like https://www.gov.uk" in soup.text
         assert collection.prospectus_url is None
 
 
