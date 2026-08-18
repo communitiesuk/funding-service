@@ -312,6 +312,7 @@ class CollectionStatusEnum(enum.StrEnum):
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"
+    ELIGIBILITY = "ELIGIBILITY"
 
 
 class TraceLevelEnum(enum.StrEnum):
