@@ -1945,6 +1945,26 @@ class TestMultipleSubmissionsSettings:
         assert not soup.find("option", {"value": str(q3.id)})
         assert not soup.find("option", {"value": str(q4.id)})
 
+    def test_cant_select_questions_from_eligibility_form(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant, allow_multiple_submissions=True)
+
+        section_1 = factories.form.create(collection=collection)
+        question_1 = factories.question.create(form=section_1, data_type=QuestionDataType.TEXT_SINGLE_LINE)
+        collection.submission_name_question_id = question_1.id
+        eligibility_section = factories.form.create(collection=collection, is_eligibility_section=True)
+        eligibility_question = factories.question.create(
+            form=eligibility_section,
+            data_type=QuestionDataType.TEXT_SINGLE_LINE,
+        )
+
+        response = authenticated_grant_admin_client.get(self._url(authenticated_grant_admin_client, collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("option", {"value": str(question_1.id)})
+        assert not soup.find("option", {"value": str(eligibility_question.id)})
+
     def test_cant_select_add_another_questions_of_valid_data_type(
         self, app, authenticated_grant_admin_client, factories
     ):
