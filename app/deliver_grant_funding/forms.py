@@ -1440,7 +1440,7 @@ class ColumnDataTypeMappingForm(FlaskForm):
 
     column_name = HiddenField()
     column_type = SelectField(
-        "Data type",
+        "Select data type",
         choices=[
             ("", "Select data type"),
             ("BRITISH_POUNDS", "British pounds"),

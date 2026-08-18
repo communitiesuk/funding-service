@@ -11403,7 +11403,7 @@ class TestMapDataSetColumns:
         data_set_session_data = session[SESSION_DATA_SET_UPLOAD]
         soup = BeautifulSoup(response.data, "html.parser")
 
-        assert f"Map {data_set_session_data['name']} data columns" in get_h1_text(soup)
+        assert f"Format {data_set_session_data['name']} data" in get_h1_text(soup)
 
         for _, values in data_set_session_data["preview_data"].items():
             for value in values:
@@ -11471,7 +11471,7 @@ class TestMapDataSetColumns:
         data_set_session_data = session[SESSION_DATA_SET_REPLACE]
         soup = BeautifulSoup(response.data, "html.parser")
 
-        assert f"Map {data_set_session_data['name']} data columns" in get_h1_text(soup)
+        assert f"Format {data_set_session_data['name']} data" in get_h1_text(soup)
 
         for value in data_set_session_data["preview_data"]["Notes"]:
             assert value in soup.text

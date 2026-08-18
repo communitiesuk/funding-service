@@ -5,7 +5,7 @@
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% set page_title = "Map " ~ session_data.name ~ " data columns" %}
+{% set page_title = "Format " ~ session_data.name ~ " data" %}
 
 {% block beforeContent %}
   {% if session_data.has_missing_data %}
@@ -27,9 +27,9 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ collection.name }}</span>
-        Map {{ session_data.name }} data columns
+        Format {{ session_data.name }} data
       </h1>
-      <p class="govuk-body">Map the data from each column to set its data type and settings in the grant form.</p>
+      <p class="govuk-body">Select the data type for each column in the data set.</p>
     </div>
     <div class="govuk-grid-column-full">
       <form method="POST" novalidate>
@@ -40,7 +40,7 @@
           {% set idx = loop.index0 %}
           {% set preview_html = session_data.preview_data[column] | join('<br>') %}
           {% set select_html %}
-            {{ form.columns[idx].form.column_type(params={"label": {"html": "Data type <span class='govuk-visually-hidden'>for " ~ column ~ "</span>" } }) }}
+            {{ form.columns[idx].form.column_type(params={"label": {"html": "Select data type <span class='govuk-visually-hidden'>for " ~ column ~ "</span>" } }) }}
           {% endset %}
           {%
             do rows.append([
@@ -56,7 +56,7 @@
             "head": [
               {"text": "Column name", "classes": "govuk-!-width-one-quarter"},
               {"text": "Example data", "classes": "govuk-!-width-one-half"},
-              {"text": "Data type"}
+              {"text": "Formatting options"}
             ],
             "rows": rows
           })

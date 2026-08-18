@@ -5,7 +5,7 @@
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% set page_title = "Map " ~ session_data.name ~ " number columns" %}
+{% set page_title = "Format " ~ session_data.name ~ " number columns" %}
 
 {% block beforeContent %}
   {% set back_link = url_for("deliver_grant_funding.map_data_set_columns", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
@@ -17,9 +17,10 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ collection.name }}</span>
-        Map {{ session_data.name }} number columns
+        Format {{ session_data.name }} number columns
       </h1>
-      <p class="govuk-body">Map the data from each numerical column to set formatting options.</p>
+      <p class="govuk-body">Format the data set’s number columns as they should appear in the {{ type_constants.singular }}.</p>
+      <p class="govuk-body">For example, adding the ‘kg’ suffix to format the column’s numbers like 100kg.</p>
     </div>
     <div class="govuk-grid-column-full">
       <form method="POST" novalidate>
