@@ -96,21 +96,21 @@
           } if can_edit else {}
         })
       %}
-      {%
-        do rows.append({
-          "key": {"text": "Allow any organisation to sign up and access the " ~ type_constants.singular},
-          "value": {"text": "Yes" if collection.allow_public_sign_up else "No"},
-          "actions": {
-            "items": [{
-              "href": url_for("deliver_grant_funding.collection_configure_public_sign_up", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
-              "classes": "govuk-link--no-visited-state",
-              "text": "Change",
-              "visuallyHiddenText": "public sign up setting"
-            }]
-          } if can_edit else {}
-        })
-      %}
       {% if collection.type == enum.collection_type_enum.APPLICATION %}
+        {%
+          do rows.append({
+            "key": {"text": "Allow any organisation to sign up and access the " ~ type_constants.singular},
+            "value": {"text": "Yes" if collection.allow_public_sign_up else "No"},
+            "actions": {
+              "items": [{
+                "href": url_for("deliver_grant_funding.collection_configure_public_sign_up", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "public sign up setting"
+              }]
+            } if can_edit else {}
+          })
+        %}
         {%
           do rows.append({
             "key": {"text": "Prospectus link"},

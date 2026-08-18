@@ -791,6 +791,9 @@ def collection_multiple_submissions_settings(
 def collection_configure_public_sign_up(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID
 ) -> ResponseReturnValue:
+    if collection_type != CollectionType.APPLICATION:
+        abort(404)
+
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     form = PublicSignUpSettingsForm(
