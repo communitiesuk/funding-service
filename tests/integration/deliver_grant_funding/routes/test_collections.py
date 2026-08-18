@@ -569,13 +569,15 @@ class TestManageCollection:
         assert "Change" in reopening_row.find("a").text
 
     def test_shows_prospectus_link_row_when_not_set(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, prospectus_url=None)
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.APPLICATION, prospectus_url=None
+        )
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_settings",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             )
         )
@@ -588,7 +590,28 @@ class TestManageCollection:
 
     def test_shows_prospectus_link_row_when_set(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant, prospectus_url="https://www.gov.uk/prospectus"
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            prospectus_url="https://www.gov.uk/prospectus",
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        prospectus_row = next(row for row in soup.select(".govuk-summary-list__row") if "Prospectus link" in row.text)
+        assert "https://www.gov.uk/prospectus" in prospectus_row.select_one(".govuk-summary-list__value").text
+
+    def test_hides_prospectus_link_row_for_non_pre_award_collection(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.MONITORING_REPORT
         )
 
         response = authenticated_grant_admin_client.get(
@@ -602,8 +625,7 @@ class TestManageCollection:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        prospectus_row = next(row for row in soup.select(".govuk-summary-list__row") if "Prospectus link" in row.text)
-        assert "https://www.gov.uk/prospectus" in prospectus_row.select_one(".govuk-summary-list__value").text
+        assert not any("Prospectus link" in row.text for row in soup.select(".govuk-summary-list__row"))
 
     @pytest.mark.parametrize(
         "allow_multiple_submissions, managed_by_service, expected_naming_value",
@@ -1259,24 +1281,24 @@ class TestConfigureCertification:
 
 class TestConfigureProspectusLink:
     def test_grant_member_cannot_access(self, authenticated_grant_member_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant, type=CollectionType.APPLICATION
+        )
 
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_prospectus_link",
                 grant_id=authenticated_grant_member_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             )
         )
 
         assert response.status_code == 403
 
-    def test_get_redirects_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
+    def test_404_for_non_pre_award_collection(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant,
-            status=CollectionStatusEnum.OPEN,
-            prospectus_url=None,
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.MONITORING_REPORT
         )
 
         response = authenticated_grant_admin_client.get(
@@ -1285,13 +1307,32 @@ class TestConfigureProspectusLink:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 collection_type=CollectionType.MONITORING_REPORT,
                 collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_redirects_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            prospectus_url=None,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.collection_configure_prospectus_link",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
             ),
             follow_redirects=False,
         )
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "deliver_grant_funding.list_reports", grant_id=authenticated_grant_admin_client.grant.id
+            "deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id
         )
 
     def test_post_redirects_without_saving_when_collection_not_editable(
@@ -1299,6 +1340,7 @@ class TestConfigureProspectusLink:
     ):
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
             status=CollectionStatusEnum.OPEN,
             prospectus_url=None,
         )
@@ -1307,7 +1349,7 @@ class TestConfigureProspectusLink:
             url_for(
                 "deliver_grant_funding.collection_configure_prospectus_link",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             ),
             data={"prospectus_url": "https://www.gov.uk/prospectus", "submit": "y"},
@@ -1316,18 +1358,20 @@ class TestConfigureProspectusLink:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "deliver_grant_funding.list_reports", grant_id=authenticated_grant_admin_client.grant.id
+            "deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id
         )
         assert collection.prospectus_url is None
 
     def test_get_renders_form(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.APPLICATION
+        )
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_prospectus_link",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             )
         )
@@ -1338,14 +1382,16 @@ class TestConfigureProspectusLink:
 
     def test_get_prepopulates_when_set(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant, prospectus_url="https://www.gov.uk/prospectus"
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            prospectus_url="https://www.gov.uk/prospectus",
         )
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.collection_configure_prospectus_link",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             )
         )
@@ -1355,13 +1401,15 @@ class TestConfigureProspectusLink:
         assert soup.find("input", {"name": "prospectus_url"})["value"] == "https://www.gov.uk/prospectus"
 
     def test_post_saves_setting(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, prospectus_url=None)
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.APPLICATION, prospectus_url=None
+        )
 
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.collection_configure_prospectus_link",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             ),
             data={"prospectus_url": "https://www.gov.uk/prospectus", "submit": "y"},
@@ -1372,19 +1420,21 @@ class TestConfigureProspectusLink:
         assert response.location == url_for(
             "deliver_grant_funding.collection_settings",
             grant_id=authenticated_grant_admin_client.grant.id,
-            collection_type=CollectionType.MONITORING_REPORT,
+            collection_type=CollectionType.APPLICATION,
             collection_id=collection.id,
         )
         assert collection.prospectus_url == "https://www.gov.uk/prospectus"
 
     def test_post_rejects_invalid_url(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, prospectus_url=None)
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant, type=CollectionType.APPLICATION, prospectus_url=None
+        )
 
         response = authenticated_grant_admin_client.post(
             url_for(
                 "deliver_grant_funding.collection_configure_prospectus_link",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
+                collection_type=CollectionType.APPLICATION,
                 collection_id=collection.id,
             ),
             data={"prospectus_url": "not-a-url", "submit": "y"},

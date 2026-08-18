@@ -522,6 +522,9 @@ def collection_configure_certification(
 def collection_configure_prospectus_link(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID
 ) -> ResponseReturnValue:
+    if collection_type != CollectionType.APPLICATION:
+        abort(404)
+
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     form = ProspectusLinkSettingsForm(obj=collection if request.method == "GET" else None)
