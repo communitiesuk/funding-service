@@ -994,6 +994,9 @@ class SubmissionHelper:
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
     def _statuses_for_all_forms(self) -> dict[Form, TasklistSectionStatusEnum]:
+        # Deliberately includes the eligibility form (unlike `all_needed_forms_are_completed`): this tracks whether
+        # answering a question reset some form's completion status, and `current_form` in
+        # `_emit_submission_events_for_forms_reset_to_in_progress` may itself be the eligibility form.
         return {form: self.get_status_for_form(form) for form in self.collection.forms}
 
     def _emit_submission_events_for_forms_reset_to_in_progress(
