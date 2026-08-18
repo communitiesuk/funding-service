@@ -18,18 +18,6 @@ on:
         type: boolean
         default: true
         required: true
-      image_cpu:
-        # Keep in sync with terraform otherwise this value will be reverted on the next terraform apply
-        description: "CPU units for the App Runner service"
-        type: number
-        default: 2
-        required: false
-      image_memory:
-        # Keep in sync with terraform otherwise this value will be reverted on the next terraform apply
-        description: "Memory (in GB) for the App Runner service"
-        type: number
-        default: 4
-        required: false
     secrets:
       AWS_ACCOUNT:
         required: true
@@ -53,8 +41,6 @@ jobs:
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     name: Deploy
-    outputs:
-      express_failed: ${{ steps.start_express.outcome == 'failure' || steps.wait_express.outcome == 'failure' }}
 
     steps:
       - name: Get current date
@@ -126,47 +112,11 @@ jobs:
         with:
           version: "0.12.1"
 
-      - name: Start ECS Express deploy - ${{ github.sha }}
-        # Dual-running during the App Runner -> ECS Express migration
-        # (FSPT-1318): App Runner below remains the live service; this keeps
-        # the parallel ECS Express service on the same image. The rollout is
-        # started here and collected after the App Runner deploy, so the two
-        # proceed in parallel. Express only exists in dev/test for now - drop
-        # these conditions when prod joins express_enabled_workspaces in
-        # funding-service-terraform.
-        id: start_express
-        # Don't let an Express hiccup block an App Runner deploy while the
-        # migration beds in. Remove once dual deploys have been green a while.
-        continue-on-error: true
+      - name: Deploy to ECS (Express) - ${{ github.sha }}
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           ECR_IMAGE_LOCATION: ${{ steps.ecr_info.outputs.ecr_image_location }}
-        run: uv run scripts/update-ecs-express-image.py --no-wait --environment "${ENVIRONMENT}" "${ECR_IMAGE_LOCATION}"
-
-      - name: Deploy image to App Runner - ${{ github.sha }}
-        id: deploy
-        uses: awslabs/amazon-app-runner-deploy@8d446e5e06d34b619d712e6f4d35ded91e3c9e7e  # PR #53
-        with:
-          service: ${{ inputs.environment }}-funding-service
-          image: ${{ steps.ecr_info.outputs.ecr_image_location }}
-          access-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/${{ inputs.environment }}-funding-service-app-runner-build-role
-          region: eu-west-2
-          port: 8080
-          cpu: ${{inputs.image_cpu}}
-          memory: ${{inputs.image_memory}}
-          wait-for-service-stability-seconds: 600
-
-      - name: Wait for ECS Express rollout - ${{ github.sha }}
-        # Collects the rollout started before the App Runner deploy: waits for
-        # the service to settle and fails if it settled on anything other than
-        # the image above (i.e. the canary was rolled back).
-        id: wait_express
-        if: ${{ steps.start_express.outcome == 'success' }}
-        continue-on-error: true
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
-          ECR_IMAGE_LOCATION: ${{ steps.ecr_info.outputs.ecr_image_location }}
-        run: uv run scripts/update-ecs-express-image.py --wait-only --environment "${ENVIRONMENT}" "${ECR_IMAGE_LOCATION}"
+        run: uv run scripts/update-ecs-express-image.py --environment "${ENVIRONMENT}" "${ECR_IMAGE_LOCATION}"
 
   e2e_tests:
     name: Python E2E tests
@@ -186,22 +136,6 @@ jobs:
     uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@d4a4c7d63b1d5c82a8c1fe57edea8ef529a60d04  # PR #313
     with:
       app_name: FS Deploy CI ECR
-      env_name: ${{ inputs.environment }}
-      github_username: ${{ github.actor }}
-      workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      compare_url: ${{ github.event_name == 'push' && github.event.compare || null }}
-    secrets:
-      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_NOTIFICATION_CHANNEL_ID: ${{ secrets.TEMP_SLACK_CHANNEL_ID }}
-
-  notify_slack_express:
-    # The Express steps are continue-on-error so they never fail the deploy
-    # job or block App Runner, but we still want to hear about them in Slack.
-    needs: [ deploy ]
-    if: ${{ always() && needs.deploy.outputs.express_failed == 'true' && github.ref_name == 'main' }}
-    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@d4a4c7d63b1d5c82a8c1fe57edea8ef529a60d04  # PR #313
-    with:
-      app_name: FS ECS Express Deploy
       env_name: ${{ inputs.environment }}
       github_username: ${{ github.actor }}
       workflow_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
