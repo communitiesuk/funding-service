@@ -2155,6 +2155,22 @@ class TestSubmissionHelper:
             assert managed_form.id not in reset_form_ids
             assert unmanaged_form.id in reset_form_ids
 
+        def test_decline_does_not_reset_eligibility_form(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            collection = submission_awaiting_sign_off.collection
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            helper.decline_certification(user=certifier_user, declined_reason="Test reason")
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_awaiting_sign_off.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER
+            ]
+            assert eligibility_form.id not in reset_form_ids
+
         def test_decline_when_collection_closed(
             self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
         ):
@@ -2180,6 +2196,21 @@ class TestSubmissionHelper:
             assert helper.requested_or_allowed_changes_by == grant_team_user
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+        def test_reopen_does_not_reset_eligibility_form(self, factories, grant_team_user, submission_submitted) -> None:
+            eligibility_form = factories.form.create(
+                collection=submission_submitted.collection, is_eligibility_section=True
+            )
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+            assert eligibility_form.id not in reset_form_ids
 
         def test_submission_reopened_platform_admin(self, platform_admin_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
@@ -2494,6 +2525,25 @@ class TestSubmissionHelper:
             ]
             assert managed_form.id not in reset_form_ids
             assert unmanaged_form.id in reset_form_ids
+
+        def test_request_changes_does_not_reset_eligibility_form(
+            self, factories, submission_submitted, grant_team_user, mock_notification_service_calls
+        ):
+            eligibility_form = factories.form.create(
+                collection=submission_submitted.collection, is_eligibility_section=True
+            )
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes_submission(
+                user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
+            )
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+            assert eligibility_form.id not in reset_form_ids
 
         def test_request_changes_sends_notifications(
             self,
