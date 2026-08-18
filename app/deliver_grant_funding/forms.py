@@ -1022,6 +1022,10 @@ class PublicSignUpSettingsForm(FlaskForm):
         super().__init__(*args, **kwargs)
         singular = collection_type.constants.singular
         self.allow_public_sign_up.label.text = f"Can any organisation sign up and access this {singular}?"
+        self.allow_public_sign_up.choices = [
+            (True, f"Yes, any organisation can sign up and access the {singular}"),
+            (False, f"No, only specific organisations can access the {singular}"),
+        ]
         self.allow_public_sign_up.validators = [
             DataRequired(f"Select whether any organisation can sign up and access this {singular}")
         ]

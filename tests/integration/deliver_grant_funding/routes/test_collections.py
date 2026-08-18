@@ -2248,6 +2248,7 @@ class TestConfigurePublicSignUp:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
+        assert "Public sign up and access" in soup.text
         assert "Can any organisation sign up and access this report?" in soup.text
 
     def test_get_prepopulates_when_enabled(self, authenticated_grant_admin_client, factories):
@@ -2268,7 +2269,8 @@ class TestConfigurePublicSignUp:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         yes_radio = soup.find("input", checked=True)
-        assert yes_radio.find_next_sibling("label").text.strip() == "Yes"
+        yes_radio_text = yes_radio.find_next_sibling("label").text.strip()
+        assert yes_radio_text == "Yes, any organisation can sign up and access the report"
 
     @pytest.mark.parametrize("allow_public_sign_up", [True, False])
     def test_post_saves_setting(self, authenticated_grant_admin_client, factories, allow_public_sign_up):

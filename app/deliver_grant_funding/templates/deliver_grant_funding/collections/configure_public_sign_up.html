@@ -2,7 +2,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 
 {% set type_constants = collection.type.constants %}
-{% set page_title = "Can any organisation sign up and access this " ~ type_constants.singular ~ "? - " ~ collection.name %}
+{% set page_title = "Public sign up and access - " ~ collection.name %}
 {% set active_item_identifier = type_constants.active_nav %}
 
 {% block beforeContent %}
@@ -18,33 +18,18 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">{{ collection.name }}</span>
+      <h1 class="govuk-heading-l">Public sign up and access</h1>
+      {% set sign_up_url = collection.public_sign_up %}
+      <p class="govuk-body">Allowing public sign up means users from any organisation will be able to access this landing page and apply for the {{ grant.name }}:</p>
+      <p class="govuk-body"><a class="govuk-link" href="{{ sign_up_url }}">{{ sign_up_url }}</a></p>
+      <p class="govuk-body">All users will complete eligibility questions first to determine if they're eligible before they can start the {{ type_constants.singular }}.</p>
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {% set sign_up_url = collection.public_sign_up %}
-        {% set allow_public_sign_up_hint %}
-          <p class="govuk-body">If allowed, users from any organisation will be able to sign up and access this {{ type_constants.singular }} from a public landing page.</p>
-          <p class="govuk-body">All users will complete eligibility questions first to determine if they're eligible to apply before they can start the {{ type_constants.singular }}.</p>
-        {% endset %}
-        {% set allow_public_sign_up_conditional_hint %}
-          <p class="govuk-body">When the {{ type_constants.singular }} is live, users will be able to access it through this link: <a class="govuk-link" href="{{ sign_up_url }}">{{ sign_up_url }}</a></p>
-        {% endset %}
 
         {{
           form.allow_public_sign_up(params={
-            "fieldset": {"legend": {"text": form.allow_public_sign_up.label.text, "isPageHeading": true, "classes": "govuk-fieldset__legend--l"} },
-            "hint": {
-              "html": allow_public_sign_up_hint
-            },
-            "items": [
-              {
-                "value": true,
-                "text": "Yes",
-                "conditional": {
-                  "html": allow_public_sign_up_conditional_hint
-                }
-              },
-              {"value": false, "text": "No"}
-            ]
+            "fieldset": {"legend": {"text": form.allow_public_sign_up.label.text, "classes": "govuk-fieldset__legend--m"} },
           })
         }}
 
