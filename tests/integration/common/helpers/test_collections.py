@@ -3603,6 +3603,46 @@ class TestSubmissionsHelper:
         assert rows[1]["[Test form] [Test group] Test question (2)"] == "NOT_ASKED"
         assert rows[1]["[Test form] [Test group] Test question (3)"] == "NOT_ASKED"
 
+    def test_generate_csv_content_respects_group_order(self, factories):
+        # child components in groups are ordered from 0, anything processing sibling groups
+        # should use the helper methods to get the appropriate order respecting groups
+        form = factories.form.create(title="Test form")
+        group_one = factories.group.create(form=form, name="Group one")
+        question_one = factories.question.create(form=form, parent=group_one, name="Group one question one")
+        question_two = factories.question.create(form=form, parent=group_one, name="Group one question two")
+        group_two = factories.group.create(form=form, name="Group two")
+        question_three = factories.question.create(form=form, parent=group_two, name="Group two question one")
+        question_four = factories.question.create(form=form, parent=group_two, name="Group two question two")
+
+        factories.submission.create(
+            collection=form.collection,
+            mode=SubmissionModeEnum.TEST,
+            reference="TEST-001",
+            answers=[
+                FactoryAnswer(question_one, TextSingleLineAnswer("one-one")),
+                FactoryAnswer(question_two, TextSingleLineAnswer("one-two")),
+                FactoryAnswer(question_three, TextSingleLineAnswer("two-one")),
+                FactoryAnswer(question_four, TextSingleLineAnswer("two-two")),
+            ],
+        )
+
+        subs_helper = AllSubmissionsHelper(collection=form.collection, submission_mode=SubmissionModeEnum.TEST)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+
+        assert reader.fieldnames[-4:] == [
+            "[Test form] Group one question one",
+            "[Test form] Group one question two",
+            "[Test form] Group two question one",
+            "[Test form] Group two question two",
+        ]
+
+        rows = list(reader)
+        assert rows[0]["[Test form] Group one question one"] == "one-one"
+        assert rows[0]["[Test form] Group one question two"] == "one-two"
+        assert rows[0]["[Test form] Group two question one"] == "two-one"
+        assert rows[0]["[Test form] Group two question two"] == "two-two"
+
     def test_generate_json_content_for_all_submissions_all_question_types_appear_correctly(self, factories):
         factories.data_source_item.reset_sequence()
         collection = factories.collection.create(
