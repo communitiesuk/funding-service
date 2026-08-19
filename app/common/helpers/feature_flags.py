@@ -119,9 +119,16 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
+class AccessGrantFundingUserManagementFeatureFlag(SessionFeatureFlag):
+    description = "Add and remove users from your team in Access grant funding."
+    resolver_description = "Toggled on and off in the session."
+    uses_request_context = False
+
+
 class FeatureFlags:
     PRE_AWARD = PreAwardGrantFeatureFlag()
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
+    ACCESS_GRANT_FUNDING_USER_MANAGEMENT = AccessGrantFundingUserManagementFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:
