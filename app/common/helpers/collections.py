@@ -1818,7 +1818,7 @@ class AllSubmissionsHelper:
         return [
             question
             for form in sorted(self.collection.tasklist_forms, key=lambda f: f.order)
-            for question in sorted(form.cached_questions, key=lambda q: q.order)
+            for question in form.cached_questions
         ]
 
     # todo: split this method up into smaller parts that can be individually tested (i.e submission -> CSV row dict)
