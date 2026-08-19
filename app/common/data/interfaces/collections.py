@@ -513,6 +513,8 @@ def update_collection(  # noqa: C901
         collection.allow_public_sign_up = allow_public_sign_up
 
     if prospectus_url is not NOT_PROVIDED:
+        if collection.type != CollectionType.APPLICATION:
+            raise ValueError("prospectus_url can only be set on collections of type APPLICATION")
         collection.prospectus_url = prospectus_url or None
 
     if reminder_email_business_days_before_closing is not NOT_PROVIDED:
