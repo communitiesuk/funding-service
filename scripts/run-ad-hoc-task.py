@@ -12,6 +12,12 @@ parser.add_argument(
     help="Command to run in the ECS task (default: 'flask db upgrade').",
 )
 parser.add_argument(
+    "--environment",
+    choices=["dev", "test", "prod"],
+    default="dev",
+    help="The environment to run the ad-hoc task in (default: dev).",
+)
+parser.add_argument(
     "--print-logs",
     action="store_true",
     default=False,
@@ -22,10 +28,10 @@ print(f"Starting script to run command: {args.command}")
 
 command = args.command.split()
 
-cluster = "task-runner-cluster"
-task_definition = "ad-hoc-ecs-task"
-log_group_name = "/ecs/ad-hoc-task"
-log_stream_prefix = "ecs/task-runner-container"
+cluster = f"{args.environment}-funding-service"
+task_definition = f"{args.environment}-funding-service-{args.environment}-funding-service"
+log_group_name = f"/ecs/{args.environment}-funding-service"
+log_stream_prefix = "app/Main"
 
 ec2_client = boto3.client("ec2")
 ecs_client = boto3.client("ecs")
@@ -59,7 +65,7 @@ run_task_response = ecs_client.run_task(
         "containerOverrides": [
             {
                 "command": command,
-                "name": "task-runner-container",
+                "name": "Main",
                 "environment": [{"name": "SEED_SYSTEM_DATA", "value": "false"}],
             }
         ]
