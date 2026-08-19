@@ -510,6 +510,8 @@ def update_collection(  # noqa: C901
             collection.submission_guidance = None
 
     if allow_public_sign_up is not NOT_PROVIDED:
+        if collection.type != CollectionType.APPLICATION:
+            raise ValueError("allow_public_sign_up can only be set on collections of type APPLICATION")
         collection.allow_public_sign_up = allow_public_sign_up
 
     if prospectus_url is not NOT_PROVIDED:

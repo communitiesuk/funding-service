@@ -642,19 +642,25 @@ class TestUpdateCollection:
                 submission_guidance=None,
             )
 
-    def test_update_collection_enable_public_sign_Up(self, db_session, factories):
-        collection = factories.collection.create()
+    def test_update_collection_enable_public_sign_Up(self, factories):
+        collection = factories.collection.create(type=CollectionType.APPLICATION)
 
         updated = update_collection(collection, allow_public_sign_up=True)
 
         assert updated.allow_public_sign_up is True
 
-    def test_update_collection_disable_public_sign_up(self, db_session, factories):
-        collection = factories.collection.create(allow_public_sign_up=True)
+    def test_update_collection_disable_public_sign_up(self, factories):
+        collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=True)
 
         updated = update_collection(collection, allow_public_sign_up=False)
 
         assert updated.allow_public_sign_up is False
+
+    def test_update_collection_set_public_sign_up_raises_for_non_pre_award_collection(self, factories):
+        collection = factories.collection.create(type=CollectionType.MONITORING_REPORT, allow_public_sign_up=False)
+
+        with pytest.raises(ValueError, match="allow_public_sign_up can only be set on collections of type APPLICATION"):
+            update_collection(collection, allow_public_sign_up=True)
 
     def test_update_collection_set_prospectus_url(self, factories):
         collection = factories.collection.create(type=CollectionType.APPLICATION, prospectus_url=None)
