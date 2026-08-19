@@ -782,31 +782,34 @@ def collection_multiple_submissions_settings(
 
 
 @deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/configure-public-sign-up",
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/public-sign-up",
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
 @auto_commit_after_request
 def collection_configure_public_sign_up(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID
 ) -> ResponseReturnValue:
+    if collection_type != CollectionType.APPLICATION:
+        abort(404)
+
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
-    form = PublicSignUpSettingsForm(obj=collection if request.method == "GET" else None)
+    form = PublicSignUpSettingsForm(
+        obj=collection if request.method == "GET" else None, collection_type=collection_type
+    )
 
     if form.validate_on_submit():
-        if not AuthorisationHelper.can_edit_collection(get_current_user(), collection.id):
-            form.form_errors.append("You cannot change this setting as the collection is not currently editable")
-        else:
-            update_collection(collection, allow_public_sign_up=form.allow_public_sign_up.data == "True")
-            return redirect(
-                url_for(
-                    "deliver_grant_funding.list_collection_sections",
-                    grant_id=grant_id,
-                    collection_type=collection_type,
-                    collection_id=collection_id,
-                )
+        update_collection(collection, allow_public_sign_up=form.allow_public_sign_up.data == "True")
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
             )
+        )
 
     return render_template(
         "deliver_grant_funding/collections/configure_public_sign_up.html",
