@@ -990,6 +990,44 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             collection=collection,
         )
 
+    def _notify_template_id_for_admin_email(self, *, collection: Any, email_type: CollectionAdminEmailTypeEnum) -> str:
+        match email_type:
+            case CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION:
+                if collection.multiple_submissions_are_managed_by_service:
+                    return current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_NOTIFICATION_TEMPLATE_ID"
+                    ]
+                return current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"]
+            case CollectionAdminEmailTypeEnum.DEADLINE_REMINDER:
+                if collection.status != CollectionStatusEnum.OPEN:
+                    abort(404)
+
+                if collection.multiple_submissions_are_managed_by_service:
+                    return current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
+                    ]
+                return current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"]
+            case CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE:
+                if collection.status != CollectionStatusEnum.OPEN or not collection.is_overdue:
+                    abort(404)
+
+                if collection.multiple_submissions_are_managed_by_service:
+                    return current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_OVERDUE_TEMPLATE_ID"
+                    ]
+                return current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
+            case CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION:
+                if collection.status != CollectionStatusEnum.CLOSED:
+                    abort(404)
+
+                if collection.multiple_submissions_are_managed_by_service:
+                    return current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_CLOSED_TEMPLATE_ID"
+                    ]
+                return current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_CLOSED_TEMPLATE_ID"]
+            case _:
+                abort(404)
+
     @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/<email_type>", methods=["GET"])
     def send_emails_to_recipients(
         self, grant_id: UUID, collection_id: UUID, email_type: CollectionAdminEmailTypeEnum
@@ -998,48 +1036,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         collection = get_collection(collection_id, grant_id=grant_id)
 
         notify_service_id = current_app.config["GOVUK_NOTIFY_SERVICE_ID"]
-        match email_type:
-            case CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION:
-                if collection.multiple_submissions_are_managed_by_service:
-                    notify_template_id = current_app.config[
-                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_NOTIFICATION_TEMPLATE_ID"
-                    ]
-                else:
-                    notify_template_id = current_app.config[
-                        "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"
-                    ]
-            case CollectionAdminEmailTypeEnum.DEADLINE_REMINDER:
-                if not collection.status == CollectionStatusEnum.OPEN:
-                    return abort(404)
-
-                if collection.multiple_submissions_are_managed_by_service:
-                    notify_template_id = current_app.config[
-                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
-                    ]
-                else:
-                    notify_template_id = current_app.config[
-                        "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
-                    ]
-            case CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE:
-                if collection.status != CollectionStatusEnum.OPEN or not collection.is_overdue:
-                    return abort(404)
-                if collection.multiple_submissions_are_managed_by_service:
-                    notify_template_id = current_app.config[
-                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_OVERDUE_TEMPLATE_ID"
-                    ]
-                else:
-                    notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_OVERDUE_TEMPLATE_ID"]
-            case CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION:
-                if collection.status != CollectionStatusEnum.CLOSED:
-                    return abort(404)
-                if collection.multiple_submissions_are_managed_by_service:
-                    notify_template_id = current_app.config[
-                        "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_CLOSED_TEMPLATE_ID"
-                    ]
-                else:
-                    notify_template_id = current_app.config["GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_CLOSED_TEMPLATE_ID"]
-            case _:
-                return abort(404)
+        notify_template_id = self._notify_template_id_for_admin_email(collection=collection, email_type=email_type)
 
         return self.render(
             "deliver_grant_funding/admin/send-emails-to-data-providers.html",

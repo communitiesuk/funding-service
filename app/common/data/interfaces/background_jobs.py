@@ -5,14 +5,16 @@ from typing import ClassVar
 
 from pgqueuer.queries import Queries
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.common.data.interfaces.collections import get_collection, update_collection
-from app.common.data.models import Collection, Grant
-from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
+from app.common.data.models import Collection, Grant, GrantRecipient
+from app.common.data.models_user import UserRole
+from app.common.data.types import CollectionStatusEnum, GrantRecipientModeEnum, GrantStatusEnum, RoleEnum
 from app.extensions import db
 
 SCAN_COLLECTION_OPENINGS_SCHEDULE = "scan_collection_openings"
+SCAN_COLLECTION_OPEN_NOTIFICATION_EMAILS_SCHEDULE = "scan_collection_open_notification_emails"
 
 
 class OpenCollectionForSubmissionsJob(BaseModel):
@@ -23,6 +25,19 @@ class OpenCollectionForSubmissionsJob(BaseModel):
     @property
     def dedupe_key(self) -> str:
         return f"{self.entrypoint}:{self.collection_id}"
+
+
+class SendCollectionOpenNotificationEmailsJob(BaseModel):
+    entrypoint: ClassVar[str] = "send_collection_open_notification_emails"
+
+    collection_id: uuid.UUID
+
+    @property
+    def dedupe_key(self) -> str:
+        return f"{self.entrypoint}:{self.collection_id}"
+
+
+type BackgroundJob = OpenCollectionForSubmissionsJob | SendCollectionOpenNotificationEmailsJob
 
 
 def get_collection_ids_due_to_open(*, today: datetime.date | None = None) -> Sequence[uuid.UUID]:
@@ -41,10 +56,33 @@ def get_collection_ids_due_to_open(*, today: datetime.date | None = None) -> Seq
     return db.session.scalars(statement).all()
 
 
-async def enqueue_open_collection_for_submissions_job(
-    queries: Queries,
-    job: OpenCollectionForSubmissionsJob,
-) -> bool:
+def get_collection_ids_due_open_notification_emails() -> Sequence[uuid.UUID]:
+    has_data_providers = (
+        select(UserRole.id)
+        .join(GrantRecipient, GrantRecipient.organisation_id == UserRole.organisation_id)
+        .where(
+            GrantRecipient.grant_id == Collection.grant_id,
+            GrantRecipient.mode == GrantRecipientModeEnum.LIVE,
+            or_(UserRole.grant_id.is_(None), UserRole.grant_id == Collection.grant_id),
+            UserRole.permissions.contains([RoleEnum.DATA_PROVIDER]),
+        )
+    )
+
+    statement = (
+        select(Collection.id)
+        .join(Collection.grant)
+        .where(
+            Collection.status == CollectionStatusEnum.OPEN,
+            Collection.collection_open_notification_sent_at_utc.is_(None),
+            Grant.status == GrantStatusEnum.LIVE,
+            has_data_providers.exists(),
+        )
+        .order_by(Collection.submission_period_start_date, Collection.created_at_utc)
+    )
+    return db.session.scalars(statement).all()
+
+
+async def _enqueue_job(queries: Queries, job: BackgroundJob) -> bool:
     job_ids = await queries.enqueue(
         job.entrypoint,
         job.model_dump_json().encode(),
@@ -62,7 +100,21 @@ async def enqueue_due_collection_opening_jobs(queries: Queries) -> int:
     ]
 
     for job in jobs:
-        if await enqueue_open_collection_for_submissions_job(queries, job):
+        if await _enqueue_job(queries, job):
+            queued_count += 1
+
+    return queued_count
+
+
+async def enqueue_due_collection_open_notification_email_jobs(queries: Queries) -> int:
+    queued_count = 0
+    jobs = [
+        SendCollectionOpenNotificationEmailsJob(collection_id=collection_id)
+        for collection_id in get_collection_ids_due_open_notification_emails()
+    ]
+
+    for job in jobs:
+        if await _enqueue_job(queries, job):
             queued_count += 1
 
     return queued_count
@@ -88,3 +140,8 @@ def open_collection_for_submissions(job: OpenCollectionForSubmissionsJob) -> boo
 
     update_collection(collection, status=CollectionStatusEnum.OPEN)
     return True
+
+
+def mark_collection_open_notification_emails_sent(job: SendCollectionOpenNotificationEmailsJob) -> None:
+    collection = get_collection(job.collection_id)
+    collection.collection_open_notification_sent_at_utc = datetime.datetime.now(datetime.UTC)

@@ -3,7 +3,7 @@ import asyncio
 import click
 
 from app.background_jobs import background_jobs_blueprint
-from app.background_jobs.worker import run_worker, scan_due_collection_openings
+from app.background_jobs.worker import run_worker, scan_due_background_jobs
 
 
 @background_jobs_blueprint.cli.command(
@@ -11,8 +11,8 @@ from app.background_jobs.worker import run_worker, scan_due_collection_openings
     help="Local dev helper: scan current app state and enqueue due background jobs",
 )
 def scan() -> None:
-    queued_count = asyncio.run(scan_due_collection_openings())
-    click.echo(f"Queued {queued_count} collection opening jobs")
+    queued_count = asyncio.run(scan_due_background_jobs())
+    click.echo(f"Queued {queued_count} background jobs")
 
 
 @background_jobs_blueprint.cli.command(

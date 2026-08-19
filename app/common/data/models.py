@@ -377,6 +377,7 @@ class Collection(BaseModel):
     reporting_period_end_date: Mapped[datetime.date | None]
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
+    collection_open_notification_sent_at_utc: Mapped[datetime.datetime | None]
     reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
     requires_certification: Mapped[bool]
     allow_submission_reopening: Mapped[bool] = mapped_column(default=True)
