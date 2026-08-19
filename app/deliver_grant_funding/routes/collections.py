@@ -162,6 +162,7 @@ from app.deliver_grant_funding.forms import (
     MultipleSubmissionsForm,
     MultipleSubmissionsNamingForm,
     MultipleSubmissionsSettingsForm,
+    ProspectusLinkSettingsForm,
     PublicSignUpSettingsForm,
     QuestionForm,
     QuestionTypeForm,
@@ -505,6 +506,42 @@ def collection_configure_certification(
 
     return render_template(
         "deliver_grant_funding/collections/configure_certification.html",
+        grant=collection.grant,
+        collection=collection,
+        form=form,
+    )
+
+
+@deliver_grant_funding_blueprint.route(
+    "/grant/<uuid:grant_id>/<collection_type:collection_type>/<uuid:collection_id>/settings/prospectus-link",
+    methods=["GET", "POST"],
+)
+@has_deliver_grant_role(RoleEnum.ADMIN)
+@collection_is_editable()
+@auto_commit_after_request
+def collection_configure_prospectus_link(
+    grant_id: UUID, collection_type: CollectionType, collection_id: UUID
+) -> ResponseReturnValue:
+    if collection_type != CollectionType.APPLICATION:
+        abort(404)
+
+    collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+
+    form = ProspectusLinkSettingsForm(obj=collection if request.method == "GET" else None)
+
+    if form.validate_on_submit():
+        update_collection(collection, prospectus_url=form.prospectus_url.data or None)
+        return redirect(
+            url_for(
+                "deliver_grant_funding.collection_settings",
+                grant_id=grant_id,
+                collection_type=collection_type,
+                collection_id=collection_id,
+            )
+        )
+
+    return render_template(
+        "deliver_grant_funding/collections/configure_prospectus_link.html",
         grant=collection.grant,
         collection=collection,
         form=form,

@@ -656,6 +656,28 @@ class TestUpdateCollection:
 
         assert updated.allow_public_sign_up is False
 
+    def test_update_collection_set_prospectus_url(self, factories):
+        collection = factories.collection.create(type=CollectionType.APPLICATION, prospectus_url=None)
+
+        updated = update_collection(collection, prospectus_url="https://www.gov.uk/prospectus")
+
+        assert updated.prospectus_url == "https://www.gov.uk/prospectus"
+
+    def test_update_collection_clear_prospectus_url(self, factories):
+        collection = factories.collection.create(
+            type=CollectionType.APPLICATION, prospectus_url="https://www.gov.uk/prospectus"
+        )
+
+        updated = update_collection(collection, prospectus_url=None)
+
+        assert updated.prospectus_url is None
+
+    def test_update_collection_set_prospectus_url_raises_for_non_pre_award_collection(self, factories):
+        collection = factories.collection.create(type=CollectionType.MONITORING_REPORT, prospectus_url=None)
+
+        with pytest.raises(ValueError, match="prospectus_url can only be set on collections of type APPLICATION"):
+            update_collection(collection, prospectus_url="https://www.gov.uk/prospectus")
+
     def test_update_collection_disable_multiple_submissions_clears_settings(self, db_session, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         collection = question.form.collection

@@ -24,7 +24,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
 from wtforms import Field, FieldList, FormField, HiddenField, IntegerField, SelectField, SelectMultipleField
 from wtforms.fields.choices import RadioField
 from wtforms.fields.simple import BooleanField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Optional, Regexp, StopValidation, ValidationError
+from wtforms.validators import URL, DataRequired, Email, Optional, Regexp, StopValidation, ValidationError
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.types import DecimalAnswer, IntegerAnswer
@@ -1076,6 +1076,15 @@ class CertificationSettingsForm(FlaskForm):
         widget=GovRadioInput(),
     )
     submit = SubmitField("Save certification setting", widget=GovSubmitInput())
+
+
+class ProspectusLinkSettingsForm(FlaskForm):
+    prospectus_url = StringField(
+        label="Add a link to the prospectus (optional)",
+        validators=[Optional(), URL(message="Enter a link in the correct format, like https://www.gov.uk")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Update prospectus", widget=GovSubmitInput())
 
 
 class ReopeningSettingsForm(FlaskForm):
