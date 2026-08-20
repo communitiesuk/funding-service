@@ -51,6 +51,7 @@ from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
 from app.common.expressions.registry import get_registered_data_types
 from app.common.forms.fields import InterpolationStatementField, MHCLGAccessibleAutocomplete, MHCLGSelectWithSearch
+from app.common.forms.filters import strip_string_if_not_empty
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.collections import SubmissionHelper
@@ -84,25 +85,6 @@ if TYPE_CHECKING:
         Question,
     )
     from app.deliver_grant_funding.session_models import AddContextToComponentSessionModel
-
-
-@overload
-def strip_string_if_not_empty(value: None) -> None: ...
-@overload
-def strip_string_if_not_empty[T: str](value: T) -> T: ...
-def strip_string_if_not_empty(value: str | None) -> str | None:
-    if value is None:
-        return None
-
-    if not value:
-        return value
-
-    # Keep it working with str subclasses like ExpressionStatement; we should return the same type
-    stripped = value.strip()
-    if type(value) is not str:
-        return type(value)(stripped)
-
-    return stripped
 
 
 @overload
