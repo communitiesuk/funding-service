@@ -1077,7 +1077,8 @@ class TestEligibleToApplyPage:
             flask_session["signing_up_for_collection_id"] = collection.id
 
         response = authenticated_no_role_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
         )
         assert response.status_code == 302
         assert response.location == url_for(
@@ -1135,7 +1136,8 @@ class TestEligibleToApplyPage:
             flask_session["signing_up_for_collection_id"] = collection.id
 
         response = authenticated_no_role_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
         )
 
         assert response.status_code == 302
@@ -1209,7 +1211,8 @@ class TestEligibleToApplyPage:
         )
 
         response = authenticated_grant_member_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
         )
 
         # Redirects to the forms page
@@ -1240,7 +1243,8 @@ class TestEligibleToApplyPage:
         # The user has no role at all on the matched organisation, and no TEST grant recipient exists yet
 
         response = authenticated_grant_member_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
         )
 
         # Redirects to the forms page
@@ -1288,7 +1292,8 @@ class TestEligibleToApplyPage:
         factories.grant_recipient.create(grant=grant, organisation=organisation, mode=GrantRecipientModeEnum.TEST)
 
         response = authenticated_grant_member_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
         )
 
         assert response.status_code == 403

@@ -269,36 +269,25 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
         )
 
-    # One organisation matched case
-    if len(matched_orgs.all) == 1:
-        organisations = None
-        organisation = matched_orgs.all[0]
-        form = GenericSubmitForm()
-    # Multiple organisations matched case, show radio buttons to select one
-    elif len(matched_orgs.all) > 1:
-        organisations = matched_orgs
-        organisation = matched_orgs.all[0]  # default to first
-        form = EligibleOrganisationSelectionForm(
-            matched_orgs.role_matched_orgs,
-            matched_orgs.domain_matched_orgs,
-            email_domain,
-        )
+    form = EligibleOrganisationSelectionForm(
+        matched_orgs.role_matched_orgs,
+        matched_orgs.domain_matched_orgs,
+        email_domain,
+    )
 
     if form.validate_on_submit():
-        # For multiple organisation match case, get the selected organisation
-        if isinstance(form, EligibleOrganisationSelectionForm):
-            selected = form.organisation.data
-            # If user selected to create a new organisation
-            if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
-                # TODO: wire up to the create-account/org flow once it exists
-                return redirect(
-                    url_for(
-                        "access_grant_funding.eligible_to_apply",
-                        grant_slug=grant_slug,
-                        collection_slug=collection_slug,
-                    )
+        selected = form.organisation.data
+        # If user selected to create a new organisation
+        if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
+            # TODO: wire up to the create-account/org flow once it exists
+            return redirect(
+                url_for(
+                    "access_grant_funding.eligible_to_apply",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
                 )
-            organisation = get_organisation(UUID(selected))
+            )
+        organisation = get_organisation(UUID(selected))
 
         session.pop("signing_up_for_collection_id", None)
 
@@ -339,8 +328,7 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         "access_grant_funding/eligible_to_apply.html",
         grant=grant,
         collection=collection,
-        organisation=organisation,
-        organisations=organisations,
+        organisations=matched_orgs,
         form=form,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )
