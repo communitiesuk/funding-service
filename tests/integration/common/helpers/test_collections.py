@@ -63,6 +63,32 @@ EC = ExpressionContext
 
 
 class TestSubmissionHelper:
+    class TestGetOrderedVisibleForms:
+        def test_excludes_eligibility_form(self, factories):
+            collection = factories.collection.create()
+            form_a = factories.form.create(collection=collection)
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            form_b = factories.form.create(collection=collection)
+            submission = factories.submission.create(collection=collection)
+
+            helper = SubmissionHelper(submission)
+
+            assert helper.get_ordered_visible_forms() == [form_a, form_b]
+            assert eligibility_form not in helper.get_ordered_visible_forms()
+
+    class TestAllVisibleQuestions:
+        def test_excludes_eligibility_form_questions(self, factories):
+            collection = factories.collection.create()
+            form_a = factories.form.create(collection=collection)
+            question_a = factories.question.create(form=form_a)
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(collection=collection)
+
+            helper = SubmissionHelper(submission)
+
+            assert list(helper.all_visible_questions.keys()) == [question_a.id]
+
     class TestGetAndSubmitAnswerForQuestion:
         def test_submit_valid_data(self, db_session, factories):
             question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
@@ -816,6 +842,27 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
             assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.NOT_NEEDED
             assert helper.get_tasklist_status_for_form(form) == TasklistSectionStatusEnum.NO_QUESTIONS
+
+        def test_submission_status_ignores_unanswered_eligibility_form(self, factories):
+            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
+            eligibility_form = factories.form.create(collection=question.form.collection, is_eligibility_section=True)
+            factories.question.create(form=eligibility_form)
+
+            submission = factories.submission.create(collection=question.form.collection)
+            helper = SubmissionHelper(submission)
+
+            helper.submit_answer_for_question(
+                question.id,
+                build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                    q_d696aebc49d24170a92fb6ef42994294="User submitted data"
+                ),
+                submission.created_by,
+            )
+            helper.toggle_form_completed(question.form, submission.created_by, True)
+
+            # the eligibility form's unanswered question doesn't block completion
+            assert helper.all_needed_forms_are_completed is True
+            assert helper.status == SubmissionStatusEnum.READY_TO_SUBMIT
 
         def test_submission_status_based_on_forms(self, db_session, factories, mock_notification_service_calls):
             org = factories.organisation.create()
@@ -2108,6 +2155,22 @@ class TestSubmissionHelper:
             assert managed_form.id not in reset_form_ids
             assert unmanaged_form.id in reset_form_ids
 
+        def test_decline_does_not_reset_eligibility_form(
+            self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
+        ):
+            collection = submission_awaiting_sign_off.collection
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+            helper = SubmissionHelper(submission_awaiting_sign_off)
+            helper.decline_certification(user=certifier_user, declined_reason="Test reason")
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_awaiting_sign_off.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER
+            ]
+            assert eligibility_form.id not in reset_form_ids
+
         def test_decline_when_collection_closed(
             self, factories, submission_awaiting_sign_off, certifier_user, mock_notification_service_calls
         ):
@@ -2133,6 +2196,21 @@ class TestSubmissionHelper:
             assert helper.requested_or_allowed_changes_by == grant_team_user
             for form in helper.get_ordered_visible_forms():
                 assert helper.get_status_for_form(form) == TasklistSectionStatusEnum.IN_PROGRESS
+
+        def test_reopen_does_not_reset_eligibility_form(self, factories, grant_team_user, submission_submitted) -> None:
+            eligibility_form = factories.form.create(
+                collection=submission_submitted.collection, is_eligibility_section=True
+            )
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.reopen_submission(user=grant_team_user, reopened_reason="Test reason")
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+            assert eligibility_form.id not in reset_form_ids
 
         def test_submission_reopened_platform_admin(self, platform_admin_user, submission_submitted) -> None:
             helper = SubmissionHelper(submission_submitted)
@@ -2447,6 +2525,25 @@ class TestSubmissionHelper:
             ]
             assert managed_form.id not in reset_form_ids
             assert unmanaged_form.id in reset_form_ids
+
+        def test_request_changes_does_not_reset_eligibility_form(
+            self, factories, submission_submitted, grant_team_user, mock_notification_service_calls
+        ):
+            eligibility_form = factories.form.create(
+                collection=submission_submitted.collection, is_eligibility_section=True
+            )
+
+            helper = SubmissionHelper(submission_submitted)
+            helper.request_changes_submission(
+                user=grant_team_user, changes_requested_reason="Test reason", section_ids=[]
+            )
+
+            reset_form_ids = [
+                event.related_entity_id
+                for event in submission_submitted.events
+                if event.event_type == SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS
+            ]
+            assert eligibility_form.id not in reset_form_ids
 
         def test_request_changes_sends_notifications(
             self,

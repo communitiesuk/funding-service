@@ -263,7 +263,34 @@ class TestQuestionModel:
         assert question.none_of_the_above_item_text == "Option 2"
 
 
+class TestCollectionModel:
+    def test_application_forms_excludes_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        form_a = factories.form.create(collection=collection, order=0)
+        eligibility_form = factories.form.create(collection=collection, order=1, is_eligibility_section=True)
+        form_b = factories.form.create(collection=collection, order=2)
+
+        assert collection.application_forms == [form_a, form_b]
+        assert eligibility_form not in collection.application_forms
+
+    def test_application_forms_with_no_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        form_a = factories.form.create(collection=collection, order=0)
+        form_b = factories.form.create(collection=collection, order=1)
+
+        assert collection.application_forms == [form_a, form_b]
+
+
 class TestFormModel:
+    def test_earlier_forms_excludes_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        eligibility_form = factories.form.create(collection=collection, order=0, is_eligibility_section=True)
+        form_a = factories.form.create(collection=collection, order=1)
+        form_b = factories.form.create(collection=collection, order=2)
+
+        assert form_b.earlier_forms == [form_a]
+        assert eligibility_form not in form_b.earlier_forms
+
     def test_questions_property_filters_nested_questions(self, factories):
         form = factories.form.create()
         # asserting to a depth of 2

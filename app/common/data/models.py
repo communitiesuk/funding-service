@@ -451,6 +451,10 @@ class Collection(BaseModel):
         return None
 
     @property
+    def application_forms(self) -> list[Form]:
+        return [form for form in self.forms if not form.is_eligibility_section]
+
+    @property
     def is_editable_for_current_status(self) -> bool:
         return self.status == CollectionStatusEnum.DRAFT
 
@@ -746,7 +750,7 @@ class Form(BaseModel):
 
     @property
     def earlier_forms(self) -> list[Form]:
-        return [f for f in self.collection.forms if f.order < self.order]
+        return [f for f in self.collection.application_forms if f.order < self.order]
 
 
 def get_ordered_nested_components(components: list[Component]) -> list[Component]:

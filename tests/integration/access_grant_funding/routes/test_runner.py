@@ -629,6 +629,40 @@ class TestTasklist:
                     f"/reports/{submission.id}/check-your-answers/{question.form.id}?source=tasklist"
                 )
 
+    def test_get_tasklist_excludes_eligibility_form(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        grant = grant_recipient.grant
+        collection = factories.collection.create(grant=grant)
+
+        section_1 = factories.form.create(collection=collection, title="Colour information")
+        factories.question.create(form=section_1)
+        eligibility_section = factories.form.create(
+            collection=collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        factories.question.create(form=eligibility_section, text="Are you eligible to apply?")
+
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.tasklist",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Colour information") is not None
+        assert page_has_link(soup, "Eligibility questions") is None
+
     @pytest.mark.parametrize(
         "submission_fixture",
         (
