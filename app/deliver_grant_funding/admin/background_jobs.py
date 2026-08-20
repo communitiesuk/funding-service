@@ -12,6 +12,9 @@ from xgovuk_flask_admin import XGovukModelView
 
 from app.deliver_grant_funding.admin.mixins import FlaskAdminPlatformAdminAccessibleMixin
 
+# Read-only Flask Admin view over pgqueuer's own tables. This is here because otherwise the PoC is awkward to inspect
+# locally, we need further discussions about how we will design the long-term admin view.
+
 
 class PgQueuerBase(DeclarativeBase):
     pass

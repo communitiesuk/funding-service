@@ -377,6 +377,8 @@ class Collection(BaseModel):
     reporting_period_end_date: Mapped[datetime.date | None]
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
+    # Used by the background worker scanner, not pgqueuer itself. It stops the scanner queueing the same collection-open
+    # notification emails again once the business action has succeeded.
     collection_open_notification_sent_at_utc: Mapped[datetime.datetime | None]
     reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
     requires_certification: Mapped[bool]

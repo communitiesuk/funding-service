@@ -28,6 +28,8 @@ pgqueuer_status = sa.Enum(
 
 
 def upgrade() -> None:
+    # This is pgqueuer's schema translated into our Alembic migration flow. These tables should stay close to what
+    # pgqueuer expects, app-specific job state belongs on our own models instead.
     pgqueuer_status.create(op.get_bind())
 
     op.create_table(

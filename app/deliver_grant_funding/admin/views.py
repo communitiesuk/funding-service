@@ -1032,6 +1032,8 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
     def send_emails_to_recipients(
         self, grant_id: UUID, collection_id: UUID, email_type: CollectionAdminEmailTypeEnum
     ) -> Any:
+        # This is still the manual CSV flow. The scanner drives the background-worker version, so this page
+        # can stay as an easy point of comparison while the PoC is being reviewed.
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 

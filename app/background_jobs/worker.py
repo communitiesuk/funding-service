@@ -25,6 +25,9 @@ from app.common.data.interfaces.background_jobs import (
 from app.common.helpers.background_jobs import send_collection_open_notification_emails
 from app.extensions import db
 
+# pgqueuer owns the lifecycle here: schedules, picking work up, retries and logging.
+# The app still owns the business decisions: what is due, what payload a job needs, and what state proves it is done.
+
 WORKER_ENTRYPOINTS = [
     OpenCollectionForSubmissionsJob.entrypoint,
     SendCollectionOpenNotificationEmailsJob.entrypoint,
@@ -42,6 +45,8 @@ async def _pgqueuer() -> AsyncIterator[PgQueuer]:
         pgq = PgQueuer(PsycopgDriver(connection))
         queries = cast(Queries, pgq.queries)
 
+        # These are deliberately thin. They translate pgqueuer's payload back into the pydantic job, then hand off to
+        # sync app code inside the normal SQLAlchemy session.
         @pgq.entrypoint(OpenCollectionForSubmissionsJob.entrypoint)
         async def _open_collection_for_submissions(job: Job) -> None:
             if job.payload is None:
@@ -80,6 +85,8 @@ async def _pgqueuer() -> AsyncIterator[PgQueuer]:
                 {"collection_id": payload.collection_id, "job_id": job.id, "sent_count": sent_count},
             )
 
+        # We scan the current app state rather than queueing dated jobs far in advance. That keeps edits to collection
+        # dates manageable. The next scan sees the latest DB state, instead of us needing to mutate an old queued row.
         @pgq.schedule(SCAN_COLLECTION_OPENINGS_SCHEDULE, "* * * * *")
         async def _scan_collection_openings(schedule: Schedule) -> None:
             del schedule
@@ -102,6 +109,8 @@ async def _pgqueuer() -> AsyncIterator[PgQueuer]:
 
 
 async def scan_due_background_jobs() -> int:
+    # Local dev helper for proving the scanner without running the worker. In prod the schedules above will do this
+    # while the worker is ruhnign.
     async with await psycopg.AsyncConnection.connect(_pgqueuer_dsn(), autocommit=True) as connection:
         queries = Queries(PsycopgDriver(connection))
         collection_opening_jobs = await enqueue_due_collection_opening_jobs(queries)

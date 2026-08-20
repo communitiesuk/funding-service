@@ -5,6 +5,9 @@ import click
 from app.background_jobs import background_jobs_blueprint
 from app.background_jobs.worker import run_worker, scan_due_background_jobs
 
+# Kept the public interface simple on purpose. The ECS task can run `flask background-jobs worker`
+# and get the normal Flask config/extensions/logging setup, while local dev can run the scan and worker separately.
+
 
 @background_jobs_blueprint.cli.command(
     "scan",

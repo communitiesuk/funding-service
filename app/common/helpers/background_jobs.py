@@ -7,6 +7,10 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipients
 from app.common.helpers.collections import SubmissionHelper
 from app.extensions import notification_service
 
+# This lives here rather than in worker.py so the worker stays clean as pgqueuer.
+# For the spike this is one job per collection. When we develop this properly, we should consider one job per
+# recipient/user so Notify failures can be retried and inspected independently.
+
 
 def send_collection_open_notification_emails(job: SendCollectionOpenNotificationEmailsJob) -> int:
     collection = get_collection(job.collection_id)

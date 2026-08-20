@@ -1,6 +1,7 @@
 {% extends "admin/master.html" %}
 {% import 'admin/layout.html' as layout with context %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 
 {% block beforeContent %}
   {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}

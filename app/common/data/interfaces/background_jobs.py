@@ -13,6 +13,14 @@ from app.common.data.models_user import UserRole
 from app.common.data.types import CollectionStatusEnum, GrantRecipientModeEnum, GrantStatusEnum, RoleEnum
 from app.extensions import db
 
+# PoC shape:
+# - pydantic models define the job payloads we store in pgqueuer
+# - scanner queries decide what should be queued from current app state
+# - pgqueuer handles the queue row lifecycle once something has been enqueued
+#
+# If this grows much further, the next step is probably a small BaseJob/registry rather than adding more unions and
+# enqueue_due_* functions.
+
 SCAN_COLLECTION_OPENINGS_SCHEDULE = "scan_collection_openings"
 SCAN_COLLECTION_OPEN_NOTIFICATION_EMAILS_SCHEDULE = "scan_collection_open_notification_emails"
 
@@ -57,6 +65,8 @@ def get_collection_ids_due_to_open(*, today: datetime.date | None = None) -> Seq
 
 
 def get_collection_ids_due_open_notification_emails() -> Sequence[uuid.UUID]:
+    # This timestamp is our "done" marker. pgqueuer can tell us a row completed, but it does not know whether this
+    # collection should ever have open-notification emails queued again.
     has_data_providers = (
         select(UserRole.id)
         .join(GrantRecipient, GrantRecipient.organisation_id == UserRole.organisation_id)
