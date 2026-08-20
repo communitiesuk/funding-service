@@ -1121,7 +1121,7 @@ class TestUpdateCollection:
         assert from_db.reminder_email_business_days_before_closing == 7
 
     def test_enabling_public_sign_up_creates_eligibility_form(self, db_session, factories):
-        collection = factories.collection.create(allow_public_sign_up=False)
+        collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=False)
 
         update_collection(collection, allow_public_sign_up=True)
 
@@ -1131,7 +1131,7 @@ class TestUpdateCollection:
         assert from_db.eligibility_form.is_eligibility_section is True
 
     def test_enabling_public_sign_up_does_not_duplicate_eligibility_form(self, db_session, factories):
-        collection = factories.collection.create(allow_public_sign_up=False)
+        collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=False)
         update_collection(collection, allow_public_sign_up=True)
         existing_eligibility_form = collection.eligibility_form
 
@@ -1142,7 +1142,7 @@ class TestUpdateCollection:
         assert len([form for form in from_db.forms if form.is_eligibility_section]) == 1
 
     def test_disabling_public_sign_up_deletes_eligibility_form(self, db_session, factories):
-        collection = factories.collection.create(allow_public_sign_up=False)
+        collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=False)
         update_collection(collection, allow_public_sign_up=True)
         assert collection.eligibility_form is not None
 
@@ -1153,7 +1153,7 @@ class TestUpdateCollection:
         assert from_db.eligibility_form is None
 
     def test_disabling_public_sign_up_when_no_eligibility_form_works(self, db_session, factories):
-        collection = factories.collection.create(allow_public_sign_up=False)
+        collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=False)
 
         update_collection(collection, allow_public_sign_up=False)
 
