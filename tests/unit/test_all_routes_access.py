@@ -173,6 +173,7 @@ routes_with_expected_access_grant_funding_logged_in_access = [
 routes_with_expected_is_signing_up_access = [
     "access_grant_funding.eligible_to_apply",
     "access_grant_funding.public_sign_up_router",
+    "access_grant_funding.public_sign_up_ineligible",
 ]
 
 routes_with_expected_access_grant_funding_grant_recipient_role = [
