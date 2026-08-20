@@ -8943,6 +8943,170 @@ class TestEditQuestionValidation:
             assert "question" not in session
 
 
+class TestAddQuestionEligibility:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for("deliver_grant_funding.add_question_eligibility", grant_id=uuid.uuid4(), question_id=uuid.uuid4())
+        )
+        assert response.status_code == 404
+
+    def test_get(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(
+            collection=collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.NUMBER,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Add eligibility check"
+        assert page_has_button(soup, "Add eligibility check")
+
+    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(
+            collection=collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        question = factories.question.create(
+            form=db_form,
+            text="How many employees do you have?",
+            name="employee count",
+            data_type=QuestionDataType.NUMBER,
+        )
+
+        assert len(question.expressions) == 0
+
+        EligibilityForm = build_managed_expression_form(
+            ExpressionType.ELIGIBILITY, ExpressionReference.from_question(question)
+        )
+        form = EligibilityForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+
+        assert len(question.expressions) == 1
+        assert question.expressions[0].type_ == ExpressionType.ELIGIBILITY
+        assert question.expressions[0].managed_name == "Greater than"
+
+    def test_redirects_to_edit_when_eligibility_already_exists(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+        expression = factories.expression.create(
+            question=question,
+            type_=ExpressionType.ELIGIBILITY,
+            statement=f"{question.safe_qid} > Decimal('10')",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.edit_question_eligibility",
+            grant_id=authenticated_grant_admin_client.grant.id,
+            expression_id=expression.id,
+        )
+
+
+class TestEditQuestionEligibility:
+    def test_404(self, authenticated_grant_admin_client):
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility", grant_id=uuid.uuid4(), expression_id=uuid.uuid4()
+            )
+        )
+        assert response.status_code == 404
+
+    def test_get(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+        expression = factories.expression.create(
+            question=question,
+            type_=ExpressionType.ELIGIBILITY,
+            statement=f"{question.safe_qid} > Decimal('10')",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Edit eligibility check"
+
+    def test_delete(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+        expression = factories.expression.create(
+            question=question,
+            type_=ExpressionType.ELIGIBILITY,
+            statement=f"{question.safe_qid} > Decimal('10')",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression.id,
+                delete="",
+            ),
+            data={"confirm_deletion": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert len(question.expressions) == 0
+
+
 class TestManageGuidance:
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
