@@ -8,7 +8,7 @@ from sqlalchemy import inspect
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
-from app.common.data.types import AuditEventType
+from app.common.data.types import AuditEventType, RoleEnum
 
 
 class AuditEvent(BaseModel):
@@ -28,6 +28,24 @@ class DatabaseModelChange(AuditEvent):
 class SystemEvent(DatabaseModelChange):
     event_type: AuditEventType = AuditEventType.SYSTEM
     context: dict[str, Any]
+
+
+class AccessGrantFundingTeamEvent(AuditEvent):
+    event_type: AuditEventType = AuditEventType.ACCESS_GRANT_FUNDING_USER_MANAGEMENT
+    grant_recipient_id: UUID
+    organisation_id: UUID
+    grant_id: UUID
+    permissions: list[RoleEnum]
+
+
+class AccessGrantFundingTeamMemberAdded(AccessGrantFundingTeamEvent):
+    action: Literal["team_member_added"] = "team_member_added"
+    target_user_id: UUID
+
+
+class AccessGrantFundingTeamMemberRemoved(AccessGrantFundingTeamEvent):
+    action: Literal["team_member_removed"] = "team_member_removed"
+    target_user_id: UUID
 
 
 def _serialize_value(value: Any) -> Any:
