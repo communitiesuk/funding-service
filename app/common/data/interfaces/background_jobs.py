@@ -82,7 +82,7 @@ def get_collection_ids_due_open_notification_emails() -> Sequence[uuid.UUID]:
     return db.session.scalars(statement).all()
 
 
-async def _enqueue_job(queries: Queries, job: BackgroundJob) -> bool:
+async def enqueue(queries: Queries, job: BackgroundJob) -> bool:
     job_ids = await queries.enqueue(
         job.entrypoint,
         job.model_dump_json().encode(),
@@ -100,7 +100,7 @@ async def enqueue_due_collection_opening_jobs(queries: Queries) -> int:
     ]
 
     for job in jobs:
-        if await _enqueue_job(queries, job):
+        if await enqueue(queries, job):
             queued_count += 1
 
     return queued_count
@@ -114,7 +114,7 @@ async def enqueue_due_collection_open_notification_email_jobs(queries: Queries) 
     ]
 
     for job in jobs:
-        if await _enqueue_job(queries, job):
+        if await enqueue(queries, job):
             queued_count += 1
 
     return queued_count
