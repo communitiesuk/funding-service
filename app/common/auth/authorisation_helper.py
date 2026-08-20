@@ -289,6 +289,10 @@ class AuthorisationHelper:
         return AuthorisationHelper._has_access_grant_permission(grant_recipient, RoleEnum.CERTIFIER, user)
 
     @staticmethod
+    def can_invite_access_grant_team_member(grant_recipient: "GrantRecipient", user: User | AnonymousUserMixin) -> bool:
+        return AuthorisationHelper.is_access_grant_data_provider(grant_recipient, user)
+
+    @staticmethod
     def has_access_grant_recipient_role(user: User | AnonymousUserMixin) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False

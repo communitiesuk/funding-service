@@ -400,6 +400,42 @@ class TestAuthorisationHelper:
         assert method(grant_recipient=grant_recipient, user=user) is True
         assert method(grant_recipient=grant_recipient, user=user2) is False
 
+    def test_can_invite_access_grant_team_member(self, factories):
+        data_provider = factories.user.build()
+        certifier = factories.user.build()
+        grant_recipient = factories.grant_recipient.build()
+        factories.user_role.build(
+            user=data_provider,
+            permissions=[RoleEnum.DATA_PROVIDER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+        factories.user_role.build(
+            user=certifier,
+            permissions=[RoleEnum.CERTIFIER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+        )
+
+        assert (
+            AuthorisationHelper.can_invite_access_grant_team_member(grant_recipient=grant_recipient, user=data_provider)
+            is True
+        )
+        assert (
+            AuthorisationHelper.can_invite_access_grant_team_member(grant_recipient=grant_recipient, user=certifier)
+            is False
+        )
+
+    def test_can_invite_access_grant_team_member_rejects_anonymous(self, factories):
+        grant_recipient = factories.grant_recipient.build()
+
+        assert (
+            AuthorisationHelper.can_invite_access_grant_team_member(
+                grant_recipient=grant_recipient, user=AnonymousUserMixin()
+            )
+            is False
+        )
+
     def test_has_access_grant_recipient_role_rejects_anonymous(self):
         assert AuthorisationHelper.has_access_grant_recipient_role(user=AnonymousUserMixin()) is False
 

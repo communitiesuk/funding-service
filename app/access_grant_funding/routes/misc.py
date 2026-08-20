@@ -4,13 +4,16 @@ from uuid import UUID
 from flask import abort, current_app, flash, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
+from app.access_grant_funding.forms import AddGrantTeamMemberForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
+    can_invite_access_grant_team_member,
     collection_is_open_for_sign_up,
     has_access_grant_recipient_role,
     has_access_grant_role,
+    has_feature_flag_enabled,
     is_access_org_member,
     is_signing_up,
 )
@@ -30,6 +33,7 @@ from app.common.data.types import (
     RoleEnum,
 )
 from app.common.forms import GenericSubmitForm
+from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request
 from app.types import FlashMessageType
@@ -109,6 +113,52 @@ def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValu
     return render_template(
         "access_grant_funding/grant_team.html",
         users=users,
+        organisation=organisation,
+        grant_recipient=grant_recipient,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/users/add", methods=["GET", "POST"]
+)
+@can_invite_access_grant_team_member
+@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT)
+@auto_commit_after_request
+def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
+    organisation = get_organisation(organisation_id=organisation_id)
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    form = AddGrantTeamMemberForm()
+    if form.validate_on_submit():
+        assert form.email_address.data
+        user_to_add = interfaces.user.get_user_by_email(form.email_address.data)
+        if user_to_add is None:
+            # TODO: https://mhclgdigital.atlassian.net/browse/FSPT-1586
+            return abort(500)
+
+        # Covers existing data providers and certifiers; certifiers must not be given edit and submit permissions
+        if AuthorisationHelper.is_access_grant_member(grant_recipient, user_to_add):
+            # TODO: https://mhclgdigital.atlassian.net/browse/FSPT-1588
+            return abort(500)
+
+        interfaces.user.add_permissions_to_user(
+            user=user_to_add,
+            permissions=[RoleEnum.DATA_PROVIDER],
+            organisation_id=organisation.id,
+            grant_id=grant_recipient.grant_id,
+        )
+        flash(
+            {"user_name": user_to_add.name},  # ty: ignore[invalid-argument-type]
+            FlashMessageType.ACCESS_TEAM_MEMBER_ADDED,
+        )
+        return redirect(
+            url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
+        )
+
+    return render_template(
+        "access_grant_funding/add_grant_team_member.html",
+        form=form,
         organisation=organisation,
         grant_recipient=grant_recipient,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
