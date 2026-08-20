@@ -2489,6 +2489,16 @@ def add_component_validation(
     return component
 
 
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
+def add_component_eligibility(
+    component: Component, user: User, evaluatable_expression: "EvaluatableExpression"
+) -> Component:
+    expression = Expression.from_evaluatable_expression(evaluatable_expression, ExpressionType.ELIGIBILITY, user)
+    component.expressions.append(expression)
+    _validate_and_sync_expression_references(expression)
+    return component
+
+
 def get_expression(expression_id: UUID) -> Expression:
     return db.session.get_one(Expression, expression_id)
 

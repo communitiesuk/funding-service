@@ -22,6 +22,7 @@ from app.common.data.interfaces.collections import (
     _validate_and_sync_expression_references,
     _validate_reference,
     add_component_condition,
+    add_component_eligibility,
     add_component_validation,
     components_in_same_group_and_on_same_page,
     create_collection,
@@ -3916,6 +3917,24 @@ class TestExpressions:
 
         assert mock_sentry_metrics.call_count == 1
         assert mock_sentry_metrics.call_args[0] == (MetricEventName.VALIDATION_CREATED_MANAGED, 1)
+
+    def test_add_component_eligibility(self, factories):
+        question = factories.question.create(form__is_eligibility_section=True)
+        user = factories.user.create()
+
+        managed_expression = GreaterThan(
+            minimum_value=3000, subject_reference=ExpressionReference.from_question(question)
+        )
+
+        add_component_eligibility(question, user, managed_expression)
+
+        from_db = get_question_by_id(question.id)
+
+        assert len(from_db.expressions) == 1
+        assert from_db.expressions[0].type_ == ExpressionType.ELIGIBILITY
+        assert from_db.expressions[0].statement == f"{question.safe_qid} > Decimal('3000')"
+        assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
+        assert from_db.eligibility == [from_db.expressions[0]]
 
     def test_add_component_validation_custom(self, db_session, factories, mock_sentry_metrics):
         form = factories.form.create()
