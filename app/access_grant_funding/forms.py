@@ -21,7 +21,7 @@ class EligibleOrganisationSelectionForm(FlaskForm):
     SIGN_UP_NEW_ORGANISATION_VALUE = "new_org"
 
     organisation = RadioField(
-        "Select which organisation you are applying on behalf of:",
+        "Which organisation are you applying on behalf of?",
         choices=[],
         widget=MHCLGRadioInput(insert_divider_before_last_item=True),
         validators=[DataRequired("Select an organisation to continue")],
@@ -47,4 +47,14 @@ class EligibleOrganisationSelectionForm(FlaskForm):
         for _ in domain_matched_orgs:
             item_hints.append({"hint": {"text": f"Because of your {email_domain} email"}})
 
-        self.organisation.render_kw = {"params": {"items": item_hints}}
+        self.organisation.render_kw = {
+            "params": {
+                "items": item_hints,
+                "fieldset": {
+                    "legend": {
+                        "text": self.organisation.label.text,
+                        "classes": "govuk-fieldset__legend--m",
+                    }
+                },
+            }
+        }
