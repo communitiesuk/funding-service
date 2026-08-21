@@ -724,7 +724,7 @@ class TestEligibleToApplyPage:
         assert response.status_code == 200
 
     @pytest.mark.authenticate_as("test@no-matching-org.com")
-    def test_get_shows_create_account_page_when_no_organisation_matches_email_domain(
+    def test_get_shows_create_org_button_when_no_organisation_matches_email_domain(
         self, authenticated_no_role_client, factories
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
@@ -740,8 +740,8 @@ class TestEligibleToApplyPage:
         )
 
         assert response.status_code == 200
-        assert b"We did not find an account with the email address you provided." in response.data
-        assert b"Create an account" in response.data
+        assert b"We could not find an organisation with the email address you provided." in response.data
+        assert b"Create an organisation" in response.data
 
     @pytest.mark.authenticate_as("test@shared-domain.com")
     def test_get_400s_when_multiple_organisations_match_email_domain(self, authenticated_no_role_client, factories):
