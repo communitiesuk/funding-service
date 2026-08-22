@@ -352,8 +352,10 @@ class TestClaimMagicLinkView:
     def test_redirect_on_expired_public_sign_off_magic_link_preserves_grant_and_collection(
         self, anonymous_client, factories
     ):
-        grant = factories.grant.create(slug="grant-slug")
-        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
         magic_link = factories.magic_link.create(
             user__email="test@example.com",
             redirect_to_path="/my-redirect",
@@ -377,8 +379,10 @@ class TestClaimMagicLinkView:
     def test_redirect_on_used_public_sign_off_magic_link_preserves_grant_and_collection(
         self, anonymous_client, factories
     ):
-        grant = factories.grant.create(slug="grant-slug")
-        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
         magic_link = factories.magic_link.create(
             user__email="test@example.com",
             redirect_to_path="/my-redirect",
