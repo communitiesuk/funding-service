@@ -115,12 +115,7 @@ def collection_is_open_for_sign_up[**P](
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
         user = interfaces.user.get_current_user()
-        if AuthorisationHelper.is_deliver_user_testing_access(user):
-            if grant.status not in (GrantStatusEnum.DRAFT, GrantStatusEnum.LIVE):
-                return abort(404)
-            if collection.status not in (CollectionStatusEnum.DRAFT, CollectionStatusEnum.OPEN):
-                return abort(404)
-        else:
+        if not AuthorisationHelper.is_deliver_user_testing_access(user):
             if grant.status != GrantStatusEnum.LIVE:
                 return abort(404)
             if collection.status != CollectionStatusEnum.OPEN:

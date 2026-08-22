@@ -566,18 +566,18 @@ class TestCollectionIsOpenForSignUp:
                 view_func(grant_slug=grant.slug, collection_slug=collection.slug)
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status, is_open",
+        "grant_status, collection_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, True),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, True),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, True),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, True),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, False),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, False),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
         ),
     )
-    def test_deliver_user_testing_access_depends_on_status(
-        self, app, factories, user, grant_status, collection_status, is_open
+    def test_deliver_user_testing_access_allowed_for_any_status(
+        self, app, factories, user, grant_status, collection_status
     ):
         grant = factories.grant.create(slug="grant-slug", status=grant_status)
         can_manage_grants_organisation = grant.organisation
@@ -595,12 +595,8 @@ class TestCollectionIsOpenForSignUp:
         login_user(user)
 
         with app.test_request_context(f"/access/grant/{grant.slug}/{collection.slug}"):
-            if is_open:
-                response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
-                assert response == "OK"
-            else:
-                with pytest.raises(NotFound):
-                    view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+            response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+            assert response == "OK"
 
 
 class TestIsSigningUp:
