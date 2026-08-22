@@ -46,7 +46,7 @@ def access_grant_funding_login_required[**P](
             collection = get_collection(collection_id)
             return redirect(
                 url_for(
-                    "access_grant_funding.eligible_to_apply",
+                    "access_grant_funding.public_sign_up_router",
                     grant_slug=collection.grant.slug,
                     collection_slug=collection.slug,
                 )
