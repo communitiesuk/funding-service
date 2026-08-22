@@ -490,6 +490,44 @@ class TestRedirectIfAuthenticated:
         response = test_authenticated_redirect()
         assert response == "OK"
 
+    def test_authenticated_user_signing_up_gets_redirected_to_sign_up_router(self, factories):
+        @redirect_if_authenticated
+        def test_authenticated_redirect():
+            return "OK"
+
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = test_authenticated_redirect()
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_signing_up_redirect_takes_priority_over_internal_domain(self, factories):
+        @redirect_if_authenticated
+        def test_authenticated_redirect():
+            return "OK"
+
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        user = factories.user.create(email="test@communities.gov.uk", azure_ad_subject_id=None)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.MAGIC_LINK
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = test_authenticated_redirect()
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
 
 class TestCollectionIsOpenForSignUp:
     def test_without_grant_slug(self, factories):

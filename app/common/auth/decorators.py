@@ -90,6 +90,16 @@ def redirect_if_authenticated[**P](
         # on the user's role. For now, this covers internal MHCLG users and will hard error for anyone else so that
         # we get a Sentry notification and can get it fixed.
         if user.is_authenticated:
+            if collection_id := session.get("signing_up_for_collection_id"):
+                collection = get_collection(collection_id)
+                return redirect(
+                    url_for(
+                        "access_grant_funding.public_sign_up_router",
+                        grant_slug=collection.grant.slug,
+                        collection_slug=collection.slug,
+                    )
+                )
+
             internal_domains = current_app.config["INTERNAL_DOMAINS"]
             if user.email.endswith(internal_domains):
                 return redirect(url_for("deliver_grant_funding.list_grants"))
