@@ -58,11 +58,8 @@ def get_organisations_from_user_roles(
 def get_matched_organisations(
     user: User, email_domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> MatchedOrganisations:
+    role_matched_orgs = list(get_organisations_from_user_roles(user, mode=mode))
     domain_matched_orgs = list(get_organisations(domain=email_domain, mode=mode))
-    domain_matched_ids = {org.id for org in domain_matched_orgs}
-    role_matched_orgs = [
-        org for org in get_organisations_from_user_roles(user, mode=mode) if org.id not in domain_matched_ids
-    ]
 
     return MatchedOrganisations(role_matched_orgs=role_matched_orgs, domain_matched_orgs=domain_matched_orgs)
 

@@ -600,9 +600,12 @@ class MatchedOrganisations:
     role_matched_orgs: list["Organisation"]
     domain_matched_orgs: list["Organisation"]
 
-    @property
+    def unduplicated_domain_matched_orgs(self) -> list["Organisation"]:
+        role_matched_ids = {org.id for org in self.role_matched_orgs}
+        return [org for org in self.domain_matched_orgs if org.id not in role_matched_ids]
+
     def all(self) -> list["Organisation"]:
-        return [*self.role_matched_orgs, *self.domain_matched_orgs]
+        return [*self.role_matched_orgs, *self.unduplicated_domain_matched_orgs()]
 
 
 class AuditEventType(enum.Enum):

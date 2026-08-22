@@ -261,7 +261,7 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     matched_orgs = get_matched_organisations(user, email_domain, mode=organisation_mode)
 
     # No organisations matched, show message and link to sign up a new organisation
-    if len(matched_orgs.all) == 0:
+    if len(matched_orgs.all()) == 0:
         return render_template(
             "access_grant_funding/eligible_to_apply.html",
             grant=grant,
@@ -271,7 +271,7 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
 
     form = EligibleOrganisationSelectionForm(
         matched_orgs.role_matched_orgs,
-        matched_orgs.domain_matched_orgs,
+        matched_orgs.unduplicated_domain_matched_orgs(),
         email_domain,
     )
 

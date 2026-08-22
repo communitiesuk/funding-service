@@ -1171,7 +1171,8 @@ class TestEligibleToApplyPage:
             flask_session["signing_up_for_collection_id"] = collection.id
 
         response = authenticated_no_role_client.post(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
         )
 
         assert response.status_code == 403
