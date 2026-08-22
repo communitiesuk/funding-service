@@ -221,6 +221,7 @@ routes_with_no_expected_access_restrictions = [
     "access_grant_funding.cookies",
     "access_grant_funding.privacy_policy",
     "access_grant_funding.public_sign_up_start_page",
+    "access_grant_funding.already_applying",
     "auth.request_a_link_to_sign_in",
     "auth.collection_request_a_link_to_public_sign_up",
     "auth.check_email",

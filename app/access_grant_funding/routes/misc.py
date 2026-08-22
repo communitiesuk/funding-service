@@ -245,6 +245,21 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
 
 
 @access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/already-applying", methods=["GET"]
+)
+def already_applying(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    return render_template(
+        "access_grant_funding/already_applying.html",
+        grant=grant,
+        collection=collection,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/eligible-to-apply", methods=["GET", "POST"]
 )
 @is_signing_up
@@ -311,11 +326,15 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
         # A grant recipient exists, and user does not have access to it
         elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
-            # TODO: Update when adding the Org is already applying page
-            return abort(403, "You do not have access to this grant")
-
+            return redirect(
+                url_for(
+                    "access_grant_funding.already_applying",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            )
+        # A grant recipient exists, and user has access to it
         flash("Sign in complete. You can start your application.", FlashMessageType.PUBLIC_SIGN_UP_SUCCESS)
-
         return redirect(
             url_for(
                 "access_grant_funding.list_collections",

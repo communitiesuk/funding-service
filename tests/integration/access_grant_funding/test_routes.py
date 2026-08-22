@@ -1156,7 +1156,7 @@ class TestEligibleToApplyPage:
             assert "signing_up_for_collection_id" not in flask_session
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_post_403s_when_grant_recipient_exists_and_user_has_no_role(
+    def test_post_redirects_to_already_applying_when_grant_recipient_exists_and_user_has_no_role(
         self, authenticated_no_role_client, factories, db_session
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
@@ -1175,7 +1175,12 @@ class TestEligibleToApplyPage:
             data={"organisation": str(organisation.id)},
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.already_applying",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+        )
 
         grant_recipients = db_session.scalars(
             select(GrantRecipient).where(
@@ -1279,7 +1284,7 @@ class TestEligibleToApplyPage:
         assert followed_response.status_code == 200
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_post_as_deliver_user_without_access_to_existing_grant_recipient_403s(
+    def test_post_as_deliver_user_without_access_to_existing_grant_recipient_redirects_to_already_applying(
         self, authenticated_grant_member_client, factories, db_session
     ):
         grant = authenticated_grant_member_client.grant
@@ -1297,7 +1302,12 @@ class TestEligibleToApplyPage:
             data={"organisation": str(organisation.id)},
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.already_applying",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+        )
 
         # No new grant recipient or role was created for the user
         grant_recipients = db_session.scalars(
@@ -1315,3 +1325,70 @@ class TestEligibleToApplyPage:
             )
         ).one_or_none()
         assert user_role is None
+
+
+class TestAlreadyApplyingPage:
+    def test_get_404s_for_unknown_grant(self, authenticated_no_role_client, factories):
+        collection = factories.collection.create(slug="collection-slug")
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug="not-a-real-grant",
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_404s_for_unknown_collection(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug="not-a-real-collection",
+            )
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_renders_already_applying_content(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Your organisation is already applying" in get_h1_text(soup)
+        assert "Test grant name" in soup.text
+
+    def test_get_accessible_without_signing_up_session_flag(self, anonymous_client, factories):
+        # The sign-up journey has ended by the time a user lands here, so this page shouldn't depend on
+        # session["signing_up_for_collection_id"] still being set (eligible_to_apply pops it before redirecting here)
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
