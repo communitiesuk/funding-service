@@ -2,6 +2,7 @@ import datetime
 import enum
 import typing
 from collections.abc import Callable
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import TYPE_CHECKING, Any, Literal, Optional
 from uuid import UUID
@@ -14,7 +15,7 @@ from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
     from app.common.collections.runner import FormRunner
-    from app.common.data.models import Collection, Form, Question
+    from app.common.data.models import Collection, Form, Organisation, Question
     from app.deliver_grant_funding.forms import GroupDisplayOptionsForm, QuestionForm
 
 scalars = str | int | float | bool | None
@@ -592,6 +593,16 @@ class OrganisationData(BaseModel):
     charity_commission_number: str | None = None
     custom_code: str | None = None
     domains: list[str] | TNotProvided = NOT_PROVIDED
+
+
+@dataclass
+class MatchedOrganisations:
+    role_matched_orgs: list["Organisation"]
+    domain_matched_orgs: list["Organisation"]
+
+    @property
+    def all(self) -> list["Organisation"]:
+        return [*self.role_matched_orgs, *self.domain_matched_orgs]
 
 
 class AuditEventType(enum.Enum):
