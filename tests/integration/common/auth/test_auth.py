@@ -262,7 +262,7 @@ class TestCollectionRequestALinkToPublicSignUpView:
         assert magic_link.user is None
         assert magic_link.collection_id == collection.id
         assert magic_link.redirect_to_path == url_for(
-            "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
+            "access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
         assert mock_notification_service_calls[0].kwargs["personalisation"]["request_new_magic_link"] == url_for(
@@ -361,14 +361,43 @@ class TestClaimMagicLinkView:
             expires_at_utc=datetime.datetime.now() - datetime.timedelta(hours=1),
         )
 
-        response = anonymous_client.get(url_for("auth.claim_magic_link", magic_link_code=magic_link.code))
-        assert response.status_code == 302
-        assert response.location == url_for(
+        response = anonymous_client.get(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code), follow_redirects=True
+        )
+        assert response.status_code == 200
+        assert response.request.path == url_for(
             "auth.collection_request_a_link_to_public_sign_up",
-            link_expired=True,
             grant_slug="grant-slug",
             collection_slug="collection-slug",
         )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_h2(soup, "Link expired")
+
+    def test_redirect_on_used_public_sign_off_magic_link_preserves_grant_and_collection(
+        self, anonymous_client, factories
+    ):
+        grant = factories.grant.create(slug="grant-slug")
+        collection = factories.collection.create(slug="collection-slug", grant=grant)
+        magic_link = factories.magic_link.create(
+            user__email="test@example.com",
+            redirect_to_path="/my-redirect",
+            collection=collection,
+            claimed_at_utc=datetime.datetime.now() - datetime.timedelta(hours=1),
+        )
+
+        response = anonymous_client.get(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code), follow_redirects=True
+        )
+        assert response.status_code == 200
+        assert response.request.path == url_for(
+            "auth.collection_request_a_link_to_public_sign_up",
+            grant_slug="grant-slug",
+            collection_slug="collection-slug",
+        )
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_h2(soup, "Link expired")
 
     def test_get_without_session_flag_does_not_auto_submit(self, anonymous_client, factories):
         magic_link = factories.magic_link.create()

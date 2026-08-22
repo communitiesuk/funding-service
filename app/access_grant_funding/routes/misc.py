@@ -16,10 +16,19 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
-from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_or_create_grant_recipient_pair
+from app.common.data.interfaces.grant_recipients import (
+    create_grant_recipient,
+    get_grant_recipient,
+    get_grant_recipient_or_none,
+)
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation, get_organisations
-from app.common.data.types import GrantRecipientStatusEnum, OrganisationModeEnum, RoleEnum
+from app.common.data.types import (
+    GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
+    OrganisationModeEnum,
+    RoleEnum,
+)
 from app.common.forms import GenericSubmitForm
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request
@@ -130,6 +139,24 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
     )
 
 
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/sign-up-router", methods=["GET"]
+)
+@is_signing_up
+def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    # TODO: once the eligibility section exists, check the user's session/progress against it
+    # (Collection.eligibility_section.status) and route to "you are eligible"/"you are not
+    # eligible"/the next unanswered eligibility question as appropriate. For now this always
+    # routes straight to `eligible_to_apply`.
+    return redirect(
+        url_for(
+            "access_grant_funding.eligible_to_apply",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+        )
+    )
+
+
 @access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>", methods=["GET", "POST"])
 @collection_is_open_for_sign_up
 def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
@@ -138,6 +165,17 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
+        # Deliver users testing this journey skip the magic link journey
+        user = interfaces.user.get_current_user()
+        if user.is_authenticated and AuthorisationHelper.is_deliver_user_testing_access(user):
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_router",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            )
+
         session["signing_up_for_collection_id"] = collection.id
         return redirect(
             url_for(
@@ -166,10 +204,10 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
 
     user = interfaces.user.get_current_user()
     email_domain = user.email_domain
+    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
 
-    # TODO: Filter by LIVE org when public sign off
-    # If logged in deliver user testing this journey, filter for TEST organisation.
-    organisations = get_organisations(domain=email_domain, mode=OrganisationModeEnum.LIVE)
+    organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
+    organisations = get_organisations(domain=email_domain, mode=organisation_mode)
 
     # TODO: Update when adding the create org flow
     if len(organisations) == 0:
@@ -184,17 +222,28 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     if form.validate_on_submit():
         session.pop("signing_up_for_collection_id", None)
 
-        # TODO: Rewise when adding the Deliver user testing flow
-        if AuthorisationHelper.is_deliver_grant_funding_user(user):
-            return redirect(url_for("access_grant_funding.index"))
+        grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
+        grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
 
-        get_or_create_grant_recipient_pair(
-            grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
-        )
+        # No grant recipient exists, create one
+        if grant_recipient is None:
+            create_grant_recipient(
+                grant=grant,
+                organisation=organisation,
+                status=GrantRecipientStatusEnum.APPLYING,
+                mode=grant_recipient_mode,
+            )
 
-        interfaces.user.add_permissions_to_user(
-            user=user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=organisation.id, grant_id=grant.id
-        )
+            interfaces.user.add_permissions_to_user(
+                user=user,
+                permissions=[RoleEnum.DATA_PROVIDER],
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+            )
+        # A grant recipient exists, and user does not have access to it
+        elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
+            # TODO: Update when adding the Org is already applying page
+            return abort(403, "You do not have access to this grant")
 
         return redirect(
             url_for(
