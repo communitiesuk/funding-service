@@ -16,10 +16,15 @@ from app.common.auth.decorators import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
-from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_or_create_grant_recipient_pair
+from app.common.data.interfaces.grant_recipients import (
+    create_grant_recipient,
+    get_grant_recipient,
+    get_grant_recipient_or_none,
+)
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation, get_organisations
 from app.common.data.types import (
+    GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
     OrganisationModeEnum,
     RoleEnum,
@@ -217,20 +222,28 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     if form.validate_on_submit():
         session.pop("signing_up_for_collection_id", None)
 
-        # Deliver users testing this journey must already have access to a TEST grant recipient for this
-        # organisation and grant - we don't create one for them. route_to_submission will error if they don't
-        if not is_deliver_testing:
-            get_or_create_grant_recipient_pair(
+        grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
+        grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
+
+        # No grant recipient exists, create one
+        if grant_recipient is None:
+            create_grant_recipient(
                 grant=grant,
                 organisation=organisation,
                 status=GrantRecipientStatusEnum.APPLYING,
+                mode=grant_recipient_mode,
             )
+
             interfaces.user.add_permissions_to_user(
                 user=user,
                 permissions=[RoleEnum.DATA_PROVIDER],
                 organisation_id=organisation.id,
                 grant_id=grant.id,
             )
+        # A grant recipient exists, and user does not have access to it
+        elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
+            # TODO: Update when adding the Org is already applying page
+            return abort(403, "You do not have access to this grant")
 
         return redirect(
             url_for(

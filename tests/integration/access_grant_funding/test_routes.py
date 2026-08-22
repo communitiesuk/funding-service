@@ -793,12 +793,6 @@ class TestEligibleToApplyPage:
             external_id="org-1",
             mode=OrganisationModeEnum.LIVE,
         )
-        test_organisation = factories.organisation.create(
-            name="Test Organisation (test)",
-            domains=["example-org.com"],
-            external_id="org-1",
-            mode=OrganisationModeEnum.TEST,
-        )
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
 
@@ -819,14 +813,7 @@ class TestEligibleToApplyPage:
             )
         ).one()
         assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
-
-        test_grant_recipient = db_session.scalars(
-            select(GrantRecipient).where(
-                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == test_organisation.id
-            )
-        ).one()
-        assert test_grant_recipient.status == GrantRecipientStatusEnum.APPLYING
-        assert test_grant_recipient.mode == GrantRecipientModeEnum.TEST
+        assert grant_recipient.mode == GrantRecipientModeEnum.LIVE
 
         user_role = db_session.scalars(
             select(UserRole).where(
@@ -842,13 +829,21 @@ class TestEligibleToApplyPage:
             assert "signing_up_for_collection_id" not in flask_session
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_post_reuses_existing_grant_recipient(self, authenticated_no_role_client, factories, db_session):
+    def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
+        self, authenticated_no_role_client, factories, db_session
+    ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
         organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
         existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
@@ -871,6 +866,43 @@ class TestEligibleToApplyPage:
         # We delete the signing_up_for_collection_id session flag
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_403s_when_grant_recipient_exists_and_user_has_no_role(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        # A colleague from the same email domain has already applied, but this user has no role on it yet
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 403
+
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).all()
+        assert len(grant_recipients) == 1
+
+        user_role = db_session.scalars(
+            select(UserRole).where(
+                UserRole.user_id == authenticated_no_role_client.user.id,
+                UserRole.organisation_id == organisation.id,
+                UserRole.grant_id == grant.id,
+            )
+        ).one_or_none()
+        assert user_role is None
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_redirects_to_submission_page(self, authenticated_grant_member_client, factories):
@@ -910,7 +942,7 @@ class TestEligibleToApplyPage:
         assert "Testing grant recipient journey" in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_post_as_deliver_user_without_existing_grant_recipient_404s(
+    def test_post_as_deliver_user_without_existing_grant_recipient_creates_one(
         self, authenticated_grant_member_client, factories, db_session
     ):
         grant = authenticated_grant_member_client.grant
@@ -920,13 +952,7 @@ class TestEligibleToApplyPage:
         organisation = factories.organisation.create(
             name="Test Organisation", domains=["example-org.com"], mode=OrganisationModeEnum.TEST
         )
-        # The user has access to the organisation for this grant, but no TEST grant recipient exists
-        factories.user_role.create(
-            user=authenticated_grant_member_client.user,
-            organisation=organisation,
-            grant=grant,
-            permissions=[RoleEnum.DATA_PROVIDER],
-        )
+        # The user has no role at all on the matched organisation, and no TEST grant recipient exists yet
 
         response = authenticated_grant_member_client.post(
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
@@ -941,21 +967,30 @@ class TestEligibleToApplyPage:
             collection_id=collection.id,
         )
 
-        # Submission page returns 404 because the grant recipient doesn't exist yet
+        # A TEST grant recipient is auto-created for the tester, along with the DATA_PROVIDER role
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).one()
+        assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
+        assert grant_recipient.mode == GrantRecipientModeEnum.TEST
+
+        user_role = db_session.scalars(
+            select(UserRole).where(
+                UserRole.user_id == authenticated_grant_member_client.user.id,
+                UserRole.organisation_id == organisation.id,
+                UserRole.grant_id == grant.id,
+            )
+        ).one()
+        assert RoleEnum.DATA_PROVIDER in user_role.permissions
+
+        # Submission page now loads successfully
         followed_response = authenticated_grant_member_client.get(response.location, follow_redirects=True)
-        assert followed_response.status_code == 404
-        # We are not creating a GrantRecipient for the matched organisation
-        assert (
-            db_session.scalars(
-                select(GrantRecipient).where(
-                    GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
-                )
-            ).all()
-            == []
-        )
+        assert followed_response.status_code == 200
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_post_as_deliver_user_without_any_organisation_access_403s(
+    def test_post_as_deliver_user_without_access_to_existing_grant_recipient_403s(
         self, authenticated_grant_member_client, factories, db_session
     ):
         grant = authenticated_grant_member_client.grant
@@ -965,29 +1000,28 @@ class TestEligibleToApplyPage:
         organisation = factories.organisation.create(
             name="Test Organisation", domains=["example-org.com"], mode=OrganisationModeEnum.TEST
         )
+        # A TEST grant recipient already exists for this organisation and grant, but the user has no role on it
+        factories.grant_recipient.create(grant=grant, organisation=organisation, mode=GrantRecipientModeEnum.TEST)
 
-        # The user has no role at all on the matched organisation
         response = authenticated_grant_member_client.post(
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
         )
 
-        # Redirects to submission page
-        assert response.status_code == 302
-        assert response.location == url_for(
-            "access_grant_funding.route_to_submission",
-            organisation_id=organisation.id,
-            grant_id=grant.id,
-            collection_id=collection.id,
-        )
+        assert response.status_code == 403
 
-        # Submission page returns 403 because the user has no access to the organisation
-        followed_response = authenticated_grant_member_client.get(response.location, follow_redirects=True)
-        assert followed_response.status_code == 403
-        assert (
-            db_session.scalars(
-                select(GrantRecipient).where(
-                    GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
-                )
-            ).all()
-            == []
-        )
+        # No new grant recipient or role was created for the user
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).all()
+        assert len(grant_recipients) == 1
+
+        user_role = db_session.scalars(
+            select(UserRole).where(
+                UserRole.user_id == authenticated_grant_member_client.user.id,
+                UserRole.organisation_id == organisation.id,
+                UserRole.grant_id == grant.id,
+            )
+        ).one_or_none()
+        assert user_role is None
