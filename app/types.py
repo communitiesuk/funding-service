@@ -36,6 +36,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_MARKED_AS_APPROVED = "submission_marked_as_approved"
     SUBMISSION_MARKED_AS_REJECTED = "submission_marked_as_rejected"
     COLLECTION_CREATED = "collection_created"
+    PUBLIC_SIGN_UP_SUCCESS = "public_sign_up_success"
 
 
 class TRadioItem(TypedDict):

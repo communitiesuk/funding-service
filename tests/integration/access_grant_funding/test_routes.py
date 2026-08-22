@@ -801,10 +801,9 @@ class TestEligibleToApplyPage:
         )
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.route_to_submission",
+            "access_grant_funding.list_collections",
             organisation_id=organisation.id,
             grant_id=grant.id,
-            collection_id=collection.id,
         )
 
         grant_recipient = db_session.scalars(
@@ -827,6 +826,13 @@ class TestEligibleToApplyPage:
         # We delete the signing_up_for_collection_id session flag
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+
+        # Success banner shows on the forms page
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "Success" in soup.text
+        assert "Sign in complete. You can start your application." in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
@@ -926,13 +932,12 @@ class TestEligibleToApplyPage:
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
         )
 
-        # Redirects to submission page
+        # Redirects to the forms page
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.route_to_submission",
+            "access_grant_funding.list_collections",
             organisation_id=organisation.id,
             grant_id=grant.id,
-            collection_id=collection.id,
         )
 
         # Checking submission page loads correctly
@@ -958,13 +963,12 @@ class TestEligibleToApplyPage:
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
         )
 
-        # Redirects to submission page
+        # Redirects to the forms page
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.route_to_submission",
+            "access_grant_funding.list_collections",
             organisation_id=organisation.id,
             grant_id=grant.id,
-            collection_id=collection.id,
         )
 
         # A TEST grant recipient is auto-created for the tester, along with the DATA_PROVIDER role

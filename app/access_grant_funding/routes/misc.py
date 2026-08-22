@@ -1,7 +1,7 @@
 from functools import partial
 from uuid import UUID
 
-from flask import abort, current_app, redirect, render_template, session, url_for
+from flask import abort, current_app, flash, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -32,6 +32,7 @@ from app.common.data.types import (
 from app.common.forms import GenericSubmitForm
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request
+from app.types import FlashMessageType
 
 
 @access_grant_funding_blueprint.route("/", methods=["GET"])
@@ -245,12 +246,13 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             # TODO: Update when adding the Org is already applying page
             return abort(403, "You do not have access to this grant")
 
+        flash("Sign in complete. You can start your application.", FlashMessageType.PUBLIC_SIGN_UP_SUCCESS)
+
         return redirect(
             url_for(
-                "access_grant_funding.route_to_submission",
+                "access_grant_funding.list_collections",
                 organisation_id=organisation.id,
                 grant_id=grant.id,
-                collection_id=collection.id,
             )
         )
 
