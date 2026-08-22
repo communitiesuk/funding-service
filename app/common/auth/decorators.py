@@ -90,6 +90,16 @@ def redirect_if_authenticated[**P](
         # on the user's role. For now, this covers internal MHCLG users and will hard error for anyone else so that
         # we get a Sentry notification and can get it fixed.
         if user.is_authenticated:
+            if collection_id := session.get("signing_up_for_collection_id"):
+                collection = get_collection(collection_id)
+                return redirect(
+                    url_for(
+                        "access_grant_funding.public_sign_up_router",
+                        grant_slug=collection.grant.slug,
+                        collection_slug=collection.slug,
+                    )
+                )
+
             internal_domains = current_app.config["INTERNAL_DOMAINS"]
             if user.email.endswith(internal_domains):
                 return redirect(url_for("deliver_grant_funding.list_grants"))
@@ -114,10 +124,13 @@ def collection_is_open_for_sign_up[**P](
         grant = get_grant_by_slug(grant_slug)
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
-        if grant.status != GrantStatusEnum.LIVE:
-            return abort(404)
-        if collection.status != CollectionStatusEnum.OPEN:
-            return abort(404)
+        user = interfaces.user.get_current_user()
+        if not AuthorisationHelper.is_deliver_user_testing_access(user):
+            if grant.status != GrantStatusEnum.LIVE:
+                return abort(404)
+            if collection.status != CollectionStatusEnum.OPEN:
+                return abort(404)
+
         if not collection.allow_public_sign_up:
             return abort(404)
 
@@ -143,6 +156,10 @@ def is_signing_up[**P](
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
         if user.is_authenticated and session.get("signing_up_for_collection_id") == collection.id:
+            return func(*args, **kwargs)
+
+        # Deliver users testing this journey
+        if user.is_authenticated and AuthorisationHelper.is_deliver_user_testing_access(user):
             return func(*args, **kwargs)
 
         return redirect(
