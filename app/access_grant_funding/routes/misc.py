@@ -134,6 +134,24 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
     )
 
 
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/sign-up-router", methods=["GET"]
+)
+@is_signing_up
+def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    # TODO: once the eligibility section exists, check the user's session/progress against it
+    # (Collection.eligibility_section.status) and route to "you are eligible"/"you are not
+    # eligible"/the next unanswered eligibility question as appropriate. For now this always
+    # routes straight to `eligible_to_apply`.
+    return redirect(
+        url_for(
+            "access_grant_funding.eligible_to_apply",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+        )
+    )
+
+
 @access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>", methods=["GET", "POST"])
 @collection_is_open_for_sign_up
 def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
@@ -147,7 +165,7 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
         if user.is_authenticated and AuthorisationHelper.is_deliver_user_testing_access(user):
             return redirect(
                 url_for(
-                    "access_grant_funding.eligible_to_apply",
+                    "access_grant_funding.public_sign_up_router",
                     grant_slug=grant_slug,
                     collection_slug=collection_slug,
                 )
