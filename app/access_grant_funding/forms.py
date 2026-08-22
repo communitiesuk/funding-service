@@ -64,9 +64,9 @@ class EligibleOrganisationSelectionForm(FlaskForm):
 
         item_hints: list[dict] = []
         for _ in role_matched_orgs:
-            item_hints.append({"hint": {"text": "Because you've accessed other grants with these organisations"}})
+            item_hints.append({"hint": {"text": "Based on your access to other grants"}})
         for _ in domain_matched_orgs:
-            item_hints.append({"hint": {"text": f"Because of your {email_domain} email"}})
+            item_hints.append({"hint": {"text": f"Based on your {email_domain} email"}})
 
         self.organisation.render_kw = {
             "params": {
