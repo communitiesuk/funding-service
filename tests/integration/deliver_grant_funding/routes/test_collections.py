@@ -1023,6 +1023,37 @@ class TestListCollectionSections:
 
         assert soup.find("details", id="previewers-details") is None
 
+    def test_get_shows_eligibility_check_separately_from_sections(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant, name="Test Report", type=CollectionType.APPLICATION)
+        eligibility_form = factories.form.create(
+            collection=collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        factories.question.create(form=eligibility_form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+
+        eligibility_heading = soup.find("h2", string="Eligibility check")
+        assert eligibility_heading is not None
+        assert "This will not appear in the main task list on Access grant funding" in soup.text
+
+        eligibility_link = page_has_link(soup, "Eligibility questions")
+        assert eligibility_link is not None
+
+        # The eligibility section has no move up/down actions, and isn't counted as one of the "Sections"
+        assert not page_has_link(soup, "Move up")
+        assert not page_has_link(soup, "Move down")
+
     @pytest.mark.parametrize(
         "client_fixture, can_edit",
         (

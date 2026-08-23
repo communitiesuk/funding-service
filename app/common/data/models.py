@@ -452,7 +452,8 @@ class Collection(BaseModel):
         return None
 
     @property
-    def application_forms(self) -> list[Form]:
+    def tasklist_forms(self) -> list[Form]:
+        """Returns all forms in the collection that are not eligibility sections"""
         return [form for form in self.forms if not form.is_eligibility_section]
 
     @property

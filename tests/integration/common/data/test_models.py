@@ -264,21 +264,21 @@ class TestQuestionModel:
 
 
 class TestCollectionModel:
-    def test_application_forms_excludes_eligibility_form(self, factories):
+    def test_tasklist_forms_excludes_eligibility_form(self, factories):
         collection = factories.collection.create()
         form_a = factories.form.create(collection=collection, order=0)
         eligibility_form = factories.form.create(collection=collection, order=1, is_eligibility_section=True)
         form_b = factories.form.create(collection=collection, order=2)
 
-        assert collection.application_forms == [form_a, form_b]
-        assert eligibility_form not in collection.application_forms
+        assert collection.tasklist_forms == [form_a, form_b]
+        assert eligibility_form not in collection.tasklist_forms
 
-    def test_application_forms_with_no_eligibility_form(self, factories):
+    def test_tasklist_forms_with_no_eligibility_form(self, factories):
         collection = factories.collection.create()
         form_a = factories.form.create(collection=collection, order=0)
         form_b = factories.form.create(collection=collection, order=1)
 
-        assert collection.application_forms == [form_a, form_b]
+        assert collection.tasklist_forms == [form_a, form_b]
 
 
 class TestFormModel:
