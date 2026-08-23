@@ -103,7 +103,7 @@
             <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Can edit and submit reports:</p>
             {% if grant_recipient.data_providers %}
               <ul class="govuk-list govuk-list--bullet">
-                {% for user in grant_recipient.data_providers | sort(attribute="name") %}
+                {% for user in grant_recipient.data_providers | sort(attribute="sort_name") %}
                   <li>{{ user.name }} ({{ user.email }})</li>
                 {% endfor %}
               </ul>
@@ -113,7 +113,7 @@
             <p class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-0">Certifiers:</p>
             {% if grant_recipient.certifiers %}
               <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
-                {% for user in grant_recipient.certifiers | sort(attribute="name") %}
+                {% for user in grant_recipient.certifiers | sort(attribute="sort_name") %}
                   <li>{{ user.name }} ({{ user.email }})</li>
                 {% endfor %}
               </ul>

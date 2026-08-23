@@ -123,6 +123,11 @@ class User(BaseModel):
 
     last_logged_in_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)
 
+    @property
+    def sort_name(self) -> str:
+        # name is nullable, so this gives templates a null-safe value to sort lists of users by
+        return self.name or ""
+
     # START: Flask-Login attributes
     # These ideally might be provided by UserMixin, except that breaks our type hinting when using this class in
     # SQLAlchemy queries. So we've just lifted the key attributes here directly.

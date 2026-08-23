@@ -177,6 +177,33 @@ class TestViewGrantDetails:
         frank_pos = row_1_text.find("Frank Miller")
         assert eve_pos < frank_pos
 
+    def test_displays_recipients_with_a_nameless_data_provider(self, authenticated_platform_admin_client, factories):
+        grant = factories.grant.create()
+        org = factories.organisation.create(name="Test Organisation")
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        named_data_provider = factories.user.create(name="Alice Smith", email="alice@org.com")
+        nameless_data_provider = factories.user.create(name=None, email="bob@org.com")
+
+        factories.user_role.create(
+            user=named_data_provider, organisation=org, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+        factories.user_role.create(
+            user=nameless_data_provider, organisation=org, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        result = authenticated_platform_admin_client.get(
+            url_for("deliver_grant_funding.grant_details", grant_id=grant.id)
+        )
+        assert result.status_code == 200
+
+        soup = BeautifulSoup(result.data, "html.parser")
+        table = soup.find("table", class_="govuk-table")
+        row_text = table.find("tbody").find("tr").get_text()
+
+        assert "Alice Smith (alice@org.com)" in row_text
+        assert "None (bob@org.com)" in row_text
+
     def test_displays_no_recipients_message(self, authenticated_platform_admin_client, factories):
         grant = factories.grant.create()
 
