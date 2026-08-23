@@ -164,9 +164,10 @@
 
         {% if db_form.is_eligibility_section %}
           <div class="govuk-form-group">
-            <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility</h2>
+            <h2 class="govuk-heading-m govuk-!-margin-top-5">Eligibility condition</h2>
             {% if managed_eligibility_available %}
-              <p class="govuk-body">Add a check to determine whether the applicant is eligible to apply, based on their answer to this question.</p>
+              <p class="govuk-body">Set the eligibility condition to only allow users who give an eligible answer to continue.</p>
+              <p class="govuk-body">User who do not select the eligible option will not be able to continue the form and will be told they are not eligible to apply.</p>
 
               {% set rows = [] %}
               {% with component=question %}
@@ -180,7 +181,7 @@
               {% if not question.eligibility %}
                 {{
                   govukButton({
-                    "text": "Add eligibility check",
+                    "text": "Set eligibility condition",
                     "href": url_for('deliver_grant_funding.add_question_eligibility', grant_id=grant.id, question_id=question.id),
                     "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
                   })
@@ -190,60 +191,60 @@
               <p class="govuk-body">Eligibility checks are not available for this question type.</p>
             {% endif %}
           </div>
-        {% else %}
-          <div class="govuk-form-group">
-            <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
-            <p class="govuk-body">Add conditions to only show this question if the user has answered other questions in a particular way.</p>
+        {% endif %}
 
-            {% with component=question %}
-              {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
-            {% endwith %}
+        <div class="govuk-form-group">
+          <h2 class="govuk-heading-m govuk-!-margin-top-5">Conditions</h2>
+          <p class="govuk-body">Add conditions to only show this question if the user has answered other questions in a particular way.</p>
 
+          {% with component=question %}
+            {% include 'deliver_grant_funding/partials/component-conditions-operator-table.html' %}
+          {% endwith %}
+
+          {% set rows = [] %}
+
+          {% with component=question %}
+            {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
+          {% endwith %}
+          {% with component=question %}
+            {% include 'deliver_grant_funding/partials/_explicit-conditions.html' %}
+          {% endwith %}
+
+          {% if rows %}
+            {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
+          {% endif %}
+          {{
+            govukButton({
+              "text": "Add condition",
+              "href": url_for('deliver_grant_funding.add_question_condition_select_calculation', grant_id=grant.id, component_id=question.id),
+              "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
+            })
+          }}
+        </div>
+        <div class="govuk-form-group">
+          <h2 class="govuk-heading-m">Validations</h2>
+          {% if managed_validation_available %}
+            <p class="govuk-body">Add validations to show an error message to the user if the answer does not meet the requirements. For example, you can add a validation to stop users entering a number over a certain amount.</p>
             {% set rows = [] %}
-
             {% with component=question %}
-              {% include 'deliver_grant_funding/partials/_implicit-conditions.html' %}
-            {% endwith %}
-            {% with component=question %}
-              {% include 'deliver_grant_funding/partials/_explicit-conditions.html' %}
+              {% include 'deliver_grant_funding/partials/_explicit-validations.html' %}
             {% endwith %}
 
             {% if rows %}
               {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
             {% endif %}
+
             {{
               govukButton({
-                "text": "Add condition",
-                "href": url_for('deliver_grant_funding.add_question_condition_select_calculation', grant_id=grant.id, component_id=question.id),
-                "classes": "govuk-button--secondary govuk-!-margin-bottom-0",
+                "text": "Add more validation" if question.validations else "Add validation",
+                "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id),
+                "classes": "govuk-button--secondary govuk-!-margin-bottom-3"
               })
             }}
-          </div>
-          <div class="govuk-form-group">
-            <h2 class="govuk-heading-m">Validations</h2>
-            {% if managed_validation_available %}
-              <p class="govuk-body">Add validations to show an error message to the user if the answer does not meet the requirements. For example, you can add a validation to stop users entering a number over a certain amount.</p>
-              {% set rows = [] %}
-              {% with component=question %}
-                {% include 'deliver_grant_funding/partials/_explicit-validations.html' %}
-              {% endwith %}
-
-              {% if rows %}
-                {{ govukSummaryList({ "rows": rows, "classes": "app-tasklist-builder" }) }}
-              {% endif %}
-
-              {{
-                govukButton({
-                  "text": "Add more validation" if question.validations else "Add validation",
-                  "href": url_for("deliver_grant_funding.add_question_validation", grant_id=grant.id, question_id=question.id),
-                  "classes": "govuk-button--secondary govuk-!-margin-bottom-3"
-                })
-              }}
-            {% else %}
-              <p class="govuk-body">Validations are not available for this question type.</p>
-            {% endif %}
-          </div>
-        {% endif %}
+          {% else %}
+            <p class="govuk-body">Validations are not available for this question type.</p>
+          {% endif %}
+        </div>
 
         {{ form.submit(params={"text": "Save", "classes": "govuk-!-margin-top-3"}) }}
       </form>

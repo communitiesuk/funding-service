@@ -6251,6 +6251,27 @@ class TestEditQuestion:
             assert db_question.hint == "Question hint"
             assert db_question.data_type == QuestionDataType.TEXT_SINGLE_LINE
 
+    def test_get_for_eligibility_section_question_shows_up(self, authenticated_grant_admin_client, factories):
+        form = factories.form.create(
+            collection__grant=authenticated_grant_admin_client.grant,
+            title="Eligibility questions",
+            is_eligibility_section=True,
+        )
+        question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        headings = {heading.get_text(strip=True) for heading in soup.select("h2")}
+        assert "Eligibility condition" in headings
+
     def test_get_with_group(self, request, authenticated_grant_admin_client, factories, db_session):
         group = factories.group.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
@@ -8972,8 +8993,8 @@ class TestAddQuestionEligibility:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Add eligibility check"
-        assert page_has_button(soup, "Add eligibility check")
+        assert get_h1_text(soup) == "Set eligibility condition"
+        assert page_has_button(soup, "Save eligibility condition")
 
     def test_post(self, authenticated_grant_admin_client, factories, db_session):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
@@ -9054,30 +9075,30 @@ class TestEditQuestionEligibility:
         )
         assert response.status_code == 404
 
-    def test_get(self, authenticated_grant_admin_client, factories):
+    def test_get(self, authenticated_grant_admin_client, factories, db_session):
         question = factories.question.create(
             form__collection__grant=authenticated_grant_admin_client.grant,
             form__is_eligibility_section=True,
-            data_type=QuestionDataType.NUMBER,
+            data_type=QuestionDataType.YES_NO,
         )
-        expression = factories.expression.create(
-            question=question,
-            type_=ExpressionType.ELIGIBILITY,
-            statement=f"{question.safe_qid} > Decimal('10')",
-            managed_name=ManagedExpressionsEnum.GREATER_THAN,
-        )
+
+        expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+        interfaces.collections.add_component_eligibility(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = question.expressions[0].id
 
         response = authenticated_grant_admin_client.get(
             url_for(
                 "deliver_grant_funding.edit_question_eligibility",
                 grant_id=authenticated_grant_admin_client.grant.id,
-                expression_id=expression.id,
+                expression_id=expression_id,
             )
         )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Edit eligibility check"
+        assert get_h1_text(soup) == "Set eligibility condition"
 
     def test_delete(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(

@@ -3210,7 +3210,6 @@ def add_question_eligibility(grant_id: UUID, question_id: UUID) -> ResponseRetur
         question=question,
         grant=question.form.collection.grant,
         form=form,
-        QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
     )
 
@@ -3264,7 +3263,6 @@ def edit_question_eligibility(grant_id: UUID, expression_id: UUID) -> ResponseRe
         form=form,
         confirm_deletion_form=confirm_deletion_form if "delete" in request.args else None,
         expression=expression,
-        QuestionDataType=QuestionDataType,
         interpolate=SubmissionHelper.get_interpolator(question.form.collection),
     )
 

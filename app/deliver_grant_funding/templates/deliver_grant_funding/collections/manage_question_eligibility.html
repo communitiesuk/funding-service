@@ -7,15 +7,15 @@
 {% set type_constants = question.form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% set page_title = "Add eligibility check - " ~ question.name %}
+{% set page_title = "Set eligibility condition - " ~ question.name %}
 
 {% block beforeContent %}
   {{ govukBackLink({ "text": "Back", "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) }) }}
 {% endblock beforeContent %}
 
 {% block content %}
-  {% set heading = "Edit eligibility check" if expression else "Add eligibility check" %}
-  {% set submit_label = "Save eligibility check" if expression else "Add eligibility check" %}
+  {% set heading = "Set eligibility condition" %}
+  {% set submit_label = "Save eligibility condition" %}
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -40,7 +40,6 @@
       {{
         govukSummaryList({
           "rows": [
-            {"key": {"text": "Section"}, "value": {"text": question.form.title} },
             {"key": {"text": "Question"}, "value": {"text": interpolate(question.text, with_interpolation_highlighting=True)} },
           ],
           "classes": "app-!-border-top-line"
@@ -48,7 +47,7 @@
       }}
       {% if form is not none %}
         {% set label_html %}
-          What does the answer <span class="govuk-visually-hidden">to {{ interpolate(question.text) }}</span> need to be for the applicant to be eligible?
+          What does an eligible answer need to be?
         {% endset %}
 
         {{ render_managed_expression_form(form, label_html=label_html, submit_label=submit_label, grant_id=grant.id, question_id=question.id) }}
