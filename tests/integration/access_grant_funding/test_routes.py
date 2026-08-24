@@ -1,4 +1,5 @@
 import datetime
+import logging
 import uuid
 
 import pytest
@@ -7,6 +8,7 @@ from flask import url_for
 from flask_login import login_user
 from sqlalchemy import select
 
+from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
 from app.common.data.models import GrantRecipient
 from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import UserRole
@@ -1114,6 +1116,57 @@ class TestEligibleToApplyPage:
         soup = BeautifulSoup(followed_response.data, "html.parser")
         assert "Success" in soup.text
         assert "Sign in complete. You can start your application." in soup.text
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_rejects_organisation_not_in_matched_list(
+        self, authenticated_no_role_client, factories, db_session, mocker, caplog
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        # Org with domain that matches the user's email
+        factories.organisation.create(
+            name="Matched Organisation",
+            domains=["example-org.com"],
+            external_id="org-1",
+            mode=OrganisationModeEnum.LIVE,
+        )
+        # Org with domain that doesn't match the user's email
+        unmatched_organisation = factories.organisation.create(
+            name="Unmatched Organisation",
+            domains=["other-org.com"],
+            external_id="org-2",
+            mode=OrganisationModeEnum.LIVE,
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        # WTForms would already reject this before our explicit check runs - bypass it here
+        # Form would already throw an "Error: Not a valid choice."
+        mocker.patch.object(EligibleOrganisationSelectionForm, "validate_on_submit", lambda self: True)
+
+        with caplog.at_level(logging.WARNING):
+            response = authenticated_no_role_client.post(
+                url_for(
+                    "access_grant_funding.eligible_to_apply",
+                    grant_slug=grant.slug,
+                    collection_slug=collection.slug,
+                ),
+                data={"organisation": str(unmatched_organisation.id)},
+            )
+
+        assert response.status_code == 403
+        assert any("submitted an organisation not in their matched list" in r.getMessage() for r in caplog.records)
+
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id,
+                GrantRecipient.organisation_id == unmatched_organisation.id,
+            )
+        ).all()
+        assert grant_recipients == []
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_reuses_existing_grant_recipient_when_user_already_has_role(

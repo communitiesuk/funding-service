@@ -304,6 +304,12 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
         organisation = get_organisation(UUID(selected))
 
+        if not AuthorisationHelper.user_has_matched_organisation(matched_orgs, organisation.id):
+            current_app.logger.warning(
+                "User %(user_id)s submitted an organisation not in their matched list", {"user_id": user.id}
+            )
+            return abort(403)
+
         session.pop("signing_up_for_collection_id", None)
 
         grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
