@@ -46,7 +46,7 @@ def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug
             email=email,
             redirect_to_path=sanitise_redirect_url(
                 url_for(
-                    "access_grant_funding.eligible_to_apply",
+                    "access_grant_funding.public_sign_up_router",
                     grant_slug=grant_slug,
                     collection_slug=collection_slug,
                 )

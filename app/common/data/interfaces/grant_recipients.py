@@ -6,13 +6,11 @@ from sqlalchemy import String, cast, delete, func, select, text
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
-from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
-    OrganisationModeEnum,
     RoleEnum,
     SubmissionModeEnum,
 )
@@ -137,64 +135,6 @@ def get_grant_recipient_or_none(grant_id: uuid.UUID, organisation_id: uuid.UUID)
     return db.session.scalars(statement).one_or_none()
 
 
-def get_or_create_grant_recipient(
-    grant: Grant,
-    organisation: Organisation,
-    status: GrantRecipientStatusEnum,
-    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
-) -> GrantRecipient:
-    # Acquire a transaction-scoped advisory lock keyed on (grant, organisation) BEFORE reading, to
-    # prevent the double-click race condition: without the lock, two concurrent requests can both
-    # read no existing grant recipient and each proceed to create one before either commits. The
-    # lock serialises them so the second request re-reads after the first commits and finds the
-    # grant recipient the first request created, rather than creating a duplicate. See
-    # get_or_create_submission for the same pattern applied to submissions.
-    db.session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
-        {"key": f"{grant.id}:{organisation.id}"},
-    )
-
-    if existing := get_grant_recipient_or_none(grant.id, organisation.id):
-        return existing
-
-    return create_grant_recipient(grant=grant, organisation=organisation, status=status, mode=mode)
-
-
-def get_or_create_grant_recipient_pair(
-    grant: Grant, organisation: Organisation, status: GrantRecipientStatusEnum
-) -> dict[OrganisationModeEnum, GrantRecipient | None]:
-    """
-    Get_or_create a GrantRecipient for the given organisation, along with the equivalent GrantRecipient for its
-    LIVE/TEST counterpart organisation (same external_id, opposite mode), if that counterpart organisation exists.
-    """
-
-    is_mode_live = organisation.mode == OrganisationModeEnum.LIVE
-    other_mode = OrganisationModeEnum.TEST if is_mode_live else OrganisationModeEnum.LIVE
-
-    other_mode_organisations = get_organisations(with_external_ids=[organisation.external_id], mode=other_mode)
-    other_mode_organisation = other_mode_organisations[0] if other_mode_organisations else None
-
-    grant_recipient = get_or_create_grant_recipient(
-        grant=grant,
-        organisation=organisation,
-        status=status,
-        mode=GrantRecipientModeEnum.from_similar(organisation.mode),
-    )
-
-    other_mode_grant_recipient = (
-        get_or_create_grant_recipient(
-            grant=grant,
-            organisation=other_mode_organisation,
-            status=status,
-            mode=GrantRecipientModeEnum.from_similar(other_mode),
-        )
-        if other_mode_organisation
-        else None
-    )
-
-    return {organisation.mode: grant_recipient, other_mode: other_mode_grant_recipient}
-
-
 def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
     statement = (
         select(func.count())
@@ -216,6 +156,20 @@ def create_grant_recipient(
     status: GrantRecipientStatusEnum,
     mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
 ) -> GrantRecipient:
+    # Acquire a transaction-scoped advisory lock keyed on (grant, organisation) BEFORE reading, to
+    # prevent the double-click race condition: without the lock, two concurrent requests can both
+    # read no existing grant recipient and each proceed to create one before either commits. The
+    # lock serialises them so the second request re-reads after the first commits and finds the
+    # grant recipient the first request created, rather than creating a duplicate. See
+    # get_or_create_submission for the same pattern applied to submissions.
+    db.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{grant.id}:{organisation.id}"},
+    )
+
+    if existing := get_grant_recipient_or_none(grant.id, organisation.id):
+        return existing
+
     grant_recipient = GrantRecipient(grant_id=grant.id, organisation_id=organisation.id, mode=mode, status=status)
     db.session.add(grant_recipient)
     return grant_recipient
