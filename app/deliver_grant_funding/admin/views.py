@@ -66,7 +66,6 @@ from app.common.data.types import (
 from app.common.filters import format_date
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.feature_flags import FeatureFlags, SessionFeatureFlag
 from app.common.helpers.request_tracing import (
     REQUEST_TRACING_COOKIE_NAME,
@@ -156,13 +155,8 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                     )
 
         for collection in [*open_collections, *scheduled_collections]:
-            if not collection.submission_period_end_date:
-                continue
-            reminder_date = subtract_business_days(
-                collection.submission_period_end_date,
-                collection.reminder_email_business_days_before_closing,
-            )
-            if seven_days_ago <= reminder_date <= seven_days_ahead:
+            reminder_date = collection.date_to_send_reminder_emails
+            if reminder_date and seven_days_ago <= reminder_date <= seven_days_ahead:
                 timeline_events.append(
                     {
                         "date": reminder_date,

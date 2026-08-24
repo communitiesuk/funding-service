@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 
@@ -714,3 +715,19 @@ class TestDataSourceBuildAnswerForColumn:
         assert len(caplog.messages) == 1
         assert "Unsupported data_type" in caplog.messages[0]
         assert "Bad column" in caplog.messages[0]
+
+
+class TestCollectionModel:
+    def test_date_to_send_reminder_emails_is_none_without_end_date(self, factories):
+        collection = factories.collection.build(submission_period_end_date=None)
+
+        assert collection.date_to_send_reminder_emails is None
+
+    def test_date_to_send_reminder_emails_skips_weekends_and_bank_holidays(self, factories):
+        collection = factories.collection.build(
+            submission_period_end_date=date(2026, 6, 24),
+            reminder_email_business_days_before_closing=3,
+        )
+
+        with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset({date(2026, 6, 22)})):
+            assert collection.date_to_send_reminder_emails == date(2026, 6, 18)
