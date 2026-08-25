@@ -82,6 +82,7 @@ from app.common.expressions.references import (
     EvaluationStatement,
     InterpolationStatement,
 )
+from app.common.helpers.dates import subtract_business_days
 from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
 
@@ -464,6 +465,13 @@ class Collection(BaseModel):
             return False
         # ensure BST/ GMT to line up with the hybrid property expected boundary
         return self.submission_period_end_date < datetime.datetime.now(ZoneInfo("Europe/London")).date()
+
+    @property
+    def date_to_send_reminder_emails(self) -> datetime.date | None:
+        if not self.submission_period_end_date:
+            return None
+
+        return subtract_business_days(self.submission_period_end_date, self.reminder_email_business_days_before_closing)
 
     @property
     def is_monitoring_collection(self) -> bool:

@@ -1,6 +1,7 @@
 import csv
 import datetime
 import io
+from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -1222,6 +1223,27 @@ class TestSendEmailsToRecipients:
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{email_type}"
             in download_button.get("href")
         )
+
+    def test_send_emails_to_recipients_deadline_reminder_shows_reminder_date(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2026, 6, 24),
+            reminder_email_business_days_before_closing=3,
+        )
+
+        with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset({datetime.date(2026, 6, 22)})):
+            response = authenticated_platform_grant_lifecycle_manager_client.get(
+                f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+            )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        bullets = [li.get_text(strip=True) for li in soup.select("ul.govuk-list--bullet li")]
+        assert bullets == ["Submission deadline: 24 June 2026", "Date to send reminder email: 18 June 2026"]
 
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
@@ -4616,9 +4638,10 @@ class TestMakeReportLive:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
         )
 
-        response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
-        )
+        with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset()):
+            response = authenticated_platform_grant_lifecycle_manager_client.get(
+                f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+            )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -4637,6 +4660,10 @@ class TestMakeReportLive:
         assert "The privacy policy has been set up" in checkbox_labels
         assert "It is correct that the report has certification enabled" in checkbox_labels
         assert "The submission dates are 1 April 2024 until 30 April 2024" in checkbox_labels
+        reminder_label = soup.find("label", {"for": "confirm_reminder_days"})
+        assert " ".join(reminder_label.get_text().split()) == (
+            "Reminder emails should be sent 5 business days before closing (on 23 April 2024)"
+        )
         assert "It is correct that multiple submissions are disabled" in checkbox_labels
         assert not any("do not have any data providers set up" in label for label in checkbox_labels)
 

@@ -31,7 +31,9 @@
         </p>
         <ul class="govuk-list govuk-list--bullet">
           <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
-          <li>Date to send reminder email: {{ format_date_short(collection.submission_period_end_date - timedelta(days=7)) }}</li>
+          {% if collection.date_to_send_reminder_emails %}
+            <li>Date to send reminder email: {{ format_date_short(collection.date_to_send_reminder_emails) }}</li>
+          {% endif %}
         </ul>
       {% elif email_type == enum.report_admin_email_type_enum.COLLECTION_OVERDUE %}
         <h1 class="govuk-heading-l">

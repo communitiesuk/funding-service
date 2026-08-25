@@ -33,7 +33,6 @@ from app.common.data.types import (
     TraceLevelEnum,
 )
 from app.common.filters import format_date_short
-from app.common.helpers.dates import subtract_business_days
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
 from app.common.utils import comma_join_items, uppercase_first
 from app.types import NOT_PROVIDED
@@ -672,8 +671,8 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
             del self.confirm_reporting_and_submission_overlap
 
         days = collection.reminder_email_business_days_before_closing
-        if collection.submission_period_end_date:
-            reminder_date = subtract_business_days(collection.submission_period_end_date, days)
+        reminder_date = collection.date_to_send_reminder_emails
+        if reminder_date:
             self.confirm_reminder_days.label.text = Markup(
                 f"Reminder emails should be sent <strong {bold}>{days} "
                 f"business day{'s' if days != 1 else ''}</strong> before closing "
