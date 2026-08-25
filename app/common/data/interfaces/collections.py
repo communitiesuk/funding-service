@@ -1805,11 +1805,6 @@ def group_name_exists(name: str, form_id: UUID) -> bool:
     components_with_same_name_or_text = db.session.scalar(stmt_components_with_same_name_or_text)
     components_with_same_slug = db.session.scalar(stmt_components_with_same_slug)
 
-    if components_with_same_slug and not components_with_same_name_or_text:
-        current_app.logger.error(
-            "Group name blocked by conflicting slug [%(form_id)s], %(name)s", {"name": name, "form_id": form_id}
-        )
-
     return bool(components_with_same_slug or components_with_same_name_or_text)
 
 
