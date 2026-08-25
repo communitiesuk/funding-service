@@ -680,14 +680,6 @@ class Submission(BaseModel):
             & not_(cls.is_submitted)
         )
 
-    __table_args__ = (
-        CheckConstraint(
-            # confirmed in 032_entity_modes
-            "mode = 'PREVIEW' OR grant_recipient_id IS NOT NULL",
-            name="ck_grant_recipient_if_live",
-        ),
-    )
-
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"
 
@@ -698,6 +690,7 @@ class Form(BaseModel):
     title: Mapped[str]
     order: Mapped[int]
     slug: Mapped[str]
+    is_eligibility_section: Mapped[bool] = mapped_column(default=False)
 
     collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
     collection: Mapped[Collection] = relationship("Collection", back_populates="forms")
@@ -706,6 +699,12 @@ class Form(BaseModel):
         UniqueConstraint("order", "collection_id", name="uq_form_order_collection", deferrable=True),
         UniqueConstraint("title", "collection_id", name="uq_form_title_collection"),
         UniqueConstraint("slug", "collection_id", name="uq_form_slug_collection"),
+        Index(
+            "uq_form_eligibility_collection",
+            "collection_id",
+            unique=True,
+            postgresql_where=is_eligibility_section.is_(True),
+        ),
     )
 
     # support fetching all of a forms components so that the selectin loading strategy can make one
