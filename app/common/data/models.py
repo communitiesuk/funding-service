@@ -444,6 +444,14 @@ class Collection(BaseModel):
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
 
     @property
+    def eligibility_form(self) -> Form | None:
+        for form in self.forms:
+            if form.is_eligibility_section:
+                return form
+
+        return None
+
+    @property
     def is_editable_for_current_status(self) -> bool:
         return self.status == CollectionStatusEnum.DRAFT
 
