@@ -4,7 +4,7 @@ from uuid import UUID
 from flask import abort, current_app, flash, redirect, render_template, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.access_grant_funding.forms import AddGrantTeamMemberForm
+from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
@@ -25,7 +25,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipient_or_none,
 )
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
-from app.common.data.interfaces.organisations import get_organisation, get_organisations
+from app.common.data.interfaces.organisations import get_matched_organisations, get_organisation
 from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
@@ -245,6 +245,21 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
 
 
 @access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/already-applying", methods=["GET"]
+)
+def already_applying(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    return render_template(
+        "access_grant_funding/already_applying.html",
+        grant=grant,
+        collection=collection,
+        service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/eligible-to-apply", methods=["GET", "POST"]
 )
 @is_signing_up
@@ -258,23 +273,43 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
 
     organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
-    organisations = get_organisations(domain=email_domain, mode=organisation_mode)
+    matched_orgs = get_matched_organisations(user, email_domain, mode=organisation_mode)
 
-    if len(organisations) == 0:
+    # No organisations matched, show message and link to sign up a new organisation
+    if len(matched_orgs.all()) == 0:
         return render_template(
             "access_grant_funding/eligible_to_apply.html",
             grant=grant,
             collection=collection,
             service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
         )
-    # TODO: Update when adding the choose org form
-    if len(organisations) > 1:
-        return abort(400, "Multiple organisations found for this email domain")
 
-    organisation = organisations[0]
+    form = EligibleOrganisationSelectionForm(
+        matched_orgs.role_matched_orgs,
+        matched_orgs.unduplicated_domain_matched_orgs(),
+        email_domain,
+    )
 
-    form = GenericSubmitForm()
     if form.validate_on_submit():
+        selected = form.organisation.data
+        # If user selected to create a new organisation
+        if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
+            # TODO: wire up to the create-account/org flow once it exists
+            return redirect(
+                url_for(
+                    "access_grant_funding.eligible_to_apply",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            )
+        organisation = get_organisation(UUID(selected))
+
+        if not AuthorisationHelper.user_has_matched_organisation(matched_orgs, organisation.id):
+            current_app.logger.warning(
+                "User %(user_id)s submitted an organisation not in their matched list", {"user_id": user.id}
+            )
+            return abort(403)
+
         session.pop("signing_up_for_collection_id", None)
 
         grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
@@ -297,11 +332,15 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
         # A grant recipient exists, and user does not have access to it
         elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
-            # TODO: Update when adding the Org is already applying page
-            return abort(403, "You do not have access to this grant")
-
+            return redirect(
+                url_for(
+                    "access_grant_funding.already_applying",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            )
+        # A grant recipient exists, and user has access to it
         flash("Sign in complete. You can start your application.", FlashMessageType.PUBLIC_SIGN_UP_SUCCESS)
-
         return redirect(
             url_for(
                 "access_grant_funding.list_collections",
@@ -314,7 +353,7 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         "access_grant_funding/eligible_to_apply.html",
         grant=grant,
         collection=collection,
-        organisation=organisation,
+        organisations=matched_orgs,
         form=form,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )

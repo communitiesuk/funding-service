@@ -12,7 +12,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.data.base import BaseModel, CIStr
-from app.common.data.types import RoleEnum
+from app.common.data.types import OrganisationModeEnum, RoleEnum
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
@@ -104,6 +104,25 @@ class User(BaseModel):
         viewonly=True,
         order_by="Organisation.name",
     )
+
+    # Organisations the user has a role for, either directly on the organisation or via a grant on it
+    _organisations: Mapped[list[Organisation]] = relationship(
+        "Organisation",
+        secondary="join(UserRole, Organisation, UserRole.organisation_id == Organisation.id)",
+        primaryjoin="User.id == UserRole.user_id",
+        secondaryjoin="Organisation.id == UserRole.organisation_id",
+        viewonly=True,
+        order_by="Organisation.name",
+    )
+
+    def get_organisations(self, *, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> list[Organisation]:
+        seen_ids = set()
+        organisations = []
+        for organisation in self._organisations:
+            if organisation.mode == mode and organisation.id not in seen_ids:
+                seen_ids.add(organisation.id)
+                organisations.append(organisation)
+        return organisations
 
     def get_grant_recipients(
         self, *, limit_to_organisation_id: uuid.UUID | None = None, limit_to_grant_id: uuid.UUID | None = None

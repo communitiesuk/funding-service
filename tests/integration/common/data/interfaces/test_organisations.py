@@ -2,13 +2,20 @@ import datetime
 
 import pytest
 
-from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
+from app.common.data.interfaces.organisations import (
+    get_matched_organisations,
+    get_organisation_count,
+    get_organisations,
+    upsert_organisations,
+)
+from app.common.data.interfaces.user import add_permissions_to_user
 from app.common.data.models import Organisation
 from app.common.data.types import (
     OrganisationData,
     OrganisationModeEnum,
     OrganisationStatus,
     OrganisationType,
+    RoleEnum,
 )
 
 
@@ -147,6 +154,52 @@ class TestGetOrganisations:
 
         assert len(result) == 2
         assert result == [org1, org2]
+
+
+class TestGetMatchedOrganisations:
+    def test_returns_domain_matched_organisation(self, factories):
+        user = factories.user.create(email="test@example-org.com")
+        org = factories.organisation.create(name="Org 1", domains=["example-org.com"])
+
+        result = get_matched_organisations(user, "example-org.com")
+
+        assert result.domain_matched_orgs == [org]
+        assert result.role_matched_orgs == []
+        assert result.all() == [org]
+
+    def test_returns_role_matched_organisation(self, factories):
+        user = factories.user.create(email="test@no-matching-domain.com")
+        org = factories.organisation.create(name="Org 1", domains=["a-different-domain.com"])
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = get_matched_organisations(user, "no-matching-domain.com")
+
+        assert result.domain_matched_orgs == []
+        assert result.role_matched_orgs == [org]
+        assert result.all() == [org]
+
+    def test_role_matched_takes_precedence_over_duplicate_domain_match(self, factories):
+        user = factories.user.create(email="test@example-org.com")
+        org = factories.organisation.create(name="Org 1", domains=["example-org.com"])
+        add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = get_matched_organisations(user, "example-org.com")
+
+        # Both lists contain the org, since it's matched via role AND domain
+        assert result.domain_matched_orgs == [org]
+        assert result.role_matched_orgs == [org]
+
+        # But the deduplicated views only surface it once, via the role match
+        assert result.unduplicated_domain_matched_orgs() == []
+        assert result.all() == [org]
+
+    def test_returns_no_matches_when_nothing_matches(self, factories):
+        user = factories.user.create(email="test@no-matching-domain.com")
+        factories.organisation.create(name="Org 1", domains=["a-different-domain.com"])
+
+        result = get_matched_organisations(user, "no-matching-domain.com")
+
+        assert result.all() == []
 
 
 class TestGetOrganisationCount:

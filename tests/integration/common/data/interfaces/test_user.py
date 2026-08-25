@@ -889,6 +889,57 @@ class TestUserGrantRelationships:
         assert user.get_grant_recipients() == [grant_recipient_a, grant_recipient_b, grant_recipient_c]
 
 
+class TestGetOrganisations:
+    def test_returns_organisations_user_has_a_role_for(self, factories):
+        user = factories.user.create()
+        org = factories.organisation.create(name="Org 1")
+        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        result = user.get_organisations()
+
+        assert len(result) == 1
+        assert result[0].id == org.id
+
+    def test_returns_empty_list_when_user_has_no_organisation_roles(self, factories):
+        user = factories.user.create()
+
+        assert user.get_organisations() == []
+
+    def test_does_not_return_organisations_for_other_users(self, factories):
+        user = factories.user.create()
+        other_user = factories.user.create()
+        org = factories.organisation.create(name="Org 1")
+        interfaces.user.add_permissions_to_user(other_user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+
+        assert user.get_organisations() == []
+
+    def test_respects_mode_filter(self, factories):
+        user = factories.user.create()
+        live_org = factories.organisation.create(name="Live Org", mode=OrganisationModeEnum.LIVE)
+        test_org = factories.organisation.create(name="Test Org", mode=OrganisationModeEnum.TEST)
+        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=live_org.id)
+        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=test_org.id)
+
+        result = user.get_organisations(mode=OrganisationModeEnum.TEST)
+
+        assert len(result) == 1
+        assert result[0].id == test_org.id
+
+    def test_deduplicates_organisation_with_multiple_roles(self, factories):
+        user = factories.user.create()
+        org = factories.organisation.create(name="Org 1")
+        grant = factories.grant.create(organisation=org)
+        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+        interfaces.user.add_permissions_to_user(
+            user, permissions=[RoleEnum.MEMBER], organisation_id=org.id, grant_id=grant.id
+        )
+
+        result = user.get_organisations()
+
+        assert len(result) == 1
+        assert result[0].id == org.id
+
+
 class TestGetUsersWithPermission:
     def test_returns_users_with_specific_permission(self, factories, db_session):
         user1 = factories.user.create(email="certifier@test.com")

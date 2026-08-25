@@ -6,7 +6,7 @@ from flask_login import AnonymousUserMixin
 from pytz import utc
 
 from app import AuthorisationHelper, CollectionStatusEnum
-from app.common.data.types import RoleEnum, SubmissionModeEnum
+from app.common.data.types import MatchedOrganisations, RoleEnum, SubmissionModeEnum
 
 
 class TestAuthorisationHelper:
@@ -327,6 +327,30 @@ class TestAuthorisationHelper:
         factories.user_role.build(user=user, permissions=[RoleEnum.MEMBER], organisation=organisation, grant=None)
 
         assert AuthorisationHelper.has_access_org_access(user=user, organisation_id=organisation.id) is False
+
+    def test_user_has_matched_organisation_true_for_role_matched(self, factories):
+        organisation = factories.organisation.build()
+        matched_orgs = MatchedOrganisations(role_matched_orgs=[organisation], domain_matched_orgs=[])
+
+        assert AuthorisationHelper.user_has_matched_organisation(matched_orgs, organisation.id) is True
+
+    def test_user_has_matched_organisation_true_for_domain_matched(self, factories):
+        organisation = factories.organisation.build()
+        matched_orgs = MatchedOrganisations(role_matched_orgs=[], domain_matched_orgs=[organisation])
+
+        assert AuthorisationHelper.user_has_matched_organisation(matched_orgs, organisation.id) is True
+
+    def test_user_has_matched_organisation_false_for_unmatched_organisation(self, factories):
+        organisation = factories.organisation.build()
+        unmatched_organisation = factories.organisation.build()
+        matched_orgs = MatchedOrganisations(role_matched_orgs=[organisation], domain_matched_orgs=[])
+
+        assert AuthorisationHelper.user_has_matched_organisation(matched_orgs, unmatched_organisation.id) is False
+
+    def test_user_has_matched_organisation_false_when_no_matches(self):
+        matched_orgs = MatchedOrganisations(role_matched_orgs=[], domain_matched_orgs=[])
+
+        assert AuthorisationHelper.user_has_matched_organisation(matched_orgs, uuid.uuid4()) is False
 
     @pytest.mark.parametrize(
         "role, expected",

@@ -7,7 +7,7 @@ from flask_login import AnonymousUserMixin
 from app.common.data.interfaces.collections import get_collection, get_submission
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.models_user import User
-from app.common.data.types import OrganisationModeEnum, RoleEnum, SubmissionModeEnum
+from app.common.data.types import MatchedOrganisations, OrganisationModeEnum, RoleEnum, SubmissionModeEnum
 
 if TYPE_CHECKING:
     from app.common.data.models import GrantRecipient, Organisation, Submission
@@ -255,6 +255,10 @@ class AuthorisationHelper:
         return any(
             role.organisation_id == organisation_id and not role.organisation.can_manage_grants for role in user.roles
         )
+
+    @staticmethod
+    def user_has_matched_organisation(matched_orgs: MatchedOrganisations, organisation_id: UUID) -> bool:
+        return any(org.id == organisation_id for org in matched_orgs.all())
 
     @staticmethod
     def _has_access_grant_permission(
