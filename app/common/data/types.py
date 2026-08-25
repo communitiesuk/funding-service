@@ -597,6 +597,7 @@ class OrganisationData(BaseModel):
 class AuditEventType(enum.Enum):
     PLATFORM_ADMIN_DB_EVENT = "platform-admin-db-event"
     SYSTEM = "system"
+    ACCESS_GRANT_FUNDING_USER_MANAGEMENT = "access-grant-funding-user-management"
 
 
 class DataSourceType(enum.StrEnum):

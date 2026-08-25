@@ -16,6 +16,7 @@ from app.common.data.types import (
     RoleEnum,
 )
 from app.common.filters import format_thousands
+from app.common.forms.filters import strip_string_if_not_empty
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
 from app.deliver_grant_funding.admin.forms import PlatformAdminCreateCertifiersForm
 from app.deliver_grant_funding.forms import (
@@ -27,7 +28,6 @@ from app.deliver_grant_funding.forms import (
     UploadDataSetForm,
     _validate_no_blank_lines,
     _validate_no_duplicates,
-    strip_string_if_not_empty,
 )
 
 
