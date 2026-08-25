@@ -328,6 +328,30 @@ def has_access_grant_role(
     return decorator
 
 
+def can_invite_access_grant_team_member[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    @functools.wraps(func)
+    def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        user = interfaces.user.get_current_user()
+
+        if "organisation_id" not in kwargs or (organisation_id := cast(uuid.UUID, kwargs["organisation_id"])) is None:
+            raise ValueError("Organisation ID required.")
+
+        if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
+            raise ValueError("Grant ID required.")
+
+        # raises a 404 if the grant doesn't exist; more appropriate than 403 on non-existent entity
+        grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+        if not AuthorisationHelper.can_invite_access_grant_team_member(grant_recipient=grant_recipient, user=user):
+            return abort(403, description="Access denied")
+
+        return func(*args, **kwargs)
+
+    return is_access_org_member(wrapped)
+
+
 def collection_is_editable() -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
     def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
         @functools.wraps(func)

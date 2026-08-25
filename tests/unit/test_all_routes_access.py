@@ -207,6 +207,9 @@ routes_with_expected_access_grant_funding_has_certifier_role_access = [
     "access_grant_funding.decline_submission",
     "access_grant_funding.confirm_submission_with_certify",
 ]
+routes_with_expected_access_grant_funding_can_invite_team_member_access = [
+    "access_grant_funding.add_grant_team_member",
+]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [
     "deliver_grant_funding.list_grants",
@@ -410,6 +413,8 @@ def test_accessibility_for_user_role_to_each_endpoint(app, subtests):  # noqa: C
                 assert "@has_access_grant_role(RoleEnum.DATA_PROVIDER)" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_has_certifier_role_access:
                 assert "@has_access_grant_role(RoleEnum.CERTIFIER)" in decorators
+            elif rule.endpoint in routes_with_expected_access_grant_funding_can_invite_team_member_access:
+                assert "@can_invite_access_grant_team_member" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_has_member_role_access:
                 assert "@has_access_grant_role(RoleEnum.MEMBER)" in decorators
             elif rule.endpoint in routes_with_expected_access_grant_funding_grant_recipient_role:
@@ -445,6 +450,7 @@ def test_routes_list_is_valid(app):
         + routes_with_expected_access_grant_funding_has_member_role_access
         + routes_with_expected_access_grant_funding_has_data_provider_role_access
         + routes_with_expected_access_grant_funding_has_certifier_role_access
+        + routes_with_expected_access_grant_funding_can_invite_team_member_access
     )
 
     all_routes_in_app = [rule.endpoint for rule in app.url_map.iter_rules()]

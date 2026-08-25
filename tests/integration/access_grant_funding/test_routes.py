@@ -8,6 +8,7 @@ from flask_login import login_user
 from sqlalchemy import select
 
 from app.common.data.models import GrantRecipient
+from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import UserRole
 from app.common.data.types import (
     AuthMethodEnum,
@@ -18,7 +19,13 @@ from app.common.data.types import (
     OrganisationModeEnum,
     RoleEnum,
 )
+from app.common.helpers.feature_flags import FeatureFlags
 from tests.utils import get_h1_text, get_h2_text
+
+
+def enable_access_user_management_flag(client):
+    with client.session_transaction() as session:
+        session[FeatureFlags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT.name] = "on"
 
 
 class TestIndex:
@@ -166,6 +173,270 @@ class TestListGrantTeam:
         assert get_h1_text(soup) == "Team"
         assert any("Can certify" in td.get_text() for td in soup.find_all("td"))
         assert any("Can edit and submit" in td.get_text() for td in soup.find_all("td"))
+
+    def test_add_team_member_button_shown_for_data_provider_when_flag_enabled(
+        self, authenticated_grant_recipient_data_provider_client
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        add_team_member_link = soup.find(
+            "a",
+            href=url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+        )
+        assert add_team_member_link is not None
+        assert add_team_member_link.get_text(strip=True) == "Add team member"
+        h2_texts = [h2.get_text(strip=True) for h2 in soup.find_all("h2")]
+        assert "Certifier access" in h2_texts
+        assert "Changing access and permissions" not in h2_texts
+
+    def test_add_team_member_button_hidden_when_flag_disabled(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+            )
+        )
+        assert response.status_code == 200
+        assert "Add team member" not in response.text
+        soup = BeautifulSoup(response.data, "html.parser")
+        h2_texts = [h2.get_text(strip=True) for h2 in soup.find_all("h2")]
+        assert "Changing access and permissions" in h2_texts
+        assert "Certifier access" not in h2_texts
+
+    def test_add_team_member_button_hidden_for_member_when_flag_enabled(
+        self, authenticated_grant_recipient_member_client
+    ):
+        client = authenticated_grant_recipient_member_client
+        enable_access_user_management_flag(client)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+            )
+        )
+        assert response.status_code == 200
+        assert "Add team member" not in response.text
+
+
+class TestAddGrantTeamMember:
+    def test_get_returns_404_when_flag_disabled(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_get_forbidden_for_member(self, authenticated_grant_recipient_member_client):
+        client = authenticated_grant_recipient_member_client
+        enable_access_user_management_flag(client)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+        assert response.status_code == 403
+
+    def test_get_forbidden_for_certifier(self, authenticated_grant_recipient_certifier_client):
+        client = authenticated_grant_recipient_certifier_client
+        enable_access_user_management_flag(client)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+        assert response.status_code == 403
+
+    def test_get_shows_form(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Add team member details"
+        assert (
+            f"This team member will be able to edit and submit reports and forms for {client.grant.name}."
+            in soup.get_text()
+        )
+        assert soup.find("input", id="full_name") is not None
+        assert soup.find("input", id="email_address") is not None
+
+    def test_post_adds_existing_user_to_team(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        existing_user = factories.user.create(name="Matthew Jones", email="mjones@hastings.gov.uk")
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "Matthew Jones", "email_address": "mjones@hastings.gov.uk"},
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+        )
+
+        user_role = db_session.scalar(select(UserRole).where(UserRole.user_id == existing_user.id))
+        assert user_role.organisation_id == client.organisation.id
+        assert user_role.grant_id == client.grant.id
+        assert RoleEnum.DATA_PROVIDER in user_role.permissions
+
+        team_page = client.get(response.location)
+        soup = BeautifulSoup(team_page.data, "html.parser")
+        banner = soup.find(class_="govuk-notification-banner")
+        assert banner is not None
+        assert "Team member added" in banner.get_text()
+        assert f"Matthew Jones can now edit and submit for {client.grant.name}." in banner.get_text()
+
+    def test_post_does_not_update_the_name_of_an_existing_user(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        existing_user = factories.user.create(name="Matthew Jones", email="mjones@hastings.gov.uk")
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "Matt Jones-Smith", "email_address": "mjones@hastings.gov.uk"},
+        )
+        assert response.status_code == 302
+
+        db_session.refresh(existing_user)
+        assert existing_user.name == "Matthew Jones"
+
+        team_page = client.get(response.location)
+        banner = BeautifulSoup(team_page.data, "html.parser").find(class_="govuk-notification-banner")
+        assert "Matthew Jones can now edit and submit" in banner.get_text()
+        assert "Matt Jones-Smith" not in banner.get_text()
+
+    def test_post_returns_500_when_person_is_already_a_team_member(
+        self, authenticated_grant_recipient_data_provider_client, db_session
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": client.user.name, "email_address": client.user.email},
+        )
+        assert response.status_code == 500
+        assert db_session.scalars(select(AuditEventModel)).all() == []
+
+    @pytest.mark.parametrize("certifier_is_org_wide", [True, False])
+    def test_post_returns_500_and_does_not_grant_edit_and_submit_to_a_certifier(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session, certifier_is_org_wide
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        certifier = factories.user.create(name="Sarah Certifier", email="scertifier@hastings.gov.uk")
+        factories.user_role.create(
+            user=certifier,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+            organisation=client.organisation,
+            grant=None if certifier_is_org_wide else client.grant,
+        )
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "Sarah Certifier", "email_address": "scertifier@hastings.gov.uk"},
+        )
+        assert response.status_code == 500
+
+        db_session.refresh(certifier)
+        assert all(RoleEnum.DATA_PROVIDER not in role.permissions for role in certifier.roles)
+        assert db_session.scalars(select(AuditEventModel)).all() == []
+
+    def test_post_returns_500_for_email_without_an_account(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "Matthew Jones", "email_address": "no-account@hastings.gov.uk"},
+        )
+        assert response.status_code == 500
+
+    def test_post_with_invalid_email_shows_error(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "Matthew Jones", "email_address": "not-an-email"},
+        )
+        assert response.status_code == 200
+        assert "Enter an email address in the correct format, like name@example.com" in response.text
+
+    def test_post_with_missing_fields_shows_errors(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "", "email_address": ""},
+        )
+        assert response.status_code == 200
+        assert "Enter the team member’s full name" in response.text
+        assert "Enter the team member’s email address" in response.text
 
 
 class TestCookieBanner:
