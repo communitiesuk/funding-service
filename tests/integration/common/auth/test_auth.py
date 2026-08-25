@@ -9,8 +9,9 @@ from sqlalchemy import func, select
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
+from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import Invitation, MagicLink, User, UserRole
-from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, RoleEnum
+from app.common.data.types import AuditEventType, CollectionStatusEnum, GrantStatusEnum, RoleEnum
 from tests.models import _get_grant_managing_organisation
 from tests.utils import AnyStringMatching, get_h1_text, page_has_error, page_has_h2
 
@@ -680,6 +681,9 @@ class TestSSOGetTokenView:
             updated_user = db_session.scalar(select(User).where(User.azure_ad_subject_id == "abc123"))
 
             assert AuthorisationHelper.is_platform_admin(updated_user) is False
+
+            audit_event = db_session.scalars(select(AuditEventModel)).one()
+            assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
         assert response.status_code == 302
         assert response.location == url_for("auth.signed_in_but_no_permissions", invite_expired=False)

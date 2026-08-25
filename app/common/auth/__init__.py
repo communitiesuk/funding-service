@@ -261,7 +261,11 @@ def sso_get_token() -> ResponseReturnValue:
         # for this sign-in we should remove the role that gives the platform admin permissions to all grants
         if AuthorisationHelper.is_platform_admin(user):
             interfaces.user.remove_permissions_from_user(
-                user, permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN], organisation=None, grant=None, by_user=user
+                user,
+                permissions=[RoleEnum.MEMBER, RoleEnum.ADMIN],
+                organisation=None,
+                grant=None,
+                by_user=interfaces.user.get_or_create_system_user(),
             )
             if not user.roles:
                 return redirect(
