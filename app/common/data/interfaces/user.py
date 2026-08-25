@@ -223,15 +223,20 @@ def _upsert_user_role(
 def add_permissions_to_user(
     user: User,
     permissions: list[RoleEnum],
-    organisation_id: uuid.UUID | None = None,
-    grant_id: uuid.UUID | None = None,
+    organisation: Organisation | None = None,
+    grant: Grant | None = None,
+    *,
+    by_user: User,
 ) -> UserRole:
+    """Grant `permissions` to `user`; `by_user` is the user making the change, for auditing."""
     # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
     # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
     #       and is up for removal in the future.
     if RoleEnum.MEMBER not in permissions:
         permissions.append(RoleEnum.MEMBER)
 
+    organisation_id = organisation.id if organisation else None
+    grant_id = grant.id if grant else None
     user_role = get_user_role(user, organisation_id, grant_id)
     existing_permissions = user_role.permissions if user_role else []
     combined_permissions = list(set(existing_permissions + permissions))
@@ -243,9 +248,14 @@ def add_permissions_to_user(
 def remove_permissions_from_user(
     user: User,
     permissions: list[RoleEnum],
-    organisation_id: uuid.UUID | None = None,
-    grant_id: uuid.UUID | None = None,
+    organisation: Organisation | None = None,
+    grant: Grant | None = None,
+    *,
+    by_user: User,
 ) -> UserRole | None:
+    """Remove `permissions` from `user`; `by_user` is the user making the change, for auditing."""
+    organisation_id = organisation.id if organisation else None
+    grant_id = grant.id if grant else None
     user_role = get_user_role(user, organisation_id, grant_id)
     if not user_role:
         return None
@@ -336,8 +346,9 @@ def claim_invitation(invitation: Invitation, user: User) -> Invitation:
                 add_permissions_to_user(
                     user=user,
                     permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
-                    organisation_id=test_grant_recipient.organisation_id,
-                    grant_id=test_grant_recipient.grant_id,
+                    organisation=test_grant_recipient.organisation,
+                    grant=test_grant_recipient.grant,
+                    by_user=user,
                 )
 
     db.session.add(invitation)
@@ -359,8 +370,9 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
         add_permissions_to_user(
             user=user,
             permissions=invite.permissions,
-            organisation_id=invite.organisation_id,
-            grant_id=invite.grant_id,
+            organisation=invite.organisation,
+            grant=invite.grant,
+            by_user=user,
         )
         claim_invitation(invitation=invite, user=user)
     return user
@@ -378,16 +390,20 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
     invitations = get_invitations_by_email(email=email_address, is_usable=True)
     for invite in invitations:
         claim_invitation(invitation=invite, user=user)
-    add_permissions_to_user(user, permissions=[RoleEnum.ADMIN], organisation_id=None, grant_id=None)
+    add_permissions_to_user(user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None, by_user=user)
     return user
 
 
 @flush_and_rollback_on_exceptions
-def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant) -> None:
+def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant, *, by_user: User) -> None:
     existing_user = get_user_by_email(email_address=email_address)
     if existing_user:
         add_permissions_to_user(
-            user=existing_user, permissions=[RoleEnum.MEMBER], organisation_id=grant.organisation_id, grant_id=grant.id
+            user=existing_user,
+            permissions=[RoleEnum.MEMBER],
+            organisation=grant.organisation,
+            grant=grant,
+            by_user=by_user,
         )
 
         if grant.test_grant_recipients:
@@ -395,8 +411,9 @@ def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant)
                 add_permissions_to_user(
                     user=existing_user,
                     permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
-                    organisation_id=test_grant_recipient.organisation_id,
-                    grant_id=grant.id,
+                    organisation=test_grant_recipient.organisation,
+                    grant=grant,
+                    by_user=by_user,
                 )
 
     else:

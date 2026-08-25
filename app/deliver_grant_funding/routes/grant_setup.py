@@ -220,12 +220,14 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
         )
         session.pop("grant_setup", None)
 
-        if not AuthorisationHelper.is_deliver_org_admin(get_current_user()):
+        user = get_current_user()
+        if not AuthorisationHelper.is_deliver_org_admin(user):
             add_permissions_to_user(
-                get_current_user(),
+                user,
                 permissions=[RoleEnum.ADMIN],
-                organisation_id=grant.organisation_id,
-                grant_id=grant.id,
+                organisation=grant.organisation,
+                grant=grant,
+                by_user=user,
             )
 
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
