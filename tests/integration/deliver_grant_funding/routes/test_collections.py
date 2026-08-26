@@ -8965,6 +8965,63 @@ class TestEditQuestionValidation:
 
 
 class TestAddQuestionEligibility:
+    def test_get_redirects_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__type=CollectionType.APPLICATION,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id
+        )
+
+    def test_post_redirects_without_saving_when_collection_not_editable(
+        self, authenticated_grant_admin_client, factories
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__type=CollectionType.APPLICATION,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+
+        EligibilityForm = build_managed_expression_form(
+            ExpressionType.ELIGIBILITY, ExpressionReference.from_question(question)
+        )
+        form = EligibilityForm(
+            data={"type": "Greater than", "greater_than_value": "10", "greater_than_inclusive": False}
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id
+        )
+        assert len(question.expressions) == 0
+
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
             url_for("deliver_grant_funding.add_question_eligibility", grant_id=uuid.uuid4(), question_id=uuid.uuid4())
@@ -8996,7 +9053,41 @@ class TestAddQuestionEligibility:
         assert get_h1_text(soup) == "Set eligibility condition"
         assert page_has_button(soup, "Save eligibility condition")
 
-    def test_post(self, authenticated_grant_admin_client, factories, db_session):
+    @pytest.mark.parametrize(
+        "data_type",
+        (
+            QuestionDataType.TEXT_SINGLE_LINE,
+            QuestionDataType.TEXT_MULTI_LINE,
+            QuestionDataType.EMAIL,
+            QuestionDataType.URL,
+            QuestionDataType.FILE_UPLOAD,
+        ),
+    )
+    def test_get_no_eligibility_available(self, authenticated_grant_admin_client, factories, data_type):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(
+            collection=collection, title="Eligibility questions", is_eligibility_section=True
+        )
+        question = factories.question.create(
+            form=db_form,
+            text="What is your name?",
+            name="applicant name",
+            data_type=data_type,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "This question cannot have an eligibility check." in soup.text
+
+    def test_post(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         db_form = factories.form.create(
             collection=collection, title="Eligibility questions", is_eligibility_section=True

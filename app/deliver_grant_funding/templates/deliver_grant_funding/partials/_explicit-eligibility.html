@@ -1,4 +1,5 @@
-{% for eligibility in component.eligibility %}
+{% if component.eligibility %}
+  {% set eligibility = component.eligibility %}
   {% set key_html %}
     <span>Eligibility</span>
   {% endset %}
@@ -14,4 +15,4 @@
       "value": { "html": value_html },
     })
   %}
-{% endfor %}
+{% endif %}

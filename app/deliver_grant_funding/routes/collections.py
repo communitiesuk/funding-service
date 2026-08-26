@@ -3184,7 +3184,7 @@ def add_question_eligibility(grant_id: UUID, question_id: UUID) -> ResponseRetur
             url_for(
                 "deliver_grant_funding.edit_question_eligibility",
                 grant_id=grant_id,
-                expression_id=question.eligibility[0].id,
+                expression_id=question.eligibility.id,
             )
         )
 

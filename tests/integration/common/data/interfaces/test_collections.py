@@ -3934,7 +3934,7 @@ class TestExpressions:
         assert from_db.expressions[0].type_ == ExpressionType.ELIGIBILITY
         assert from_db.expressions[0].statement == f"{question.safe_qid} > Decimal('3000')"
         assert from_db.expressions[0].managed_name == ManagedExpressionsEnum.GREATER_THAN
-        assert from_db.eligibility == [from_db.expressions[0]]
+        assert from_db.eligibility == from_db.expressions[0]
 
     def test_add_component_validation_custom(self, db_session, factories, mock_sentry_metrics):
         form = factories.form.create()
