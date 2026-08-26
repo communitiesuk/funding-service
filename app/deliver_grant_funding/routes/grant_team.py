@@ -43,7 +43,9 @@ def add_user_to_grant(grant_id: UUID) -> ResponseReturnValue:
             )
             if grant_user:
                 return redirect(url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant_id))
-            interfaces.user.add_grant_member_role_or_create_invitation(email_address=form.user_email.data, grant=grant)
+            interfaces.user.add_grant_member_role_or_create_invitation(
+                email_address=form.user_email.data, grant=grant, by_user=interfaces.user.get_current_user()
+            )
             notification_service.send_member_confirmation(
                 grant=grant,
                 email_address=form.user_email.data,

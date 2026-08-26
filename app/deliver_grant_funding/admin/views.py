@@ -43,6 +43,7 @@ from app.common.data.interfaces.organisations import get_organisation_count, get
 from app.common.data.interfaces.user import (
     add_permissions_to_user,
     get_certifiers_by_organisation,
+    get_current_user,
     get_grant_override_certifiers_by_organisation,
     get_user,
     get_user_by_email,
@@ -343,13 +344,16 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             certifiers_data = form.get_normalised_certifiers_data()
 
-            organisation_names_to_ids = {organisation.name: organisation.id for organisation in organisations}
+            organisations_by_name = {organisation.name: organisation for organisation in organisations}
+            current_user = get_current_user()
             count = 0
             for org_name, full_name, email_address in certifiers_data:
-                org_id = organisation_names_to_ids.get(org_name)
-                if org_id:
+                organisation = organisations_by_name.get(org_name)
+                if organisation:
                     user = upsert_user_by_email(email_address=email_address, name=full_name)
-                    add_permissions_to_user(user=user, permissions=[RoleEnum.CERTIFIER], organisation_id=org_id)
+                    add_permissions_to_user(
+                        user=user, permissions=[RoleEnum.CERTIFIER], organisation=organisation, by_user=current_user
+                    )
                     count += 1
 
             flash(f"Created or updated {count} certifier(s).", "success")
@@ -392,11 +396,13 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                         "error",
                     )
                 else:
+                    organisation = next(org for org in organisations if org.id == organisation_id)
                     remove_permissions_from_user(
                         user=user,
                         permissions=[RoleEnum.CERTIFIER],
-                        organisation_id=organisation_id,
-                        grant_id=None,
+                        organisation=organisation,
+                        grant=None,
+                        by_user=get_current_user(),
                     )
                     flash(
                         f"Successfully revoked certifier access for {user.name} ({email}).",
@@ -439,11 +445,13 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             email_address = form.email.data
 
             user = upsert_user_by_email(email_address=email_address, name=full_name)
+            organisation = next(gr.organisation for gr in grant_recipients if gr.organisation_id == organisation_id)
             add_permissions_to_user(
                 user=user,
                 permissions=[RoleEnum.CERTIFIER],
-                organisation_id=organisation_id,
-                grant_id=grant_id,
+                organisation=organisation,
+                grant=grant,
+                by_user=get_current_user(),
             )
 
             flash(
@@ -496,11 +504,15 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                         "error",
                     )
                 else:
+                    organisation = next(
+                        gr.organisation for gr in grant_recipients if gr.organisation_id == organisation_id
+                    )
                     remove_permissions_from_user(
                         user=user,
                         permissions=[RoleEnum.CERTIFIER],
-                        organisation_id=organisation_id,
-                        grant_id=grant_id,
+                        organisation=organisation,
+                        grant=grant,
+                        by_user=get_current_user(),
                     )
                     flash(
                         f"Successfully revoked grant-specific certifier access for {user.name} ({email}).",
@@ -552,13 +564,15 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             )
 
             # Set up grant team members as data providers/certifiers for the test grant recipients
+            current_user = get_current_user()
             for test_organisation in test_organisations:
                 for grant_team_member in grant.grant_team_users:
                     add_permissions_to_user(
                         grant_team_member,
                         permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
-                        organisation_id=test_organisation.id,
-                        grant_id=grant.id,
+                        organisation=test_organisation,
+                        grant=grant,
+                        by_user=current_user,
                     )
             recipients_count = len(form.recipients.data or [])
             flash(
@@ -595,8 +609,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             add_permissions_to_user(
                 user,
                 permissions=[RoleEnum.DATA_PROVIDER],
-                organisation_id=grant_recipient.organisation_id,
-                grant_id=grant.id,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                by_user=get_current_user(),
             )
 
             if form.send_notification_email.data:
@@ -636,14 +651,19 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         data_providers_by_grant_recipient = {gr: gr.data_providers for gr in grant_recipients}
         form = PlatformAdminCreateGrantRecipientDataProvidersForm(grant_recipients=grant_recipients)
         if form.validate_on_submit():
-            grant_recipient_names_to_ids = {gr.organisation.name: gr.organisation.id for gr in grant_recipients}
+            organisations_by_name = {gr.organisation.name: gr.organisation for gr in grant_recipients}
             users_data = form.get_normalised_users_data()
+            current_user = get_current_user()
 
             for org_name, full_name, email_address in users_data:
-                org_id = grant_recipient_names_to_ids[org_name]
+                organisation = organisations_by_name[org_name]
                 user = upsert_user_by_email(email_address=email_address, name=full_name)
                 add_permissions_to_user(
-                    user, permissions=[RoleEnum.DATA_PROVIDER], organisation_id=org_id, grant_id=grant.id
+                    user,
+                    permissions=[RoleEnum.DATA_PROVIDER],
+                    organisation=organisation,
+                    grant=grant,
+                    by_user=current_user,
                 )
 
             noun = "data provider" if len(users_data) == 1 else "data providers"
@@ -708,8 +728,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             add_permissions_to_user(
                 user,
                 permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
-                organisation_id=grant_recipient.organisation_id,
-                grant_id=grant.id,
+                organisation=grant_recipient.organisation,
+                grant=grant,
+                by_user=get_current_user(),
             )
 
             # Flash success message
@@ -750,6 +771,8 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             revoked_count = 0
             assert form.grant_recipients_data_providers.data
+            organisations_by_id = {gr.organisation_id: gr.organisation for gr in grant_recipients_data_providers}
+            current_user = get_current_user()
             for user_role_id in form.grant_recipients_data_providers.data:
                 user_id_str, org_id_str = user_role_id.split("|")
                 user_id = UUID(user_id_str)
@@ -759,8 +782,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     remove_permissions_from_user(
                         get_user(user_id),
                         permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
-                        organisation_id=org_id,
-                        grant_id=grant.id,
+                        organisation=organisations_by_id[org_id],
+                        grant=grant,
+                        by_user=current_user,
                     )
                     is None
                 ):

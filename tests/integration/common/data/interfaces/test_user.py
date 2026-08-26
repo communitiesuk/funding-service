@@ -590,7 +590,9 @@ class TestInvitations:
     def test_grant_member_add_role_or_create_invitation_adds_role(self, db_session, factories) -> None:
         grant = factories.grant.create()
         user = factories.user.create(email="test@communities.gov.uk")
-        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+        interfaces.user.add_grant_member_role_or_create_invitation(
+            email_address="test@communities.gov.uk", grant=grant, by_user=user
+        )
 
         assert db_session.scalar(select(func.count()).select_from(Invitation)) == 0
         assert (
@@ -607,7 +609,9 @@ class TestInvitations:
         )
 
         user = factories.user.create(email="test@communities.gov.uk")
-        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+        interfaces.user.add_grant_member_role_or_create_invitation(
+            email_address="test@communities.gov.uk", grant=grant, by_user=user
+        )
 
         grant_team_role = interfaces.user.get_user_role(user, grant.organisation_id, grant.id)
         assert grant_team_role is not None
@@ -626,7 +630,9 @@ class TestInvitations:
         factories.grant_recipient.create(grant=grant, organisation=live_recipient_org, mode=GrantRecipientModeEnum.LIVE)
 
         user = factories.user.create(email="test@communities.gov.uk")
-        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+        interfaces.user.add_grant_member_role_or_create_invitation(
+            email_address="test@communities.gov.uk", grant=grant, by_user=user
+        )
 
         assert len(user.roles) == 1
         assert user.roles[0].grant_id == grant.id
@@ -634,7 +640,9 @@ class TestInvitations:
 
     def test_grant_member_add_role_or_create_invitation_creates_invitation(self, db_session, factories) -> None:
         grant = factories.grant.create()
-        interfaces.user.add_grant_member_role_or_create_invitation(email_address="test@communities.gov.uk", grant=grant)
+        interfaces.user.add_grant_member_role_or_create_invitation(
+            email_address="test@communities.gov.uk", grant=grant, by_user=factories.user.build()
+        )
         assert db_session.scalar(select(func.count()).select_from(Invitation)) == 1
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
@@ -893,7 +901,7 @@ class TestGetOrganisations:
     def test_returns_organisations_user_has_a_role_for(self, factories):
         user = factories.user.create()
         org = factories.organisation.create(name="Org 1")
-        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation=org, by_user=user)
 
         result = user.get_organisations()
 
@@ -909,7 +917,9 @@ class TestGetOrganisations:
         user = factories.user.create()
         other_user = factories.user.create()
         org = factories.organisation.create(name="Org 1")
-        interfaces.user.add_permissions_to_user(other_user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+        interfaces.user.add_permissions_to_user(
+            other_user, permissions=[RoleEnum.MEMBER], organisation=org, by_user=user
+        )
 
         assert user.get_organisations() == []
 
@@ -917,8 +927,12 @@ class TestGetOrganisations:
         user = factories.user.create()
         live_org = factories.organisation.create(name="Live Org", mode=OrganisationModeEnum.LIVE)
         test_org = factories.organisation.create(name="Test Org", mode=OrganisationModeEnum.TEST)
-        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=live_org.id)
-        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=test_org.id)
+        interfaces.user.add_permissions_to_user(
+            user, permissions=[RoleEnum.MEMBER], organisation=live_org, by_user=user
+        )
+        interfaces.user.add_permissions_to_user(
+            user, permissions=[RoleEnum.MEMBER], organisation=test_org, by_user=user
+        )
 
         result = user.get_organisations(mode=OrganisationModeEnum.TEST)
 
@@ -929,9 +943,9 @@ class TestGetOrganisations:
         user = factories.user.create()
         org = factories.organisation.create(name="Org 1")
         grant = factories.grant.create(organisation=org)
-        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation_id=org.id)
+        interfaces.user.add_permissions_to_user(user, permissions=[RoleEnum.MEMBER], organisation=org, by_user=user)
         interfaces.user.add_permissions_to_user(
-            user, permissions=[RoleEnum.MEMBER], organisation_id=org.id, grant_id=grant.id
+            user, permissions=[RoleEnum.MEMBER], organisation=org, grant=grant, by_user=user
         )
 
         result = user.get_organisations()
@@ -1062,7 +1076,7 @@ class TestAddPermissionsToUser:
         organisation = factories.organisation.create()
         factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.MEMBER])
 
-        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.CERTIFIER], organisation.id)
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.CERTIFIER], organisation, by_user=user)
 
         assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.CERTIFIER}
 
@@ -1070,7 +1084,7 @@ class TestAddPermissionsToUser:
         user = factories.user.create()
         organisation = factories.organisation.create()
 
-        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.MEMBER], organisation.id)
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.MEMBER], organisation, by_user=user)
 
         assert role.permissions == [RoleEnum.MEMBER]
 
@@ -1081,7 +1095,7 @@ class TestAddPermissionsToUser:
             user=user, organisation=organisation, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
         )
 
-        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.DATA_PROVIDER], organisation.id)
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.DATA_PROVIDER], organisation, by_user=user)
 
         assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER}
 
@@ -1090,7 +1104,7 @@ class TestAddPermissionsToUser:
         organisation = factories.organisation.create()
         factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.DATA_PROVIDER])
 
-        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.ADMIN], organisation.id)
+        role = interfaces.user.add_permissions_to_user(user, [RoleEnum.ADMIN], organisation, by_user=user)
 
         assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.ADMIN}
 
@@ -1103,7 +1117,7 @@ class TestRemovePermissionsFromUser:
             user=user, organisation=organisation, permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER]
         )
 
-        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation.id)
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation, by_user=user)
 
         assert role.permissions == [RoleEnum.MEMBER]
 
@@ -1112,7 +1126,7 @@ class TestRemovePermissionsFromUser:
         organisation = factories.organisation.create()
         factories.user_role.create(user=user, organisation=organisation, permissions=[RoleEnum.MEMBER])
 
-        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation.id)
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation, by_user=user)
 
         assert role.permissions == [RoleEnum.MEMBER]
 
@@ -1125,7 +1139,7 @@ class TestRemovePermissionsFromUser:
             permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER],
         )
 
-        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation.id)
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation, by_user=user)
 
         assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER}
 
@@ -1138,7 +1152,7 @@ class TestRemovePermissionsFromUser:
             permissions=[RoleEnum.MEMBER],
         )
 
-        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.MEMBER], organisation.id)
+        role = interfaces.user.remove_permissions_from_user(user, [RoleEnum.MEMBER], organisation, by_user=user)
         assert role is None
 
         db_session.expire_all()

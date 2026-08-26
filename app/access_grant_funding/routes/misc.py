@@ -145,8 +145,9 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
         interfaces.user.add_permissions_to_user(
             user=user_to_add,
             permissions=[RoleEnum.DATA_PROVIDER],
-            organisation_id=organisation.id,
-            grant_id=grant_recipient.grant_id,
+            organisation=organisation,
+            grant=grant_recipient.grant,
+            by_user=interfaces.user.get_current_user(),
         )
         flash(
             {"user_name": user_to_add.name},  # ty: ignore[invalid-argument-type]
@@ -327,8 +328,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             interfaces.user.add_permissions_to_user(
                 user=user,
                 permissions=[RoleEnum.DATA_PROVIDER],
-                organisation_id=organisation.id,
-                grant_id=grant.id,
+                organisation=organisation,
+                grant=grant,
+                by_user=user,
             )
         # A grant recipient exists, and user does not have access to it
         elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
