@@ -75,7 +75,13 @@ workers = 3
 worker_class = "gevent"
 worker_connections = 1000
 timeout = 30
-keepalive = 2
+
+# Increased from default of 2s as this is deployed behind a load balancer, which reuses connections across requests.
+# CloudFront has a 5s idle timeout talking to ALB
+# ALB has a 60s idle timeout talking to ECS
+# ECS (this/application) has 75s.
+# This incremental timeout is intentional and an invariant we should maintain.
+keepalive = 75
 
 #
 #   spew - Install a trace function that spews every line of Python
