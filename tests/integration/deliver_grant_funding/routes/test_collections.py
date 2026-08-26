@@ -9085,7 +9085,7 @@ class TestAddQuestionEligibility:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "This question cannot have an eligibility check." in soup.text
+        assert "This question cannot have an eligibility condition." in soup.text
 
     def test_post(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
