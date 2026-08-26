@@ -313,7 +313,7 @@ class _SharedConfig(_BaseConfig):
     MS_GRAPH_PERMISSIONS_SCOPE: list[str] = ["User.ReadBasic.All"]
 
     # Internal Domains
-    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk")
+    INTERNAL_DOMAINS: tuple[str, ...]
 
     # Service Desk
     SERVICE_DESK_URL: str = "https://mhclgdigital.atlassian.net/servicedesk/customer/portal/5"
@@ -415,6 +415,9 @@ class LocalConfig(_SharedConfig):
     # Jira data connector
     JIRA_DATA_CONNECTOR_API_TOKEN: str = "insecure-local-token"  # pragma: allowlist secret
 
+    # Internal Domains
+    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk", "@test.communities.gov.uk")
+
     ASSETS_VITE_LIVE_ENABLED: bool = True
 
     AWS_S3_BUCKET_NAME: str = "local-bucket"
@@ -483,13 +486,6 @@ class TestConfig(_SharedConfig):
     # Flask app
     FLASK_ENV: Environment = Environment.TEST
 
-    # Internal Domains
-    INTERNAL_DOMAINS: tuple[str, ...] = (
-        "@digitalaccessibilitycentre.org",
-        "@test.communities.gov.uk",
-        "@communities.gov.uk",
-    )
-
     PLAYWRIGHT_BROWSERS_PATH: str | None = "ms-playwright-pdf"
 
 
@@ -497,9 +493,6 @@ class ProdConfig(_SharedConfig):
     """
     Overrides / default configuration for our deployed 'prod' environment
     """
-
-    # Internal Domains
-    INTERNAL_DOMAINS: tuple[str, ...] = ("@communities.gov.uk",)
 
     # Flask app
     FLASK_ENV: Environment = Environment.PROD
