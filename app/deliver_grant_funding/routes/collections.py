@@ -713,7 +713,7 @@ def collection_multiple_submissions_settings(
     form = MultipleSubmissionsSettingsForm(
         questions=[
             q
-            for form in collection.application_forms
+            for form in collection.tasklist_forms
             for q in form.cached_questions
             if q.data_type in current_app.config["QUESTION_DATA_TYPES_ALLOWED_FOR_MULTI_SUBMISSION_NAMES"]
             and not q.add_another_container

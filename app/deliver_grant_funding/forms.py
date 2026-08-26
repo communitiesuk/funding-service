@@ -1713,7 +1713,7 @@ class RequestChangesSubmissionForm(FlaskForm):
 
         self.section_ids.choices = [
             (str(form.id), form.title)
-            for form in submission_helper.collection.application_forms
+            for form in submission_helper.collection.tasklist_forms
             if submission_helper.get_tasklist_status_for_form(form) not in NOT_NEEDED_TASKLIST_SECTION_STATUSES
         ]
         self.changes_requested_reason.label.text = (
