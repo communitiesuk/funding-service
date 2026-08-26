@@ -299,7 +299,7 @@ class TestAddGrantTeamMember:
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
-        existing_user = factories.user.create(name="Matthew Jones", email="mjones@hastings.gov.uk")
+        existing_user = factories.user.create(name="Local user", email="user@local.gov.uk")
 
         response = client.post(
             url_for(
@@ -307,7 +307,7 @@ class TestAddGrantTeamMember:
                 organisation_id=client.organisation.id,
                 grant_id=client.grant.id,
             ),
-            data={"full_name": "Matthew Jones", "email_address": "mjones@hastings.gov.uk"},
+            data={"full_name": "Local user", "email_address": "user@local.gov.uk"},
         )
         assert response.status_code == 302
         assert response.location == url_for(
@@ -327,14 +327,14 @@ class TestAddGrantTeamMember:
         banner = soup.find(class_="govuk-notification-banner")
         assert banner is not None
         assert "Team member added" in banner.get_text()
-        assert f"Matthew Jones can now edit and submit for {client.grant.name}." in banner.get_text()
+        assert f"Local user can now edit and submit for {client.grant.name}." in banner.get_text()
 
     def test_post_does_not_update_the_name_of_an_existing_user(
         self, authenticated_grant_recipient_data_provider_client, factories, db_session
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
-        existing_user = factories.user.create(name="Matthew Jones", email="mjones@hastings.gov.uk")
+        existing_user = factories.user.create(name="Local user", email="user@local.gov.uk")
 
         response = client.post(
             url_for(
@@ -342,17 +342,17 @@ class TestAddGrantTeamMember:
                 organisation_id=client.organisation.id,
                 grant_id=client.grant.id,
             ),
-            data={"full_name": "Matt Jones-Smith", "email_address": "mjones@hastings.gov.uk"},
+            data={"full_name": "Local user updated", "email_address": "user@local.gov.uk"},
         )
         assert response.status_code == 302
 
         db_session.refresh(existing_user)
-        assert existing_user.name == "Matthew Jones"
+        assert existing_user.name == "Local user"
 
         team_page = client.get(response.location)
         banner = BeautifulSoup(team_page.data, "html.parser").find(class_="govuk-notification-banner")
-        assert "Matthew Jones can now edit and submit" in banner.get_text()
-        assert "Matt Jones-Smith" not in banner.get_text()
+        assert "Local user can now edit and submit" in banner.get_text()
+        assert "Local user updated" not in banner.get_text()
 
     def test_post_returns_500_when_person_is_already_a_team_member(
         self, authenticated_grant_recipient_data_provider_client, db_session
@@ -409,7 +409,7 @@ class TestAddGrantTeamMember:
                 organisation_id=client.organisation.id,
                 grant_id=client.grant.id,
             ),
-            data={"full_name": "Matthew Jones", "email_address": "no-account@hastings.gov.uk"},
+            data={"full_name": "Local user", "email_address": "no-account@hastings.gov.uk"},
         )
         assert response.status_code == 500
 
@@ -423,7 +423,7 @@ class TestAddGrantTeamMember:
                 organisation_id=client.organisation.id,
                 grant_id=client.grant.id,
             ),
-            data={"full_name": "Matthew Jones", "email_address": "not-an-email"},
+            data={"full_name": "Local user", "email_address": "not-an-email"},
         )
         assert response.status_code == 200
         assert "Enter an email address in the correct format, like name@example.com" in response.text

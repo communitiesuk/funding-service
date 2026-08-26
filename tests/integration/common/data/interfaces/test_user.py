@@ -1154,7 +1154,11 @@ class TestAddPermissionsToUser:
         )
 
         interfaces.user.add_permissions_to_user(
-            user, [RoleEnum.DATA_PROVIDER], grant_recipient.organisation, grant_recipient.grant, by_user=user
+            user,
+            [RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            grant_recipient.organisation,
+            grant_recipient.grant,
+            by_user=user,
         )
 
         audit_event = db_session.scalars(select(AuditEventModel)).one()
