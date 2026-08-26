@@ -943,8 +943,11 @@ class Component(BaseModel):
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.VALIDATION]
 
     @property
-    def eligibility(self) -> list[Expression]:
-        return [expression for expression in self.expressions if expression.type_ == ExpressionType.ELIGIBILITY]
+    def eligibility(self) -> Expression | None:
+        for expression in self.expressions:
+            if expression.type_ == ExpressionType.ELIGIBILITY:
+                return expression
+        return None
 
     def get_expression(self, id: uuid.UUID) -> Expression:
         try:

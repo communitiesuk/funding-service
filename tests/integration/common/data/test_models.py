@@ -221,7 +221,12 @@ class TestQuestionModel:
         )
         assert question.conditions == [condition_expression]
         assert question.validations == [validation_expression]
-        assert question.eligibility == [eligibility_expression]
+        assert question.eligibility == eligibility_expression
+
+    def test_question_eligibility_none_when_no_eligibility_expression(self, factories):
+        question = factories.question.create()
+        factories.expression.create(question=question, type_=ExpressionType.CONDITION, statement="")
+        assert question.eligibility is None
 
     def test_question_gets_a_valid_expression_that_belongs_to_it(self, factories):
         question = factories.question.create()
