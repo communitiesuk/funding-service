@@ -18,7 +18,7 @@ class SignInForm(FlaskForm):
         filters=[lambda x: x.strip() if x else x],
         widget=GovTextInput(),
     )
-    submit = SubmitField("Request sign in link", widget=GovSubmitInput())
+    submit = SubmitField("Sign in with link", widget=GovSubmitInput())
 
     def __init__(self, *args: Any, is_public_sign_in: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
