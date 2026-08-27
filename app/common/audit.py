@@ -1,9 +1,9 @@
 import datetime
 import enum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import inspect
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
@@ -56,6 +56,19 @@ class UserPermissionsAdded(UserPermissionsEvent):
 
 class UserPermissionsRemoved(UserPermissionsEvent):
     action: Literal["permissions_removed"] = "permissions_removed"
+
+
+_audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
+    AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
+    AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
+    AuditEventType.USER_MANAGEMENT: TypeAdapter(
+        Annotated[UserPermissionsAdded | UserPermissionsRemoved, Field(discriminator="action")]
+    ),
+}
+
+
+def parse_audit_event(event_type: AuditEventType, data: dict[str, Any]) -> AuditEvent:
+    return _audit_event_adapters[event_type].validate_python(data)
 
 
 def _serialize_value(value: Any) -> Any:

@@ -2,11 +2,16 @@ import datetime
 from enum import IntEnum, StrEnum
 from uuid import uuid4
 
+import pytest
+from pydantic import ValidationError
+
 from app.common.audit import (
     DatabaseModelChange,
+    SystemEvent,
     UserPermissionsAdded,
     UserPermissionsRemoved,
     _serialize_value,
+    parse_audit_event,
 )
 from app.common.data.types import AuditEventType, RoleEnum
 
@@ -223,3 +228,104 @@ class TestUserPermissionsRemovedModel:
         assert json_data["invitation_id"] is None
         assert json_data["action"] == "permissions_removed"
         assert json_data["event_type"] == "user-management"
+
+
+class TestParseAuditEvent:
+    def test_parses_permissions_added_event(self, factories):
+        user = factories.user.build()
+        event = UserPermissionsAdded(
+            user_id=user.id,
+            target_user_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=uuid4(),
+            grant_recipient_id=uuid4(),
+            invitation_id=uuid4(),
+            permissions=[RoleEnum.DATA_PROVIDER],
+            resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+        )
+
+        parsed = parse_audit_event(AuditEventType.USER_MANAGEMENT, event.model_dump(mode="json"))
+
+        assert isinstance(parsed, UserPermissionsAdded)
+        assert parsed == event
+
+    def test_parses_permissions_removed_event(self, factories):
+        user = factories.user.build()
+        event = UserPermissionsRemoved(
+            user_id=user.id,
+            target_user_id=uuid4(),
+            organisation_id=None,
+            grant_id=None,
+            grant_recipient_id=None,
+            permissions=[RoleEnum.MEMBER],
+            resulting_permissions=[],
+        )
+
+        parsed = parse_audit_event(AuditEventType.USER_MANAGEMENT, event.model_dump(mode="json"))
+
+        assert isinstance(parsed, UserPermissionsRemoved)
+        assert parsed == event
+
+    def test_invitation_id_defaults_to_none_when_absent(self, factories):
+        user = factories.user.build()
+        data = UserPermissionsAdded(
+            user_id=user.id,
+            target_user_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=None,
+            grant_recipient_id=None,
+            permissions=[RoleEnum.ADMIN],
+            resulting_permissions=[RoleEnum.ADMIN],
+        ).model_dump(mode="json")
+        del data["invitation_id"]
+
+        parsed = parse_audit_event(AuditEventType.USER_MANAGEMENT, data)
+
+        assert parsed.invitation_id is None
+
+    def test_rejects_unknown_action(self, factories):
+        user = factories.user.build()
+        data = UserPermissionsAdded(
+            user_id=user.id,
+            target_user_id=uuid4(),
+            organisation_id=None,
+            grant_id=None,
+            grant_recipient_id=None,
+            permissions=[RoleEnum.ADMIN],
+            resulting_permissions=[RoleEnum.ADMIN],
+        ).model_dump(mode="json")
+        data["action"] = "team_member_added"
+
+        with pytest.raises(ValidationError):
+            parse_audit_event(AuditEventType.USER_MANAGEMENT, data)
+
+    def test_parses_database_model_change(self):
+        event = DatabaseModelChange(
+            user_id=uuid4(), model_class="Grant", model_id=uuid4(), action="create", changes={"name": "Test Grant"}
+        )
+
+        parsed = parse_audit_event(AuditEventType.PLATFORM_ADMIN_DB_EVENT, event.model_dump(mode="json"))
+
+        assert isinstance(parsed, DatabaseModelChange)
+        assert parsed == event
+
+    def test_parses_system_event(self):
+        event = SystemEvent(
+            user_id=uuid4(),
+            model_class="UserRole",
+            model_id=uuid4(),
+            action="delete",
+            changes={"user_id": str(uuid4())},
+            context={"notification_id": str(uuid4()), "reason": "Permanent delivery failure"},
+        )
+
+        parsed = parse_audit_event(AuditEventType.SYSTEM, event.model_dump(mode="json"))
+
+        assert isinstance(parsed, SystemEvent)
+        assert parsed == event
+
+    def test_rejects_incomplete_database_model_change(self):
+        with pytest.raises(ValidationError):
+            parse_audit_event(
+                AuditEventType.PLATFORM_ADMIN_DB_EVENT, {"model_class": "Grant", "action": "create", "changes": {}}
+            )
