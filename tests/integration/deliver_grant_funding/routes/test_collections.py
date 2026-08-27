@@ -9158,6 +9158,69 @@ class TestAddQuestionEligibility:
 
 
 class TestEditQuestionEligibility:
+    def test_get_redirects_when_collection_not_editable(self, authenticated_grant_admin_client, factories):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__type=CollectionType.APPLICATION,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+        expression = factories.expression.create(
+            question=question,
+            type_=ExpressionType.ELIGIBILITY,
+            statement=f"{question.safe_qid} > Decimal('10')",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression.id,
+            ),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id
+        )
+
+    def test_post_redirects_without_saving_when_collection_not_editable(
+        self, authenticated_grant_admin_client, factories
+    ):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__collection__type=CollectionType.APPLICATION,
+            form__collection__status=CollectionStatusEnum.OPEN,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.NUMBER,
+        )
+        expression = factories.expression.create(
+            question=question,
+            type_=ExpressionType.ELIGIBILITY,
+            statement=f"{question.safe_qid} > Decimal('10')",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression.id,
+                delete="",
+            ),
+            data={"confirm_deletion": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.list_pre_award_forms", grant_id=authenticated_grant_admin_client.grant.id
+        )
+        assert len(question.expressions) == 1
+
     def test_404(self, authenticated_grant_admin_client):
         response = authenticated_grant_admin_client.get(
             url_for(
@@ -9217,6 +9280,43 @@ class TestEditQuestionEligibility:
 
         assert response.status_code == 302
         assert len(question.expressions) == 0
+
+    def test_post_update(self, authenticated_grant_admin_client, factories, db_session):
+        question = factories.question.create(
+            form__collection__grant=authenticated_grant_admin_client.grant,
+            form__is_eligibility_section=True,
+            data_type=QuestionDataType.YES_NO,
+        )
+
+        expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+        interfaces.collections.add_component_eligibility(question, interfaces.user.get_current_user(), expression)
+        db_session.commit()
+
+        expression_id = question.expressions[0].id
+        assert question.expressions[0].managed_name == "Yes"
+
+        UpdateForm = build_managed_expression_form(
+            ExpressionType.ELIGIBILITY, ExpressionReference.from_question(question), question.expressions[0]
+        )
+        form = UpdateForm(data={"type": "No"})
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.edit_question_eligibility",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                expression_id=expression_id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{question.id}"
+        )
+
+        assert len(question.expressions) == 1
+        assert question.expressions[0].managed_name == "No"
 
 
 class TestManageGuidance:
