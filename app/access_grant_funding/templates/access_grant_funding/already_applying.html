@@ -23,17 +23,11 @@
       <span class="govuk-caption-l">{{ grant.name }}</span>
       <h1 class="govuk-heading-l">Your organisation is already applying</h1>
 
-      <p class="govuk-body">An application form has already been started by someone in this organisation.</p>
+      <p class="govuk-body">An application form has already been started by someone in {{ organisation.name }}.</p>
 
-      <h2 class="govuk-heading-m">Continue your application</h2>
+      <h2 class="govuk-heading-m">Contact our support desk</h2>
       <p class="govuk-body">
-        Someone in your organisation can add you through the Team page in Access grant funding, or you can
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">request access</a>.
-      </p>
-
-      <h2 class="govuk-heading-m">Get help</h2>
-      <p class="govuk-body">
-        If you're having problems, contact our
+        To access the application, contact our
         <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in new tab)</a>.
       </p>
       <p class="govuk-body">Monday to Friday 9am to 5pm (except public holidays).</p>

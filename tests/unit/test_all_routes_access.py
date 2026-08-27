@@ -178,6 +178,7 @@ routes_with_expected_is_signing_up_access = [
     "access_grant_funding.public_sign_up_router",
     "access_grant_funding.public_sign_up_ineligible",
     "access_grant_funding.public_sign_up_eligibility_question",
+    "access_grant_funding.already_applying",
 ]
 
 routes_with_expected_requires_passed_eligibility_access = [
@@ -231,7 +232,6 @@ routes_with_no_expected_access_restrictions = [
     "access_grant_funding.cookies",
     "access_grant_funding.privacy_policy",
     "access_grant_funding.public_sign_up_start_page",
-    "access_grant_funding.already_applying",
     "auth.request_a_link_to_sign_in",
     "auth.collection_request_a_link_to_public_sign_up",
     "auth.check_email",
