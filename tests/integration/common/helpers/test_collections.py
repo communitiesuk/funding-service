@@ -54,6 +54,8 @@ from app.common.helpers.collections import (
     SubmissionHelper,
     SubmissionIsAlreadyAssessedError,
     SubmissionIsNotSubmittedError,
+    get_or_create_unclaimed_submission,
+    has_passed_eligibility,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
 from tests.models import FactoryAnswer
@@ -4173,3 +4175,84 @@ class TestCollectionHelper:
             )
             is False
         )
+
+
+class TestHasPassedEligibility:
+    def test_returns_false_when_no_unclaimed_submission_exists(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+
+        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is False
+
+    def test_returns_true_when_collection_has_no_eligibility_form(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is True
+
+    def test_returns_false_when_eligibility_form_not_completed(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        factories.form.create(collection=collection, is_eligibility_section=True)
+        factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is False
+
+    def test_returns_true_when_eligibility_form_completed(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form)
+        submission = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+        helper = SubmissionHelper(submission)
+
+        helper.submit_answer_for_question(
+            question.id,
+            build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
+                **{question.safe_qid: "User submitted data"}
+            ),
+            user,
+        )
+        helper.toggle_form_completed(eligibility_form, user, True)
+
+        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is True
+
+
+class TestGetOrCreateUnclaimedSubmission:
+    def test_creates_new_unclaimed_submission_when_none_exists(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+
+        helper = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE)
+
+        assert helper.submission.created_by_id == user.id
+        assert helper.submission.collection_id == collection.id
+        assert helper.submission.mode == SubmissionModeEnum.LIVE
+        assert helper.submission.grant_recipient_id is None
+
+    def test_returns_existing_unclaimed_submission_instead_of_creating_another(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        existing = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        helper = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE)
+
+        assert helper.submission.id == existing.id
+
+    def test_creates_separate_unclaimed_submissions_per_mode(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+
+        live_helper = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE)
+        test_helper = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.TEST)
+
+        assert live_helper.submission.id != test_helper.submission.id
