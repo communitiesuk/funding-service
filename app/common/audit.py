@@ -30,25 +30,29 @@ class SystemEvent(DatabaseModelChange):
     context: dict[str, Any]
 
 
-class AccessGrantFundingTeamEvent(AuditEvent):
-    """`permissions` are those changed by this action; `resulting_permissions` are the target user's after it."""
+class UserPermissionsEvent(AuditEvent):
+    """`permissions` are those added to or removed from the target user's role by this action; `resulting_permissions`
+    are the role's full set afterwards (empty if it was deleted). `organisation_id` is None for platform-wide roles,
+    `grant_id` is None for organisation-wide roles, and `grant_recipient_id` is only set for Access grant funding
+    roles on a grant.
+    `invitation_id` is set when the permissions were granted by the target user claiming an invitation."""
 
-    event_type: AuditEventType = AuditEventType.ACCESS_GRANT_FUNDING_USER_MANAGEMENT
-    grant_recipient_id: UUID
-    organisation_id: UUID
-    grant_id: UUID
+    event_type: AuditEventType = AuditEventType.USER_MANAGEMENT
+    target_user_id: UUID
+    organisation_id: UUID | None
+    grant_id: UUID | None
+    grant_recipient_id: UUID | None
+    invitation_id: UUID | None = None
     permissions: list[RoleEnum]
     resulting_permissions: list[RoleEnum]
 
 
-class AccessGrantFundingTeamMemberAdded(AccessGrantFundingTeamEvent):
-    action: Literal["team_member_added"] = "team_member_added"
-    target_user_id: UUID
+class UserPermissionsAdded(UserPermissionsEvent):
+    action: Literal["permissions_added"] = "permissions_added"
 
 
-class AccessGrantFundingTeamMemberRemoved(AccessGrantFundingTeamEvent):
-    action: Literal["team_member_removed"] = "team_member_removed"
-    target_user_id: UUID
+class UserPermissionsRemoved(UserPermissionsEvent):
+    action: Literal["permissions_removed"] = "permissions_removed"
 
 
 def _serialize_value(value: Any) -> Any:

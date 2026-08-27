@@ -3,9 +3,9 @@ from enum import IntEnum, StrEnum
 from uuid import uuid4
 
 from app.common.audit import (
-    AccessGrantFundingTeamMemberAdded,
-    AccessGrantFundingTeamMemberRemoved,
     DatabaseModelChange,
+    UserPermissionsAdded,
+    UserPermissionsRemoved,
     _serialize_value,
 )
 from app.common.data.types import AuditEventType, RoleEnum
@@ -127,11 +127,11 @@ class TestDatabaseModelChangeModel:
         assert json_data["event_type"] == "platform-admin-db-event"
 
 
-class TestAccessGrantFundingTeamMemberAddedModel:
+class TestUserPermissionsAddedModel:
     def test_has_correct_event_type_and_action(self, factories):
         user = factories.user.build()
 
-        event = AccessGrantFundingTeamMemberAdded(
+        event = UserPermissionsAdded(
             user_id=user.id,
             grant_recipient_id=uuid4(),
             organisation_id=uuid4(),
@@ -141,8 +141,58 @@ class TestAccessGrantFundingTeamMemberAddedModel:
             resulting_permissions=[RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
         )
 
-        assert event.event_type == AuditEventType.ACCESS_GRANT_FUNDING_USER_MANAGEMENT
-        assert event.action == "team_member_added"
+        assert event.event_type == AuditEventType.USER_MANAGEMENT
+        assert event.action == "permissions_added"
+
+    def test_serializes_to_json(self, factories):
+        user = factories.user.build()
+        grant_recipient_id = uuid4()
+        organisation_id = uuid4()
+        grant_id = uuid4()
+        target_user_id = uuid4()
+        invitation_id = uuid4()
+
+        event = UserPermissionsAdded(
+            user_id=user.id,
+            grant_recipient_id=grant_recipient_id,
+            organisation_id=organisation_id,
+            grant_id=grant_id,
+            target_user_id=target_user_id,
+            invitation_id=invitation_id,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            resulting_permissions=[RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+        )
+
+        json_data = event.model_dump(mode="json")
+
+        assert json_data["user_id"] == str(user.id)
+        assert json_data["grant_recipient_id"] == str(grant_recipient_id)
+        assert json_data["organisation_id"] == str(organisation_id)
+        assert json_data["grant_id"] == str(grant_id)
+        assert json_data["target_user_id"] == str(target_user_id)
+        assert json_data["permissions"] == ["data-provider", "member"]
+        assert json_data["resulting_permissions"] == ["certifier", "data-provider", "member"]
+        assert json_data["invitation_id"] == str(invitation_id)
+        assert json_data["action"] == "permissions_added"
+        assert json_data["event_type"] == "user-management"
+
+
+class TestUserPermissionsRemovedModel:
+    def test_has_correct_event_type_and_action(self, factories):
+        user = factories.user.build()
+
+        event = UserPermissionsRemoved(
+            user_id=user.id,
+            grant_recipient_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=uuid4(),
+            target_user_id=uuid4(),
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            resulting_permissions=[RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+        )
+
+        assert event.event_type == AuditEventType.USER_MANAGEMENT
+        assert event.action == "permissions_removed"
 
     def test_serializes_to_json(self, factories):
         user = factories.user.build()
@@ -151,7 +201,7 @@ class TestAccessGrantFundingTeamMemberAddedModel:
         grant_id = uuid4()
         target_user_id = uuid4()
 
-        event = AccessGrantFundingTeamMemberAdded(
+        event = UserPermissionsRemoved(
             user_id=user.id,
             grant_recipient_id=grant_recipient_id,
             organisation_id=organisation_id,
@@ -170,52 +220,6 @@ class TestAccessGrantFundingTeamMemberAddedModel:
         assert json_data["target_user_id"] == str(target_user_id)
         assert json_data["permissions"] == ["data-provider", "member"]
         assert json_data["resulting_permissions"] == ["certifier", "data-provider", "member"]
-        assert json_data["action"] == "team_member_added"
-        assert json_data["event_type"] == "access-grant-funding-user-management"
-
-
-class TestAccessGrantFundingTeamMemberRemovedModel:
-    def test_has_correct_event_type_and_action(self, factories):
-        user = factories.user.build()
-
-        event = AccessGrantFundingTeamMemberRemoved(
-            user_id=user.id,
-            grant_recipient_id=uuid4(),
-            organisation_id=uuid4(),
-            grant_id=uuid4(),
-            target_user_id=uuid4(),
-            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
-            resulting_permissions=[RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
-        )
-
-        assert event.event_type == AuditEventType.ACCESS_GRANT_FUNDING_USER_MANAGEMENT
-        assert event.action == "team_member_removed"
-
-    def test_serializes_to_json(self, factories):
-        user = factories.user.build()
-        grant_recipient_id = uuid4()
-        organisation_id = uuid4()
-        grant_id = uuid4()
-        target_user_id = uuid4()
-
-        event = AccessGrantFundingTeamMemberRemoved(
-            user_id=user.id,
-            grant_recipient_id=grant_recipient_id,
-            organisation_id=organisation_id,
-            grant_id=grant_id,
-            target_user_id=target_user_id,
-            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
-            resulting_permissions=[RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
-        )
-
-        json_data = event.model_dump(mode="json")
-
-        assert json_data["user_id"] == str(user.id)
-        assert json_data["grant_recipient_id"] == str(grant_recipient_id)
-        assert json_data["organisation_id"] == str(organisation_id)
-        assert json_data["grant_id"] == str(grant_id)
-        assert json_data["target_user_id"] == str(target_user_id)
-        assert json_data["permissions"] == ["data-provider", "member"]
-        assert json_data["resulting_permissions"] == ["certifier", "data-provider", "member"]
-        assert json_data["action"] == "team_member_removed"
-        assert json_data["event_type"] == "access-grant-funding-user-management"
+        assert json_data["invitation_id"] is None
+        assert json_data["action"] == "permissions_removed"
+        assert json_data["event_type"] == "user-management"
