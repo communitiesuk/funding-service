@@ -7,7 +7,7 @@ import pytest
 from markupsafe import Markup
 
 from app.common.audit import DatabaseModelChange, SystemEvent, UserPermissionsAdded
-from app.common.data.types import RoleEnum
+from app.common.data.types import AuditEventType, RoleEnum
 from app.deliver_grant_funding.admin.audit_rendering import AuditEventDetailsRenderer, _field_label, _render_value
 from app.deliver_grant_funding.admin.entities import PlatformAdminModelView
 
@@ -188,3 +188,19 @@ class TestAuditEventDetailsRenderer:
 
         assert html.startswith('<dl class="govuk-summary-list">')
         assert html.count('<dl class="govuk-summary-list govuk-summary-list--no-border govuk-!-margin-bottom-0">') == 1
+
+    def test_renders_unparsed_event_from_row_columns_and_raw_payload(self, renderer, render_entity_link, factories):
+        model = factories.audit_event.build(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            created_at_utc=datetime.datetime(2026, 8, 27, 10, 30, tzinfo=datetime.UTC),
+            data={"action": "team_member_added"},
+        )
+
+        html = renderer.render_unparsed(model)
+
+        labels = re.findall(r'<dt class="govuk-summary-list__key">([^<]*)</dt>', html)
+        assert labels == ["Event type", "User", "Created at UTC", "Data"]
+        assert "user-management" in html
+        assert f"<a>User:{model.user_id}</a>" in html
+        assert "2026-08-27T10:30:00+00:00" in html
+        assert "&#34;action&#34;: &#34;team_member_added&#34;" in html

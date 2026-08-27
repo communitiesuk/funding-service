@@ -295,6 +295,39 @@ class TestPlatformAdminAuditEventView:
         assert container.find("h1") is not None
         assert container.find(class_="govuk-summary-list") is not None
 
+    def test_unparseable_event_data_falls_back_to_raw_json(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create()
+        legacy_data = {
+            "user_id": str(actor.id),
+            "timestamp": "2026-08-26T10:00:00+00:00",
+            "event_type": "access-grant-funding-user-management",
+            "action": "team_member_added",
+            "target_user_id": str(uuid4()),
+            "grant_recipient_id": str(uuid4()),
+            "organisation_id": str(uuid4()),
+            "grant_id": str(uuid4()),
+            "permissions": ["member"],
+            "resulting_permissions": ["member"],
+        }
+        audit_event = factories.audit_event.create(
+            user=actor, event_type=AuditEventType.USER_MANAGEMENT, data=legacy_data
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Event type").get_text(strip=True) == "user-management"
+        user_link = get_summary_list_value_by_key(soup, "User").find("a")
+        assert user_link["href"] == f"/deliver/admin/user/details/?id={actor.id}"
+        assert user_link.get_text(strip=True) == actor.email
+        assert get_summary_list_value_by_key(soup, "Created at UTC") is not None
+        raw_json = soup.find("pre")
+        assert raw_json is not None
+        assert "team_member_added" in raw_json.get_text()
+
     def test_edit_route_not_available(self, authenticated_platform_admin_client, factories, db_session):
         audit_event = factories.audit_event.create()
 

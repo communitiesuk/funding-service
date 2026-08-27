@@ -10,6 +10,7 @@ from markupsafe import Markup, escape
 from app.common.audit import AuditEvent, DatabaseModelChange, SystemEvent
 
 if TYPE_CHECKING:
+    from app.common.data.models_audit import AuditEvent as AuditEventModel
     from app.deliver_grant_funding.admin.entities import PlatformAdminModelView
 
 _ROW = Markup(
@@ -36,6 +37,18 @@ class AuditEventDetailsRenderer:
                 (_field_label(field_name), self._render_field(event, field_name))
                 for field_name in type(event).model_fields
             ),
+            nested=False,
+        )
+
+    def render_unparsed(self, model: "AuditEventModel") -> Markup:
+        """For an event whose stored data no longer matches its schema: the row's own columns and the raw payload."""
+        return _summary_list(
+            [
+                ("Event type", _render_value(model.event_type)),
+                ("User", self._render_entity_link("User", str(model.user_id))),
+                ("Created at UTC", _render_value(model.created_at_utc)),
+                ("Data", render_json_pre(model.data)),
+            ],
             nested=False,
         )
 

@@ -13,6 +13,7 @@ from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
 from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
+from pydantic import ValidationError
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
@@ -713,7 +714,12 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         # flask-admin has no public accessor for its registered views.
         views = self.admin._views  # ty: ignore[unresolved-attribute]
         renderer = AuditEventDetailsRenderer(v for v in views if isinstance(v, PlatformAdminModelView))
-        return renderer.render(parse_audit_event(model.event_type, model.data))
+        try:
+            event = parse_audit_event(model.event_type, model.data)
+        except ValidationError:
+            # Events written before a schema change may not parse any more; show them raw rather than failing the page.
+            return renderer.render_unparsed(model)
+        return renderer.render(event)
 
     def search_placeholder(self) -> str:
         return "User, Event Type, Model Class, Action"

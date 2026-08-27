@@ -330,6 +330,11 @@ class TestParseAuditEvent:
                 AuditEventType.PLATFORM_ADMIN_DB_EVENT, {"model_class": "Grant", "action": "create", "changes": {}}
             )
 
+    @pytest.mark.parametrize("event_type", list(AuditEventType))
+    def test_every_event_type_has_a_parser(self, event_type):
+        with pytest.raises(ValidationError):
+            parse_audit_event(event_type, {})
+
 
 class TestAuditEventFieldOrder:
     @pytest.mark.parametrize(
