@@ -132,6 +132,41 @@ class TestNotificationService:
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
 
+    @pytest.mark.parametrize(
+        "grant_recipient_mode, expected_is_test_data",
+        [(GrantRecipientModeEnum.LIVE, "no"), (GrantRecipientModeEnum.TEST, "yes")],
+    )
+    @responses.activate
+    def test_send_access_grant_team_member_added(self, app, factories, grant_recipient_mode, expected_is_test_data):
+        grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
+            grant__name="Test grant",
+            mode=grant_recipient_mode,
+        )
+        email_address = "test@hastings.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "8741f1bd-08b0-4bf3-a9d4-eff744e12350",
+                        "personalisation": {
+                            "organisation_name": "Test organisation",
+                            "grant_name": "Test grant",
+                            "is_test_data": expected_is_test_data,
+                            "email_address": email_address,
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_grant_team_member_added(email_address, grant_recipient=grant_recipient)
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
     @responses.activate
     def test_send_access_report_opened(self, app, factories):
         grant_recipient = factories.grant_recipient.build(

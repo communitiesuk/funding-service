@@ -127,6 +127,20 @@ class NotificationService:
             },
         )
 
+    def send_access_grant_team_member_added(
+        self, email_address: str, *, grant_recipient: GrantRecipient
+    ) -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_GRANT_TEAM_MEMBER_ADDED_TEMPLATE_ID"],
+            personalisation={
+                "organisation_name": grant_recipient.organisation.name,
+                "grant_name": grant_recipient.grant.name,
+                "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                "email_address": email_address,
+            },
+        )
+
     def send_access_report_opened(
         self,
         email_address: str,

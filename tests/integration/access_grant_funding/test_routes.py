@@ -295,7 +295,7 @@ class TestAddGrantTeamMember:
         assert soup.find("input", id="email_address") is not None
 
     def test_post_adds_existing_user_to_team(
-        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
@@ -322,6 +322,16 @@ class TestAddGrantTeamMember:
         audit_event = db_session.scalars(select(AuditEventModel)).one()
         assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == ("user@local.gov.uk", "8741f1bd-08b0-4bf3-a9d4-eff744e12350")
+        assert notification_call.kwargs["personalisation"] == {
+            "organisation_name": client.organisation.name,
+            "grant_name": client.grant.name,
+            "is_test_data": "no",
+            "email_address": "user@local.gov.uk",
+        }
+
         team_page = client.get(response.location)
         soup = BeautifulSoup(team_page.data, "html.parser")
         banner = soup.find(class_="govuk-notification-banner")
@@ -330,7 +340,7 @@ class TestAddGrantTeamMember:
         assert f"Local user can now edit and submit for {client.grant.name}." in banner.get_text()
 
     def test_post_does_not_update_the_name_of_an_existing_user(
-        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
