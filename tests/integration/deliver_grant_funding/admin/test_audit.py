@@ -283,6 +283,18 @@ class TestPlatformAdminAuditEventView:
         organisation_link = soup.find("a", href=f"/deliver/admin/organisation/details/?id={organisation.id}")
         assert organisation_link.get_text(strip=True) == "Test Organisation"
 
+    def test_detail_page_uses_full_width_layout(self, authenticated_platform_admin_client, factories, db_session):
+        audit_event = factories.audit_event.create()
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        container = soup.select_one(".govuk-grid-column-full.app-audit-event-details")
+        assert container is not None
+        assert container.find("h1") is not None
+        assert container.find(class_="govuk-summary-list") is not None
+
     def test_edit_route_not_available(self, authenticated_platform_admin_client, factories, db_session):
         audit_event = factories.audit_event.create()
 

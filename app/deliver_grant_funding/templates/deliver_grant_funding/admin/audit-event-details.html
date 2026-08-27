@@ -5,3 +5,17 @@
 {% block details_table %}
   {{ admin_view.render_details(model) }}
 {% endblock %}
+
+{# Full-width variant of the library layout: the changes and context lists nested in the event are cramped at
+   two-thirds. #}
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full app-audit-event-details">
+      {{ layout.messages() }}
+
+      <h1 class="govuk-heading-l">{{ admin_view.name }} details</h1>
+
+      {{ self.details_table() }}
+    </div>
+  </div>
+{% endblock %}
