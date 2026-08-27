@@ -359,3 +359,16 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         form=form,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
     )
+
+
+@access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>/ineligible", methods=["GET"])
+@is_signing_up
+def public_sign_up_ineligible(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    return render_template(
+        "access_grant_funding/public_sign_up_ineligible.html",
+        grant=grant,
+        collection=collection,
+    )
