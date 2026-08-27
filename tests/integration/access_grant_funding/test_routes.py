@@ -728,7 +728,7 @@ class TestRemoveGrantTeamMember:
         assert response.status_code == 404
 
     def test_post_removes_edit_access_but_keeps_certifier_access(
-        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
@@ -768,8 +768,18 @@ class TestRemoveGrantTeamMember:
         audit_event = db_session.scalars(select(AuditEventModel)).one()
         assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
+        assert len(mock_notification_service_calls) == 1
+        email = mock_notification_service_calls[0]
+        assert email.args == (user.email, "df45b766-9af8-4cde-a336-f84ea2e50542")
+        assert email.kwargs["personalisation"] == {
+            "email_address": user.email,
+            "is_test_data": "no",
+            "grant_name": grant.name,
+            "organisation_name": organisation.name,
+        }
+
     def test_post_removes_user_access_and_redirects_to_grant_team_page(
-        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
@@ -805,6 +815,16 @@ class TestRemoveGrantTeamMember:
 
         audit_event = db_session.scalars(select(AuditEventModel)).one()
         assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+
+        assert len(mock_notification_service_calls) == 1
+        email = mock_notification_service_calls[0]
+        assert email.args == (user.email, "df45b766-9af8-4cde-a336-f84ea2e50542")
+        assert email.kwargs["personalisation"] == {
+            "email_address": user.email,
+            "is_test_data": "no",
+            "grant_name": grant.name,
+            "organisation_name": organisation.name,
+        }
 
         team_page = client.get(response.location)
         soup = BeautifulSoup(team_page.data, "html.parser")

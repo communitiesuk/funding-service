@@ -215,6 +215,41 @@ class TestNotificationService:
         assert request_matcher.call_count == 1
 
     @responses.activate
+    def test_send_access_team_member_removed(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
+            grant__name="Test grant",
+            mode=GrantRecipientModeEnum.TEST,
+        )
+        email_address = "test@communities.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "df45b766-9af8-4cde-a336-f84ea2e50542",
+                        "personalisation": {
+                            "email_address": email_address,
+                            "is_test_data": "yes",
+                            "grant_name": "Test grant",
+                            "organisation_name": "Test organisation",
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+
+        resp = notification_service.send_access_team_member_removed(
+            email_address=email_address, grant_recipient=grant_recipient
+        )
+
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
     def test_send_access_submission_send_for_sign_off_confirmation(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
             organisation__name="Test organisation",

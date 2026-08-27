@@ -1040,7 +1040,8 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
                 if not obj.schema or not len(obj.schema.root.items()) == 1 or "c_allocation" not in obj.schema.root:
                     raise ValueError("Cannot create GR org items for something other than the default schema")
                 gr_data = kwargs.get("data", [])
-                for i, gr in enumerate(obj.collection.grant.grant_recipients):
+                grant_recipients = sorted(obj.collection.grant.grant_recipients, key=lambda gr: gr.organisation.name)
+                for i, gr in enumerate(grant_recipients):
                     _DataSourceOrganisationItemFactory.create(
                         data_source=obj,
                         external_id=gr.organisation.external_id,

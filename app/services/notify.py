@@ -185,6 +185,18 @@ class NotificationService:
             personalisation=personalisation,
         )
 
+    def send_access_team_member_removed(self, email_address: str, *, grant_recipient: GrantRecipient) -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_TEAM_MEMBER_REMOVED_TEMPLATE_ID"],
+            personalisation={
+                "email_address": email_address,
+                "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                "grant_name": grant_recipient.grant.name,
+                "organisation_name": grant_recipient.organisation.name,
+            },
+        )
+
     def send_access_submission_sent_for_certification_confirmation(
         self, email_address: str, *, submission_helper: SubmissionHelper
     ) -> Notification:
