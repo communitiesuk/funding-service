@@ -35,7 +35,7 @@ from app.common.data.types import (
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
 
@@ -149,6 +149,7 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
             grant=grant_recipient.grant,
             by_user=interfaces.user.get_current_user(),
         )
+        notification_service.send_access_grant_team_member_added(user_to_add.email, grant_recipient=grant_recipient)
         flash(
             {"user_name": user_to_add.name},  # ty: ignore[invalid-argument-type]
             FlashMessageType.ACCESS_TEAM_MEMBER_ADDED,

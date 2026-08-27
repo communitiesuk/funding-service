@@ -31,11 +31,14 @@ class SystemEvent(DatabaseModelChange):
 
 
 class UserPermissionsEvent(AuditEvent):
-    """`permissions` are those added to or removed from the target user's role by this action; `resulting_permissions`
-    are the role's full set afterwards (empty if it was deleted). `organisation_id` is None for platform-wide roles,
-    `grant_id` is None for organisation-wide roles, and `grant_recipient_id` is only set for Access grant funding
-    roles on a grant.
-    `invitation_id` is set when the permissions were granted by the target user claiming an invitation."""
+    """`permissions` are those added to or removed from the target user's role by this action:
+
+    `resulting_permissions` are the role's full set afterwards (empty if it was deleted).
+    `organisation_id` is None for platform-wide roles,
+    `grant_id` is None for organisation-wide roles, and
+    `grant_recipient_id` is only set for Access grant funding roles on a grant.
+    `invitation_id` is set when the permissions were granted by the target user claiming an invitation.
+    """
 
     event_type: AuditEventType = AuditEventType.USER_MANAGEMENT
     target_user_id: UUID
