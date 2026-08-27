@@ -945,6 +945,53 @@ def create_submission(
     return submission
 
 
+def get_unclaimed_submission_for_user(
+    user: User, collection: Collection, mode: SubmissionModeEnum
+) -> Submission | None:
+    """The sign-up counterpart of `get_or_create_submission`: a submission the user started during public sign
+    up that hasn't yet been attached to a grant recipient."""
+    return db.session.scalars(
+        select(Submission).where(
+            Submission.created_by_id == user.id,
+            Submission.collection_id == collection.id,
+            Submission.mode == mode,
+            Submission.grant_recipient_id.is_(None),
+        )
+    ).one_or_none()
+
+
+@flush_and_rollback_on_exceptions
+def claim_submission_for_grant_recipient(submission: Submission, grant_recipient: GrantRecipient) -> Submission:
+    submission.grant_recipient = grant_recipient
+    return submission
+
+
+@flush_and_rollback_on_exceptions
+def delete_submission(submission: Submission) -> None:
+    db.session.execute(delete(SubmissionEvent).where(SubmissionEvent.submission_id == submission.id))
+    db.session.execute(delete(Submission).where(Submission.id == submission.id))
+
+
+@flush_and_rollback_on_exceptions
+def claim_or_discard_unclaimed_submission(
+    user: User, collection: Collection, mode: SubmissionModeEnum, grant_recipient: GrantRecipient
+) -> None:
+    """Attach the applicant's unclaimed sign-up submission (if any) to `grant_recipient`, now that they have one.
+
+    If `grant_recipient` already has a submission for this collection (eg they signed up before, or a colleague
+    already started one), the unclaimed submission is discarded in favour of the existing one instead of being
+    claimed - a grant recipient should never end up with two submissions for the same collection.
+    """
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
+    if unclaimed is None:
+        return
+
+    if get_submissions_by_grant_recipient_collection(grant_recipient, collection.id):
+        delete_submission(unclaimed)
+    else:
+        claim_submission_for_grant_recipient(unclaimed, grant_recipient)
+
+
 def _swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
     """Swaps the elements at the specified indices in the supplied list.
     If either index is outside the valid range, returns the list unchanged.
