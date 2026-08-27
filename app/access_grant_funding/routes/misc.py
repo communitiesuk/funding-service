@@ -16,10 +16,12 @@ from app.common.auth.decorators import (
     has_feature_flag_enabled,
     is_access_org_member,
     is_signing_up,
+    requires_passed_eligibility,
 )
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    claim_or_discard_unclaimed_submission,
     get_collection_by_slug,
 )
 from app.common.data.interfaces.grant_recipients import (
@@ -270,7 +272,7 @@ def already_applying(grant_slug: str, collection_slug: str) -> ResponseReturnVal
 @access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/eligible-to-apply", methods=["GET", "POST"]
 )
-@is_signing_up
+@requires_passed_eligibility
 @auto_commit_after_request
 def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
@@ -318,14 +320,13 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
             return abort(403)
 
-        session.pop("signing_up_for_collection_id", None)
-
         grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
+        submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
         grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
 
         # No grant recipient exists, create one
         if grant_recipient is None:
-            create_grant_recipient(
+            grant_recipient = create_grant_recipient(
                 grant=grant,
                 organisation=organisation,
                 status=GrantRecipientStatusEnum.APPLYING,
@@ -349,6 +350,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
                 )
             )
         # A grant recipient exists, and user has access to it
+        claim_or_discard_unclaimed_submission(user, collection, submission_mode, grant_recipient)
+        # Delete the public sign off session if user successfully signs in
+        session.pop("signing_up_for_collection_id", None)
         flash("Sign in complete. You can start your application.", FlashMessageType.PUBLIC_SIGN_UP_SUCCESS)
         return redirect(
             url_for(

@@ -11,7 +11,7 @@ from sqlalchemy import select
 from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
 from app.common.collections.forms import build_question_form
 from app.common.data.interfaces.collections import add_component_eligibility
-from app.common.data.models import GrantRecipient
+from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import UserRole
 from app.common.data.types import (
@@ -24,10 +24,12 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataType,
     RoleEnum,
+    SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan
 from app.common.expressions.references import ExpressionReference
+from app.common.helpers.collections import get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import FeatureFlags
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
@@ -1016,6 +1018,37 @@ class TestEligibleToApplyPage:
 
         assert response.status_code == 200
 
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_redirects_to_first_eligibility_question_when_not_passed(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.NUMBER)
+        add_component_eligibility(
+            question,
+            authenticated_no_role_client.user,
+            GreaterThan(minimum_value=3, subject_reference=ExpressionReference.from_question(question)),
+        )
+        factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
+        )
+
     @pytest.mark.authenticate_as("test@no-matching-org.com")
     def test_get_shows_create_org_button_when_no_organisation_matches_email_domain(
         self, authenticated_no_role_client, factories
@@ -1398,6 +1431,110 @@ class TestEligibleToApplyPage:
             )
         ).one_or_none()
         assert user_role is None
+
+    def test_post_claims_unclaimed_submission_when_new_grant_recipient_created(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        unclaimed_submission = get_or_create_unclaimed_submission(
+            authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE
+        ).submission
+        db_session.commit()
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).one()
+
+        db_session.refresh(unclaimed_submission)
+        assert unclaimed_submission.grant_recipient_id == grant_recipient.id
+
+    def test_post_claims_unclaimed_submission_when_reusing_existing_grant_recipient(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        unclaimed_submission = get_or_create_unclaimed_submission(
+            authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE
+        ).submission
+        db_session.commit()
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+
+        db_session.refresh(unclaimed_submission)
+        assert unclaimed_submission.grant_recipient_id == existing_grant_recipient.id
+
+    def test_post_discards_unclaimed_submission_when_grant_recipient_already_has_a_submission(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        # Creates submission for existing user+collection+gr
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=existing_grant_recipient
+        )
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        unclaimed_submission = get_or_create_unclaimed_submission(
+            authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE
+        ).submission
+        unclaimed_submission_id = unclaimed_submission.id
+        db_session.commit()
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        assert db_session.get(Submission, unclaimed_submission_id) is None
 
 
 class TestAlreadyApplyingPage:
