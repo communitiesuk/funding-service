@@ -3,7 +3,13 @@ from uuid import uuid4
 import pytest
 from bs4 import BeautifulSoup
 
-from app.common.audit import DatabaseModelChange, UserPermissionsAdded, create_database_model_change_for_create
+from app.common.audit import (
+    DatabaseModelChange,
+    UserPermissionsAdded,
+    create_database_model_change_for_create,
+    create_database_model_change_for_update,
+    create_system_event_for_delete,
+)
 from app.common.data.models_audit import AuditEvent
 from app.common.data.types import AuditEventType, RoleEnum
 from tests.utils import get_h1_text, get_summary_list_value_by_key
@@ -76,6 +82,7 @@ class TestPlatformAdminAuditEventView:
         page_text = soup.get_text()
         assert "Old Name" in page_text
         assert "New Name" in page_text
+        assert soup.find("pre") is None
 
     def test_detail_page_renders_the_parsed_event_as_the_top_level_summary_list(
         self, authenticated_platform_admin_client, factories, db_session
@@ -201,6 +208,80 @@ class TestPlatformAdminAuditEventView:
         assert organisation_value.get_text(strip=True) == f"{missing_organisation_id} (deleted)"
         assert organisation_value.find("a") is None
         assert get_summary_list_value_by_key(soup, "Grant recipient").get_text(strip=True) == "—"
+
+    def test_displays_database_model_change_with_entity_links(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create(email="actor@example.com")
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(name="Report", grant=grant, created_by=actor)
+        event = create_database_model_change_for_create(collection, actor)
+        audit_event = factories.audit_event.create(user=actor, data=event.model_dump(mode="json"))
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        collection_links = soup.find_all("a", href=f"/deliver/admin/collection/details/?id={collection.id}")
+        assert [link.get_text(strip=True) for link in collection_links] == [
+            "Report (Test Grant)",
+            "Report (Test Grant)",
+        ]
+        grant_link = soup.find("a", href=f"/deliver/admin/grant/details/?id={grant.id}")
+        assert grant_link.get_text(strip=True) == "Test Grant"
+        actor_links = soup.find_all("a", href=f"/deliver/admin/user/details/?id={actor.id}")
+        assert [link.get_text(strip=True) for link in actor_links] == ["actor@example.com", "actor@example.com"]
+        assert soup.find("dt", string="Name").find_next_sibling("dd").get_text(strip=True) == "Report"
+        assert soup.find("pre") is None
+
+    def test_displays_update_event_with_old_and_new_values(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create()
+        grant = factories.grant.create(name="Old Name")
+        db_session.refresh(grant)
+        grant.name = "New Name"
+        event = create_database_model_change_for_update(grant, actor)
+        db_session.commit()
+        audit_event = factories.audit_event.create(user=actor, data=event.model_dump(mode="json"))
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("dt", string="Name").find_next_sibling("dd").get_text(strip=True) == "Old Name → New Name"
+        model_link = soup.find("a", href=f"/deliver/admin/grant/details/?id={grant.id}")
+        assert model_link.get_text(strip=True) == "New Name"
+
+    def test_displays_system_event_with_context(self, authenticated_platform_admin_client, factories, db_session):
+        actor = factories.user.create()
+        target_user = factories.user.create(email="target@example.com")
+        organisation = factories.organisation.create(name="Test Organisation")
+        user_role = factories.user_role.create(
+            user=target_user, organisation=organisation, permissions=[RoleEnum.ADMIN]
+        )
+        reason = "GOV.UK Notify callback indicated permanent delivery failure"
+        event = create_system_event_for_delete(
+            user_role, actor, context={"notification_id": str(uuid4()), "reason": reason}
+        )
+        user_role_id = user_role.id
+        db_session.delete(user_role)
+        db_session.commit()
+        audit_event = factories.audit_event.create(
+            user=actor, event_type=AuditEventType.SYSTEM, data=event.model_dump(mode="json")
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        model_value = soup.find("dt", string="Model").find_next_sibling("dd")
+        assert model_value.get_text(strip=True) == f"{user_role_id} (deleted)"
+        assert soup.find("dt", string="Reason").find_next_sibling("dd").get_text(strip=True) == reason
+        target_user_link = soup.find("a", href=f"/deliver/admin/user/details/?id={target_user.id}")
+        assert target_user_link.get_text(strip=True) == "target@example.com"
+        organisation_link = soup.find("a", href=f"/deliver/admin/organisation/details/?id={organisation.id}")
+        assert organisation_link.get_text(strip=True) == "Test Organisation"
 
     def test_edit_route_not_available(self, authenticated_platform_admin_client, factories, db_session):
         audit_event = factories.audit_event.create()

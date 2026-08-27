@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from flask import url_for
 from markupsafe import Markup, escape
 
-from app.common.audit import AuditEvent
+from app.common.audit import AuditEvent, DatabaseModelChange, SystemEvent
 
 if TYPE_CHECKING:
     from app.deliver_grant_funding.admin.entities import PlatformAdminModelView
@@ -32,14 +32,57 @@ class AuditEventDetailsRenderer:
 
     def render(self, event: AuditEvent) -> Markup:
         return _summary_list(
-            (_field_label(field_name), self._render_field(event, field_name)) for field_name in type(event).model_fields
+            (
+                (_field_label(field_name), self._render_field(event, field_name))
+                for field_name in type(event).model_fields
+            ),
+            nested=False,
         )
 
     def _render_field(self, event: AuditEvent, field_name: str) -> Markup:
+        if isinstance(event, DatabaseModelChange) and field_name == "changes":
+            return self._render_changes(event)
+        if isinstance(event, SystemEvent) and field_name == "context":
+            return self._render_context(event)
+
         value = getattr(event, field_name)
         if value is not None and field_name in event.related_entities:
             return self._render_entity_link(event.related_entities[field_name], str(value))
         return _render_value(value)
+
+    def _render_changes(self, event: DatabaseModelChange) -> Markup:
+        if not event.changes:
+            return _render_value(None)
+
+        return _summary_list(
+            (
+                (_field_label(column), self._render_change(event, column, value))
+                for column, value in event.changes.items()
+            ),
+            nested=True,
+        )
+
+    def _render_change(self, event: DatabaseModelChange, column: str, value: Any) -> Markup:
+        if event.action == "update":
+            return Markup("{old} → {new}").format(
+                old=self._render_column_value(event, column, value["old"]),
+                new=self._render_column_value(event, column, value["new"]),
+            )
+        return self._render_column_value(event, column, value)
+
+    def _render_column_value(self, event: DatabaseModelChange, column: str, value: Any) -> Markup:
+        # Column values come straight from the stored JSON, so entity ids are already strings.
+        if value is not None and column in event.related_entities:
+            return self._render_entity_link(event.related_entities[column], value)
+        return _render_value(value)
+
+    def _render_context(self, event: SystemEvent) -> Markup:
+        if not event.context:
+            return _render_value(None)
+
+        return _summary_list(
+            ((_field_label(key), _render_value(value)) for key, value in event.context.items()), nested=True
+        )
 
     def _render_entity_link(self, model_name: str, entity_id: str) -> Markup:
         view = self._views_by_model_name.get(model_name)
@@ -60,9 +103,13 @@ def _field_label(field_name: str) -> str:
     return field_name.removesuffix("_id").strip("_").replace("_", " ").capitalize()
 
 
-def _summary_list(rows: Iterable[tuple[str, Markup]]) -> Markup:
+def _summary_list(rows: Iterable[tuple[str, Markup]], *, nested: bool) -> Markup:
+    classes = "govuk-summary-list"
+    if nested:
+        classes += " govuk-summary-list--no-border govuk-!-margin-bottom-0"
+
     return (
-        Markup('<dl class="govuk-summary-list">')
+        Markup('<dl class="{classes}">').format(classes=classes)
         + Markup("").join(_ROW.format(label=label, value=value) for label, value in rows)
         + Markup("</dl>")
     )

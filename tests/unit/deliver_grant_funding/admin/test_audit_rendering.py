@@ -1,11 +1,12 @@
 import datetime
 import re
+from unittest.mock import call
 from uuid import uuid4
 
 import pytest
 from markupsafe import Markup
 
-from app.common.audit import UserPermissionsAdded
+from app.common.audit import DatabaseModelChange, SystemEvent, UserPermissionsAdded
 from app.common.data.types import RoleEnum
 from app.deliver_grant_funding.admin.audit_rendering import AuditEventDetailsRenderer, _field_label, _render_value
 from app.deliver_grant_funding.admin.entities import PlatformAdminModelView
@@ -87,3 +88,103 @@ class TestAuditEventDetailsRenderer:
 
         labels = re.findall(r'<dt class="govuk-summary-list__key">([^<]*)</dt>', html)
         assert labels[:4] == ["Event type", "Timestamp", "User", "Action"]
+
+    def test_update_renders_old_and_new_values_with_entity_links(self, renderer, render_entity_link):
+        old_organisation_id, new_organisation_id = uuid4(), uuid4()
+        event = DatabaseModelChange(
+            user_id=uuid4(),
+            model_class="Grant",
+            model_id=uuid4(),
+            action="update",
+            changes={
+                "name": {"old": "A", "new": "B"},
+                "organisation_id": {"old": str(old_organisation_id), "new": str(new_organisation_id)},
+            },
+        )
+
+        html = renderer.render(event)
+
+        assert "A → B" in html
+        assert f"<a>Organisation:{old_organisation_id}</a> → <a>Organisation:{new_organisation_id}</a>" in html
+        assert call("Grant", str(event.model_id)) in render_entity_link.call_args_list
+
+    def test_snapshot_links_id_via_model_class(self, renderer, render_entity_link):
+        model_id = uuid4()
+        event = DatabaseModelChange(
+            user_id=uuid4(),
+            model_class="Grant",
+            model_id=model_id,
+            action="create",
+            changes={"id": str(model_id), "name": "Test Grant"},
+        )
+
+        html = renderer.render(event)
+
+        assert render_entity_link.call_args_list.count(call("Grant", str(model_id))) == 2
+        assert "Test Grant" in html
+
+    def test_unknown_model_class_renders_bare_ids(self):
+        model_id = uuid4()
+        event = DatabaseModelChange(
+            user_id=uuid4(), model_class="Widget", model_id=model_id, action="create", changes={"id": str(model_id)}
+        )
+
+        html = AuditEventDetailsRenderer([]).render(event)
+
+        assert html.count(str(model_id)) == 2
+        assert "<a" not in html
+
+    def test_null_related_column_renders_dash(self, renderer, render_entity_link):
+        event = DatabaseModelChange(
+            user_id=uuid4(), model_class="Widget", model_id=uuid4(), action="create", changes={"grant_id": None}
+        )
+
+        html = renderer.render(event)
+
+        assert '<dt class="govuk-summary-list__key">Grant</dt><dd class="govuk-summary-list__value">—</dd>' in html
+        assert render_entity_link.call_args_list == [
+            call("User", str(event.user_id)),
+            call("Widget", str(event.model_id)),
+        ]
+
+    def test_empty_changes_renders_dash(self, renderer):
+        event = DatabaseModelChange(user_id=uuid4(), model_class="Grant", model_id=uuid4(), action="delete", changes={})
+
+        html = renderer.render(event)
+
+        assert '<dt class="govuk-summary-list__key">Changes</dt><dd class="govuk-summary-list__value">—</dd>' in html
+
+    def test_system_event_renders_context_rows(self, renderer):
+        notification_id = uuid4()
+        event = SystemEvent(
+            user_id=uuid4(),
+            model_class="UserRole",
+            model_id=uuid4(),
+            action="delete",
+            changes={},
+            context={"notification_id": str(notification_id), "reason": "Permanent delivery failure"},
+        )
+
+        html = renderer.render(event)
+
+        expected_row = (
+            '<dt class="govuk-summary-list__key">Notification</dt>'
+            f'<dd class="govuk-summary-list__value">{notification_id}</dd>'
+        )
+        assert expected_row in html
+        assert "Permanent delivery failure" in html
+        assert "<pre" not in html
+
+    def test_only_nested_lists_are_borderless(self, renderer):
+        event = DatabaseModelChange(
+            user_id=uuid4(),
+            model_class="Grant",
+            model_id=uuid4(),
+            action="update",
+            changes={"name": {"old": "A", "new": "B"}},
+        )
+
+        html = renderer.render(event)
+
+        assert html.startswith('<dl class="govuk-summary-list">')
+        assert html.count('<dl class="govuk-summary-list govuk-summary-list--no-border govuk-!-margin-bottom-0">') == 1

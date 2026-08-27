@@ -46,7 +46,7 @@ class DatabaseModelChange(AuditEvent):
 
     @property
     def related_entities(self) -> ChainMap[str, str]:
-        return ChainMap({"model_id": self.model_class}, super().related_entities)
+        return ChainMap({"model_id": self.model_class, "id": self.model_class}, super().related_entities)
 
 
 class SystemEvent(DatabaseModelChange):
