@@ -402,7 +402,7 @@ def public_sign_up_eligibility_question(
         submission_helper.submit_answer_for_question(question.id, form, user)
         submission_helper.clear_caches()
 
-        eligibility_expression = question.eligibility[0] if question.eligibility else None
+        eligibility_expression = question.eligibility
         if eligibility_expression and not evaluate(eligibility_expression, submission_helper.cached_evaluation_context):
             return redirect(
                 url_for(

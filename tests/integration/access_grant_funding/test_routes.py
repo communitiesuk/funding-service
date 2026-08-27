@@ -1019,7 +1019,9 @@ class TestEligibleToApplyPage:
         assert response.status_code == 200
 
     @pytest.mark.authenticate_as("test@example-org.com")
-    def test_get_redirects_to_first_eligibility_question_when_not_passed(self, authenticated_no_role_client, factories):
+    def test_get_redirects_to_first_eligibility_question_when_not_passed(
+        self, authenticated_no_role_client, factories, db_session
+    ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
@@ -1032,6 +1034,7 @@ class TestEligibleToApplyPage:
             GreaterThan(minimum_value=3, subject_reference=ExpressionReference.from_question(question)),
         )
         factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        db_session.commit()
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
@@ -1432,6 +1435,7 @@ class TestEligibleToApplyPage:
         ).one_or_none()
         assert user_role is None
 
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_claims_unclaimed_submission_when_new_grant_recipient_created(
         self, authenticated_no_role_client, factories, db_session
     ):
@@ -1465,6 +1469,7 @@ class TestEligibleToApplyPage:
         db_session.refresh(unclaimed_submission)
         assert unclaimed_submission.grant_recipient_id == grant_recipient.id
 
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_claims_unclaimed_submission_when_reusing_existing_grant_recipient(
         self, authenticated_no_role_client, factories, db_session
     ):
@@ -1499,6 +1504,7 @@ class TestEligibleToApplyPage:
         db_session.refresh(unclaimed_submission)
         assert unclaimed_submission.grant_recipient_id == existing_grant_recipient.id
 
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_discards_unclaimed_submission_when_grant_recipient_already_has_a_submission(
         self, authenticated_no_role_client, factories, db_session
     ):
