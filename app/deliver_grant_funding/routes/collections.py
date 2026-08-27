@@ -3627,6 +3627,8 @@ def list_submissions(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, submission_mode: SubmissionModeEnum
 ) -> ResponseReturnValue:
     collection = interfaces.collections.get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    if submission_mode == SubmissionModeEnum.PREVIEW:
+        abort(404)
 
     delete_all_form = GenericConfirmDeletionForm() if "delete_all" in request.args else None
     if delete_all_form and delete_all_form.validate_on_submit():
