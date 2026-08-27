@@ -218,6 +218,7 @@ routes_with_expected_access_grant_funding_has_certifier_role_access = [
 ]
 routes_with_expected_access_grant_funding_can_invite_team_member_access = [
     "access_grant_funding.add_grant_team_member",
+    "access_grant_funding.remove_grant_team_member",
 ]
 
 routes_with_expected_is_deliver_grant_funding_user_access = [

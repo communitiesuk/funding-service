@@ -1,0 +1,23 @@
+{% extends "access_grant_funding/base.html" %}
+
+{% set active_item_identifier = "team" %}
+{% set page_title = "Remove " ~ user.name ~ " from " ~ grant_recipient.grant.name ~ "?" %}
+{% set return_link = url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_recipient.grant.id) %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+
+      <p class="govuk-body">{{ user.name }} ({{ user.email }}) will lose access to {{ organisation.name }}’s {{ grant_recipient.grant.name }}.</p>
+
+      <form method="POST" novalidate>
+        {{ form.csrf_token }}
+        <div class="govuk-button-group govuk-!-margin-top-6">
+          {{ form.submit(params={"text": "Confirm and remove team member"}) }}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ return_link }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

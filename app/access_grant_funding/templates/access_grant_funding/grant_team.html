@@ -26,6 +26,20 @@
           }}
         {% endif %}
       {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.ACCESS_TEAM_MEMBER_REMOVED]) %}
+        {% if flashes %}
+          {% set team_member_removed_html %}
+            <h3 class="govuk-notification-banner__heading">Team member removed</h3>
+            <p class="govuk-body">{{ flashes[0]["user_name"] }} was removed from {{ grant_recipient.grant.name }}. They can no longer edit and submit for this grant on behalf of {{ organisation.name }}.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": team_member_removed_html,
+              "type": "success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       <h1 class="govuk-heading-l">{{ page_title }}</h1>
       {% if can_add_team_members %}
         {{
@@ -46,6 +60,7 @@
         {% set rows = [] %}
         {% for user in users %}
           {% set permissions = [] %}
+          {% set user_actions = namespace(can_remove=false) %}
           {% for role in user.roles %}
             {% if role.organisation_id == organisation.id and (role.grant_id is none or role.grant_id == grant_recipient.grant.id) %}
               {% for permission in role.permissions %}
@@ -55,18 +70,38 @@
                   {% do permissions.append("Can edit and submit") %}
                 {% endif %}
               {% endfor %}
+              {% if role.grant_id == grant_recipient.grant.id and enum.role_enum.DATA_PROVIDER in role.permissions %}
+                {% set user_actions.can_remove = true %}
+              {% endif %}
             {% endif %}
           {% endfor %}
 
           {% set permission_text = permissions | unique | sort | join(', ') %}
-          {% do rows.append([{"text": user.name}, {"text": user.email}, {"text": permission_text}]) %}
+          {% if can_add_team_members %}
+            {% set action %}
+              {% if user.id != current_user.id and user_actions.can_remove %}
+                <a class="govuk-link" href="{{ url_for("access_grant_funding.remove_grant_team_member", organisation_id=organisation.id, grant_id=grant_recipient.grant.id, user_id=user.id) }}"
+                  >Remove<span class="govuk-visually-hidden"> {{ user.name }}</span></a
+                >
+              {% endif %}
+            {% endset %}
+            {% do rows.append([{"text": user.name}, {"text": user.email}, {"text": permission_text}, {"html": action}]) %}
+          {% else %}
+            {% do rows.append([{"text": user.name}, {"text": user.email}, {"text": permission_text}]) %}
+          {% endif %}
         {% endfor %}
+
+        {% if can_add_team_members %}
+          {% set head = [{"text": "Name"}, {"text": "Email"}, {"text": "Permissions"}, {"text": "Action"}] %}
+        {% else %}
+          {% set head = [{"text": "Name"}, {"text": "Email"}, {"text": "Permissions"}] %}
+        {% endif %}
 
         {{
           govukTable({
               "captionClasses": "govuk-table__caption--m",
               "firstCellIsHeader": false,
-              "head": [{"text": "Name"}, {"text": "Email"}, {"text": "Permissions"}],
+              "head": head,
               "rows": rows
           })
         }}

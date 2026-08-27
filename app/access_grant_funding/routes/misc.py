@@ -175,6 +175,57 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
     )
 
 
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/users/<uuid:user_id>/remove", methods=["GET", "POST"]
+)
+@can_invite_access_grant_team_member
+@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT)
+@auto_commit_after_request
+def remove_grant_team_member(organisation_id: UUID, grant_id: UUID, user_id: UUID) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+    organisation = grant_recipient.organisation
+
+    user = interfaces.user.get_user(user_id)
+    user_role = interfaces.user.get_user_role(user, organisation.id, grant_recipient.grant_id) if user else None
+    current_user = interfaces.user.get_current_user()
+
+    if (
+        user is None
+        or user.id == current_user.id
+        or user_role is None
+        or RoleEnum.DATA_PROVIDER not in user_role.permissions
+    ):
+        return abort(404)
+
+    form = GenericSubmitForm()
+    if form.validate_on_submit():
+        interfaces.user.remove_permissions_from_user(
+            user=user,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            organisation=organisation,
+            grant=grant_recipient.grant,
+            by_user=current_user,
+        )
+        flash(
+            {  # ty: ignore[invalid-argument-type]
+                "user_name": user.name,
+                "user_email": user.email,
+            },
+            FlashMessageType.ACCESS_TEAM_MEMBER_REMOVED,
+        )
+        return redirect(
+            url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
+        )
+
+    return render_template(
+        "access_grant_funding/remove_grant_team_member.html",
+        form=form,
+        organisation=organisation,
+        grant_recipient=grant_recipient,
+        user=user,
+    )
+
+
 @access_grant_funding_blueprint.route("/accessibility-statement")
 def accessibility_statement() -> ResponseReturnValue:
     return render_template("access_grant_funding/accessibility-statement.html")
