@@ -1245,6 +1245,27 @@ class TestCollectionTypeURLMatching:
         assert response.status_code == 404
 
 
+class TestSubmissionModeURLMatching:
+    """Tests that the submission_mode URL converter maps URL segments to SubmissionModeEnum values."""
+
+    @pytest.mark.parametrize("mode_segment", ["test", "live", "TEST", "Live"])
+    def test_valid_submission_mode_loads_submissions(self, authenticated_grant_member_client, factories, mode_segment):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        grant_id = authenticated_grant_member_client.grant.id
+        response = authenticated_grant_member_client.get(
+            f"/deliver/grant/{grant_id}/reports/{collection.id}/submissions/{mode_segment}"
+        )
+        assert response.status_code == 200
+
+    def test_invalid_submission_mode_returns_404(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant)
+        grant_id = authenticated_grant_member_client.grant.id
+        response = authenticated_grant_member_client.get(
+            f"/deliver/grant/{grant_id}/reports/{collection.id}/submissions/not-a-mode"
+        )
+        assert response.status_code == 404
+
+
 class TestConfigureCertification:
     def test_get_renders_form(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
@@ -9738,6 +9759,12 @@ class TestListSubmissions:
         )
         factories.submission.create(
             collection=collection,
+            mode=SubmissionModeEnum.PREVIEW,
+            created_by__email="submitter-preview@recipient.org",
+            status=SubmissionStatusEnum.NOT_STARTED,
+        )
+        factories.submission.create(
+            collection=collection,
             mode=SubmissionModeEnum.TEST,
             grant_recipient=test_grant_recipient,
             created_by__email="submitter-test@recipient.org",
@@ -9751,6 +9778,15 @@ class TestListSubmissions:
             status=SubmissionStatusEnum.NOT_STARTED,
         )
 
+        preview_response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.PREVIEW,
+            )
+        )
         test_response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
@@ -9771,6 +9807,7 @@ class TestListSubmissions:
         )
         test_soup = BeautifulSoup(test_response.data, "html.parser")
         live_soup = BeautifulSoup(live_response.data, "html.parser")
+        assert preview_response.status_code == 404
         assert test_response.status_code == 200
         assert live_response.status_code == 200
 

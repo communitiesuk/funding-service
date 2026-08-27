@@ -166,7 +166,12 @@ def _register_custom_converters(app: Flask) -> None:
     class SubmissionModeConverter(BaseConverter):
         def to_python(self, value: str) -> t.Any:
             value = value.lower()
-            return SubmissionModeEnum(value.lower())
+            try:
+                return SubmissionModeEnum(value.lower())
+            except ValueError as e:
+                # validation error raised in the context of rule converter will indicate the URL doesn't match
+                # and move on to match other routes or eventually 404
+                raise ValidationError from e
 
         def to_url(self, value: t.Any) -> str:
             return str(value).lower()
