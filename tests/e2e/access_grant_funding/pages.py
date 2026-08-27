@@ -28,7 +28,7 @@ class RequestALinkToSignInPage(CookieBannerMixin, BasePage):
         super().__init__(page, domain)
         self.title = self.page.get_by_role("heading", name="Access grant funding", exact=True)
         self.email_address = self.page.get_by_role("textbox", name="Email address")
-        self.request_a_link = self.page.get_by_role("button", name="Request sign in link")
+        self.request_a_link = self.page.get_by_role("button", name="Sign in with link")
 
     def navigate(self, *, wait_for_network_idle: bool = False) -> None:
         self.page.goto(
