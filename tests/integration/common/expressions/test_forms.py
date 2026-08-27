@@ -45,6 +45,20 @@ class TestBuildManagedExpressionForm:
             (ManagedExpressionsEnum.BETWEEN, ManagedExpressionsEnum.BETWEEN),
         ]
 
+    def test_integer_data_type_eligibility(self, factories):
+        question = factories.question.create(data_type=QuestionDataType.NUMBER)
+        _FormClass = build_managed_expression_form(
+            ExpressionType.ELIGIBILITY, ExpressionReference.from_question(question)
+        )
+        assert _FormClass
+        form = _FormClass()
+
+        assert form.type.choices == [
+            (ManagedExpressionsEnum.GREATER_THAN, ManagedExpressionsEnum.GREATER_THAN),
+            (ManagedExpressionsEnum.LESS_THAN, ManagedExpressionsEnum.LESS_THAN),
+            (ManagedExpressionsEnum.BETWEEN, ManagedExpressionsEnum.BETWEEN),
+        ]
+
     def test_integer_data_type_validation(self, factories):
         question = factories.question.create(data_type=QuestionDataType.NUMBER)
         _FormClass = build_managed_expression_form(

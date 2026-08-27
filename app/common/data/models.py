@@ -942,6 +942,13 @@ class Component(BaseModel):
     def validations(self) -> list[Expression]:
         return [expression for expression in self.expressions if expression.type_ == ExpressionType.VALIDATION]
 
+    @property
+    def eligibility(self) -> Expression | None:
+        for expression in self.expressions:
+            if expression.type_ == ExpressionType.ELIGIBILITY:
+                return expression
+        return None
+
     def get_expression(self, id: uuid.UUID) -> Expression:
         try:
             return next(expression for expression in self.expressions if expression.id == id)
@@ -1273,6 +1280,12 @@ class Expression(BaseModel):
             postgresql_where=(
                 f"type = '{ExpressionType.CONDITION.value}'::expression_type_enum AND managed_name IS NOT NULL"
             ),
+            unique=True,
+        ),
+        Index(
+            "uq_type_eligibility_unique_question",
+            "question_id",
+            postgresql_where=(f"type = '{ExpressionType.ELIGIBILITY.value}'::expression_type_enum"),
             unique=True,
         ),
     )

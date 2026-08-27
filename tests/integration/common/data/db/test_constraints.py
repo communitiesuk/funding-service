@@ -129,6 +129,50 @@ class TestExpressionConstraints:
             context={"question_id": "abc"},
         )
 
+    def test_cannot_add_two_eligibility_expressions_to_a_question(self, factories):
+        user = factories.user.create()
+        question = factories.question.create()
+        factories.expression.create(
+            question=question,
+            created_by=user,
+            type_=ExpressionType.ELIGIBILITY,
+            statement="",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        with pytest.raises(IntegrityError) as error:
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement="",
+                managed_name=ManagedExpressionsEnum.LESS_THAN,
+            )
+
+        assert 'duplicate key value violates unique constraint "uq_type_eligibility_unique_question"' in str(
+            error.value.args[0]
+        )
+
+    def test_can_add_eligibility_expressions_to_different_questions(self, factories):
+        user = factories.user.create()
+        question_1 = factories.question.create()
+        question_2 = factories.question.create()
+        factories.expression.create(
+            question=question_1,
+            created_by=user,
+            type_=ExpressionType.ELIGIBILITY,
+            statement="",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
+        factories.expression.create(
+            question=question_2,
+            created_by=user,
+            type_=ExpressionType.ELIGIBILITY,
+            statement="",
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+        )
+
 
 class TestFormConstraints:
     def test_only_one_eligibility_section_per_collection(self, factories):

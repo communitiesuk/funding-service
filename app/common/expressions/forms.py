@@ -128,6 +128,9 @@ def build_managed_expression_form(
         case ExpressionType.VALIDATION:
             type_validation_message = "Select the kind of validation to apply"
             managed_expressions = get_managed_validators_by_data_type(subject_reference.data_type)
+        case ExpressionType.ELIGIBILITY:
+            type_validation_message = "Select what the answer must be for the applicant to be eligible"
+            managed_expressions = get_managed_conditions_by_data_type(subject_reference.data_type)
         case _:
             raise RuntimeError("unknown expression type")
 
