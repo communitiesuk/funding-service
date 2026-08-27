@@ -21,6 +21,7 @@ from flask import url_for
 from sqlalchemy.exc import NoResultFound
 
 from app import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER, SubmissionStatusEnum
+from app.common.audit import DatabaseModelChange
 from app.common.collections.types import (
     AllAnswerTypes,
     DateAnswer,
@@ -1313,7 +1314,11 @@ class _AuditEventFactory(SQLAlchemyModelFactory):
     event_type = AuditEventType.PLATFORM_ADMIN_DB_EVENT
     user_id = factory.LazyAttribute(lambda o: o.user.id)
     user = factory.SubFactory(_UserFactory)
-    data = factory.LazyFunction(lambda: {"model_class": "Grant", "action": "create", "changes": {}})
+    data = factory.LazyAttribute(
+        lambda o: DatabaseModelChange(
+            user_id=o.user.id, model_class="Grant", model_id=uuid4(), action="create", changes={}
+        ).model_dump(mode="json")
+    )
 
 
 class _ReleaseNoteFactory(SQLAlchemyModelFactory):

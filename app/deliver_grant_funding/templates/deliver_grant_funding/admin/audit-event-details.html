@@ -1,0 +1,7 @@
+{% extends 'admin/model/details.html' %}
+
+{# The row's own columns (event type, user, timestamps) all duplicate fields of the parsed event, so render the
+   event directly rather than through the library's column loop. #}
+{% block details_table %}
+  {{ admin_view.render_details(model) }}
+{% endblock %}

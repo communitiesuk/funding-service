@@ -1,9 +1,12 @@
+from uuid import uuid4
+
 import pytest
 from bs4 import BeautifulSoup
 
+from app.common.audit import DatabaseModelChange, UserPermissionsAdded, create_database_model_change_for_create
 from app.common.data.models_audit import AuditEvent
-from app.common.data.types import AuditEventType
-from tests.utils import get_h1_text
+from app.common.data.types import AuditEventType, RoleEnum
+from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
 class TestPlatformAdminAuditEventViewAccess:
@@ -50,24 +53,154 @@ class TestPlatformAdminAuditEventView:
         assert "create" in table_text
 
     def test_displays_audit_event_detail(self, authenticated_platform_admin_client, factories, db_session):
+        actor = factories.user.create()
+        grant = factories.grant.create(name="New Name")
+        event = DatabaseModelChange(
+            user_id=actor.id,
+            model_class="Grant",
+            model_id=grant.id,
+            action="update",
+            changes={"name": {"old": "Old Name", "new": "New Name"}},
+        )
+        audit_event = factories.audit_event.create(user=actor, data=event.model_dump(mode="json"))
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        model_link = soup.find("a", href=f"/deliver/admin/grant/details/?id={grant.id}")
+        assert model_link is not None
+        assert model_link.get_text(strip=True) == "New Name"
+        assert get_summary_list_value_by_key(soup, "Model class").get_text(strip=True) == "Grant"
+        assert get_summary_list_value_by_key(soup, "Action").get_text(strip=True) == "update"
+        page_text = soup.get_text()
+        assert "Old Name" in page_text
+        assert "New Name" in page_text
+
+    def test_detail_page_renders_the_parsed_event_as_the_top_level_summary_list(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        audit_event = factories.audit_event.create()
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        top_level_list = soup.find("dl", class_="govuk-summary-list")
+        top_level_keys = [
+            row.find("dt").get_text(strip=True)
+            for row in top_level_list.find_all("div", class_="govuk-summary-list__row", recursive=False)
+        ]
+        assert top_level_keys == ["Event type", "Timestamp", "User", "Action", "Model class", "Model", "Changes"]
+        assert "Updated at UTC" not in soup.get_text()
+
+    def test_release_note_event_links_to_custom_endpoint(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create()
+        release_note = factories.release_note.create(title="v1")
+        event = create_database_model_change_for_create(release_note, actor)
+        audit_event = factories.audit_event.create(user=actor, data=event.model_dump(mode="json"))
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        link = soup.find("a", href=f"/deliver/admin/release-note/details/?id={release_note.id}")
+        assert link is not None
+        assert link.get_text(strip=True) == "v1"
+
+    def test_unknown_model_class_renders_bare_model_id(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create()
+        model_id = uuid4()
+        event = DatabaseModelChange(
+            user_id=actor.id, model_class="Widget", model_id=model_id, action="delete", changes={}
+        )
+        audit_event = factories.audit_event.create(user=actor, data=event.model_dump(mode="json"))
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        model_value = soup.find("dt", string="Model").find_next_sibling("dd")
+        assert model_value.get_text(strip=True) == str(model_id)
+        assert model_value.find("a") is None
+
+    def test_displays_user_management_event_with_entity_links(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create(email="actor@example.com")
+        target_user = factories.user.create(email="target@example.com")
+        organisation = factories.organisation.create(name="Test Organisation", can_manage_grants=False)
+        grant = factories.grant.create(name="Test Grant")
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        invitation = factories.invitation.create(email="invited@example.com")
+        event = UserPermissionsAdded(
+            user_id=actor.id,
+            target_user_id=target_user.id,
+            organisation_id=organisation.id,
+            grant_id=grant.id,
+            grant_recipient_id=grant_recipient.id,
+            invitation_id=invitation.id,
+            permissions=[RoleEnum.DATA_PROVIDER],
+            resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+        )
         audit_event = factories.audit_event.create(
-            data={
-                "model_class": "Grant",
-                "action": "update",
-                "model_id": "123e4567-e89b-12d3-a456-426614174000",
-                "changes": {"name": {"old": "Old Name", "new": "New Name"}},
-            },
+            user=actor, event_type=AuditEventType.USER_MANAGEMENT, data=event.model_dump(mode="json")
         )
 
         response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        page_text = soup.get_text()
-        assert "Grant" in page_text
-        assert "update" in page_text
-        assert "Old Name" in page_text
-        assert "New Name" in page_text
+        expected_links = {
+            f"/deliver/admin/user/details/?id={actor.id}": "actor@example.com",
+            f"/deliver/admin/user/details/?id={target_user.id}": "target@example.com",
+            f"/deliver/admin/organisation/details/?id={organisation.id}": "Test Organisation",
+            f"/deliver/admin/grant/details/?id={grant.id}": "Test Grant",
+            f"/deliver/admin/grantrecipient/details/?id={grant_recipient.id}": "Test Organisation (Test Grant)",
+            f"/deliver/admin/invitation/details/?id={invitation.id}": "invited@example.com",
+        }
+        for href, label in expected_links.items():
+            link = soup.find("a", href=href)
+            assert link is not None
+            assert link.get_text(strip=True) == label
+
+        assert get_summary_list_value_by_key(soup, "Permissions").get_text(strip=True) == "data-provider"
+        assert get_summary_list_value_by_key(soup, "Resulting permissions").get_text(strip=True) == (
+            "data-provider, member"
+        )
+        assert get_summary_list_value_by_key(soup, "Action").get_text(strip=True) == "permissions_added"
+        assert soup.find("pre") is None
+
+    def test_user_management_event_annotates_missing_entity_as_deleted(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        actor = factories.user.create()
+        missing_organisation_id = uuid4()
+        event = UserPermissionsAdded(
+            user_id=actor.id,
+            target_user_id=factories.user.create().id,
+            organisation_id=missing_organisation_id,
+            grant_id=None,
+            grant_recipient_id=None,
+            permissions=[RoleEnum.MEMBER],
+            resulting_permissions=[RoleEnum.MEMBER],
+        )
+        audit_event = factories.audit_event.create(
+            user=actor, event_type=AuditEventType.USER_MANAGEMENT, data=event.model_dump(mode="json")
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        organisation_value = get_summary_list_value_by_key(soup, "Organisation")
+        assert organisation_value.get_text(strip=True) == f"{missing_organisation_id} (deleted)"
+        assert organisation_value.find("a") is None
+        assert get_summary_list_value_by_key(soup, "Grant recipient").get_text(strip=True) == "—"
 
     def test_edit_route_not_available(self, authenticated_platform_admin_client, factories, db_session):
         audit_event = factories.audit_event.create()

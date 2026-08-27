@@ -329,3 +329,11 @@ class TestParseAuditEvent:
             parse_audit_event(
                 AuditEventType.PLATFORM_ADMIN_DB_EVENT, {"model_class": "Grant", "action": "create", "changes": {}}
             )
+
+
+class TestAuditEventFieldOrder:
+    @pytest.mark.parametrize(
+        "event_class", [DatabaseModelChange, SystemEvent, UserPermissionsAdded, UserPermissionsRemoved]
+    )
+    def test_common_fields_come_first(self, event_class):
+        assert list(event_class.model_fields)[:4] == ["event_type", "timestamp", "user_id", "action"]

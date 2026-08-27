@@ -122,6 +122,7 @@ layers = [
 name = "DB models should not be used directly by any other parts of the app; queries should go through interfaces instead."
 type = "forbidden"
 source_modules = [
+    "app.common.audit",
     "app.common.auth",
     "app.common.helpers",
     "app.common.security",

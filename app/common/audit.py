@@ -1,6 +1,7 @@
 import datetime
 import enum
-from typing import Annotated, Any, Literal
+from collections import ChainMap
+from typing import Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, TypeAdapter
@@ -12,9 +13,28 @@ from app.common.data.types import AuditEventType, RoleEnum
 
 
 class AuditEvent(BaseModel):
-    user_id: UUID
-    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
     event_type: AuditEventType
+    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
+    user_id: UUID
+    action: str
+
+    # Fields holding a DB entity's primary key, mapped to the name of that entity's model class so admin rendering can
+    # link to it.
+    _related_entities: ClassVar[dict[str, str]] = {
+        "user_id": "User",
+        "created_by_id": "User",
+        "grant_id": "Grant",
+        "grant_recipient_id": "GrantRecipient",
+        "organisation_id": "Organisation",
+        "invitation_id": "Invitation",
+        "collection_id": "Collection",
+        "submission_id": "Submission",
+    }
+    _extra_related_entities: ClassVar[dict[str, str]] = {}
+
+    @property
+    def related_entities(self) -> ChainMap[str, str]:
+        return ChainMap(self._extra_related_entities, self._related_entities)
 
 
 class DatabaseModelChange(AuditEvent):
@@ -23,6 +43,10 @@ class DatabaseModelChange(AuditEvent):
     model_id: UUID
     action: Literal["create", "update", "delete"]
     changes: dict[str, Any]
+
+    @property
+    def related_entities(self) -> ChainMap[str, str]:
+        return ChainMap({"model_id": self.model_class}, super().related_entities)
 
 
 class SystemEvent(DatabaseModelChange):
@@ -48,6 +72,8 @@ class UserPermissionsEvent(AuditEvent):
     invitation_id: UUID | None = None
     permissions: list[RoleEnum]
     resulting_permissions: list[RoleEnum]
+
+    _extra_related_entities: ClassVar[dict[str, str]] = {"target_user_id": "User"}
 
 
 class UserPermissionsAdded(UserPermissionsEvent):
