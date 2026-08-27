@@ -15,6 +15,7 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
 from app.common.expressions.managed import BetweenDates, GreaterThan
@@ -242,6 +243,23 @@ class TestExpressionContext:
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             with pytest.raises(ValueError):
                 ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+        def test_submissions_without_grant_recipient_wont_error(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            submission = factories.submission.create(
+                collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
+            )
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+            )
+
+            helper = SubmissionHelper.load(submission.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+            assert data_source.safe_did in context
 
         def test_org_item_none_evaluation_exposes_none_values(self, factories):
             grant = factories.grant.create()
