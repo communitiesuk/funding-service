@@ -63,8 +63,31 @@
       </p>
       <p class="govuk-body"><strong>{{ type_constants.singular | uppercase_first }} status</strong>: {{ reportStatusTag(collection.status) }}</p>
 
+      {% if collection.eligibility_form %}
+        <h2 class="govuk-heading-m govuk-!-margin-top-4">Eligibility check</h2>
+        <p class="govuk-body govuk-hint">This will not appear in the main task list on Access grant funding</p>
+        {% set eligibility_form = collection.eligibility_form %}
+        {% set eligibilityTaskHtml %}
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=eligibility_form.id) }}">{{ eligibility_form.title }}</a>
+        {% endset %}
+        {% set eligibilityQuestionsHtml %}
+          {{ eligibility_form.cached_questions | length }}
+          questions<span class="govuk-visually-hidden"> in {{ eligibility_form.title }}</span>
+        {% endset %}
+        {{
+          govukSummaryList({
+            "rows": [
+              {
+                "key": {"html": eligibilityTaskHtml, "classes": "govuk-!-font-weight-regular"},
+                "value": {"html": eligibilityQuestionsHtml},
+              }
+            ]
+          })
+        }}
+      {% endif %}
+
       <h2 class="govuk-heading-m govuk-!-margin-top-4">Sections</h2>
-      {% if not collection.forms %}
+      {% if not collection.tasklist_forms %}
         <p class="govuk-body">This {{ type_constants.singular }} has no sections.</p>
         {% if can_edit %}
           <p class="govuk-body">
@@ -73,7 +96,7 @@
         {% endif %}
       {% else %}
         {% set rows = [] %}
-        {% for form in collection.forms %}
+        {% for form in collection.tasklist_forms %}
           {% set taskHtml %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.list_section_questions', grant_id=grant.id, form_id=form.id) }}">{{ form.title }}</a>
           {% endset %}
@@ -82,7 +105,7 @@
             questions<span class="govuk-visually-hidden"> in {{ form.title }}</span>
           {% endset %}
           {% set actions = [] %}
-          {% if can_edit and collection.forms|length > 1 %}
+          {% if can_edit and collection.tasklist_forms|length > 1 %}
             {% do actions.append({"text": "Move up", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='up'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.first else ""), "attributes": {"aria-hidden": true} if loop.first else {} }) %}
             {% do actions.append({"text": "Move down", "visuallyHiddenText": form.title, "href": url_for('deliver_grant_funding.move_section', grant_id=grant.id, form_id=form.id, direction='down'), "classes": "govuk-link--no-visited-state" ~ (" move-up-down-link-hidden" if loop.last else ""), "attributes": {"aria-hidden": true} if loop.last else {} }) %}
           {% else %}
