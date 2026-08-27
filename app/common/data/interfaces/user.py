@@ -11,8 +11,10 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
+from app.common.audit import UserPermissionsAdded, UserPermissionsRemoved
+from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
-from app.common.data.interfaces.grant_recipients import get_grant_recipients
+from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none, get_grant_recipients
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.models import Grant, Organisation
@@ -169,8 +171,9 @@ def get_or_create_system_user() -> User:
 
     Used as the acting user on audit events emitted by automated processes (e.g. permission removal
     triggered by a GOV.UK Notify permanent-failure callback)."""
-    return upsert_user_by_email(
-        email_address=current_app.config["SYSTEM_USER_EMAIL"],
+    system_user_email = current_app.config["SYSTEM_USER_EMAIL"]
+    return get_user_by_email(system_user_email) or upsert_user_by_email(
+        email_address=system_user_email,
         name=current_app.config["SYSTEM_USER_NAME"],
     )
 
@@ -219,6 +222,36 @@ def _upsert_user_role(
     return user_role
 
 
+def _track_user_permissions_change(
+    event_class: type[UserPermissionsAdded] | type[UserPermissionsRemoved],
+    user: User,
+    permissions_changed: list[RoleEnum],
+    resulting_permissions: list[RoleEnum],
+    organisation: Organisation | None,
+    grant: Grant | None,
+    by_user: User,
+    invitation: Invitation | None = None,
+) -> None:
+    grant_recipient = (
+        get_grant_recipient_or_none(grant.id, organisation.id)
+        if grant is not None and organisation is not None and not organisation.can_manage_grants
+        else None
+    )
+    track_audit_event(
+        event_class(
+            user_id=by_user.id,
+            target_user_id=user.id,
+            organisation_id=organisation.id if organisation else None,
+            grant_id=grant.id if grant else None,
+            grant_recipient_id=grant_recipient.id if grant_recipient else None,
+            invitation_id=invitation.id if invitation else None,
+            permissions=permissions_changed,
+            resulting_permissions=resulting_permissions,
+        ),
+        by_user,
+    )
+
+
 @flush_and_rollback_on_exceptions
 def add_permissions_to_user(
     user: User,
@@ -227,8 +260,10 @@ def add_permissions_to_user(
     grant: Grant | None = None,
     *,
     by_user: User,
+    invitation: Invitation | None = None,
 ) -> UserRole:
-    """Grant `permissions` to `user`; `by_user` is the user making the change, for auditing."""
+    """Grant `permissions` to `user`; `by_user` is the user making the change, recorded on the audit event tracked
+    when this changes the user's role. Pass `invitation` when the permissions come from `user` claiming it."""
     # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
     # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
     #       and is up for removal in the future.
@@ -237,11 +272,26 @@ def add_permissions_to_user(
 
     organisation_id = organisation.id if organisation else None
     grant_id = grant.id if grant else None
-    user_role = get_user_role(user, organisation_id, grant_id)
-    existing_permissions = user_role.permissions if user_role else []
+    existing_user_role = get_user_role(user, organisation_id, grant_id)
+    existing_permissions = list(existing_user_role.permissions) if existing_user_role else []
     combined_permissions = list(set(existing_permissions + permissions))
 
-    return _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+    user_role = _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+
+    added = [p for p in user_role.permissions if p not in existing_permissions]
+    if added:
+        _track_user_permissions_change(
+            UserPermissionsAdded,
+            user,
+            permissions_changed=added,
+            resulting_permissions=list(user_role.permissions),
+            organisation=organisation,
+            grant=grant,
+            by_user=by_user,
+            invitation=invitation,
+        )
+
+    return user_role
 
 
 @flush_and_rollback_on_exceptions
@@ -253,20 +303,21 @@ def remove_permissions_from_user(
     *,
     by_user: User,
 ) -> UserRole | None:
-    """Remove `permissions` from `user`; `by_user` is the user making the change, for auditing."""
+    """Remove `permissions` from `user`; `by_user` is the user making the change, recorded on the audit event tracked
+    when this changes the user's role."""
     organisation_id = organisation.id if organisation else None
     grant_id = grant.id if grant else None
     user_role = get_user_role(user, organisation_id, grant_id)
     if not user_role:
         return None
 
-    existing_permissions = user_role.permissions
+    existing_permissions = list(user_role.permissions)
     combined_permissions = list(set(existing_permissions) - set(permissions))
 
     if not combined_permissions:
         db.session.delete(user_role)
         db.session.expire(user)
-        return None
+        resulting_user_role = None
     else:
         # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
         # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered
@@ -274,7 +325,22 @@ def remove_permissions_from_user(
         if RoleEnum.MEMBER not in combined_permissions:
             combined_permissions.append(RoleEnum.MEMBER)
 
-        return _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+        resulting_user_role = _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
+
+    resulting_permissions = list(resulting_user_role.permissions) if resulting_user_role else []
+    removed = [p for p in existing_permissions if p not in resulting_permissions]
+    if removed:
+        _track_user_permissions_change(
+            UserPermissionsRemoved,
+            user,
+            permissions_changed=removed,
+            resulting_permissions=resulting_permissions,
+            organisation=organisation,
+            grant=grant,
+            by_user=by_user,
+        )
+
+    return resulting_user_role
 
 
 @flush_and_rollback_on_exceptions
@@ -349,6 +415,7 @@ def claim_invitation(invitation: Invitation, user: User) -> Invitation:
                     organisation=test_grant_recipient.organisation,
                     grant=test_grant_recipient.grant,
                     by_user=user,
+                    invitation=invitation,
                 )
 
     db.session.add(invitation)
@@ -373,6 +440,7 @@ def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: s
             organisation=invite.organisation,
             grant=invite.grant,
             by_user=user,
+            invitation=invite,
         )
         claim_invitation(invitation=invite, user=user)
     return user
@@ -390,7 +458,10 @@ def upsert_user_and_set_platform_admin_role(azure_ad_subject_id: str, email_addr
     invitations = get_invitations_by_email(email=email_address, is_usable=True)
     for invite in invitations:
         claim_invitation(invitation=invite, user=user)
-    add_permissions_to_user(user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None, by_user=user)
+    # Platform admin access is driven by the user's Entra roles, so the system user is recorded as making the change
+    add_permissions_to_user(
+        user, permissions=[RoleEnum.ADMIN], organisation=None, grant=None, by_user=get_or_create_system_user()
+    )
     return user
 
 

@@ -13,6 +13,7 @@ from app.common.data.models import GrantRecipient
 from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import UserRole
 from app.common.data.types import (
+    AuditEventType,
     AuthMethodEnum,
     CollectionStatusEnum,
     GrantRecipientModeEnum,
@@ -317,6 +318,9 @@ class TestAddGrantTeamMember:
         assert user_role.organisation_id == client.organisation.id
         assert user_role.grant_id == client.grant.id
         assert RoleEnum.DATA_PROVIDER in user_role.permissions
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
         team_page = client.get(response.location)
         soup = BeautifulSoup(team_page.data, "html.parser")

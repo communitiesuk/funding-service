@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
+from sqlalchemy.sql.expression import select
 
 from app import CollectionAdminEmailTypeEnum
 from app.common.collections.types import TextSingleLineAnswer
@@ -2876,6 +2877,9 @@ class TestAddIndividualDataProviders:
         assert user.roles[0].organisation_id == org.id
         assert user.roles[0].grant_id == grant.id
 
+        audit_event = db_session.scalars(select(AuditEvent)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+
     def test_post_with_existing_user_upserts(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -3371,6 +3375,9 @@ class TestRevokeGrantRecipientDataProviders:
         assert page_has_flash(soup, "Successfully revoked access for 1 data provider.")
 
         assert db_session.query(UserRole).filter_by(id=user_role.id).first() is None
+
+        audit_event = db_session.scalars(select(AuditEvent)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
     def test_post_revokes_multiple_user_roles(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

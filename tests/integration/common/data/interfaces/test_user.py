@@ -6,8 +6,9 @@ from sqlalchemy import func, select
 
 from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
+from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
+from app.common.data.types import AuditEventType, GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
 from tests.integration.utils import TimeFreezer
 
 freeze_time_format = TimeFreezer.time_format
@@ -454,6 +455,10 @@ class TestInvitations:
         assert RoleEnum.DATA_PROVIDER in test_recipient_role.permissions
         assert RoleEnum.CERTIFIER in test_recipient_role.permissions
 
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["invitation_id"] == str(invitation.id)
+        assert audit_event.data["grant_recipient_id"] == str(test_grant_recipient.id)
+
     @pytest.mark.freeze_time("2025-10-01 12:00:00")
     def test_claim_invitation_skips_test_roles_for_non_grant_managing_org(self, db_session, factories):
         non_managing_org = factories.organisation.create(can_manage_grants=False)
@@ -587,6 +592,21 @@ class TestInvitations:
         user_from_db = db_session.scalar(select(User).where(User.azure_ad_subject_id == "oih12373"))
         assert len(user_from_db.roles) == 3
 
+    def test_create_user_and_claim_invitations_records_invitation_on_audit_event(self, db_session, factories) -> None:
+        grant = factories.grant.create()
+        invitation = factories.invitation.create(
+            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+
+        user = interfaces.user.create_user_and_claim_invitations(
+            azure_ad_subject_id="oih12373", email_address="test@communities.gov.uk", name="Test User"
+        )
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.user_id == user.id
+        assert audit_event.data["target_user_id"] == str(user.id)
+        assert audit_event.data["invitation_id"] == str(invitation.id)
+
     def test_grant_member_add_role_or_create_invitation_adds_role(self, db_session, factories) -> None:
         grant = factories.grant.create()
         user = factories.user.create(email="test@communities.gov.uk")
@@ -682,6 +702,9 @@ class TestInvitations:
         user_from_db_role = user_from_db.roles[0]
         assert RoleEnum.ADMIN in user_from_db_role.permissions
         assert (user_from_db_role.organisation_id, user_from_db_role.grant_id) == (None, None)
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
 
 class TestUserGrantRelationships:
@@ -1108,6 +1131,101 @@ class TestAddPermissionsToUser:
 
         assert set(role.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.ADMIN}
 
+    def test_tracks_audit_event_for_access_grant_recipient_user(self, factories, db_session):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        admin = factories.user.create()
+
+        interfaces.user.add_permissions_to_user(
+            user, [RoleEnum.DATA_PROVIDER], grant_recipient.organisation, grant_recipient.grant, by_user=admin
+        )
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+
+    def test_audit_event_records_only_newly_added_permissions(self, factories, db_session):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        interfaces.user.add_permissions_to_user(
+            user, [RoleEnum.DATA_PROVIDER], grant_recipient.organisation, grant_recipient.grant, by_user=user
+        )
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["permissions"] == ["data-provider"]
+        assert set(audit_event.data["resulting_permissions"]) == {"certifier", "data-provider", "member"}
+
+    def test_audit_event_records_member_permission_when_role_is_created(self, factories, db_session):
+        grant = factories.grant.create()
+        user = factories.user.create()
+
+        interfaces.user.add_permissions_to_user(user, [RoleEnum.MEMBER], grant.organisation, grant, by_user=user)
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["permissions"] == ["member"]
+        assert audit_event.data["resulting_permissions"] == ["member"]
+
+    def test_does_not_track_audit_event_when_permissions_are_unchanged(self, factories, db_session):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        interfaces.user.add_permissions_to_user(
+            user, [RoleEnum.DATA_PROVIDER], grant_recipient.organisation, grant_recipient.grant, by_user=user
+        )
+
+        assert db_session.scalars(select(AuditEventModel)).all() == []
+
+    def test_tracks_organisation_wide_audit_event_without_a_grant(self, factories, db_session):
+        organisation = factories.organisation.create(can_manage_grants=False)
+        user = factories.user.create()
+
+        interfaces.user.add_permissions_to_user(user, [RoleEnum.CERTIFIER], organisation, by_user=user)
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["organisation_id"] == str(organisation.id)
+        assert audit_event.data["grant_id"] is None
+        assert audit_event.data["grant_recipient_id"] is None
+        assert set(audit_event.data["permissions"]) == {"certifier", "member"}
+        assert set(audit_event.data["resulting_permissions"]) == {"certifier", "member"}
+
+    def test_tracks_deliver_grant_team_audit_event_without_a_grant_recipient(self, factories, db_session):
+        grant = factories.grant.create()
+        user = factories.user.create()
+
+        interfaces.user.add_permissions_to_user(user, [RoleEnum.ADMIN], grant.organisation, grant, by_user=user)
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["organisation_id"] == str(grant.organisation.id)
+        assert audit_event.data["grant_id"] == str(grant.id)
+        assert audit_event.data["grant_recipient_id"] is None
+        assert set(audit_event.data["permissions"]) == {"admin", "member"}
+        assert set(audit_event.data["resulting_permissions"]) == {"admin", "member"}
+
+    def test_tracks_platform_wide_audit_event_without_an_organisation(self, factories, db_session):
+        user = factories.user.create()
+
+        interfaces.user.add_permissions_to_user(user, [RoleEnum.ADMIN], by_user=user)
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["organisation_id"] is None
+        assert audit_event.data["grant_id"] is None
+        assert audit_event.data["grant_recipient_id"] is None
+        assert audit_event.data["invitation_id"] is None
+        assert set(audit_event.data["permissions"]) == {"admin", "member"}
+        assert set(audit_event.data["resulting_permissions"]) == {"admin", "member"}
+
 
 class TestRemovePermissionsFromUser:
     def test_removes_permissions_from_existing_role(self, factories, db_session):
@@ -1157,6 +1275,67 @@ class TestRemovePermissionsFromUser:
 
         db_session.expire_all()
         assert original_role not in db_session
+
+    def test_tracks_audit_event_when_permission_is_removed(self, factories, db_session):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        admin = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER, RoleEnum.DATA_PROVIDER],
+        )
+
+        interfaces.user.remove_permissions_from_user(
+            user, [RoleEnum.CERTIFIER], grant_recipient.organisation, grant_recipient.grant, by_user=admin
+        )
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+        assert audit_event.user_id == admin.id
+        assert audit_event.data["action"] == "permissions_removed"
+        assert audit_event.data["target_user_id"] == str(user.id)
+        assert audit_event.data["grant_recipient_id"] == str(grant_recipient.id)
+        assert audit_event.data["organisation_id"] == str(grant_recipient.organisation.id)
+        assert audit_event.data["grant_id"] == str(grant_recipient.grant.id)
+        assert audit_event.data["permissions"] == ["certifier"]
+        assert set(audit_event.data["resulting_permissions"]) == {"data-provider", "member"}
+
+    def test_tracks_audit_event_when_role_is_deleted(self, factories, db_session):
+        grant_recipient = factories.grant_recipient.create()
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        interfaces.user.remove_permissions_from_user(
+            user,
+            [RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            grant_recipient.organisation,
+            grant_recipient.grant,
+            by_user=user,
+        )
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["action"] == "permissions_removed"
+        assert set(audit_event.data["permissions"]) == {"data-provider", "member"}
+        assert audit_event.data["resulting_permissions"] == []
+
+    def test_does_not_track_audit_event_when_nothing_is_removed(self, factories, db_session):
+        organisation = factories.organisation.create(can_manage_grants=False)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=organisation, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+
+        interfaces.user.remove_permissions_from_user(user, [RoleEnum.CERTIFIER], organisation, by_user=user)
+        interfaces.user.remove_permissions_from_user(user, [RoleEnum.MEMBER], organisation, by_user=user)
+
+        assert db_session.scalars(select(AuditEventModel)).all() == []
 
 
 class TestGetCertifiersByOrganisation:
@@ -1306,3 +1485,19 @@ class TestGetGrantOverrideCertifiersByOrganisation:
 
         assert len(result[live_org]) == 1
         assert len(result[test_org]) == 1
+
+
+class TestGetOrCreateSystemUser:
+    def test_creates_system_user_when_missing(self, app, db_session):
+        system_user = interfaces.user.get_or_create_system_user()
+
+        assert system_user.email == app.config["SYSTEM_USER_EMAIL"]
+        assert system_user.name == app.config["SYSTEM_USER_NAME"]
+
+    def test_returns_existing_system_user_without_updating_it(self, app, db_session, factories):
+        existing_user = factories.user.create(email=app.config["SYSTEM_USER_EMAIL"], name="Original name")
+
+        system_user = interfaces.user.get_or_create_system_user()
+
+        assert system_user is existing_user
+        assert system_user.name == "Original name"
