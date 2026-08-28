@@ -12,6 +12,29 @@ on:
       - main
 
 jobs:
+  check_deploy_freeze:
+    name: Check prod deploy freeze
+    runs-on: ubuntu-latest
+    outputs:
+      frozen: ${{ steps.freeze.outputs.frozen }}
+    steps:
+      # anything other than a case-insensitive "true" (including the variable not
+      # existing at all) leaves deployments flowing through to prod as normal
+      - name: Read FREEZE_PROD_DEPLOYS repository variable
+        id: freeze
+        env:
+          FREEZE_PROD_DEPLOYS: ${{ vars.FREEZE_PROD_DEPLOYS }}
+        run: |
+          FREEZE=$(echo "${FREEZE_PROD_DEPLOYS:-false}" | tr '[:upper:]' '[:lower:]')
+
+          if [ "$FREEZE" = "true" ]; then
+            echo "frozen=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Prod deployments are frozen - this commit will deploy to test only"
+          else
+            echo "frozen=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Prod deployments are not frozen - this commit will deploy through to prod"
+          fi
+
   cnb_build:
     name: Build
     uses: ./.github/workflows/package.yml
@@ -54,6 +77,8 @@ jobs:
     name: Deploy to prod
     needs:
       - deploy_test
+      - check_deploy_freeze
+    if: ${{ needs.check_deploy_freeze.outputs.frozen != 'true' }}
     uses: ./.github/workflows/deploy.yml
     concurrency:
       group: fs-deploy-prod
