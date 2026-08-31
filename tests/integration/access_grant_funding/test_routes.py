@@ -1957,12 +1957,143 @@ class TestAlreadyApplyingPage:
         assert response.status_code == 404
 
     @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_404s_for_unknown_organisation(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                organisation_id=uuid.uuid4(),
+            )
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "grant_status, collection_status, allow_public_sign_up",
+        (
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, False),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, True),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, True),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, True),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, True),
+        ),
+    )
+    def test_get_depends_on_status_and_allow_public_sign_up(
+        self,
+        authenticated_no_role_client,
+        factories,
+        grant_status,
+        collection_status,
+        allow_public_sign_up,
+    ):
+        grant = factories.grant.create(status=grant_status, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            allow_public_sign_up=allow_public_sign_up,
+            slug="collection-slug",
+        )
+        organisation = factories.organisation.create()
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                organisation_id=organisation.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "grant_status, collection_status",
+        (
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+        ),
+    )
+    def test_deliver_user_testing_access_allowed_for_any_status(
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+    ):
+        grant = factories.grant.create(status=grant_status, slug="grant-slug")
+        can_manage_grants_organisation = grant.organisation
+
+        collection = factories.collection.create(
+            grant=grant,
+            status=collection_status,
+            allow_public_sign_up=True,
+            slug="collection-slug",
+        )
+        factories.user_role.create(
+            user=user, organisation=can_manage_grants_organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+        organisation = factories.organisation.create(name="Test Organisation")
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+
+        login_user(user)
+        with anonymous_client.session_transaction() as flask_session:
+            flask_session["auth"] = AuthMethodEnum.SSO
+        db_session.commit()
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                organisation_id=organisation.id,
+            )
+        )
+
+        assert response.status_code == 200
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_404s_when_no_grant_recipient_exists_for_organisation(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        # Organisation exists, but has no grant recipient for this grant
+        organisation = factories.organisation.create()
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                organisation_id=organisation.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_get_renders_already_applying_content(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
         organisation = factories.organisation.create(name="Eastbourne Borough Council")
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id

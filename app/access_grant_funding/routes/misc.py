@@ -307,13 +307,16 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
 
 
 @access_grant_funding_blueprint.route(
-    "/grant/<string:grant_slug>/<string:collection_slug>/already-applying/<uuid:organisation_id>", methods=["GET"]
+    "/grant/<string:grant_slug>/<string:collection_slug>/<uuid:organisation_id>/already-applying", methods=["GET"]
 )
 @is_signing_up
 def already_applying(grant_slug: str, collection_slug: str, organisation_id: UUID) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
     organisation = get_organisation(organisation_id=organisation_id)
+
+    if get_grant_recipient_or_none(grant.id, organisation.id) is None:
+        abort(404)
 
     return render_template(
         "access_grant_funding/already_applying.html",
