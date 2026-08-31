@@ -1775,7 +1775,7 @@ class AllSubmissionsHelper:
         """
         return [
             question
-            for form in sorted(self.collection.forms, key=lambda f: f.order)
+            for form in sorted(self.collection.tasklist_forms, key=lambda f: f.order)
             for question in sorted(form.cached_questions, key=lambda q: q.order)
         ]
 

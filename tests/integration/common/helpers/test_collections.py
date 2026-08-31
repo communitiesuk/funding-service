@@ -3418,6 +3418,19 @@ class TestSubmissionsHelper:
         assert live_submissions_helper.submission_mode == SubmissionModeEnum.LIVE
         assert len(live_submissions_helper.submissions) == 3
 
+    def test_get_all_possible_questions_for_collection_excludes_eligibility_form_questions(self, factories):
+        collection = factories.collection.create()
+        form_a = factories.form.create(collection=collection)
+        question_a = factories.question.create(form=form_a)
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        eligibility_question = factories.question.create(form=eligibility_form)
+
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+        questions = subs_helper.get_all_possible_questions_for_collection()
+
+        assert questions == [question_a]
+        assert eligibility_question not in questions
+
     @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_check_correct_rows_for_multiple_simple_submissions_every_question_type(
         self, factories
