@@ -11,7 +11,7 @@ repos:
       - id: check-ast
         language_version: python3.14
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.1
+    rev: v0.16.5
     hooks:
       - id: ruff
         args: [ --fix ]
@@ -30,7 +30,7 @@ repos:
         exclude: tests/pre_award/keys/rsa256
 
   - repo: https://github.com/seddonym/import-linter
-    rev: v2.13
+    rev: v2.14
     hooks:
       - id: import-linter
         language: python
