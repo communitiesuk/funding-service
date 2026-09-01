@@ -4,11 +4,6 @@
 
 {% set page_title = question.text ~ " - " ~ grant.name %}
 
-{% block head %}
-  {{ super() }}
-  <meta name="robots" content="noindex, nofollow" />
-{% endblock head %}
-
 {% block beforeContent %}
   {% if back_url %}
     {{ govukBackLink({ "href": back_url, "text": "Back" }) }}
@@ -21,7 +16,7 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        <span class="govuk-caption-l">Eligibility</span>
+        <span class="govuk-caption-l">Eligibility questions</span>
         {% if question.guidance_body %}
           {{ question.guidance_body | govuk_markdown }}
         {% endif %}
