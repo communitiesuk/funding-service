@@ -573,6 +573,28 @@ class TestSubmissionHelper:
             # all questions answered and all marked as complete is complete
             assert helper.all_needed_forms_are_completed is True
 
+        def test_all_needed_forms_are_completed_ignores_unanswered_eligibility_form(self, factories):
+            form_one = factories.form.build()
+            question_one = factories.question.build(form=form_one)
+            eligibility_form = factories.form.build(collection=form_one.collection, is_eligibility_section=True)
+            factories.question.build(form=eligibility_form)
+
+            submission = factories.submission.build(collection=form_one.collection)
+            helper = SubmissionHelper(submission)
+
+            submission.data_manager.set(question_one, TextSingleLineAnswer("User submitted data"))
+            submission.events = [
+                factories.submission_event.build(
+                    submission=submission,
+                    related_entity_id=form_one.id,
+                    event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                )
+            ]
+            helper.clear_caches()
+
+            # the eligibility form's unanswered question doesn't block completion
+            assert helper.all_needed_forms_are_completed is True
+
     class TestVisibleQuestion:
         def test_is_question_always_visible_with_no_conditions(self, factories):
             question = factories.question.build()

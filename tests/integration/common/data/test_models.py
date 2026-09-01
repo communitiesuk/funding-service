@@ -291,6 +291,15 @@ class TestCollectionModel:
 
 
 class TestFormModel:
+    def test_earlier_forms_excludes_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        eligibility_form = factories.form.create(collection=collection, order=0, is_eligibility_section=True)
+        form_a = factories.form.create(collection=collection, order=1)
+        form_b = factories.form.create(collection=collection, order=2)
+
+        assert form_b.earlier_forms == [form_a]
+        assert eligibility_form not in form_b.earlier_forms
+
     def test_questions_property_filters_nested_questions(self, factories):
         form = factories.form.create()
         # asserting to a depth of 2

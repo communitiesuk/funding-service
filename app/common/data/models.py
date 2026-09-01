@@ -759,7 +759,7 @@ class Form(BaseModel):
 
     @property
     def earlier_forms(self) -> list[Form]:
-        return [f for f in self.collection.forms if f.order < self.order]
+        return [f for f in self.collection.tasklist_forms if f.order < self.order]
 
 
 def get_ordered_nested_components(components: list[Component]) -> list[Component]:

@@ -408,7 +408,7 @@ class SubmissionHelper:
 
         form_statuses_by_id = {
             form.id: self.get_status_for_form(form)
-            for form in self.collection.forms
+            for form in self.collection.tasklist_forms
             if not self.form_is_managed_by_service(form)
         }
 
@@ -729,7 +729,7 @@ class SubmissionHelper:
 
     @cached_property
     def all_needed_forms_are_completed(self) -> bool:
-        form_statuses = {self.get_status_for_form(form) for form in self.collection.forms}
+        form_statuses = {self.get_status_for_form(form) for form in self.collection.tasklist_forms}
         return form_statuses <= {
             TasklistSectionStatusEnum.COMPLETED,
             TasklistSectionStatusEnum.NOT_NEEDED,
@@ -770,7 +770,7 @@ class SubmissionHelper:
 
     def get_ordered_visible_forms(self) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
-        return sorted(self.collection.forms, key=lambda f: f.order)
+        return sorted(self.collection.tasklist_forms, key=lambda f: f.order)
 
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None
@@ -994,6 +994,9 @@ class SubmissionHelper:
         raise ValueError(f"Could not find form for question_id={question_id} in collection={self.collection.id}")
 
     def _statuses_for_all_forms(self) -> dict[Form, TasklistSectionStatusEnum]:
+        # Deliberately includes the eligibility form (unlike `all_needed_forms_are_completed`): this tracks whether
+        # answering a question reset some form's completion status, and `current_form` in
+        # `_emit_submission_events_for_forms_reset_to_in_progress` may itself be the eligibility form.
         return {form: self.get_status_for_form(form) for form in self.collection.forms}
 
     def _emit_submission_events_for_forms_reset_to_in_progress(
@@ -1314,7 +1317,7 @@ class SubmissionHelper:
                 declined_reason=declined_reason,
                 related_entity_id=self.id,
             )
-            for form in self.collection.forms:
+            for form in self.collection.tasklist_forms:
                 if not self.form_is_managed_by_service(form):
                     self.add_submission_event(
                         event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER,
@@ -1428,7 +1431,7 @@ class SubmissionHelper:
             submission_data=self.submission.data_manager.data,
             related_entity_id=self.id,
         )
-        for form in self.collection.forms:
+        for form in self.collection.tasklist_forms:
             if not self.form_is_managed_by_service(form):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
@@ -1479,7 +1482,7 @@ class SubmissionHelper:
             submission_data=self.submission.data_manager.data,
             related_entity_id=self.id,
         )
-        for form in self.collection.forms:
+        for form in self.collection.tasklist_forms:
             if (not section_ids or form.id in section_ids) and not self.form_is_managed_by_service(form):
                 self.add_submission_event(
                     event_type=SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS,
@@ -1772,7 +1775,7 @@ class AllSubmissionsHelper:
         """
         return [
             question
-            for form in sorted(self.collection.forms, key=lambda f: f.order)
+            for form in sorted(self.collection.tasklist_forms, key=lambda f: f.order)
             for question in sorted(form.cached_questions, key=lambda q: q.order)
         ]
 

@@ -39,6 +39,48 @@ class TestSubmissionValidator:
         validator = SubmissionValidator(helper)
         assert validator.validate_all_reachable_questions() is None
 
+    def test_eligibility_form_questions_not_validated(self, factories):
+        collection = factories.collection.build()
+
+        eligibility_section = factories.form.build(collection=collection, is_eligibility_section=True)
+        eligibility_question_1 = factories.question.build(
+            form=eligibility_section, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0
+        )
+        eligibility_question_2 = factories.question.build(
+            form=eligibility_section, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=1
+        )
+        factories.expression.build(
+            question=eligibility_question_2,
+            type_=ExpressionType.VALIDATION,
+            managed_name=ManagedExpressionsEnum.GREATER_THAN,
+            statement=f"{eligibility_question_2.safe_qid} > {eligibility_question_1.safe_qid}",
+            context={
+                "subject_reference": ExpressionReference.from_question(eligibility_question_2),
+                "minimum_value": None,
+                "minimum_expression": ExpressionReference.from_question(eligibility_question_1),
+            },
+        )
+
+        section_1 = factories.form.build(collection=collection)
+        application_question = factories.question.build(
+            form=section_1, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER
+        )
+
+        submission = factories.submission.build(
+            collection=collection,
+            answers=[
+                # eligibility questions are incorrect, but should not be validated
+                FactoryAnswer(eligibility_question_1, IntegerAnswer(value=100)),
+                FactoryAnswer(eligibility_question_2, IntegerAnswer(value=50)),
+                FactoryAnswer(application_question, IntegerAnswer(value=50)),
+            ],
+        )
+
+        helper = SubmissionHelper(submission)
+        validator = SubmissionValidator(helper)
+
+        assert validator.validate_all_reachable_questions() is None
+
     def test_invalid_answer_caught(self, factories):
         form = factories.form.build()
         q1 = factories.question.build(form=form, id=uuid.uuid4(), data_type=QuestionDataType.NUMBER, order=0)

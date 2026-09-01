@@ -1219,3 +1219,19 @@ class TestRequestChangesSubmissionForm:
         # Not needed form is not included in the choices, but the needed form is
         assert str(needed_form.id) in choice_ids
         assert str(not_needed_form.id) not in choice_ids
+
+    def test_section_choices_exclude_eligibility_form(self, factories):
+        collection = factories.collection.create()
+        section_1 = factories.form.create(collection=collection)
+        factories.question.create(form=section_1)
+        eligibility_section = factories.form.create(collection=collection, is_eligibility_section=True)
+        factories.question.create(form=eligibility_section)
+
+        submission = factories.submission.create(collection=collection)
+        helper = SubmissionHelper(submission)
+
+        form = RequestChangesSubmissionForm(submission_helper=helper)
+        choice_ids = [choice[0] for choice in form.section_ids.choices]
+
+        assert str(section_1.id) in choice_ids
+        assert str(eligibility_section.id) not in choice_ids
