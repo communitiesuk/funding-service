@@ -703,7 +703,12 @@ def get_all_submissions_with_mode_for_collection(
             .selectinload(Form._all_components)
             .selectinload(Component.owned_component_references),
             selectinload(Submission.events).joinedload(SubmissionEvent.created_by),
-            selectinload(Submission.data_sources),
+            # avoids N+1 queries for callers that build expression context (eg AllSubmissionsHelper export), which
+            # calls DataSource.get_referenced_column_names() for every data source on every submission
+            selectinload(Submission.data_sources).options(
+                selectinload(DataSource.depended_on_by_columns),
+                selectinload(DataSource.organisation_items),
+            ),
             joinedload(Submission.created_by),
         )
     elif with_users:
