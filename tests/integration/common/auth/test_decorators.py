@@ -24,9 +24,13 @@ from app.common.auth.decorators import (
     is_platform_admin,
     is_signing_up,
     redirect_if_authenticated,
+    requires_passed_eligibility,
 )
+from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
-from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, RoleEnum
+from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, RoleEnum, SubmissionModeEnum
+from app.common.expressions import ExpressionContext
+from app.common.helpers.collections import get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import StaticFeatureFlag
 from tests.models import _get_grant_managing_organisation
 
@@ -788,6 +792,98 @@ class TestIsSigningUp:
 
         with pytest.raises(NotFound):
             view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+
+class TestRequiresPassedEligibility:
+    def test_passes_through_when_collection_has_no_eligibility_form(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        @requires_passed_eligibility
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+        assert response == "OK"
+
+    def test_passes_through_when_eligibility_form_has_no_questions(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        factories.form.create(collection=collection, is_eligibility_section=True)
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        @requires_passed_eligibility
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+        assert response == "OK"
+
+    def test_redirects_to_first_eligibility_question_when_not_yet_passed(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form)
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        @requires_passed_eligibility
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
+        )
+
+    def test_passes_through_once_eligibility_passed(self, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form)
+        user = factories.user.create(email="test@example.com", azure_ad_subject_id=None)
+
+        submission_helper = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE)
+        submission_helper.submit_answer_for_question(
+            question.id,
+            build_question_form(
+                [question], evaluation_context=ExpressionContext(), interpolation_context=ExpressionContext()
+            )(**{question.safe_qid: "User submitted data"}),
+            user,
+        )
+        submission_helper.toggle_form_completed(eligibility_form, user, True)
+
+        @requires_passed_eligibility
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+        session["signing_up_for_collection_id"] = collection.id
+
+        response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
+        assert response == "OK"
 
 
 class TestHasDeliverGrantRole:

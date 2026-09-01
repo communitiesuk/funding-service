@@ -20,7 +20,15 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_organisation
-from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, GrantStatusEnum, RoleEnum
+from app.common.data.types import (
+    AuthMethodEnum,
+    CollectionStatusEnum,
+    CollectionType,
+    GrantStatusEnum,
+    RoleEnum,
+    SubmissionModeEnum,
+)
+from app.common.helpers.collections import has_passed_eligibility
 from app.common.helpers.feature_flags import FeatureFlagBase
 
 
@@ -171,6 +179,40 @@ def is_signing_up[**P](
         )
 
     return collection_is_open_for_sign_up(wrapper)
+
+
+def requires_passed_eligibility[**P](
+    func: Callable[P, ResponseReturnValue],
+) -> Callable[P, ResponseReturnValue]:
+    """Gates a signing-up route behind the collection's eligibility section, redirecting to the
+    first eligibility question until the current user has passed it."""
+
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+        user = interfaces.user.get_current_user()
+
+        grant_slug = cast(str, kwargs["grant_slug"])
+        collection_slug = cast(str, kwargs["collection_slug"])
+        grant = get_grant_by_slug(grant_slug)
+        collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+        if collection.eligibility_form is not None and collection.eligibility_form.components:
+            is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
+            submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
+            if not has_passed_eligibility(user, collection, submission_mode):
+                first_question = collection.eligibility_form.components[0]
+                return redirect(
+                    url_for(
+                        "access_grant_funding.public_sign_up_eligibility_question",
+                        grant_slug=grant_slug,
+                        collection_slug=collection_slug,
+                        question_id=first_question.id,
+                    )
+                )
+
+        return func(*args, **kwargs)
+
+    return is_signing_up(wrapper)
 
 
 def is_deliver_grant_funding_user[**P](

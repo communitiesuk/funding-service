@@ -16,9 +16,14 @@ from app.common.auth.decorators import (
     has_feature_flag_enabled,
     is_access_org_member,
     is_signing_up,
+    requires_passed_eligibility,
 )
+from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import get_collection_by_slug
+from app.common.data.interfaces.collections import (
+    claim_or_discard_unclaimed_submission,
+    get_collection_by_slug,
+)
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipient,
     get_grant_recipient,
@@ -31,8 +36,11 @@ from app.common.data.types import (
     GrantRecipientStatusEnum,
     OrganisationModeEnum,
     RoleEnum,
+    SubmissionModeEnum,
 )
+from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
+from app.common.helpers.collections import SubmissionHelper, get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request, notification_service
@@ -264,7 +272,7 @@ def already_applying(grant_slug: str, collection_slug: str) -> ResponseReturnVal
 @access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/eligible-to-apply", methods=["GET", "POST"]
 )
-@is_signing_up
+@requires_passed_eligibility
 @auto_commit_after_request
 def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
@@ -312,14 +320,13 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
             return abort(403)
 
-        session.pop("signing_up_for_collection_id", None)
-
         grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
+        submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
         grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
 
         # No grant recipient exists, create one
         if grant_recipient is None:
-            create_grant_recipient(
+            grant_recipient = create_grant_recipient(
                 grant=grant,
                 organisation=organisation,
                 status=GrantRecipientStatusEnum.APPLYING,
@@ -343,6 +350,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
                 )
             )
         # A grant recipient exists, and user has access to it
+        claim_or_discard_unclaimed_submission(user, collection, submission_mode, grant_recipient)
+        # Delete the public sign off session if user successfully signs in
+        session.pop("signing_up_for_collection_id", None)
         flash("Sign in complete. You can start your application.", FlashMessageType.PUBLIC_SIGN_UP_SUCCESS)
         return redirect(
             url_for(
@@ -359,6 +369,89 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         organisations=matched_orgs,
         form=form,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligibility/<uuid:question_id>", methods=["GET", "POST"]
+)
+@is_signing_up
+@auto_commit_after_request
+def public_sign_up_eligibility_question(
+    grant_slug: str, collection_slug: str, question_id: UUID
+) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    if collection.eligibility_form is None:
+        abort(404)
+
+    user = interfaces.user.get_current_user()
+    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
+    submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
+
+    submission_helper = get_or_create_unclaimed_submission(user, collection, submission_mode)
+    question = submission_helper.get_question(question_id)
+
+    form_cls = build_question_form(
+        [question], submission_helper.cached_evaluation_context, submission_helper.cached_interpolation_context
+    )
+    form = form_cls(data=submission_helper.form_data())
+
+    if form.validate_on_submit():
+        submission_helper.submit_answer_for_question(question.id, form, user)
+        submission_helper.clear_caches()
+
+        eligibility_expression = question.eligibility
+        if eligibility_expression and not evaluate(eligibility_expression, submission_helper.cached_evaluation_context):
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_ineligible",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            )
+
+        next_question = submission_helper.get_next_question(question.id)
+        if next_question:
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_eligibility_question",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    question_id=next_question.id,
+                )
+            )
+
+        submission_helper.toggle_form_completed(collection.eligibility_form, user, is_complete=True)
+        return redirect(
+            url_for(
+                "access_grant_funding.eligible_to_apply",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+
+    previous_question = submission_helper.get_previous_question(question.id)
+    back_url = (
+        url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+            question_id=previous_question.id,
+        )
+        if previous_question
+        else None
+    )
+
+    return render_template(
+        "access_grant_funding/public_sign_up_eligibility_question.html",
+        grant=grant,
+        collection=collection,
+        form=form,
+        question=question,
+        back_url=back_url,
+        interpolator=SubmissionHelper.get_interpolator(collection, submission_helper),
     )
 
 

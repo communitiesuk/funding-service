@@ -24,6 +24,8 @@ from app.common.data.interfaces.collections import (
     add_component_condition,
     add_component_eligibility,
     add_component_validation,
+    claim_or_discard_unclaimed_submission,
+    claim_submission_for_grant_recipient,
     components_in_same_group_and_on_same_page,
     create_collection,
     create_form,
@@ -34,6 +36,7 @@ from app.common.data.interfaces.collections import (
     delete_collection_preview_submissions_created_by_user,
     delete_form,
     delete_question,
+    delete_submission,
     get_all_submissions_with_mode_for_collection,
     get_collection,
     get_collection_by_slug,
@@ -49,6 +52,7 @@ from app.common.data.interfaces.collections import (
     get_submission,
     get_submission_list_for_collection,
     get_submissions_by_grant_recipient_collection,
+    get_unclaimed_submission_for_user,
     group_name_exists,
     is_component_dependency_order_valid,
     move_component_down,
@@ -118,6 +122,7 @@ from app.common.expressions.managed import AnyOf, Between, GreaterThan, LessThan
 from app.common.expressions.references import ExpressionReference, InterpolationStatement
 from app.common.forms.helpers import components_in_valid_add_another_combination
 from app.common.helpers.collections import SubmissionHelper
+from app.extensions import db
 from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
 
@@ -1257,6 +1262,142 @@ class TestGetSubmission:
                         count += 1
 
         assert queries == []
+
+
+class TestGetUnclaimedSubmissionForUser:
+    def test_returns_submission_with_no_grant_recipient(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        submission = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        claimed_submission = get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE)
+
+        assert claimed_submission.id == submission.id
+
+    def test_returns_none_when_no_unclaimed_submission_exists(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+
+        claimed_submission = get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE)
+
+        assert claimed_submission is None
+
+    def test_ignores_submissions_already_claimed_by_a_grant_recipient(self, factories):
+        user = factories.user.create()
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        factories.submission.create(
+            collection=collection,
+            created_by=user,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+        )
+
+        claimed_submission = get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE)
+
+        assert claimed_submission is None
+
+    def test_ignores_submissions_for_a_different_user(self, factories):
+        user = factories.user.create()
+        other_user = factories.user.create()
+        collection = factories.collection.create()
+        factories.submission.create(
+            collection=collection, created_by=other_user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        claimed_submission = get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE)
+
+        assert claimed_submission is None
+
+    def test_ignores_submissions_for_a_different_mode(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.TEST, grant_recipient=None
+        )
+
+        claimed_submission = get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE)
+
+        assert claimed_submission is None
+
+
+class TestClaimSubmissionForGrantRecipient:
+    def test_attaches_grant_recipient_to_submission(self, factories):
+        grant_recipient = factories.grant_recipient.create()
+        submission = factories.submission.create(
+            collection=factories.collection.create(grant=grant_recipient.grant),
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=None,
+        )
+        assert submission.grant_recipient_id is None
+
+        claim_submission_for_grant_recipient(submission, grant_recipient)
+
+        submission = get_submission(submission_id=submission.id)
+        assert submission.grant_recipient_id == grant_recipient.id
+
+
+class TestDeleteSubmission:
+    def test_deletes_submission_and_its_events(self, factories):
+        submission = factories.submission.create()
+        factories.submission_event.create(submission=submission)
+
+        delete_submission(submission)
+
+        assert db.session.get(Submission, submission.id) is None
+        remaining_events = db.session.scalars(
+            select(SubmissionEvent).where(SubmissionEvent.submission_id == submission.id)
+        ).all()
+        assert remaining_events == []
+
+
+class TestClaimOrDiscardUnclaimedSubmission:
+    def test_returns_none_when_no_unclaimed_submission_exists(self, factories):
+        user = factories.user.create()
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+
+        claim_or_discard_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE, grant_recipient)
+
+        assert get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE) is None
+
+    def test_claims_unclaimed_submission_when_grant_recipient_has_none(self, factories):
+        user = factories.user.create()
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        unclaimed = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        claim_or_discard_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE, grant_recipient)
+
+        submission = get_submission(submission_id=unclaimed.id)
+        assert submission.grant_recipient_id == grant_recipient.id
+
+    def test_discards_unclaimed_submission_when_grant_recipient_already_has_one(self, factories):
+        user = factories.user.create()
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        existing = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        unclaimed = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+        factories.submission_event.create(submission=unclaimed)
+
+        claim_or_discard_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE, grant_recipient)
+
+        assert get_unclaimed_submission_for_user(user, collection, SubmissionModeEnum.LIVE) is None
+        assert db.session.get(Submission, unclaimed.id) is None
+        remaining_events = db.session.scalars(
+            select(SubmissionEvent).where(SubmissionEvent.submission_id == unclaimed.id)
+        ).all()
+        assert remaining_events == []
+        # the grant recipient's existing submission is untouched
+        assert get_submission(submission_id=existing.id).id == existing.id
 
 
 class TestGetFormById:

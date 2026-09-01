@@ -12,6 +12,7 @@ from uuid import UUID
 
 from flask import current_app, url_for
 from pydantic import BaseModel as PydanticBaseModel
+from sqlalchemy import text
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -35,8 +36,10 @@ from app.common.collections.types import (
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    create_submission,
     get_all_submissions_with_mode_for_collection,
     get_submission,
+    get_unclaimed_submission_for_user,
     update_submission,
     update_submission_data,
 )
@@ -74,7 +77,7 @@ from app.common.expressions import (
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.common.helpers.timeline import TimelineEvent, build_timeline_events
-from app.extensions import notification_service, s3_service
+from app.extensions import db, notification_service, s3_service
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -453,6 +456,12 @@ class SubmissionHelper:
         if self.is_assessment_rejected:
             return SubmissionAssessmentStatusEnum.MARKED_AS_REJECTED
         return SubmissionAssessmentStatusEnum.NOT_STARTED
+
+    @property
+    def has_passed_eligibility(self) -> bool:
+        if self.collection.eligibility_form is None:
+            return True
+        return self.events.form_state(self.collection.eligibility_form.id).is_completed
 
     @property
     def status(self) -> SubmissionStatusEnum:
@@ -1727,6 +1736,39 @@ class SubmissionHelper:
                     return True
 
         return False
+
+
+def has_passed_eligibility(user: User, collection: Collection, mode: SubmissionModeEnum) -> bool:
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
+    if unclaimed is None:
+        return False
+
+    submission_helper = SubmissionHelper.load(unclaimed.id)
+
+    return submission_helper.has_passed_eligibility
+
+
+def get_or_create_unclaimed_submission(
+    user: User, collection: Collection, mode: SubmissionModeEnum
+) -> SubmissionHelper:
+    # Acquire a transaction-scoped advisory lock keyed on (user, collection, mode) BEFORE reading submissions.
+    # This prevents the double-click race condition: without the lock, two concurrent requests can both read no
+    # unclaimed submission and each proceed to create one before either commits. The lock serialises them so the
+    # second request re-reads after the first commits and finds the existing submission instead. See
+    # `get_or_create_submission` for the equivalent lock on the grant-recipient-keyed path.
+    db.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{user.id}:{collection.id}:{mode}"},
+    )
+
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
+    if unclaimed:
+        submission_id = unclaimed.id
+    else:
+        submission = create_submission(collection=collection, created_by=user, mode=mode, grant_recipient=None)
+        submission_id = submission.id
+
+    return SubmissionHelper.load(submission_id)
 
 
 class AllSubmissionsHelper:

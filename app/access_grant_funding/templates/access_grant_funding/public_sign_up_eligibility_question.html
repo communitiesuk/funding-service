@@ -1,0 +1,29 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "common/macros/collections.html" import collection_render_single_question with context %}
+
+{% set page_title = question.text ~ " - " ~ grant.name %}
+
+{% block beforeContent %}
+  {% if back_url %}
+    {{ govukBackLink({ "href": back_url, "text": "Back" }) }}
+  {% endif %}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        <span class="govuk-caption-l">Eligibility questions</span>
+        {% if question.guidance_body %}
+          {{ interpolator(question.guidance_body) | govuk_markdown | safe }}
+        {% endif %}
+        {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
+
+        {{ form.submit(params={"text": "Continue"}) }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}
