@@ -53,7 +53,7 @@
     <dd class="app-metadata__value" data-testid="assessment-status">{{ assessmentStatusTag(helper.assessment_status) }}</dd>
   </dl>
 
-  {% if not helper.is_preview %}
+  {% if model.grant_recipient %}
     <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />
 
     {{ timeline(helper.timeline_events, timeline_event_types) }}
