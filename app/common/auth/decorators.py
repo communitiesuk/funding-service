@@ -9,6 +9,7 @@ from flask.typing import ResponseReturnValue
 from flask_login import logout_user
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.auth.sign_up_session import get_signing_up_for_collection_id
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     get_collection,
@@ -50,7 +51,7 @@ def access_grant_funding_login_required[**P](
             sentry_sdk.set_user(None)
             return abort(500)
 
-        if collection_id := session.get("signing_up_for_collection_id"):
+        if collection_id := get_signing_up_for_collection_id():
             collection = get_collection(collection_id)
             return redirect(
                 url_for(
@@ -98,7 +99,7 @@ def redirect_if_authenticated[**P](
         # on the user's role. For now, this covers internal MHCLG users and will hard error for anyone else so that
         # we get a Sentry notification and can get it fixed.
         if user.is_authenticated:
-            if collection_id := session.get("signing_up_for_collection_id"):
+            if collection_id := get_signing_up_for_collection_id():
                 collection = get_collection(collection_id)
                 return redirect(
                     url_for(
@@ -163,7 +164,7 @@ def is_signing_up[**P](
         grant = get_grant_by_slug(grant_slug)
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
-        if user.is_authenticated and session.get("signing_up_for_collection_id") == collection.id:
+        if user.is_authenticated and get_signing_up_for_collection_id() == collection.id:
             return func(*args, **kwargs)
 
         # Deliver users testing this journey

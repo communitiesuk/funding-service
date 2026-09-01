@@ -345,6 +345,9 @@ class _SharedConfig(_BaseConfig):
     GGIS_TEAM_EMAIL: str = "ggis@communities.gov.uk"
     PIPELINE_GRANTS_SCHEME_FORM_URL: str = "https://forms.office.com.mcas.ms/pages/responsepage.aspx?id=EGg0v32c3kOociSi7zmVqBUKhC0CqZtGmIj1YcYa53xUNTFRWkRXQ1ZJUEJMOTg1UllGWEpCNDQ4NSQlQCN0PWcu&route=shorturl"
 
+    # External registries
+    COMPANIES_HOUSE_URL: str = "https://find-and-update.company-information.service.gov.uk"
+
     PLATFORM_DEPARTMENT_ORGANISATION_CONFIG: dict[str, str] = {
         "name": "Ministry of Housing, Communities and Local Government",
         "external_id": "GB-GOV-27",

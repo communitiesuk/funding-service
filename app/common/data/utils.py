@@ -10,6 +10,11 @@ def generate_grant_code(name: str) -> str:
     return "".join(word[0].upper() for word in re.split(r"\s+", (name or "")))
 
 
+def generate_organisation_custom_code() -> str:
+    """Generate the Funding Service's own identifier for an organisation with no external registry ID."""
+    return f"{random.randint(0, 999_999_999):09d}"
+
+
 def generate_submission_reference(collection: Collection, avoid_references: Sequence[str] | None = None) -> str:
     # Removed letters and numbers where there could be confusion (eg 0 and O, B and 8, etc)
     # Removed all vowels to reduce the chance of forming real possibly-offensive words

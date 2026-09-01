@@ -9,6 +9,7 @@ from flask_login import login_user, logout_user
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import collection_is_open_for_sign_up, redirect_if_authenticated
 from app.common.auth.forms import SignInForm
+from app.common.auth.sign_up_session import clear_public_sign_up_session, start_public_sign_up
 from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, RoleEnum
@@ -178,9 +179,9 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
         session["auth"] = AuthMethodEnum.MAGIC_LINK
 
         if magic_link.collection:
-            session["signing_up_for_collection_id"] = magic_link.collection_id
+            start_public_sign_up(magic_link.collection.id)
         else:
-            session.pop("signing_up_for_collection_id", None)
+            clear_public_sign_up_session()
 
         auto_submit = session.pop("magic_link_requested", False)
         current_app.logger.info(
@@ -298,7 +299,7 @@ def sign_out() -> ResponseReturnValue:
 
     auth_method = session.pop("auth", None)
 
-    if collection_id := session.pop("signing_up_for_collection_id", None):
+    if collection_id := clear_public_sign_up_session():
         collection = interfaces.collections.get_collection(collection_id)
         return redirect(
             url_for(

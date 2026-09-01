@@ -1819,6 +1819,56 @@ class TestEligibleToApplyPage:
         assert b"We could not find an organisation with the email address you provided." in response.data
         assert b"Create an organisation" in response.data
 
+    @pytest.mark.authenticate_as("test@no-matching-org.com")
+    def test_post_with_no_matched_orgs_seeds_session_and_redirects_to_create_organisation(
+        self, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_type", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["collection_id"] == str(collection.id)
+
+    @pytest.mark.authenticate_as("test@shared-domain.com")
+    def test_post_new_organisation_radio_seeds_session_and_redirects_to_create_organisation(
+        self, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.organisation.create(name="Org A", domains=["shared-domain.com"])
+        factories.organisation.create(name="Org B", domains=["shared-domain.com"])
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": EligibleOrganisationSelectionForm.SIGN_UP_NEW_ORGANISATION_VALUE, "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_type", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["collection_id"] == str(collection.id)
+
     @pytest.mark.authenticate_as("test@shared-domain.com")
     def test_get_shows_organisation_options_when_multiple_organisations_match_email_domain(
         self, authenticated_no_role_client, factories
@@ -1909,9 +1959,10 @@ class TestEligibleToApplyPage:
         ).one()
         assert RoleEnum.DATA_PROVIDER in user_role.permissions
 
-        # We delete the signing_up_for_collection_id session flag
+        # We clear the public sign-up session state
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+            assert "create_organisation" not in flask_session
 
         # Success banner shows on the forms page
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
@@ -2008,9 +2059,10 @@ class TestEligibleToApplyPage:
         assert len(grant_recipients) == 1
         assert grant_recipients[0].id == existing_grant_recipient.id
 
-        # We delete the signing_up_for_collection_id session flag
+        # We clear the public sign-up session state
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+            assert "create_organisation" not in flask_session
 
         # "Already have access" banner shown on the forms page, not the "added to organisation" one
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)

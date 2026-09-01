@@ -1,8 +1,9 @@
 from flask_wtf import FlaskForm
-from govuk_frontend_wtf.wtforms_widgets import GovSubmitInput, GovTextArea, GovTextInput
+from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms import RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email
 
+from app.access_grant_funding.session_models import SignUpOrganisationType
 from app.common.data.models import Organisation
 from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.filters import strip_string_if_not_empty
@@ -79,3 +80,29 @@ class EligibleOrganisationSelectionForm(FlaskForm):
                 },
             }
         }
+
+
+class CreateOrganisationTypeForm(FlaskForm):
+    organisation_type = RadioField(
+        "What is your organisation type?",
+        choices=[
+            (SignUpOrganisationType.COMPANY.value, SignUpOrganisationType.COMPANY.label),
+            (SignUpOrganisationType.CHARITY.value, SignUpOrganisationType.CHARITY.label),
+            (SignUpOrganisationType.LOCAL_AUTHORITY.value, SignUpOrganisationType.LOCAL_AUTHORITY.label),
+            (SignUpOrganisationType.OTHER.value, SignUpOrganisationType.OTHER.label),
+        ],
+        widget=GovRadioInput(),
+        validators=[DataRequired("Select your organisation type")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CreateOrganisationNameForm(FlaskForm):
+    name = StringField(
+        "What is the name of your organisation?",
+        description="Enter the official registered name of your organisation",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter the name of your organisation")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
