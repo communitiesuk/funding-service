@@ -1964,6 +1964,46 @@ class TestPublicSignUpEligibilityQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "How many years experience do you have?" in soup.text
 
+    def test_get_renders_question_with_reference_to_previous_answer(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        first_question = factories.question.create(
+            form=eligibility_form, data_type=QuestionDataType.NUMBER, text="How many years experience do you have?"
+        )
+        factories.question.create(
+            form=eligibility_form,
+            text="Confirm your experience",
+            guidance_body=(
+                f"You told us you have {ExpressionReference.from_question(first_question).wrapped} years experience."
+            ),
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        FormCls = build_question_form([first_question], ExpressionContext(), ExpressionContext())
+        form = FormCls(data={first_question.safe_qid: "5"})
+
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=first_question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You told us you have 5 years experience." in soup.text
+
     def test_post_fails_eligibility_redirects_to_ineligible(self, authenticated_no_role_client, factories, db_session):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(

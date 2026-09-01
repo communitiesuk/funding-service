@@ -18,7 +18,7 @@
 
         <span class="govuk-caption-l">Eligibility questions</span>
         {% if question.guidance_body %}
-          {{ question.guidance_body | govuk_markdown }}
+          {{ interpolator(question.guidance_body) | govuk_markdown | safe }}
         {% endif %}
         {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
 
