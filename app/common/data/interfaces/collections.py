@@ -972,26 +972,6 @@ def delete_submission(submission: Submission) -> None:
     db.session.execute(delete(Submission).where(Submission.id == submission.id))
 
 
-@flush_and_rollback_on_exceptions
-def claim_or_discard_unclaimed_submission(
-    user: User, collection: Collection, mode: SubmissionModeEnum, grant_recipient: GrantRecipient
-) -> None:
-    """Attach the applicant's unclaimed sign-up submission (if any) to `grant_recipient`, now that they have one.
-
-    If `grant_recipient` already has a submission for this collection (eg they signed up before, or a colleague
-    already started one), the unclaimed submission is discarded in favour of the existing one instead of being
-    claimed - a grant recipient should never end up with two submissions for the same collection.
-    """
-    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
-    if unclaimed is None:
-        return
-
-    if get_submissions_by_grant_recipient_collection(grant_recipient, collection.id):
-        delete_submission(unclaimed)
-    else:
-        claim_submission_for_grant_recipient(unclaimed, grant_recipient)
-
-
 def _swap_elements_in_list_and_flush(containing_list: list[Any], index_a: int, index_b: int) -> list[Any]:
     """Swaps the elements at the specified indices in the supplied list.
     If either index is outside the valid range, returns the list unchanged.

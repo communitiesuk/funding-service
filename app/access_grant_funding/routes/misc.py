@@ -1,7 +1,7 @@
 from functools import partial
 from uuid import UUID
 
-from flask import abort, current_app, flash, redirect, render_template, session, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
@@ -20,10 +20,7 @@ from app.common.auth.decorators import (
 )
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import (
-    claim_or_discard_unclaimed_submission,
-    get_collection_by_slug,
-)
+from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipient,
     get_grant_recipient,
@@ -40,7 +37,11 @@ from app.common.data.types import (
 )
 from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import SubmissionHelper, get_or_create_unclaimed_submission
+from app.common.helpers.collections import (
+    SubmissionHelper,
+    claim_or_discard_unclaimed_submission,
+    get_or_create_unclaimed_submission,
+)
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request, notification_service
@@ -257,10 +258,25 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
 )
 @is_signing_up
 def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
-    # TODO: once the eligibility section exists, check the user's session/progress against it
-    # (Collection.eligibility_section.status) and route to "you are eligible"/"you are not
-    # eligible"/the next unanswered eligibility question as appropriate. For now this always
-    # routes straight to `eligible_to_apply`.
+    destination = request.args.get("destination", "start")
+    if destination not in ("start", "end"):
+        abort(400)
+
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+    eligibility_form = collection.eligibility_form
+
+    if eligibility_form is not None and eligibility_form.components:
+        question = eligibility_form.components[0] if destination == "start" else eligibility_form.components[-1]
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                question_id=question.id,
+            )
+        )
+
     return redirect(
         url_for(
             "access_grant_funding.eligible_to_apply",
@@ -482,7 +498,6 @@ def public_sign_up_eligibility_question(
                 )
             )
 
-        submission_helper.toggle_form_completed(collection.eligibility_form, user, is_complete=True)
         return redirect(
             url_for(
                 "access_grant_funding.eligible_to_apply",

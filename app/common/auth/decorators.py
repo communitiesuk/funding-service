@@ -28,7 +28,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionModeEnum,
 )
-from app.common.helpers.collections import has_passed_eligibility
+from app.common.helpers.collections import eligibility_answers_currently_pass
 from app.common.helpers.feature_flags import FeatureFlagBase
 
 
@@ -199,7 +199,7 @@ def requires_passed_eligibility[**P](
         if collection.eligibility_form is not None and collection.eligibility_form.components:
             is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
             submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
-            if not has_passed_eligibility(user, collection, submission_mode):
+            if not eligibility_answers_currently_pass(user, collection, submission_mode):
                 first_question = collection.eligibility_form.components[0]
                 return redirect(
                     url_for(

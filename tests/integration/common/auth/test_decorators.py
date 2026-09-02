@@ -856,7 +856,7 @@ class TestRequiresPassedEligibility:
             question_id=question.id,
         )
 
-    def test_passes_through_once_eligibility_passed(self, factories):
+    def test_passes_through_when_eligibility_answers_currently_pass(self, factories):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             slug="collection-slug", grant=grant, status=CollectionStatusEnum.OPEN, allow_public_sign_up=True
@@ -873,7 +873,6 @@ class TestRequiresPassedEligibility:
             )(**{question.safe_qid: "User submitted data"}),
             user,
         )
-        submission_helper.toggle_form_completed(eligibility_form, user, True)
 
         @requires_passed_eligibility
         def view_func(grant_slug: str, collection_slug: str):
