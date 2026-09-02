@@ -28,6 +28,8 @@ class DuplicateValueError(Exception):
         "uq_component_name_form": "name",
         "uq_type_validation_unique_key": "question_id",
         "uq_type_condition_unique_question": "question_id",
+        "uq_organisation_name_mode": "name",
+        "uq_organisation_external_id_mode": "external_id",
     }
 
     def __init__(self, integrity_error: IntegrityError) -> None:
