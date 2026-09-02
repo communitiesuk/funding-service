@@ -36,9 +36,12 @@ from app.common.collections.types import (
 from app.common.collections.validation import SubmissionValidator
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
+    claim_submission_for_grant_recipient,
     create_submission,
+    delete_submission,
     get_all_submissions_with_mode_for_collection,
     get_submission,
+    get_submissions_by_grant_recipient_collection,
     get_unclaimed_submission_for_user,
     update_submission,
     update_submission_data,
@@ -458,10 +461,22 @@ class SubmissionHelper:
         return SubmissionAssessmentStatusEnum.NOT_STARTED
 
     @property
-    def has_passed_eligibility(self) -> bool:
-        if self.collection.eligibility_form is None:
+    def eligibility_answers_currently_pass(self) -> bool:
+        """Live re-check of the eligibility answers: whether they're all answered and pass, independent of
+        whether the eligibility form has been marked complete."""
+        form = self.collection.eligibility_form
+        if form is None:
             return True
-        return self.events.form_state(self.collection.eligibility_form.id).is_completed
+
+        if not self.cached_get_all_questions_are_answered_for_form(form).all_answered:
+            return False
+
+        for question in self.cached_get_ordered_visible_questions(form):
+            eligibility_expression = question.eligibility
+            if eligibility_expression and not evaluate(eligibility_expression, self.cached_evaluation_context):
+                return False
+
+        return True
 
     @property
     def status(self) -> SubmissionStatusEnum:
@@ -1738,14 +1753,42 @@ class SubmissionHelper:
         return False
 
 
-def has_passed_eligibility(user: User, collection: Collection, mode: SubmissionModeEnum) -> bool:
+def eligibility_answers_currently_pass(user: User, collection: Collection, mode: SubmissionModeEnum) -> bool:
     unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
     if unclaimed is None:
         return False
 
     submission_helper = SubmissionHelper.load(unclaimed.id)
 
-    return submission_helper.has_passed_eligibility
+    return submission_helper.eligibility_answers_currently_pass
+
+
+def claim_or_discard_unclaimed_submission(
+    user: User, collection: Collection, mode: SubmissionModeEnum, grant_recipient: GrantRecipient
+) -> None:
+    """Attach the users's unclaimed sign-up submission (if any) to a `grant_recipient`, marking the
+    eligibility form complete.
+
+    If `grant_recipient` already has a submission for this collection (e.g. they signed up before, or a colleague
+    already started one), the unclaimed submission is discarded in favour of the existing one instead of being
+    claimed - a grant recipient should never end up with two submissions for the same collection. In this case the
+    eligibility form is not marked complete, since the submission is about to be deleted.
+    """
+    unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
+    if unclaimed is None:
+        return
+
+    if get_submissions_by_grant_recipient_collection(grant_recipient, collection.id):
+        # Unclaimed submission is discarded because the grant recipient already has a submission for this collection
+        delete_submission(unclaimed)
+    else:
+        # Mark the eligibility form as complete
+        if collection.eligibility_form is not None:
+            submission_helper = SubmissionHelper.load(unclaimed.id)
+            submission_helper.toggle_form_completed(collection.eligibility_form, user, is_complete=True)
+
+        # Claim the unclaimed submission for the grant recipient
+        claim_submission_for_grant_recipient(unclaimed, grant_recipient)
 
 
 def get_or_create_unclaimed_submission(

@@ -24,6 +24,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataType,
     RoleEnum,
+    SubmissionEventType,
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
@@ -1256,7 +1257,9 @@ class TestPublicSignUpRouter:
 
         assert response.status_code == 302
 
-    def test_get_redirects_to_eligible_to_apply(self, authenticated_grant_member_client, factories):
+    def test_get_redirects_to_eligible_to_apply_when_no_eligibility_form(
+        self, authenticated_grant_member_client, factories
+    ):
         grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
             grant=grant,
@@ -1276,6 +1279,147 @@ class TestPublicSignUpRouter:
         assert response.status_code == 302
         assert response.location == url_for(
             "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_get_redirects_to_eligible_to_apply_when_eligibility_form_has_no_questions(
+        self, authenticated_grant_member_client, factories
+    ):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+        factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_get_returns_400_for_invalid_destination(self, authenticated_grant_member_client, factories):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                destination="middle",
+            )
+        )
+
+        assert response.status_code == 400
+
+    def test_get_redirects_to_first_eligibility_question_by_default(self, authenticated_grant_member_client, factories):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
+        )
+
+    def test_get_redirects_to_first_eligibility_question_even_when_form_already_completed(
+        self, authenticated_grant_member_client, factories
+    ):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form)
+
+        unclaimed_submission = get_or_create_unclaimed_submission(
+            authenticated_grant_member_client.user, collection, SubmissionModeEnum.TEST
+        ).submission
+        factories.submission_event.create(
+            submission=unclaimed_submission,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=eligibility_form.id,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
+        )
+
+    def test_get_redirects_to_last_eligibility_question_when_destination_is_end(
+        self, authenticated_grant_member_client, factories
+    ):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        factories.question.create(form=eligibility_form)
+        last_question = factories.question.create(form=eligibility_form)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                destination="end",
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=last_question.id,
         )
 
 
@@ -1433,6 +1577,71 @@ class TestEligibleToApplyPage:
         )
 
     @pytest.mark.authenticate_as("test@no-matching-org.com")
+    def test_get_back_link_goes_to_sign_up_router_when_eligibility_form_exists(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.NUMBER)
+        add_component_eligibility(
+            question,
+            authenticated_no_role_client.user,
+            GreaterThan(minimum_value=3, subject_reference=ExpressionReference.from_question(question)),
+        )
+        db_session.commit()
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        FormCls = build_question_form([question], ExpressionContext(), ExpressionContext())
+        form = FormCls(data={question.safe_qid: "10"})
+        authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        expected_back_url = url_for(
+            "access_grant_funding.public_sign_up_router",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+        )
+        assert expected_back_url.encode() in response.data
+
+    @pytest.mark.authenticate_as("test@no-matching-org.com")
+    def test_get_back_link_goes_to_start_page_when_no_eligibility_form(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        expected_back_url = url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+        assert expected_back_url.encode() in response.data
+
+    @pytest.mark.authenticate_as("test@no-matching-org.com")
     def test_get_shows_create_org_button_when_no_organisation_matches_email_domain(
         self, authenticated_no_role_client, factories
     ):
@@ -1501,7 +1710,7 @@ class TestEligibleToApplyPage:
     def test_post_creates_grant_recipient_and_grants_data_provider_role(
         self, authenticated_no_role_client, factories, db_session
     ):
-        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
@@ -1551,7 +1760,8 @@ class TestEligibleToApplyPage:
         assert followed_response.status_code == 200
         soup = BeautifulSoup(followed_response.data, "html.parser")
         assert "Success" in soup.text
-        assert "Sign in complete. You can start your application." in soup.text
+        assert "Added to organisation" in soup.text
+        assert "You've been added to Test Organisation. You can now apply for Test grant name." in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_rejects_organisation_not_in_matched_list(
@@ -1608,7 +1818,7 @@ class TestEligibleToApplyPage:
     def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
         self, authenticated_no_role_client, factories, db_session
     ):
-        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
@@ -1643,6 +1853,15 @@ class TestEligibleToApplyPage:
         # We delete the signing_up_for_collection_id session flag
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+
+        # "Already have access" banner shown on the forms page, not the "added to organisation" one
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "Important" in soup.text
+        assert "You already have access to this grant" in soup.text
+        assert "In the future you can access this grant directly using this link" in soup.text
+        assert "Added to organisation" not in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_redirects_to_already_applying_when_grant_recipient_exists_and_user_has_no_role(
@@ -1779,9 +1998,12 @@ class TestEligibleToApplyPage:
         ).one()
         assert RoleEnum.DATA_PROVIDER in user_role.permissions
 
-        # Submission page now loads successfully
+        # Submission page now loads successfully, with the "added to organisation" banner shown
         followed_response = authenticated_grant_member_client.get(response.location, follow_redirects=True)
         assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "Added to organisation" in soup.text
+        assert f"You've been added to {organisation.name}. You can now apply for {grant.name}." in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_without_access_to_existing_grant_recipient_redirects_to_already_applying(
@@ -2596,9 +2818,7 @@ class TestPublicSignUpEligibilityQuestion:
             "access_grant_funding.public_sign_up_ineligible", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
-    def test_post_passes_eligibility_completes_form_and_redirects_to_eligible_to_apply(
-        self, authenticated_no_role_client, factories, db_session
-    ):
+    def test_post_passes_eligibility_redirects_to_eligible_to_apply(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
@@ -2632,3 +2852,9 @@ class TestPublicSignUpEligibilityQuestion:
         assert response.location == url_for(
             "access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug
         )
+
+        # The eligibility form is not marked complete here - only once the submission is claimed
+        unclaimed_submission = get_or_create_unclaimed_submission(
+            authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE
+        )
+        assert unclaimed_submission.events.form_state(eligibility_form.id).is_completed is False

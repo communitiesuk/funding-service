@@ -1,7 +1,7 @@
 from functools import partial
 from uuid import UUID
 
-from flask import abort, current_app, flash, redirect, render_template, session, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
@@ -20,10 +20,7 @@ from app.common.auth.decorators import (
 )
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
-from app.common.data.interfaces.collections import (
-    claim_or_discard_unclaimed_submission,
-    get_collection_by_slug,
-)
+from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grant_recipients import (
     create_grant_recipient,
     get_grant_recipient,
@@ -40,7 +37,11 @@ from app.common.data.types import (
 )
 from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import SubmissionHelper, get_or_create_unclaimed_submission
+from app.common.helpers.collections import (
+    SubmissionHelper,
+    claim_or_discard_unclaimed_submission,
+    get_or_create_unclaimed_submission,
+)
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.extensions import auto_commit_after_request, notification_service
@@ -253,14 +254,29 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
 
 
 @access_grant_funding_blueprint.route(
-    "/grant/<string:grant_slug>/<string:collection_slug>/sign-up-router", methods=["GET"]
+    "/grant/<string:grant_slug>/<string:collection_slug>/public-sign-up", methods=["GET"]
 )
 @is_signing_up
 def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
-    # TODO: once the eligibility section exists, check the user's session/progress against it
-    # (Collection.eligibility_section.status) and route to "you are eligible"/"you are not
-    # eligible"/the next unanswered eligibility question as appropriate. For now this always
-    # routes straight to `eligible_to_apply`.
+    destination = request.args.get("destination", "start")
+    if destination not in ("start", "end"):
+        abort(400)
+
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+    eligibility_form = collection.eligibility_form
+
+    if eligibility_form is not None and eligibility_form.components:
+        question = eligibility_form.components[0] if destination == "start" else eligibility_form.components[-1]
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                question_id=question.id,
+            )
+        )
+
     return redirect(
         url_for(
             "access_grant_funding.eligible_to_apply",
@@ -398,6 +414,10 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
                 grant=grant,
                 by_user=user,
             )
+            flash(
+                {"organisation_name": organisation.name, "grant_name": grant.name},  # ty: ignore[invalid-argument-type]
+                FlashMessageType.PUBLIC_SIGN_UP_SUCCESS,
+            )
         # A grant recipient exists, and user does not have access to it
         elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
             return redirect(
@@ -408,11 +428,17 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
                     organisation_id=organisation.id,
                 )
             )
-        # A grant recipient exists, and user has access to it
+        # A grant recipient exists, and user already has access to it
+        else:
+            flash(
+                {"grant_name": grant.name},  # ty: ignore[invalid-argument-type]
+                FlashMessageType.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
+            )
+
         claim_or_discard_unclaimed_submission(user, collection, submission_mode, grant_recipient)
         # Delete the public sign off session if user successfully signs in
         session.pop("signing_up_for_collection_id", None)
-        flash("Sign in complete. You can start your application.", FlashMessageType.PUBLIC_SIGN_UP_SUCCESS)
+
         return redirect(
             url_for(
                 "access_grant_funding.list_collections",
@@ -482,7 +508,6 @@ def public_sign_up_eligibility_question(
                 )
             )
 
-        submission_helper.toggle_form_completed(collection.eligibility_form, user, is_complete=True)
         return redirect(
             url_for(
                 "access_grant_funding.eligible_to_apply",

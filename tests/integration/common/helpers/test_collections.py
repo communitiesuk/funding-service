@@ -9,6 +9,7 @@ from io import StringIO
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import (
@@ -25,7 +26,7 @@ from app.common.collections.types import (
 )
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import update_submission_data
-from app.common.data.models import Expression
+from app.common.data.models import Expression, Submission, SubmissionEvent
 from app.common.data.types import (
     CollectionStatusEnum,
     DataSourceType,
@@ -54,8 +55,9 @@ from app.common.helpers.collections import (
     SubmissionHelper,
     SubmissionIsAlreadyAssessedError,
     SubmissionIsNotSubmittedError,
+    claim_or_discard_unclaimed_submission,
+    eligibility_answers_currently_pass,
     get_or_create_unclaimed_submission,
-    has_passed_eligibility,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
 from tests.models import FactoryAnswer
@@ -3134,6 +3136,101 @@ class TestSubmissionHelper:
 
             assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is False
 
+    class TestEligibilityAnswersCurrentlyPass:
+        def test_true_when_no_eligibility_form(self, factories):
+            collection = factories.collection.create()
+            submission = factories.submission.create(collection=collection)
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is True
+
+        def test_false_when_eligibility_question_unanswered(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(collection=collection)
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is False
+
+        def test_false_when_only_some_eligibility_questions_answered(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            answered_question = factories.question.create(form=eligibility_form)
+            factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[FactoryAnswer(answered_question, TextSingleLineAnswer("User submitted data"))],
+            )
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is False
+
+        def test_true_when_all_eligibility_questions_answered_and_no_expression(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            question = factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("User submitted data"))],
+            )
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is True
+
+        def test_false_when_one_of_several_eligibility_expressions_currently_fails(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            user = factories.user.create()
+
+            passing_question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+            passing_expression = IsYes(subject_reference=ExpressionReference.from_question(passing_question))
+            factories.expression.create(
+                question=passing_question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=passing_expression.statement,
+                context=passing_expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            failing_question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+            failing_expression = IsYes(subject_reference=ExpressionReference.from_question(failing_question))
+            factories.expression.create(
+                question=failing_question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=failing_expression.statement,
+                context=failing_expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[
+                    FactoryAnswer(passing_question, YesNoAnswer(True)),
+                    FactoryAnswer(failing_question, YesNoAnswer(False)),
+                ],
+            )
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is False
+
+        def test_true_when_eligibility_expression_currently_passes(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[FactoryAnswer(question, YesNoAnswer(True))],
+            )
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is True
+
 
 class TestFormResetOnAnswerChange:
     def test_same_section_reset_when_completed(self, db_session, factories):
@@ -4217,42 +4314,48 @@ class TestCollectionHelper:
         )
 
 
-class TestHasPassedEligibility:
+class TestEligibilityAnswersCurrentlyPass:
+    """Surface-level tests for the module function's own responsibility - looking up the unclaimed submission
+    and delegating to it. See `TestSubmissionHelper.TestEligibilityAnswersCurrentlyPass` for detailed coverage
+    of the underlying eligibility-passing logic."""
+
     def test_returns_false_when_no_unclaimed_submission_exists(self, factories):
         user = factories.user.create()
         collection = factories.collection.create()
 
-        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is False
+        assert eligibility_answers_currently_pass(user, collection, SubmissionModeEnum.LIVE) is False
 
-    def test_returns_true_when_collection_has_no_eligibility_form(self, factories):
+    def test_delegates_to_submission_helper_property(self, factories):
         user = factories.user.create()
         collection = factories.collection.create()
         factories.submission.create(
             collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
         )
 
-        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is True
+        assert eligibility_answers_currently_pass(user, collection, SubmissionModeEnum.LIVE) is True
 
-    def test_returns_false_when_eligibility_form_not_completed(self, factories):
+
+class TestClaimOrDiscardUnclaimedSubmission:
+    def test_returns_none_when_no_unclaimed_submission_exists(self, factories):
         user = factories.user.create()
-        collection = factories.collection.create()
-        factories.form.create(collection=collection, is_eligibility_section=True)
-        factories.submission.create(
-            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
-        )
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
 
-        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is False
+        assert claim_or_discard_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE, grant_recipient) is None
 
-    def test_returns_true_when_eligibility_form_completed(self, factories):
+    def test_claims_unclaimed_submission_and_marks_eligibility_form_complete_when_grant_recipient_is_none(
+        self, factories
+    ):
         user = factories.user.create()
-        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
         eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
         question = factories.question.create(form=eligibility_form)
-        submission = factories.submission.create(
+        unclaimed = factories.submission.create(
             collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
         )
-        helper = SubmissionHelper(submission)
 
+        helper = SubmissionHelper(unclaimed)
         helper.submit_answer_for_question(
             question.id,
             build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
@@ -4260,9 +4363,36 @@ class TestHasPassedEligibility:
             ),
             user,
         )
-        helper.toggle_form_completed(eligibility_form, user, True)
 
-        assert has_passed_eligibility(user, collection, SubmissionModeEnum.LIVE) is True
+        claim_or_discard_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE, grant_recipient)
+
+        claimed_submission = SubmissionHelper.load(unclaimed.id)
+
+        assert claimed_submission.submission.grant_recipient_id == grant_recipient.id
+        assert claimed_submission.events.form_state(eligibility_form.id).is_completed is True
+
+    def test_discards_unclaimed_submission_when_grant_recipient_already_has_one(self, factories, db_session):
+        user = factories.user.create()
+        grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
+        existing = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        unclaimed = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+        event = factories.submission_event.create(submission=unclaimed)
+        unclaimed_id = unclaimed.id
+        event_id = event.id
+
+        claim_or_discard_unclaimed_submission(user, collection, SubmissionModeEnum.LIVE, grant_recipient)
+
+        # Unclaimed submission is deleted
+        assert db_session.scalars(select(Submission).where(Submission.id == unclaimed_id)).one_or_none() is None
+        # Unclaimed submission's events are deleted
+        assert db_session.scalars(select(SubmissionEvent).where(SubmissionEvent.id == event_id)).one_or_none() is None
+        # The grant recipient's existing submission is untouched
+        assert interfaces.collections.get_submission(submission_id=existing.id).id == existing.id
 
 
 class TestGetOrCreateUnclaimedSubmission:

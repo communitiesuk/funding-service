@@ -37,6 +37,7 @@ class FlashMessageType(StrEnum):
     SUBMISSION_MARKED_AS_REJECTED = "submission_marked_as_rejected"
     COLLECTION_CREATED = "collection_created"
     PUBLIC_SIGN_UP_SUCCESS = "public_sign_up_success"
+    PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public_sign_up_already_has_access"
     ACCESS_TEAM_MEMBER_ADDED = "access_team_member_added"
     ACCESS_TEAM_MEMBER_REMOVED = "access_team_member_removed"
 
