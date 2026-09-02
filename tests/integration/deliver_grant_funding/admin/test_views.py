@@ -13,6 +13,7 @@ from app.common.data.interfaces.organisations import get_organisation_count, get
 from app.common.data.interfaces.user import get_user, get_user_by_email
 from app.common.data.models import Grant, Organisation
 from app.common.data.models_audit import AuditEvent
+from app.common.data.models_user import Invitation
 from app.common.data.types import (
     AuditEventType,
     CollectionStatusEnum,
@@ -6258,6 +6259,70 @@ class TestPlatformAdminGrantView:
         assert ("Collection", str(collection.id)) in audit_model_classes_and_ids
         for grant_recipient in grant_recipients:
             assert ("GrantRecipient", str(grant_recipient.id)) in audit_model_classes_and_ids
+
+
+class TestPlatformAdminInvitationView:
+    def test_details_shows_name(self, authenticated_platform_admin_client, factories, db_session):
+        invitation = factories.invitation.create(
+            email="user@communities.gov.uk",
+            name="My User",
+            organisation=_get_grant_managing_organisation(),
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/invitation/details/?id={invitation.id}")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Name My User" in soup.find("dl").get_text(" ", strip=True)
+
+    def test_create_form_has_name_field(self, authenticated_platform_admin_client):
+        response = authenticated_platform_admin_client.get("/deliver/admin/invitation/new/")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert soup.find("input", attrs={"name": "name"}) is not None
+
+    def test_create_stores_stripped_name(
+        self, authenticated_platform_admin_client, db_session, mock_notification_service_calls
+    ):
+        organisation = _get_grant_managing_organisation()
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/invitation/new/",
+            data={
+                "email": "user@communities.gov.uk",
+                "name": "  My User  ",
+                "organisation": str(organisation.id),
+                "grant": "__None",
+                "permissions": ["MEMBER"],
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        invitation = db_session.scalars(select(Invitation).where(Invitation.email == "user@communities.gov.uk")).one()
+        assert invitation.name == "My User"
+        assert len(mock_notification_service_calls) == 1
+
+    def test_create_without_name_stores_none(
+        self, authenticated_platform_admin_client, db_session, mock_notification_service_calls
+    ):
+        organisation = _get_grant_managing_organisation()
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/invitation/new/",
+            data={
+                "email": "user@communities.gov.uk",
+                "name": "",
+                "organisation": str(organisation.id),
+                "grant": "__None",
+                "permissions": ["MEMBER"],
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        invitation = db_session.scalars(select(Invitation).where(Invitation.email == "user@communities.gov.uk")).one()
+        assert invitation.name is None
 
 
 class TestGrantRecipientChangeStatus:
