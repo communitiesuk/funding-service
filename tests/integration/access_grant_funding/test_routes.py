@@ -9,6 +9,7 @@ from flask_login import login_user
 from sqlalchemy import select
 
 from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
+from app.access_grant_funding.session_models import MatchedOrganisationSession
 from app.common.collections.forms import build_question_form
 from app.common.data.interfaces.collections import add_component_eligibility
 from app.common.data.models import GrantRecipient, Submission
@@ -2128,6 +2129,42 @@ class TestEligibleToApplyPage:
         assert "Your organisation is already applying" in get_h1_text(soup)
 
     @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_asks_for_the_users_name_when_we_hold_none(self, authenticated_no_role_client, factories, db_session):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.eligible_to_apply_user_name",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+        )
+
+        # the organisation they picked is held for the name page to sign them up against
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["matched_organisation"] == {
+                "collection_id": str(collection.id),
+                "organisation_id": str(organisation.id),
+            }
+
+        # nothing is signed up until they have given us a name
+        assert db_session.scalars(select(GrantRecipient)).all() == []
+
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_redirects_to_submission_page(self, authenticated_grant_member_client, factories):
         grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
@@ -2365,6 +2402,251 @@ class TestEligibleToApplyPage:
 
         assert response.status_code == 302
         assert db_session.get(Submission, unclaimed_submission_id) is None
+
+
+class TestEligibleToApplyUserNamePage:
+    @pytest.fixture()
+    def sign_up_collection(self, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        return factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+    @pytest.fixture()
+    def matched_organisation(self, factories):
+        return factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+    def _seed_session(self, client, collection, organisation=None, collection_id=None):
+        with client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+            if organisation is not None:
+                flask_session["matched_organisation"] = MatchedOrganisationSession(
+                    collection_id=collection_id or collection.id, organisation_id=organisation.id
+                ).to_session_dict()
+
+    def _url(self, collection):
+        return url_for(
+            "access_grant_funding.eligible_to_apply_user_name",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    def _eligible_to_apply_url(self, collection):
+        return url_for(
+            "access_grant_funding.eligible_to_apply",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_renders_the_question(
+        self, authenticated_no_role_client, sign_up_collection, matched_organisation, db_session
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        self._seed_session(authenticated_no_role_client, sign_up_collection, matched_organisation)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What is your full name?" in get_h1_text(soup)
+        assert "Create an account" in soup.text
+        assert soup.select_one("a.govuk-back-link")["href"] == self._eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection, db_session):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        self._seed_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == self._eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_with_session_for_another_collection_redirects(
+        self, authenticated_no_role_client, sign_up_collection, matched_organisation, db_session
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        self._seed_session(
+            authenticated_no_role_client, sign_up_collection, matched_organisation, collection_id=uuid.uuid4()
+        )
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == self._eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_skips_the_step_when_we_already_hold_a_name(
+        self, authenticated_no_role_client, sign_up_collection, matched_organisation
+    ):
+        self._seed_session(authenticated_no_role_client, sign_up_collection, matched_organisation)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert authenticated_no_role_client.user.name
+        assert response.status_code == 302
+        assert response.location == self._eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_sets_the_name_and_creates_grant_recipient_and_data_provider_role(
+        self, authenticated_no_role_client, sign_up_collection, matched_organisation, db_session
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        self._seed_session(authenticated_no_role_client, sign_up_collection, matched_organisation)
+
+        response = authenticated_no_role_client.post(
+            self._url(sign_up_collection), data={"user_name": "  Test applicant  ", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collections",
+            organisation_id=matched_organisation.id,
+            grant_id=sign_up_collection.grant.id,
+        )
+
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name == "Test applicant"
+
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == sign_up_collection.grant.id,
+                GrantRecipient.organisation_id == matched_organisation.id,
+            )
+        ).one()
+        assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
+        assert grant_recipient.mode == GrantRecipientModeEnum.LIVE
+
+        user_role = db_session.scalars(
+            select(UserRole).where(
+                UserRole.user_id == authenticated_no_role_client.user.id,
+                UserRole.organisation_id == matched_organisation.id,
+                UserRole.grant_id == sign_up_collection.grant.id,
+            )
+        ).one()
+        assert RoleEnum.DATA_PROVIDER in user_role.permissions
+
+        # We clear the public sign-up session state
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert "signing_up_for_collection_id" not in flask_session
+            assert "matched_organisation" not in flask_session
+
+        # Success banner shows on the forms page
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "You've been added to Test Organisation. You can now apply for Test grant name." in soup.text
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
+        self, authenticated_no_role_client, sign_up_collection, matched_organisation, factories, db_session
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        existing_grant_recipient = factories.grant_recipient.create(
+            grant=sign_up_collection.grant, organisation=matched_organisation
+        )
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=matched_organisation,
+            grant=sign_up_collection.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        self._seed_session(authenticated_no_role_client, sign_up_collection, matched_organisation)
+
+        response = authenticated_no_role_client.post(
+            self._url(sign_up_collection), data={"user_name": "Test applicant", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name == "Test applicant"
+
+        grant_recipients = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == sign_up_collection.grant.id,
+                GrantRecipient.organisation_id == matched_organisation.id,
+            )
+        ).all()
+        assert len(grant_recipients) == 1
+        assert grant_recipients[0].id == existing_grant_recipient.id
+
+        # "Already have access" banner shown on the forms page, not the "added to organisation" one
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "You already have access to this grant" in soup.text
+        assert "Added to organisation" not in soup.text
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_redirects_to_already_applying_when_grant_recipient_exists_and_user_has_no_role(
+        self, authenticated_no_role_client, sign_up_collection, matched_organisation, factories, db_session
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        # A colleague from the same email domain has already applied, but this user has no role on it yet
+        factories.grant_recipient.create(grant=sign_up_collection.grant, organisation=matched_organisation)
+        self._seed_session(authenticated_no_role_client, sign_up_collection, matched_organisation)
+
+        response = authenticated_no_role_client.post(
+            self._url(sign_up_collection), data={"user_name": "Test applicant", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.already_applying",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+            organisation_id=matched_organisation.id,
+        )
+
+        user_role = db_session.scalars(
+            select(UserRole).where(
+                UserRole.user_id == authenticated_no_role_client.user.id,
+                UserRole.organisation_id == matched_organisation.id,
+                UserRole.grant_id == sign_up_collection.grant.id,
+            )
+        ).one_or_none()
+        assert user_role is None
+
+        # name has been persisted and won't be asked for again
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name == "Test applicant"
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_rejects_organisation_not_in_matched_list(
+        self, authenticated_no_role_client, sign_up_collection, factories, db_session, caplog
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        unmatched_organisation = factories.organisation.create(name="Unmatched Organisation", domains=["other-org.com"])
+        self._seed_session(authenticated_no_role_client, sign_up_collection, unmatched_organisation)
+
+        with caplog.at_level(logging.WARNING):
+            response = authenticated_no_role_client.post(
+                self._url(sign_up_collection), data={"user_name": "Test applicant", "submit": "y"}
+            )
+
+        assert response.status_code == 403
+        assert any("submitted an organisation not in their matched list" in r.getMessage() for r in caplog.records)
+
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name is None
+        assert db_session.scalars(select(GrantRecipient)).all() == []
 
 
 class TestAlreadyApplyingPage:

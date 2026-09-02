@@ -4,14 +4,14 @@ from uuid import UUID
 from flask import abort, current_app, flash, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
-from app.access_grant_funding.helpers import (
-    complete_public_sign_up_session_and_redirect,
-    get_sign_up_modes,
-    sign_up_as_grant_recipient,
-)
+from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm, UserNameForm
+from app.access_grant_funding.helpers import get_sign_up_modes, sign_up_with_matched_organisation
 from app.access_grant_funding.routes import access_grant_funding_blueprint
-from app.access_grant_funding.session_models import CreateOrganisationSession, start_public_sign_up
+from app.access_grant_funding.session_models import (
+    CreateOrganisationSession,
+    MatchedOrganisationSession,
+    start_public_sign_up,
+)
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
@@ -36,7 +36,7 @@ from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper, get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
-from app.constants import SESSION_CREATE_ORGANISATION
+from app.constants import SESSION_CREATE_ORGANISATION, SESSION_MATCHED_ORGANISATION
 from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
@@ -419,32 +419,21 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
             return abort(403)
 
-        grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
-
-        # No grant recipient exists, create one and sign the user up as a data provider
-        if grant_recipient is None:
-            grant_recipient = sign_up_as_grant_recipient(
-                user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
-            )
-        # A grant recipient exists, and user does not have access to it
-        elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
+        # We hold no name for this user, so collect one before signing them up
+        if not user.name:
+            session[SESSION_MATCHED_ORGANISATION] = MatchedOrganisationSession(
+                collection_id=collection.id, organisation_id=organisation.id
+            ).to_session_dict()
             return redirect(
                 url_for(
-                    "access_grant_funding.already_applying",
+                    "access_grant_funding.eligible_to_apply_user_name",
                     grant_slug=grant_slug,
                     collection_slug=collection_slug,
-                    organisation_id=organisation.id,
                 )
             )
-        # A grant recipient exists, and user already has access to it
-        else:
-            flash(
-                {"grant_name": grant.name},  # ty: ignore[invalid-argument-type]
-                FlashMessageType.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
-            )
 
-        return complete_public_sign_up_session_and_redirect(
-            user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission
+        return sign_up_with_matched_organisation(
+            user=user, grant=grant, collection=collection, organisation=organisation, modes=modes
         )
 
     return render_template(
@@ -454,6 +443,58 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         organisations=matched_orgs,
         form=form,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligible-to-apply/your-full-name", methods=["GET", "POST"]
+)
+@requires_passed_eligibility
+@auto_commit_after_request
+def eligible_to_apply_user_name(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    eligible_to_apply_url = url_for(
+        "access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug
+    )
+
+    matched_session = MatchedOrganisationSession.from_session(
+        collection_id=collection.id, session_data=session.get(SESSION_MATCHED_ORGANISATION, {})
+    )
+    if matched_session is None:
+        return redirect(eligible_to_apply_url)
+
+    user = interfaces.user.get_current_user()
+
+    # skip this page if we already have a name for the user on the model
+    if user.name:
+        return redirect(eligible_to_apply_url)
+
+    modes = get_sign_up_modes(user)
+    organisation = get_organisation(matched_session.organisation_id)
+
+    matched_orgs = get_matched_organisations(user, user.email_domain, mode=modes.organisation)
+    if not AuthorisationHelper.user_has_matched_organisation(matched_orgs, organisation.id):
+        current_app.logger.warning(
+            "User %(user_id)s submitted an organisation not in their matched list", {"user_id": user.id}
+        )
+        return abort(403)
+
+    form = UserNameForm()
+    if form.validate_on_submit():
+        assert form.user_name.data is not None
+        interfaces.user.set_user_name(user, form.user_name.data)
+        return sign_up_with_matched_organisation(
+            user=user, grant=grant, collection=collection, organisation=organisation, modes=modes
+        )
+
+    return render_template(
+        "access_grant_funding/user_name.html",
+        form=form,
+        grant=grant,
+        collection=collection,
+        back_link_href=eligible_to_apply_url,
     )
 
 

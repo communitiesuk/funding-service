@@ -166,11 +166,11 @@ class TestSetUserName:
     def test_set_user_name(self, db_session, factories) -> None:
         user = factories.user.create(email="test@communites.gov.uk", name=None)
 
-        interfaces.user.set_user_name(user, "Ada Lovelace")
+        interfaces.user.set_user_name(user, "Test user")
 
         db_session.commit()
         db_session.refresh(user)
-        assert user.name == "Ada Lovelace"
+        assert user.name == "Test user"
 
 
 class TestUpsertUserByEmail:

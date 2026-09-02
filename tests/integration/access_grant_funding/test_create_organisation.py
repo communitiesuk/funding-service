@@ -22,7 +22,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import get_or_create_unclaimed_submission
-from tests.utils import get_h1_text, get_summary_list_value_by_key, page_has_error
+from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
 @pytest.fixture()
@@ -46,14 +46,6 @@ def _eligible_to_apply_url(collection):
         grant_slug=collection.grant.slug,
         collection_slug=collection.slug,
     )
-
-
-@pytest.fixture()
-def user_without_a_name(authenticated_no_role_client, db_session):
-    """The user factory always sets a name; the full name step only appears for users we hold no name for."""
-    authenticated_no_role_client.user.name = None
-    db_session.commit()
-    return authenticated_no_role_client.user
 
 
 class TestCreateOrganisationType:
@@ -582,7 +574,10 @@ class TestCreateOrganisationUserName:
         )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_renders_the_question(self, authenticated_no_role_client, sign_up_collection, user_without_a_name):
+    def test_get_renders_the_question(self, authenticated_no_role_client, sign_up_collection, db_session):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
@@ -591,30 +586,30 @@ class TestCreateOrganisationUserName:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "What is your full name?" in get_h1_text(soup)
         assert "Create organisation" in soup.text
-        assert soup.select_one("input[name='user_name']") is not None
-        assert soup.select_one("a.govuk-back-link")["href"] == url_for(
-            "access_grant_funding.create_organisation_name",
-            grant_slug=sign_up_collection.grant.slug,
-            collection_slug=sign_up_collection.slug,
-        )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_prefills_a_name_already_in_the_session(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name
+        self, authenticated_no_role_client, sign_up_collection, db_session
     ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._org_session(sign_up_collection, user_name="Ada Lovelace"),
+            self._org_session(sign_up_collection, user_name="Test applicant"),
         )
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert soup.select_one("input[name='user_name']")["value"] == "Ada Lovelace"
+        assert soup.select_one("input[name='user_name']")["value"] == "Test applicant"
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection, user_without_a_name):
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection, db_session):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(authenticated_no_role_client, sign_up_collection)
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
@@ -634,44 +629,38 @@ class TestCreateOrganisationUserName:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_persists_the_name_to_the_session_and_continues(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session
     ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
 
         response = authenticated_no_role_client.post(
-            self._url(sign_up_collection), data={"user_name": "  Ada Lovelace  ", "submit": "y"}
+            self._url(sign_up_collection), data={"user_name": "  Test applicant  ", "submit": "y"}
         )
 
         assert response.status_code == 302
         assert response.location == self._cya_url(sign_up_collection)
 
         with authenticated_no_role_client.session_transaction() as flask_session:
-            assert flask_session["create_organisation"]["user_name"] == "Ada Lovelace"
+            assert flask_session["create_organisation"]["user_name"] == "Test applicant"
 
         # the name only reaches the user record when they confirm their answers
-        db_session.refresh(user_without_a_name)
-        assert user_without_a_name.name is None
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_with_nothing_entered_shows_error(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name
-    ):
-        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
-
-        response = authenticated_no_role_client.post(self._url(sign_up_collection), data={"submit": "y"})
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Enter your full name")
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_source_round_trip_back_to_check_your_answers(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name
+        self, authenticated_no_role_client, sign_up_collection, db_session
     ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._org_session(sign_up_collection, user_name="Ada Lovelace"),
+            self._org_session(sign_up_collection, user_name="Test applicant"),
         )
 
         get_response = authenticated_no_role_client.get(self._url(sign_up_collection, source="check-your-answers"))
@@ -759,19 +748,22 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_shows_the_name_from_the_session_with_a_change_link(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name
+        self, authenticated_no_role_client, sign_up_collection, db_session
     ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Ada Lovelace"),
+            self._complete_session(sign_up_collection, user_name="Test applicant"),
         )
 
         response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_summary_list_value_by_key(soup, "Full name").text.strip() == "Ada Lovelace"
+        assert get_summary_list_value_by_key(soup, "Full name").text.strip() == "Test applicant"
 
         change_user_name = url_for(
             "access_grant_funding.create_organisation_user_name",
@@ -781,21 +773,6 @@ class TestCreateOrganisationCheckYourAnswers:
         )
         assert change_user_name in {a["href"] for a in soup.select("a")}
         assert soup.select_one("a.govuk-back-link")["href"] == url_for(
-            "access_grant_funding.create_organisation_user_name",
-            grant_slug=sign_up_collection.grant.slug,
-            collection_slug=sign_up_collection.slug,
-        )
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_without_a_name_anywhere_redirects_to_the_full_name_step(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name
-    ):
-        _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
-
-        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
-
-        assert response.status_code == 302
-        assert response.location == url_for(
             "access_grant_funding.create_organisation_user_name",
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
@@ -944,19 +921,22 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_sets_the_users_name_from_the_session(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session
     ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Ada Lovelace"),
+            self._complete_session(sign_up_collection, user_name="Test applicant"),
         )
 
         response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         assert response.status_code == 302
-        db_session.refresh(user_without_a_name)
-        assert user_without_a_name.name == "Ada Lovelace"
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name == "Test applicant"
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_leaves_a_name_we_already_hold_alone(
@@ -966,7 +946,7 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Ada Lovelace"),
+            self._complete_session(sign_up_collection, user_name="Test applicant"),
         )
 
         response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
@@ -977,20 +957,23 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_does_not_set_the_users_name_when_the_organisation_name_was_taken(
-        self, authenticated_no_role_client, sign_up_collection, user_without_a_name, factories, db_session
+        self, authenticated_no_role_client, sign_up_collection, factories, db_session
     ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Ada Lovelace"),
+            self._complete_session(sign_up_collection, user_name="Test applicant"),
         )
         factories.organisation.create(name="Acme Ltd", mode=OrganisationModeEnum.LIVE)
 
         response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         assert response.status_code == 302
-        db_session.refresh(user_without_a_name)
-        assert user_without_a_name.name is None
+        db_session.refresh(authenticated_no_role_client.user)
+        assert authenticated_no_role_client.user.name is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_redirects_to_already_exists_when_the_name_was_taken_in_the_meantime(

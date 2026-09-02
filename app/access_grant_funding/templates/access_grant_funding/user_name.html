@@ -15,7 +15,7 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% set label_html %}
-        <span class="govuk-caption-l">Create organisation</span>
+        <span class="govuk-caption-l">{{ "Create organisation" if is_setting_up_organisation else "Create an account" }}</span>
         What is your full name?
       {% endset %}
       <form method="post" novalidate>
