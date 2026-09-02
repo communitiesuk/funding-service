@@ -3,16 +3,11 @@
 
 {% set page_title = "Your organisation is already applying" %}
 
-{% block head %}
-  {{ super() }}
-  <meta name="robots" content="noindex, nofollow" />
-{% endblock head %}
-
 {% block beforeContent %}
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug),
+      "href": url_for("access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug),
     })
   }}
 {% endblock %}
