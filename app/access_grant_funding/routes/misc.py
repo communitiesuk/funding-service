@@ -254,7 +254,7 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
 
 
 @access_grant_funding_blueprint.route(
-    "/grant/<string:grant_slug>/<string:collection_slug>/sign-up-router", methods=["GET"]
+    "/grant/<string:grant_slug>/<string:collection_slug>/public-sign-up", methods=["GET"]
 )
 @is_signing_up
 def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
