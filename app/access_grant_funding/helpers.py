@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 from flask import flash, redirect, url_for
 from flask.typing import ResponseReturnValue
+from free_email_domains import whitelist as SHARED_EMAIL_DOMAINS
 
 from app.access_grant_funding.session_models import clear_public_sign_up_session
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -39,6 +40,13 @@ def get_sign_up_modes(user: User) -> SignUpModes:
         grant_recipient=GrantRecipientModeEnum.LIVE,
         submission=SubmissionModeEnum.LIVE,
     )
+
+
+def can_share_email_domain(user: User) -> bool:
+    """Exclude commonly used and shared emails to avoid accidentally sharing more widely
+    than the user would expect. Intended to avoid mistakes but will need monitoring.
+    """
+    return user.email_domain.casefold() not in SHARED_EMAIL_DOMAINS
 
 
 def sign_up_as_grant_recipient(

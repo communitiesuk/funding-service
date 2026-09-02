@@ -359,7 +359,7 @@ class TestCreateOrganisationName:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.create_organisation_user_name",
+            "access_grant_funding.create_organisation_allow_team_members",
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
         )
@@ -460,7 +460,7 @@ class TestCreateOrganisationName:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.create_organisation_user_name",
+            "access_grant_funding.create_organisation_allow_team_members",
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
         )
@@ -674,6 +674,133 @@ class TestCreateOrganisationAlreadyExists:
         )
 
 
+class TestCreateOrganisationAllowTeamMembers:
+    def _org_session(self, collection, **kwargs) -> CreateOrganisationSession:
+        return CreateOrganisationSession(
+            collection_id=collection.id,
+            organisation_type=SignUpOrganisationType.OTHER,
+            name="Acme Ltd",
+            external_id="000111222",
+            **kwargs,
+        )
+
+    def _url(self, collection, **kwargs) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+            **kwargs,
+        )
+
+    def _name_url(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_name",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    def _user_name_url(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_user_name",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    def _cya_url(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_check_your_answers",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_renders_the_question(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Do you want to allow team members to apply as Acme Ltd in the future?" in get_h1_text(soup)
+        assert "Create organisation" in soup.text
+        assert (
+            "Anyone with a @no-org.com email will be able to apply for future grants on behalf of Acme Ltd" in soup.text
+        )
+
+        assert soup.select_one("a.govuk-back-link")["href"] == self._name_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@gmail.com")
+    def test_get_with_a_shared_email_domain_skips_to_the_full_name_step(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == self._user_name_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_a_name_in_the_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            CreateOrganisationSession(
+                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
+            ),
+        )
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_stores_the_answer_and_continues_to_the_full_name_step(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
+
+        response = authenticated_no_role_client.post(
+            self._url(sign_up_collection), data={"allow_team_members": True, "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == self._user_name_url(sign_up_collection)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["allow_team_members"] is True
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_source_round_trip_back_to_check_your_answers(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._org_session(sign_up_collection, allow_team_members=True),
+        )
+
+        get_response = authenticated_no_role_client.get(self._url(sign_up_collection, source="check-your-answers"))
+        soup = BeautifulSoup(get_response.data, "html.parser")
+        assert soup.select_one("a.govuk-back-link")["href"] == self._cya_url(sign_up_collection)
+        assert soup.select_one("input[name=allow_team_members][checked]")["value"] == "True"
+
+        post_response = authenticated_no_role_client.post(
+            self._url(sign_up_collection, source="check-your-answers"),
+            data={"allow_team_members": "False", "submit": "y"},
+        )
+        assert post_response.status_code == 302
+        assert post_response.location == self._cya_url(sign_up_collection)
+
+
 class TestCreateOrganisationUserName:
     def _org_session(self, collection, **kwargs) -> CreateOrganisationSession:
         return CreateOrganisationSession(
@@ -712,6 +839,11 @@ class TestCreateOrganisationUserName:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "What is your full name?" in get_h1_text(soup)
         assert "Create organisation" in soup.text
+        assert soup.select_one("a.govuk-back-link")["href"] == url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_prefills_a_name_already_in_the_session(
@@ -812,6 +944,7 @@ class TestCreateOrganisationCheckYourAnswers:
                 organisation_type=SignUpOrganisationType.CHARITY,
                 name="Acme Ltd",
                 external_id="000111222",
+                allow_team_members=False,
             ),
         )
 
@@ -865,9 +998,9 @@ class TestCreateOrganisationCheckYourAnswers:
             source="check-your-answers",
         )
         assert change_user_name not in {a["href"] for a in soup.select("a")}
-        # the step was never shown, so back goes to the one before it
+        # the full-name step was never shown, so back goes to the allow-team-members step it did show
         assert soup.select_one("a.govuk-back-link")["href"] == url_for(
-            "access_grant_funding.create_organisation_name",
+            "access_grant_funding.create_organisation_allow_team_members",
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
         )
@@ -925,12 +1058,13 @@ class TestCreateOrganisationCheckYourAnswers:
         assert response.status_code == 302
         assert response.location == _eligible_to_apply_url(sign_up_collection)
 
-    def _complete_session(self, collection, **kwargs) -> CreateOrganisationSession:
+    def _complete_session(self, collection, *, allow_team_members=False, **kwargs) -> CreateOrganisationSession:
         return CreateOrganisationSession(
             collection_id=collection.id,
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
+            allow_team_members=allow_team_members,
             **kwargs,
         )
 
@@ -1147,3 +1281,94 @@ class TestCreateOrganisationCheckYourAnswers:
 
         assert response.status_code == 302
         assert response.location == _eligible_to_apply_url(sign_up_collection)
+
+    def _allow_team_members_change_href(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+            source="check-your-answers",
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize("allow_team_members, expected_value", [(True, "Yes"), (False, "No")])
+    def test_get_renders_the_allow_team_members_row_and_change_link(
+        self, authenticated_no_role_client, sign_up_collection, allow_team_members, expected_value
+    ):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._complete_session(sign_up_collection, allow_team_members=allow_team_members),
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (
+            get_summary_list_value_by_key(soup, "Allow team members to apply as Acme Ltd").text.strip()
+            == expected_value
+        )
+        assert self._allow_team_members_change_href(sign_up_collection) in {a["href"] for a in soup.select("a")}
+
+    @pytest.mark.authenticate_as("applicant@gmail.com")
+    def test_get_omits_the_allow_team_members_row_for_a_shared_email_domain(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._complete_session(sign_up_collection, allow_team_members=None),
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Allow team members to apply as Acme Ltd") is None
+        assert self._allow_team_members_change_href(sign_up_collection) not in {a["href"] for a in soup.select("a")}
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_allow_team_members_unanswered_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._complete_session(sign_up_collection, allow_team_members=None),
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _eligible_to_apply_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_with_allow_team_members_writes_the_email_domain_to_the_organisation(
+        self, authenticated_no_role_client, sign_up_collection, db_session
+    ):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._complete_session(sign_up_collection, allow_team_members=True),
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        assert organisation.domains == ["no-org.com"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_without_allow_team_members_leaves_the_organisation_domains_empty(
+        self, authenticated_no_role_client, sign_up_collection, db_session
+    ):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._complete_session(sign_up_collection, allow_team_members=False),
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        assert organisation.domains == []
