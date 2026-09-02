@@ -1688,6 +1688,16 @@ class TestEligibleToApplyPage:
         ).one_or_none()
         assert user_role is None
 
+        # The signing_up_for_collection_id session exists because flag is only cleared on successful sign-up
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["signing_up_for_collection_id"] == collection.id
+
+        # already-applying page actually renders when followed
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "Your organisation is already applying" in get_h1_text(soup)
+
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_redirects_to_submission_page(self, authenticated_grant_member_client, factories):
         grant = authenticated_grant_member_client.grant
