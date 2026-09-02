@@ -301,6 +301,13 @@ class TestCreateOrganisation:
         assert organisation.mode == OrganisationModeEnum.LIVE
         assert organisation.external_id == "FS-000111222"
 
+    def test_stores_the_given_domains(self, db_session):
+        organisation = create_organisation(
+            name="Acme Ltd", type_=OrganisationType.OTHER, typed_id="000111222", domains=["example.com"]
+        )
+
+        assert organisation.domains == ["example.com"]
+
     def test_a_name_taken_in_the_same_mode_raises_duplicate_value_error(self, factories, db_session):
         factories.organisation.create(name="Acme Ltd")
 

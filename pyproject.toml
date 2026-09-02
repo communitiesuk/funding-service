@@ -40,6 +40,7 @@ dependencies = [
     "types-boto3[s3]==1.43.63",
     "alembic==1.18.5",
     "charset-normalizer==3.4.9",
+    "free-email-domains==1.0.2",
 ]
 
 [dependency-groups]

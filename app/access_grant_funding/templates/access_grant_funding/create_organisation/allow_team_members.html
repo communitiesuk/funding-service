@@ -1,0 +1,36 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Do you want to allow team members to apply as " ~ organisation_name ~ " in the future?" %}
+
+{% block head %}
+  {{ super() }}
+{% endblock head %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Create organisation</span>
+      <h1 class="govuk-heading-l">Do you want to allow team members to apply as {{ organisation_name }} in the future?</h1>
+      <p class="govuk-body">Anyone with a @{{ email_domain }} email will be able to apply for future grants on behalf of {{ organisation_name }}</p>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.allow_team_members(params={
+            "fieldset": {
+              "legend": {
+                "classes": "govuk-visually-hidden",
+              },
+            },
+          })
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}
