@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import inspect
+from sqlalchemy.orm import RelationshipDirection
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
@@ -129,6 +130,30 @@ def _get_model_changes(model: SQLAlchemyBaseModel) -> dict[str, dict[str, Any]]:
 
             if old_serialized != new_serialized:
                 changes[column.key] = {
+                    "old": old_serialized,
+                    "new": new_serialized,
+                }
+
+    # Admin edit forms set relationship attributes, and the FK columns above only sync with them at flush time —
+    # after this snapshot is taken — so record relationship changes under their FK column's key too.
+    for relationship in insp.mapper.relationships:
+        if relationship.direction is not RelationshipDirection.MANYTOONE:
+            continue
+
+        fk_column_key = insp.mapper.get_property_by_column(relationship.local_remote_pairs[0][0]).key
+        if fk_column_key in changes:
+            continue
+
+        history = insp.attrs[relationship.key].history
+        if history.has_changes():
+            old_entity = history.deleted[0] if history.deleted else None
+            new_entity = history.added[0] if history.added else None
+
+            old_serialized = _serialize_value(old_entity.id if old_entity else None)
+            new_serialized = _serialize_value(new_entity.id if new_entity else None)
+
+            if old_serialized != new_serialized:
+                changes[fk_column_key] = {
                     "old": old_serialized,
                     "new": new_serialized,
                 }
