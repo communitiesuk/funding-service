@@ -465,6 +465,40 @@ class TestClaimMagicLinkView:
 
         assert "Magic link claim page submitted: auto_submit=False" in caplog.messages
 
+    def test_post_claims_invitations_for_new_user(self, anonymous_client, factories, db_session):
+        grant_recipient = factories.grant_recipient.create()
+        invitation = factories.invitation.create(
+            email="user@hastings.gov.uk",
+            name="My User",
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        magic_link = interfaces.magic_link.create_magic_link(
+            email="user@hastings.gov.uk", user=None, redirect_to_path=url_for("access_grant_funding.index")
+        )
+
+        response = anonymous_client.post(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
+            json={"submit": "yes"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        user = db_session.scalar(select(User).where(User.email == "user@hastings.gov.uk"))
+        assert user.name == "My User"
+        assert invitation.is_usable is False
+        assert invitation.user == user
+        assert AuthorisationHelper.is_access_grant_data_provider(grant_recipient, user)
+
+        response = anonymous_client.get(response.location)
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collections",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+        )
+
     def test_post_with_session_flag_logs_auto_submit_true(self, anonymous_client, factories, caplog):
         magic_link = factories.magic_link.create()
 

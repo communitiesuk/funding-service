@@ -183,6 +183,14 @@ class TestUpsertUserByEmail:
 
         assert db_session.scalar(select(func.count()).select_from(User)) == 1
 
+    def test_get_existing_user_without_name_keeps_existing_name(self, db_session, factories):
+        factories.user.create(email="test@communities.gov.uk", name="My Name", azure_ad_subject_id=None)
+
+        user = interfaces.user.upsert_user_by_email(email_address="test@communities.gov.uk")
+        assert user.name == "My Name"
+
+        assert db_session.scalar(select(func.count()).select_from(User)) == 1
+
 
 class TestUpsertUserByAzureAdSubjectId:
     def test_create_new_user(self, db_session):
@@ -611,6 +619,71 @@ class TestInvitations:
         invitations = interfaces.user.get_usable_invitations_for_grant_recipient(grant_recipient)
 
         assert [invitation.id for invitation in invitations] == [organisation_wide.id, for_grant.id]
+
+    def test_claim_invitation_names_a_user_without_a_name(self, db_session, factories):
+        user = factories.user.create(email="new_user@email.com", name=None)
+        invitation = factories.invitation.create(
+            email="new_user@email.com",
+            name="Invited Person",
+            organisation=factories.organisation.create(),
+            permissions=[],
+        )
+
+        interfaces.user.claim_invitation(invitation, user)
+
+        assert user.name == "Invited Person"
+
+    def test_claim_invitation_keeps_an_existing_user_name(self, db_session, factories):
+        user = factories.user.create(email="new_user@email.com", name="Existing Name")
+        invitation = factories.invitation.create(
+            email="new_user@email.com",
+            name="Invited Person",
+            organisation=factories.organisation.create(),
+            permissions=[],
+        )
+
+        interfaces.user.claim_invitation(invitation, user)
+
+        assert user.name == "Existing Name"
+
+    def test_create_user_and_claim_invitations_by_email(self, db_session, factories) -> None:
+        grant_recipient = factories.grant_recipient.create()
+        invitation = factories.invitation.create(
+            email="test@example.com",
+            name="Invited Person",
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.invitation.create(
+            email="test@example.com",
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+            expires_at_utc=datetime.now() - timedelta(days=1),
+        )
+        factories.invitation.create(
+            email="someone-else@example.com",
+            organisation=grant_recipient.organisation,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        user = interfaces.user.create_user_and_claim_invitations(email_address="test@example.com")
+
+        assert user.email == "test@example.com"
+        assert user.azure_ad_subject_id is None
+        assert user.name == "Invited Person"
+        assert invitation.is_usable is False
+        assert invitation.user == user
+        usable_invitations = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert [invite.email for invite in usable_invitations] == ["someone-else@example.com"]
+        user_role = interfaces.user.get_user_role(user, grant_recipient.organisation.id, grant_recipient.grant.id)
+        assert user_role is not None
+        assert RoleEnum.DATA_PROVIDER in user_role.permissions
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["action"] == "permissions_added"
+        assert audit_event.data["invitation_id"] == str(invitation.id)
+        assert audit_event.data["grant_recipient_id"] == str(grant_recipient.id)
 
     def test_create_user_and_claim_invitations(self, db_session, factories) -> None:
         grants = factories.grant.create_batch(3)

@@ -169,7 +169,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     if form.validate_on_submit():
         user = magic_link.user
         if not user:
-            user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
+            user = interfaces.user.create_user_and_claim_invitations(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
             return abort(400)
