@@ -222,7 +222,7 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
 
         test_org = _OrganisationFactory.build(
             external_id=obj.external_id,
-            name=f"{obj.name} (test)",
+            name=Organisation.make_test_name(obj.name),
             status=obj.status,
             type=obj.type,
             active_date=obj.active_date,

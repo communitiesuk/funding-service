@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from decimal import Decimal
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from zoneinfo import ZoneInfo
 
 from flask import current_app, url_for
@@ -232,6 +232,8 @@ class Grant(BaseModel):
 class Organisation(BaseModel):
     __tablename__ = "organisation"
 
+    TEST_NAME_SUFFIX: ClassVar[str] = " (test)"
+
     # The consistent reference used to identify this orgaisation; changing this after creation is a risky endeavour
     # as the external ID is used to associate eg uploaded reference data. Consider this immutable once set.
     external_id: Mapped[str]
@@ -286,6 +288,15 @@ class Organisation(BaseModel):
         """
         prefix = self.type.external_id_prefix
         return f"{prefix}{self.typed_id}" if prefix else self.typed_id
+
+    @staticmethod
+    def make_test_name(name: str) -> str:
+        """Normalise test name strategy for mirroring live orgs and for user
+        entered names during org setup
+        """
+        if name.casefold().endswith(Organisation.TEST_NAME_SUFFIX.casefold()):
+            return name
+        return f"{name}{Organisation.TEST_NAME_SUFFIX}"
 
     roles: Mapped[list[UserRole]] = relationship(
         "UserRole", back_populates="organisation", cascade="all, delete-orphan"

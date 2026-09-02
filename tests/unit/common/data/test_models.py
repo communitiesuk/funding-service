@@ -6,7 +6,7 @@ import pytest
 
 from app import CollectionStatusEnum
 from app.common.collections.types import DecimalAnswer, IntegerAnswer, TextSingleLineAnswer
-from app.common.data.models import ComponentReference, get_ordered_nested_components
+from app.common.data.models import ComponentReference, Organisation, get_ordered_nested_components
 from app.common.data.types import (
     CollectionType,
     ConditionsOperator,
@@ -731,3 +731,18 @@ class TestCollectionModel:
 
         with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset({date(2026, 6, 22)})):
             assert collection.date_to_send_reminder_emails == date(2026, 6, 18)
+
+
+class TestOrganisationModel:
+    @pytest.mark.parametrize(
+        "name, expected",
+        [
+            ("Org name", "Org name (test)"),
+            ("Org name (test)", "Org name (test)"),
+            # the `name` column is CITEXT, so a differently-cased suffix is still the same organisation
+            ("Org name (TEST)", "Org name (TEST)"),
+            ("Org name (test) ltd", "Org name (test) ltd (test)"),
+        ],
+    )
+    def test_make_test_name(self, name, expected):
+        assert Organisation.make_test_name(name) == expected
