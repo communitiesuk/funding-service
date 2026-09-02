@@ -85,11 +85,27 @@ class UserPermissionsRemoved(UserPermissionsEvent):
     action: Literal["permissions_removed"] = "permissions_removed"
 
 
+class UserInvited(AuditEvent):
+    """Tracked when `user_id` invites someone to take on `permissions`; the invitation itself holds their email.
+
+    The UserPermissionsAdded event tracked when they claim the invitation records the same `invitation_id`.
+    `organisation_id`, `grant_id` and `grant_recipient_id` follow the same rules as UserPermissionsEvent.
+    """
+
+    event_type: AuditEventType = AuditEventType.USER_MANAGEMENT
+    action: Literal["user_invited"] = "user_invited"
+    invitation_id: UUID
+    organisation_id: UUID | None
+    grant_id: UUID | None
+    grant_recipient_id: UUID | None
+    permissions: list[RoleEnum]
+
+
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
     AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
     AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
     AuditEventType.USER_MANAGEMENT: TypeAdapter(
-        Annotated[UserPermissionsAdded | UserPermissionsRemoved, Field(discriminator="action")]
+        Annotated[UserPermissionsAdded | UserPermissionsRemoved | UserInvited, Field(discriminator="action")]
     ),
 }
 

@@ -367,8 +367,13 @@ class TestInvitations:
     @pytest.mark.freeze_time("2023-10-01 12:00:00")
     def test_create_invitation(self, db_session, factories):
         organisation = factories.organisation.create()
+        inviting_user = factories.user.create()
         invitation = interfaces.user.create_invitation(
-            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER], name="Test User"
+            email="test@email.com",
+            organisation=organisation,
+            permissions=[RoleEnum.MEMBER],
+            name="Test User",
+            by_user=inviting_user,
         )
         invite_from_db = db_session.get(Invitation, invitation.id)
         assert invite_from_db is not None
@@ -381,12 +386,25 @@ class TestInvitations:
         assert invite_from_db.organisation_id == organisation.id
         assert invite_from_db.is_usable is True
 
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+        assert audit_event.user_id == inviting_user.id
+        assert audit_event.data["action"] == "user_invited"
+        assert audit_event.data["invitation_id"] == str(invitation.id)
+        assert audit_event.data["organisation_id"] == str(organisation.id)
+        assert audit_event.data["grant_id"] is None
+        assert audit_event.data["grant_recipient_id"] is None
+        assert audit_event.data["permissions"] == [RoleEnum.MEMBER.value]
+
     @pytest.mark.freeze_time("2023-10-01 12:00:00")
     def test_create_invitation_requires_org_if_grant_set(self, db_session, factories) -> None:
         grant = factories.grant.create()
         with pytest.raises(ValueError) as e:
             interfaces.user.create_invitation(
-                email="test@communities.gov.uk", grant=grant, permissions=[RoleEnum.MEMBER]
+                email="test@communities.gov.uk",
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
+                by_user=factories.user.build(),
             )
         assert "If specifying grant, must also specify organisation" in str(e.value)
 
@@ -399,7 +417,11 @@ class TestInvitations:
         invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
         assert len(invite_from_db) == 1
         new_invitation = interfaces.user.create_invitation(
-            email="test@communities.gov.uk", organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            email="test@communities.gov.uk",
+            organisation=grant.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER],
+            by_user=factories.user.create(),
         )
         usable_invite_from_db = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
         assert len(usable_invite_from_db) == 1
@@ -661,14 +683,22 @@ class TestInvitations:
 
     def test_grant_member_add_role_or_create_invitation_creates_invitation(self, db_session, factories) -> None:
         grant = factories.grant.create()
+        inviting_user = factories.user.create()
         interfaces.user.add_grant_member_role_or_create_invitation(
-            email_address="test@communities.gov.uk", grant=grant, by_user=factories.user.build()
+            email_address="test@communities.gov.uk", grant=grant, by_user=inviting_user
         )
         assert db_session.scalar(select(func.count()).select_from(Invitation)) == 1
         assert db_session.scalar(select(func.count()).select_from(UserRole)) == 0
-        assert db_session.scalar(select(func.count()).select_from(User)) == 0
+        assert db_session.scalar(select(User).where(User.email == "test@communities.gov.uk")) is None
         invite_from_db = db_session.scalar(select(Invitation).where(Invitation.is_usable.is_(True)))
         assert invite_from_db.grant_id == grant.id and RoleEnum.MEMBER in invite_from_db.permissions
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.user_id == inviting_user.id
+        assert audit_event.data["action"] == "user_invited"
+        assert audit_event.data["invitation_id"] == str(invite_from_db.id)
+        assert audit_event.data["grant_id"] == str(grant.id)
+        assert audit_event.data["grant_recipient_id"] is None
 
     def test_upsert_platform_admin_user_and_set_platform_admin_role_claims_invitations(
         self, db_session, factories

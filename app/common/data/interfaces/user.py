@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
-from app.common.audit import UserPermissionsAdded, UserPermissionsRemoved
+from app.common.audit import UserInvited, UserPermissionsAdded, UserPermissionsRemoved
 from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none, get_grant_recipients
@@ -222,6 +222,14 @@ def _upsert_user_role(
     return user_role
 
 
+def _get_access_grant_recipient_id(organisation: Organisation | None, grant: Grant | None) -> uuid.UUID | None:
+    """The GrantRecipient that an Access grant funding role or invitation on `grant` for `organisation` relates to."""
+    if grant is None or organisation is None or organisation.can_manage_grants:
+        return None
+    grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
+    return grant_recipient.id if grant_recipient else None
+
+
 def _track_user_permissions_change(
     event_class: type[UserPermissionsAdded] | type[UserPermissionsRemoved],
     user: User,
@@ -232,18 +240,13 @@ def _track_user_permissions_change(
     by_user: User,
     invitation: Invitation | None = None,
 ) -> None:
-    grant_recipient = (
-        get_grant_recipient_or_none(grant.id, organisation.id)
-        if grant is not None and organisation is not None and not organisation.can_manage_grants
-        else None
-    )
     track_audit_event(
         event_class(
             user_id=by_user.id,
             target_user_id=user.id,
             organisation_id=organisation.id if organisation else None,
             grant_id=grant.id if grant else None,
-            grant_recipient_id=grant_recipient.id if grant_recipient else None,
+            grant_recipient_id=_get_access_grant_recipient_id(organisation, grant),
             invitation_id=invitation.id if invitation else None,
             permissions=permissions_changed,
             resulting_permissions=resulting_permissions,
@@ -351,7 +354,10 @@ def create_invitation(
     organisation: Organisation | None = None,
     *,
     name: str | None = None,
+    by_user: User,
 ) -> Invitation:
+    """Invite `email` to take on `permissions`; `by_user` is the user sending the invitation, recorded on the audit
+    event tracked for it."""
     if organisation is None and grant is not None:
         raise ValueError("If specifying grant, must also specify organisation")
 
@@ -381,6 +387,19 @@ def create_invitation(
         expires_at_utc=func.now() + datetime.timedelta(days=7),
     )
     db.session.add(invitation)
+    db.session.flush()
+
+    track_audit_event(
+        UserInvited(
+            user_id=by_user.id,
+            invitation_id=invitation.id,
+            organisation_id=organisation.id if organisation else None,
+            grant_id=grant.id if grant else None,
+            grant_recipient_id=_get_access_grant_recipient_id(organisation, grant),
+            permissions=list(invitation.permissions),
+        ),
+        by_user,
+    )
     return invitation
 
 
@@ -492,7 +511,11 @@ def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant,
 
     else:
         create_invitation(
-            email=email_address, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+            email=email_address,
+            organisation=grant.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER],
+            by_user=by_user,
         )
 
 
