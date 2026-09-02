@@ -1710,7 +1710,7 @@ class TestEligibleToApplyPage:
     def test_post_creates_grant_recipient_and_grants_data_provider_role(
         self, authenticated_no_role_client, factories, db_session
     ):
-        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
@@ -1760,7 +1760,8 @@ class TestEligibleToApplyPage:
         assert followed_response.status_code == 200
         soup = BeautifulSoup(followed_response.data, "html.parser")
         assert "Success" in soup.text
-        assert "Sign in complete. You can start your application." in soup.text
+        assert "Added to organisation" in soup.text
+        assert "You've been added to Test Organisation. You can now apply for Test grant name." in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_rejects_organisation_not_in_matched_list(
@@ -1817,7 +1818,7 @@ class TestEligibleToApplyPage:
     def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
         self, authenticated_no_role_client, factories, db_session
     ):
-        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
@@ -1852,6 +1853,15 @@ class TestEligibleToApplyPage:
         # We delete the signing_up_for_collection_id session flag
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+
+        # "Already have access" banner shown on the forms page, not the "added to organisation" one
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "Important" in soup.text
+        assert "You already have access to this grant" in soup.text
+        assert "In future you can sign in to access this grant directly using" in soup.text
+        assert "Added to organisation" not in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_redirects_to_already_applying_when_grant_recipient_exists_and_user_has_no_role(
@@ -1988,9 +1998,12 @@ class TestEligibleToApplyPage:
         ).one()
         assert RoleEnum.DATA_PROVIDER in user_role.permissions
 
-        # Submission page now loads successfully
+        # Submission page now loads successfully, with the "added to organisation" banner shown
         followed_response = authenticated_grant_member_client.get(response.location, follow_redirects=True)
         assert followed_response.status_code == 200
+        soup = BeautifulSoup(followed_response.data, "html.parser")
+        assert "Added to organisation" in soup.text
+        assert f"You've been added to {organisation.name}. You can now apply for {grant.name}." in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_without_access_to_existing_grant_recipient_redirects_to_already_applying(
