@@ -1,7 +1,11 @@
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.access_grant_funding.forms import CreateOrganisationNameForm, CreateOrganisationTypeForm
+from app.access_grant_funding.forms import (
+    CreateOrganisationNameForm,
+    CreateOrganisationTypeForm,
+    CreateOrganisationUserNameForm,
+)
 from app.access_grant_funding.helpers import (
     complete_public_sign_up_session_and_redirect,
     get_sign_up_modes,
@@ -116,7 +120,15 @@ def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseR
                     source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
                 )
             )
-        return redirect(check_your_answers_url)
+        if from_check_your_answers:
+            return redirect(check_your_answers_url)
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_user_name",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
 
     back_link_href = (
         check_your_answers_url
@@ -179,6 +191,59 @@ def create_organisation_already_exists(grant_slug: str, collection_slug: str) ->
 
 
 @access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/your-full-name", methods=["GET", "POST"]
+)
+@requires_passed_eligibility
+def create_organisation_user_name(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    org_session = CreateOrganisationSession.from_session(
+        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
+    )
+    if org_session is None:
+        return redirect(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
+        )
+
+    check_your_answers_url = url_for(
+        "access_grant_funding.create_organisation_check_your_answers",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+    )
+
+    # we already hold a name for this user, so there is nothing to ask them and this step drops out of the journey
+    if interfaces.user.get_current_user().name:
+        return redirect(check_your_answers_url)
+
+    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
+
+    form = CreateOrganisationUserNameForm(obj=org_session)
+    if form.validate_on_submit():
+        assert form.user_name.data is not None
+        org_session.user_name = form.user_name.data
+        session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+        return redirect(check_your_answers_url)
+
+    back_link_href = (
+        check_your_answers_url
+        if from_check_your_answers
+        else url_for(
+            "access_grant_funding.create_organisation_name",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+        )
+    )
+    return render_template(
+        "access_grant_funding/create_organisation/user_name.html",
+        form=form,
+        grant=grant,
+        collection=collection,
+        back_link_href=back_link_href,
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/check-your-answers",
     methods=["GET", "POST"],
 )
@@ -198,9 +263,20 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
         )
 
+    user = interfaces.user.get_current_user()
+    user_name = user.name or org_session.user_name
+    if not user_name:
+        # the name step is still outstanding rather than the session being stale, so pick the journey back up there
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_user_name",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+
     form = GenericSubmitForm()
     if form.validate_on_submit():
-        user = interfaces.user.get_current_user()
         modes = get_sign_up_modes(user)
         try:
             organisation = create_organisation(
@@ -222,6 +298,10 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
                 )
             )
 
+        # only set once the organisation is safely created; a duplicate name rolls this transaction back
+        if not user.name:
+            interfaces.user.set_user_name(user, user_name)
+
         grant_recipient = sign_up_as_grant_recipient(
             user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
         )
@@ -235,8 +315,21 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
         grant=grant,
         collection=collection,
         org_session=org_session,
+        user_name=user_name,
+        # a name we already hold isn't ours to change here, so that row gets no change link and the step, having never
+        # been shown, is not where "back" belongs either
+        user_name_change_href=None
+        if user.name
+        else url_for(
+            "access_grant_funding.create_organisation_user_name",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+            source=CHECK_YOUR_ANSWERS,
+        ),
         back_link_href=url_for(
-            "access_grant_funding.create_organisation_name",
+            "access_grant_funding.create_organisation_name"
+            if user.name
+            else "access_grant_funding.create_organisation_user_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
         ),

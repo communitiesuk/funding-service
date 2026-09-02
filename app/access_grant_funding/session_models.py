@@ -33,6 +33,8 @@ class CreateOrganisationSession(BaseModel):
     organisation_type: SignUpOrganisationType | None = None
     name: str = ""
     external_id: str = ""
+    # only collected for users we don't already hold a name for, so it stays absent from the session for everyone else
+    user_name: str | None = None
 
     def to_session_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json", exclude_none=True)

@@ -186,6 +186,7 @@ routes_with_expected_requires_passed_eligibility_access = [
     "access_grant_funding.create_organisation_type",
     "access_grant_funding.create_organisation_name",
     "access_grant_funding.create_organisation_already_exists",
+    "access_grant_funding.create_organisation_user_name",
     "access_grant_funding.create_organisation_check_your_answers",
 ]
 

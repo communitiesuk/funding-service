@@ -97,6 +97,16 @@ class CreateOrganisationTypeForm(FlaskForm):
     submit = SubmitField("Continue", widget=GovSubmitInput())
 
 
+class CreateOrganisationUserNameForm(FlaskForm):
+    user_name = StringField(
+        "What is your full name?",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter your full name")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
 class CreateOrganisationNameForm(FlaskForm):
     name = StringField(
         "What is the name of your organisation?",
