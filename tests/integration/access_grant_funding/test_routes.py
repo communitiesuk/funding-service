@@ -420,6 +420,7 @@ class TestAddGrantTeamMember:
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
         existing_user = factories.user.create(name="Local user", email="user@local.gov.uk")
+        grant_recipient = client.grant_recipient
 
         response = client.post(
             url_for(
@@ -449,6 +450,10 @@ class TestAddGrantTeamMember:
             "organisation_name": client.organisation.name,
             "grant_name": client.grant.name,
             "is_test_data": "no",
+            "grant_submission_url": (
+                "http://funding.communities.gov.localhost:8080/access/organisation/"
+                f"{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/forms"
+            ),
             "email_address": "user@local.gov.uk",
         }
 
