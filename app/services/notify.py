@@ -137,6 +137,12 @@ class NotificationService:
                 "organisation_name": grant_recipient.organisation.name,
                 "grant_name": grant_recipient.grant.name,
                 "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                "grant_submission_url": url_for(
+                    "access_grant_funding.list_collections",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    _external=True,
+                ),
                 "email_address": email_address,
             },
         )

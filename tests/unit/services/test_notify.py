@@ -156,6 +156,10 @@ class TestNotificationService:
                             "organisation_name": "Test organisation",
                             "grant_name": "Test grant",
                             "is_test_data": expected_is_test_data,
+                            "grant_submission_url": (
+                                "http://funding.communities.gov.localhost:8080/access/organisation/"
+                                f"{grant_recipient.organisation.id}/grants/{grant_recipient.grant.id}/forms"
+                            ),
                             "email_address": email_address,
                         },
                     }
