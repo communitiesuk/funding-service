@@ -1,10 +1,12 @@
 import datetime
 import enum
-from typing import Any, Literal
+from collections import ChainMap
+from typing import Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import inspect
+from sqlalchemy.orm import RelationshipDirection
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
@@ -12,9 +14,28 @@ from app.common.data.types import AuditEventType, RoleEnum
 
 
 class AuditEvent(BaseModel):
-    user_id: UUID
-    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
     event_type: AuditEventType
+    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
+    user_id: UUID
+    action: str
+
+    # Fields holding a DB entity's primary key, mapped to the name of that entity's model class so admin rendering can
+    # link to it.
+    _related_entities: ClassVar[dict[str, str]] = {
+        "user_id": "User",
+        "created_by_id": "User",
+        "grant_id": "Grant",
+        "grant_recipient_id": "GrantRecipient",
+        "organisation_id": "Organisation",
+        "invitation_id": "Invitation",
+        "collection_id": "Collection",
+        "submission_id": "Submission",
+    }
+    _extra_related_entities: ClassVar[dict[str, str]] = {}
+
+    @property
+    def related_entities(self) -> ChainMap[str, str]:
+        return ChainMap(self._extra_related_entities, self._related_entities)
 
 
 class DatabaseModelChange(AuditEvent):
@@ -23,6 +44,10 @@ class DatabaseModelChange(AuditEvent):
     model_id: UUID
     action: Literal["create", "update", "delete"]
     changes: dict[str, Any]
+
+    @property
+    def related_entities(self) -> ChainMap[str, str]:
+        return ChainMap({"model_id": self.model_class, "id": self.model_class}, super().related_entities)
 
 
 class SystemEvent(DatabaseModelChange):
@@ -49,6 +74,8 @@ class UserPermissionsEvent(AuditEvent):
     permissions: list[RoleEnum]
     resulting_permissions: list[RoleEnum]
 
+    _extra_related_entities: ClassVar[dict[str, str]] = {"target_user_id": "User"}
+
 
 class UserPermissionsAdded(UserPermissionsEvent):
     action: Literal["permissions_added"] = "permissions_added"
@@ -56,6 +83,19 @@ class UserPermissionsAdded(UserPermissionsEvent):
 
 class UserPermissionsRemoved(UserPermissionsEvent):
     action: Literal["permissions_removed"] = "permissions_removed"
+
+
+_audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
+    AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
+    AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
+    AuditEventType.USER_MANAGEMENT: TypeAdapter(
+        Annotated[UserPermissionsAdded | UserPermissionsRemoved, Field(discriminator="action")]
+    ),
+}
+
+
+def parse_audit_event(event_type: AuditEventType, data: dict[str, Any]) -> AuditEvent:
+    return _audit_event_adapters[event_type].validate_python(data)
 
 
 def _serialize_value(value: Any) -> Any:
@@ -90,6 +130,30 @@ def _get_model_changes(model: SQLAlchemyBaseModel) -> dict[str, dict[str, Any]]:
 
             if old_serialized != new_serialized:
                 changes[column.key] = {
+                    "old": old_serialized,
+                    "new": new_serialized,
+                }
+
+    # Admin edit forms set relationship attributes, and the FK columns above only sync with them at flush time —
+    # after this snapshot is taken — so record relationship changes under their FK column's key too.
+    for relationship in insp.mapper.relationships:
+        if relationship.direction is not RelationshipDirection.MANYTOONE:
+            continue
+
+        fk_column_key = insp.mapper.get_property_by_column(relationship.local_remote_pairs[0][0]).key
+        if fk_column_key in changes:
+            continue
+
+        history = insp.attrs[relationship.key].history
+        if history.has_changes():
+            old_entity = history.deleted[0] if history.deleted else None
+            new_entity = history.added[0] if history.added else None
+
+            old_serialized = _serialize_value(old_entity.id if old_entity else None)
+            new_serialized = _serialize_value(new_entity.id if new_entity else None)
+
+            if old_serialized != new_serialized:
+                changes[fk_column_key] = {
                     "old": old_serialized,
                     "new": new_serialized,
                 }

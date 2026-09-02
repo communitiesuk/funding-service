@@ -13,6 +13,7 @@ from flask_admin.helpers import is_form_submitted
 from flask_babel import ngettext
 from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
+from pydantic import ValidationError
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
@@ -25,6 +26,7 @@ from app.common.audit import (
     create_database_model_change_for_create,
     create_database_model_change_for_delete,
     create_database_model_change_for_update,
+    parse_audit_event,
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.audit import track_audit_event
@@ -53,6 +55,7 @@ from app.common.data.types import (
 )
 from app.common.helpers.collections import SubmissionHelper
 from app.common.security.utils import sanitise_redirect_url
+from app.deliver_grant_funding.admin.audit_rendering import AuditEventDetailsRenderer, render_json_pre
 from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipientStatusForm
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
@@ -105,6 +108,9 @@ class PlatformAdminModelView(XGovukModelView):
             menu_icon_value=menu_icon_value,
         )
 
+    def entity_label(self, model: Any) -> str:
+        return str(model)
+
     def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
         if not is_created:
             g.audit_event = create_database_model_change_for_update(model, get_current_user())
@@ -143,6 +149,9 @@ class PlatformAdminModelView(XGovukModelView):
 class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = User
 
+    def entity_label(self, model: User) -> str:
+        return model.email
+
     column_list = ["email", "name", "last_logged_in_at_utc"]
     column_searchable_list = ["email", "name"]
 
@@ -159,6 +168,9 @@ class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdmi
 
 class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Organisation
+
+    def entity_label(self, model: Organisation) -> str:
+        return model.name
 
     can_create = True
     can_edit = True
@@ -212,6 +224,9 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
 
 class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Collection
+
+    def entity_label(self, model: Collection) -> str:
+        return f"{model.name} ({model.grant.name})"
 
     can_edit = True
 
@@ -302,6 +317,9 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
 class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = UserRole
 
+    def entity_label(self, model: UserRole) -> str:
+        return f"{model.user.email} ({', '.join(permission.value for permission in model.permissions)})"
+
     can_create = True
     can_edit = True
     can_delete = True
@@ -321,6 +339,9 @@ class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, Platform
 
 class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Grant
+
+    def entity_label(self, model: Grant) -> str:
+        return model.name
 
     can_create = False
     can_edit = True
@@ -396,6 +417,9 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
 
 class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = Invitation
+
+    def entity_label(self, model: Invitation) -> str:
+        return model.email
 
     can_create = True
 
@@ -527,6 +551,9 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
 class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = GrantRecipient
 
+    def entity_label(self, model: GrantRecipient) -> str:
+        return f"{model.organisation.name} ({model.grant.name})"
+
     can_create = True
     can_edit = False
     can_delete = True
@@ -620,11 +647,7 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
 
 
 def _format_json_data(view, context, model, name):
-    import json
-
-    return markupsafe.Markup(
-        f"<pre class='govuk-!-margin-top-0'>{markupsafe.escape(json.dumps(model.data, indent=2))}</pre>"
-    )
+    return render_json_pre(model.data)
 
 
 def _format_model_class(view, context, model, name):
@@ -676,18 +699,27 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "user.email": "User",
         "model_class": "Model class",
         "action": "Action",
-        "updated_at_utc": "Updated at UTC",
         "event_type": "Event type",
     }
 
     column_formatters = {"model_class": _format_model_class, "action": _format_action}
-    column_formatters_detail = {
-        "data": _format_json_data,
-        "user": lambda v, c, m, n: m.user.email,
-    }
 
     can_edit = False
     can_delete = False
+
+    details_template = "deliver_grant_funding/admin/audit-event-details.html"
+
+    def render_details(self, model: AuditEvent) -> markupsafe.Markup:
+        """The parsed event is the record, so the details page renders it in place of the row's columns."""
+        # flask-admin has no public accessor for its registered views.
+        views = self.admin._views  # ty: ignore[unresolved-attribute]
+        renderer = AuditEventDetailsRenderer(v for v in views if isinstance(v, PlatformAdminModelView))
+        try:
+            event = parse_audit_event(model.event_type, model.data)
+        except ValidationError:
+            # Events written before a schema change may not parse any more; show them raw rather than failing the page.
+            return renderer.render_unparsed(model)
+        return renderer.render(event)
 
     def search_placeholder(self) -> str:
         return "User, Event Type, Model Class, Action"
@@ -713,6 +745,9 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
 
 class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = Submission
+
+    def entity_label(self, model: Submission) -> str:
+        return model.reference
 
     column_default_sort = ("created_at_utc", True)
 
@@ -754,6 +789,9 @@ class PlatformAdminSubmissionView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
 
 class PlatformAdminQuestionView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
     _model = Question
+
+    def entity_label(self, model: Question) -> str:
+        return model.data_reference_label
 
     can_edit = True
     can_create = False
@@ -819,6 +857,9 @@ class PlatformAdminSubmissionEventView(FlaskAdminPlatformAdminAccessibleMixin, P
 
 class PlatformAdminReleaseNoteView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = ReleaseNote
+
+    def entity_label(self, model: ReleaseNote) -> str:
+        return model.title
 
     can_create = True
     can_edit = True

@@ -60,3 +60,23 @@ h6 {
         padding-left: govuk.govuk-spacing(2);
     }
 }
+
+// Nested summary lists in the audit event data compound GOV.UK's 30% key width, so size keys to their labels
+// instead. That needs an auto table layout (GOV.UK fixes it so long values wrap); `overflow-wrap: anywhere` keeps
+// long values wrapping under auto layout.
+.app-audit-event-details .govuk-summary-list {
+    @include govuk.govuk-media-query($from: tablet) {
+        table-layout: auto;
+    }
+}
+
+.app-audit-event-details .govuk-summary-list__key {
+    @include govuk.govuk-media-query($from: tablet) {
+        width: 15%;
+        white-space: nowrap;
+    }
+}
+
+.app-audit-event-details .govuk-summary-list__value {
+    overflow-wrap: anywhere;
+}

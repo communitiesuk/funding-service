@@ -4,7 +4,8 @@ from app.common.audit import (
     create_database_model_change_for_delete,
     create_database_model_change_for_update,
 )
-from app.common.data.types import GrantStatusEnum
+from app.common.data.models_user import UserRole
+from app.common.data.types import GrantStatusEnum, RoleEnum
 
 
 class TestCreateDatabaseModelChangeForUpdate:
@@ -42,6 +43,43 @@ class TestCreateDatabaseModelChangeForUpdate:
         assert "name" in result.changes
         assert result.changes["name"]["old"] == "Original Name"
         assert result.changes["name"]["new"] == "Updated Name"
+
+    def test_tracks_relationship_changes_under_the_foreign_key_column(self, factories, db_session):
+        user = factories.user.create()
+        grant_a = factories.grant.create()
+        grant_b = factories.grant.create()
+        user_role = factories.user_role.create(user=user, grant=grant_a, permissions=[RoleEnum.MEMBER])
+        user_role_id = user_role.id
+
+        db_session.commit()
+        db_session.expire_all()
+
+        fetched_user_role = db_session.get(UserRole, user_role_id)
+        assert fetched_user_role.grant == grant_a
+        fetched_user_role.grant = grant_b
+
+        result = create_database_model_change_for_update(fetched_user_role, user)
+
+        assert result is not None
+        assert result.changes == {"grant_id": {"old": str(grant_a.id), "new": str(grant_b.id)}}
+
+    def test_tracks_relationship_removal_under_the_foreign_key_column(self, factories, db_session):
+        user = factories.user.create()
+        grant = factories.grant.create()
+        user_role = factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+        user_role_id = user_role.id
+
+        db_session.commit()
+        db_session.expire_all()
+
+        fetched_user_role = db_session.get(UserRole, user_role_id)
+        assert fetched_user_role.grant == grant
+        fetched_user_role.grant = None
+
+        result = create_database_model_change_for_update(fetched_user_role, user)
+
+        assert result is not None
+        assert result.changes == {"grant_id": {"old": str(grant.id), "new": None}}
 
     def test_excludes_timestamp_fields_from_changes(self, factories, db_session):
         from app.common.data.models import Grant
