@@ -49,6 +49,18 @@ def create_organisation_type(grant_slug: str, collection_slug: str) -> ResponseR
     if form.validate_on_submit():
         org_session.organisation_type = SignUpOrganisationType(form.organisation_type.data)
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+
+        # user wasn't matched correctly, steers to support at the moment
+        # but will link in with the request access journey to more specific
+        if org_session.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY:
+            return redirect(
+                url_for(
+                    "access_grant_funding.create_organisation_local_authority",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+                )
+            )
         if from_check_your_answers:
             return redirect(check_your_answers_url)
         return redirect(
@@ -70,6 +82,44 @@ def create_organisation_type(grant_slug: str, collection_slug: str) -> ResponseR
         grant=grant,
         collection=collection,
         back_link_href=back_link_href,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/local-authority", methods=["GET"]
+)
+@requires_passed_eligibility
+def create_organisation_local_authority(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    org_session = CreateOrganisationSession.from_session(
+        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
+    )
+    if org_session is None:
+        return redirect(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
+        )
+
+    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
+    organisation_type_url = url_for(
+        "access_grant_funding.create_organisation_type",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+        source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+    )
+
+    # double checks the current session type is in this state before presenting it
+    # going back and forward will change the state but this screen will be stored in
+    # the browser history
+    if org_session.organisation_type != SignUpOrganisationType.LOCAL_AUTHORITY:
+        return redirect(organisation_type_url)
+
+    return render_template(
+        "access_grant_funding/create_organisation/local_authority.html",
+        grant=grant,
+        collection=collection,
+        back_link_href=organisation_type_url,
     )
 
 
