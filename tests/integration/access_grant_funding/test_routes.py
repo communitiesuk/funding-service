@@ -153,9 +153,15 @@ class TestListOrganisations:
 
 
 class TestListGrantTeam:
-    def test_get_list_grant_team(self, authenticated_grant_recipient_data_provider_client):
+    def test_get_list_grant_team(self, authenticated_grant_recipient_data_provider_client, factories):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
         organisation = authenticated_grant_recipient_data_provider_client.organisation
         grant = authenticated_grant_recipient_data_provider_client.grant
+        other_user = factories.user.create(name="Other User")
+        factories.user_role.create(
+            user=other_user, organisation=organisation, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
 
         response = authenticated_grant_recipient_data_provider_client.get(
             url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant.id)
@@ -165,6 +171,23 @@ class TestListGrantTeam:
         assert get_h1_text(soup) == "Team"
         assert any(
             authenticated_grant_recipient_data_provider_client.user.name in td.get_text() for td in soup.find_all("td")
+        )
+        assert any("Action" in th.get_text() for th in soup.find_all("th"))
+
+        current_user_row = next(
+            row
+            for row in soup.find_all("tr")
+            if authenticated_grant_recipient_data_provider_client.user.name in row.get_text()
+        )
+        assert "Remove" not in current_user_row.get_text()
+
+        remove_link = next((link for link in soup.find_all("a") if "Remove" in link.get_text()), None)
+        assert remove_link is not None
+        assert remove_link.get("href") == url_for(
+            "access_grant_funding.remove_grant_team_member",
+            organisation_id=organisation.id,
+            grant_id=grant.id,
+            user_id=other_user.id,
         )
 
     def test_get_list_grant_team_shows_multiple_permissions(
@@ -226,6 +249,8 @@ class TestListGrantTeam:
         h2_texts = [h2.get_text(strip=True) for h2 in soup.find_all("h2")]
         assert "Changing access and permissions" in h2_texts
         assert "Certifier access" not in h2_texts
+        assert not any("Action" in th.get_text() for th in soup.find_all("th"))
+        assert "Remove" not in response.text
 
     def test_add_team_member_button_hidden_for_member_when_flag_enabled(
         self, authenticated_grant_recipient_member_client
@@ -240,6 +265,93 @@ class TestListGrantTeam:
         )
         assert response.status_code == 200
         assert "Add team member" not in response.text
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert not any("Action" in th.get_text() for th in soup.find_all("th"))
+
+    def test_remove_link_hidden_for_org_wide_data_provider(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        other_user = factories.user.create(name="Other User")
+        factories.user_role.create(
+            user=other_user,
+            organisation=client.organisation,
+            grant=None,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        other_user_row = next(row for row in soup.find_all("tr") if other_user.name in row.get_text())
+        assert "Remove" not in other_user_row.get_text()
+
+    def test_remove_link_hidden_for_certifier_only_user(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        certifier = factories.user.create(name="Certifier User")
+        factories.user_role.create(
+            user=certifier,
+            organisation=client.organisation,
+            grant=client.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        certifier_row = next(row for row in soup.find_all("tr") if certifier.name in row.get_text())
+        assert "Remove" not in certifier_row.get_text()
+
+    def test_remove_link_shown_for_user_with_edit_and_certify_permissions(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        user = factories.user.create(name="Edit And Certify User")
+        factories.user_role.create(
+            user=user,
+            organisation=client.organisation,
+            grant=client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        user_row = next(row for row in soup.find_all("tr") if user.name in row.get_text())
+        remove_link = next((link for link in user_row.find_all("a") if "Remove" in link.get_text()), None)
+        assert remove_link is not None
+        assert remove_link.get("href") == url_for(
+            "access_grant_funding.remove_grant_team_member",
+            organisation_id=client.organisation.id,
+            grant_id=client.grant.id,
+            user_id=user.id,
+        )
 
 
 class TestAddGrantTeamMember:
@@ -461,6 +573,249 @@ class TestAddGrantTeamMember:
         assert response.status_code == 200
         assert "Enter the team member’s full name" in response.text
         assert "Enter the team member’s email address" in response.text
+
+
+class TestRemoveGrantTeamMember:
+    def test_get_returns_404_when_flag_disabled(self, authenticated_grant_recipient_data_provider_client):
+        client = authenticated_grant_recipient_data_provider_client
+        user = client.user
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_forbidden_for_member(self, authenticated_grant_recipient_member_client, factories):
+        client = authenticated_grant_recipient_member_client
+        enable_access_user_management_flag(client)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=client.organisation, grant=client.grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 403
+
+    def test_get_remove_grant_team_member_page(self, authenticated_grant_recipient_data_provider_client, factories):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        organisation = client.organisation
+        grant = client.grant
+        user = factories.user.create(name="Test User", email="test.user@communities.gov.uk")
+        factories.user_role.create(
+            user=user, organisation=organisation, grant=grant, permissions=[RoleEnum.DATA_PROVIDER]
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == f"Remove {user.name} from {grant.name}?"
+        assert f"{user.name} ({user.email}) will lose access to {organisation.name}’s {grant.name}." in soup.get_text()
+        assert soup.find("button", string=lambda text: text and "Confirm and remove team member" in text) is not None
+        cancel_link = soup.find("a", string="Cancel")
+        assert cancel_link is not None
+        assert cancel_link.get("href") == url_for(
+            "access_grant_funding.list_grant_team",
+            organisation_id=organisation.id,
+            grant_id=grant.id,
+        )
+
+    def test_get_remove_grant_team_member_page_returns_404_for_current_user(
+        self, authenticated_grant_recipient_data_provider_client
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+                user_id=client.user.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_remove_grant_team_member_page_returns_404_for_user_not_on_grant(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        organisation = client.organisation
+        grant = client.grant
+        user = factories.user.create()
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_remove_grant_team_member_page_returns_404_for_org_wide_data_provider(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=client.organisation,
+            grant=None,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_get_remove_grant_team_member_page_returns_404_for_certifier_only_user(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=client.organisation,
+            grant=client.grant,
+            permissions=[RoleEnum.CERTIFIER],
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_post_removes_edit_access_but_keeps_certifier_access(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        organisation = client.organisation
+        grant = client.grant
+        user = factories.user.create(name="Test User", email="test.user@communities.gov.uk")
+        factories.user_role.create(
+            user=user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+        )
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 302
+
+        user_role = db_session.scalar(
+            select(UserRole).where(
+                UserRole.user_id == user.id,
+                UserRole.organisation_id == organisation.id,
+                UserRole.grant_id == grant.id,
+            )
+        )
+        assert user_role is not None
+        assert RoleEnum.DATA_PROVIDER not in user_role.permissions
+        assert RoleEnum.CERTIFIER in user_role.permissions
+        assert RoleEnum.MEMBER in user_role.permissions
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+
+    def test_post_removes_user_access_and_redirects_to_grant_team_page(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        organisation = client.organisation
+        grant = client.grant
+        user = factories.user.create(name="Test User", email="test.user@communities.gov.uk")
+        factories.user_role.create(
+            user=user, organisation=organisation, grant=grant, permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER]
+        )
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.remove_grant_team_member",
+                organisation_id=organisation.id,
+                grant_id=grant.id,
+                user_id=user.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant.id
+        )
+
+        removed_user_role = db_session.scalar(
+            select(UserRole).where(
+                UserRole.user_id == user.id,
+                UserRole.organisation_id == organisation.id,
+                UserRole.grant_id == grant.id,
+            )
+        )
+        assert removed_user_role is None
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+
+        team_page = client.get(response.location)
+        soup = BeautifulSoup(team_page.data, "html.parser")
+        banner = soup.find(class_="govuk-notification-banner")
+        assert banner is not None
+        assert "Team member removed" in banner.get_text()
+        assert (
+            f"{user.name} was removed from {grant.name}. They can no longer edit and submit for this grant on "
+            f"behalf of {organisation.name}."
+        ) in banner.get_text()
+        assert user.name not in [td.get_text(strip=True) for td in soup.find_all("td")]
 
 
 class TestCookieBanner:

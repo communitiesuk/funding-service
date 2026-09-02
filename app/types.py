@@ -38,6 +38,7 @@ class FlashMessageType(StrEnum):
     COLLECTION_CREATED = "collection_created"
     PUBLIC_SIGN_UP_SUCCESS = "public_sign_up_success"
     ACCESS_TEAM_MEMBER_ADDED = "access_team_member_added"
+    ACCESS_TEAM_MEMBER_REMOVED = "access_team_member_removed"
 
 
 class TRadioItem(TypedDict):
