@@ -12,7 +12,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug),
+      "href": url_for("access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug),
     })
   }}
 {% endblock %}
@@ -34,7 +34,7 @@
       </p>
 
       <p class="govuk-body">
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.public_sign_up_start_page', grant_slug=grant.slug, collection_slug=collection.slug) }}">Back to Apply for the {{ grant.name }}</a>
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.public_sign_up_router', grant_slug=grant.slug, collection_slug=collection.slug) }}">Back to Apply for the {{ grant.name }}</a>
       </p>
     </div>
   </div>
