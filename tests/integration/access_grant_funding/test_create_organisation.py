@@ -4,15 +4,24 @@ import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 from flask_login import login_user
+from sqlalchemy import select
 
 from app.access_grant_funding.session_models import CreateOrganisationSession, SignUpOrganisationType
+from app.common.data.models import GrantRecipient, Organisation
+from app.common.data.models_user import UserRole
 from app.common.data.types import (
     AuthMethodEnum,
     CollectionStatusEnum,
+    GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
+    OrganisationStatus,
+    OrganisationType,
     RoleEnum,
+    SubmissionModeEnum,
 )
+from app.common.helpers.collections import get_or_create_unclaimed_submission
 from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
@@ -601,6 +610,172 @@ class TestCreateOrganisationCheckYourAnswers:
                 collection_slug=sign_up_collection.slug,
             )
         )
+
+        assert response.status_code == 302
+        assert response.location == _eligible_to_apply_url(sign_up_collection)
+
+    def _complete_session(self, collection) -> CreateOrganisationSession:
+        return CreateOrganisationSession(
+            collection_id=collection.id,
+            organisation_type=SignUpOrganisationType.OTHER,
+            name="Acme Ltd",
+            external_id="000111222",
+        )
+
+    def _cya_url(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_check_your_answers",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_creates_the_organisation_grant_recipient_and_data_provider_role(
+        self, authenticated_no_role_client, sign_up_collection, db_session
+    ):
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        assert organisation.name == "Acme Ltd"
+        assert organisation.type == OrganisationType.OTHER
+        assert organisation.custom_code == "000111222"
+        assert organisation.mode == OrganisationModeEnum.LIVE
+        assert organisation.status == OrganisationStatus.ACTIVE
+        assert organisation.can_manage_grants is False
+        assert organisation.domains == []
+
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == sign_up_collection.grant.id,
+                GrantRecipient.organisation_id == organisation.id,
+            )
+        ).one()
+        assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
+        assert grant_recipient.mode == GrantRecipientModeEnum.LIVE
+
+        user_role = db_session.scalars(
+            select(UserRole).where(
+                UserRole.user_id == authenticated_no_role_client.user.id,
+                UserRole.organisation_id == organisation.id,
+                UserRole.grant_id == sign_up_collection.grant.id,
+            )
+        ).one()
+        assert RoleEnum.DATA_PROVIDER in user_role.permissions
+        assert RoleEnum.MEMBER in user_role.permissions
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_collections",
+            organisation_id=organisation.id,
+            grant_id=sign_up_collection.grant.id,
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert "create_organisation" not in flask_session
+            assert "signing_up_for_collection_id" not in flask_session
+
+        followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
+        assert followed_response.status_code == 200
+        assert (
+            "You've been added to Acme Ltd. You can now apply for Test grant name."
+            in BeautifulSoup(followed_response.data, "html.parser").text
+        )
+
+    def test_post_creates_a_test_organisation_for_a_deliver_user_testing_access(
+        self, anonymous_client, sign_up_collection, factories, user, db_session
+    ):
+        factories.user_role.create(
+            user=user,
+            organisation=sign_up_collection.grant.organisation,
+            grant=sign_up_collection.grant,
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        login_user(user)
+        with anonymous_client.session_transaction() as flask_session:
+            flask_session["auth"] = AuthMethodEnum.SSO
+        db_session.commit()
+
+        _seed_session(anonymous_client, sign_up_collection, self._complete_session(sign_up_collection))
+
+        response = anonymous_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        assert organisation.name == "Acme Ltd (test)"
+        assert organisation.mode == OrganisationModeEnum.TEST
+
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(GrantRecipient.organisation_id == organisation.id)
+        ).one()
+        assert grant_recipient.mode == GrantRecipientModeEnum.TEST
+
+        assert response.status_code == 302
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_claims_the_eligibility_submission(self, authenticated_no_role_client, sign_up_collection, db_session):
+        unclaimed_submission = get_or_create_unclaimed_submission(
+            authenticated_no_role_client.user, sign_up_collection, SubmissionModeEnum.LIVE
+        ).submission
+        db_session.commit()
+
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+        assert response.status_code == 302
+
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(GrantRecipient.organisation_id == organisation.id)
+        ).one()
+
+        db_session.refresh(unclaimed_submission)
+        assert unclaimed_submission.grant_recipient_id == grant_recipient.id
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_redirects_to_already_exists_when_the_name_was_taken_in_the_meantime(
+        self, authenticated_no_role_client, sign_up_collection, factories, db_session
+    ):
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
+        factories.organisation.create(name="Acme Ltd", mode=OrganisationModeEnum.LIVE)
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_already_exists",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+            source="check-your-answers",
+        )
+
+        assert db_session.scalars(select(GrantRecipient)).all() == []
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_twice_creates_a_single_organisation_and_grant_recipient(
+        self, authenticated_no_role_client, sign_up_collection, db_session
+    ):
+        for _ in range(2):
+            _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
+            authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert (
+            db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one() is not None
+        )
+        assert len(db_session.scalars(select(GrantRecipient)).all()) == 1
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_without_a_complete_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            CreateOrganisationSession(
+                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
+            ),
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         assert response.status_code == 302
         assert response.location == _eligible_to_apply_url(sign_up_collection)
