@@ -349,6 +349,8 @@ def create_invitation(
     permissions: list[RoleEnum],
     grant: Grant | None = None,
     organisation: Organisation | None = None,
+    *,
+    name: str | None = None,
 ) -> Invitation:
     if organisation is None and grant is not None:
         raise ValueError("If specifying grant, must also specify organisation")
@@ -372,6 +374,7 @@ def create_invitation(
     # Create a new invitation
     invitation = Invitation(
         email=email,
+        name=name,
         organisation_id=organisation.id if organisation else None,
         grant_id=grant.id if grant else None,
         permissions=permissions,

@@ -368,11 +368,12 @@ class TestInvitations:
     def test_create_invitation(self, db_session, factories):
         organisation = factories.organisation.create()
         invitation = interfaces.user.create_invitation(
-            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER]
+            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER], name="Test User"
         )
         invite_from_db = db_session.get(Invitation, invitation.id)
         assert invite_from_db is not None
         assert invite_from_db.email == "test@email.com"
+        assert invite_from_db.name == "Test User"
         assert RoleEnum.MEMBER in invite_from_db.permissions
         assert invite_from_db.expires_at_utc == datetime.strptime("2023-10-08 12:00:00", freeze_time_format)
         assert invite_from_db.claimed_at_utc is None
