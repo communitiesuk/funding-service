@@ -171,6 +171,48 @@ class TestNotificationService:
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
 
+    @pytest.mark.parametrize(
+        "grant_recipient_mode, expected_is_test_data",
+        [(GrantRecipientModeEnum.LIVE, "no"), (GrantRecipientModeEnum.TEST, "yes")],
+    )
+    @responses.activate
+    def test_send_access_grant_team_member_invited(self, app, factories, grant_recipient_mode, expected_is_test_data):
+        grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
+            grant__name="Test grant",
+            mode=grant_recipient_mode,
+        )
+        email_address = "test@hastings.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "ae3b6d9c-0e20-4510-84fb-d3406cf1e18c",
+                        "personalisation": {
+                            "organisation_name": "Test organisation",
+                            "grant_name": "Test grant",
+                            "is_test_data": expected_is_test_data,
+                            "email_address": email_address,
+                            "grant_submission_url": (
+                                "http://funding.communities.gov.localhost:8080/access/organisation/"
+                                f"{grant_recipient.organisation_id}/grants/{grant_recipient.grant_id}/forms"
+                            ),
+                            "service_desk_url": app.config["ACCESS_SERVICE_DESK_URL"],
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_grant_team_member_invited(
+            email_address, grant_recipient=grant_recipient
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
     @responses.activate
     def test_send_access_report_opened(self, app, factories):
         grant_recipient = factories.grant_recipient.build(

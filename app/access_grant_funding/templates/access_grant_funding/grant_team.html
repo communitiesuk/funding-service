@@ -40,6 +40,20 @@
           }}
         {% endif %}
       {% endwith %}
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.ACCESS_TEAM_MEMBER_INVITED]) %}
+        {% if flashes %}
+          {% set team_member_invited_html %}
+            <h3 class="govuk-notification-banner__heading">Team member invited</h3>
+            <p class="govuk-body">We’ve emailed {{ flashes[0]["user_name"] }} an invite to {{ organisation.name }}’s {{ grant_recipient.grant.name }}.</p>
+          {% endset %}
+          {{
+            govukNotificationBanner({
+              "html": team_member_invited_html,
+              "type": "success"
+            })
+          }}
+        {% endif %}
+      {% endwith %}
       <h1 class="govuk-heading-l">{{ page_title }}</h1>
       {% if can_add_team_members %}
         {{
@@ -108,6 +122,33 @@
       {% endif %}
     </div>
   </div>
+  {% if invitations %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5">Invited</h2>
+        <p class="govuk-body">Team members have 7 days to accept their invitation.</p>
+        {% set invitation_rows = [] %}
+        {% for invitation in invitations %}
+          {% set permissions = [] %}
+          {% for permission in invitation.permissions %}
+            {% if permission == enum.role_enum.CERTIFIER %}
+              {% do permissions.append("Can certify") %}
+            {% elif permission == enum.role_enum.DATA_PROVIDER %}
+              {% do permissions.append("Can edit and submit") %}
+            {% endif %}
+          {% endfor %}
+          {% do invitation_rows.append([{"text": invitation.name or ""}, {"text": invitation.email}, {"text": permissions | sort | join(', ')}]) %}
+        {% endfor %}
+        {{
+          govukTable({
+              "firstCellIsHeader": false,
+              "head": [{"text": "Name"}, {"text": "Email"}, {"text": "Permissions"}],
+              "rows": invitation_rows
+          })
+        }}
+      </div>
+    </div>
+  {% endif %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       {% if can_add_team_members %}

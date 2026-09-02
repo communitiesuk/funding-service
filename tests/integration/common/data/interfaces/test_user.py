@@ -581,6 +581,37 @@ class TestInvitations:
         )
         assert len(all_invitations) == 5
 
+    def test_get_usable_invitations_for_grant_recipient(self, db_session, factories) -> None:
+        grant_recipient = factories.grant_recipient.create()
+        organisation = grant_recipient.organisation
+        grant = grant_recipient.grant
+        for_grant = factories.invitation.create(
+            email="zoe@example.com", name="Zoe", organisation=organisation, grant=grant, permissions=[]
+        )
+        organisation_wide = factories.invitation.create(
+            email="adam@example.com", name="Adam", organisation=organisation, grant=None, permissions=[]
+        )
+        factories.invitation.create(
+            email="claimed@example.com", organisation=organisation, grant=grant, permissions=[], is_claimed=True
+        )
+        factories.invitation.create(
+            email="expired@example.com",
+            organisation=organisation,
+            grant=grant,
+            permissions=[],
+            expires_at_utc=datetime.now() - timedelta(days=1),
+        )
+        factories.invitation.create(
+            email="other-grant@example.com", organisation=organisation, grant=factories.grant.create(), permissions=[]
+        )
+        factories.invitation.create(
+            email="other-org@example.com", organisation=factories.organisation.create(), grant=grant, permissions=[]
+        )
+
+        invitations = interfaces.user.get_usable_invitations_for_grant_recipient(grant_recipient)
+
+        assert [invitation.id for invitation in invitations] == [organisation_wide.id, for_grant.id]
+
     def test_create_user_and_claim_invitations(self, db_session, factories) -> None:
         grants = factories.grant.create_batch(3)
         invitations = []

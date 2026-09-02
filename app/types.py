@@ -39,6 +39,7 @@ class FlashMessageType(StrEnum):
     PUBLIC_SIGN_UP_SUCCESS = "public_sign_up_success"
     PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public_sign_up_already_has_access"
     ACCESS_TEAM_MEMBER_ADDED = "access_team_member_added"
+    ACCESS_TEAM_MEMBER_INVITED = "access_team_member_invited"
     ACCESS_TEAM_MEMBER_REMOVED = "access_team_member_removed"
 
 

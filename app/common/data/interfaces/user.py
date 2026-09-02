@@ -17,7 +17,7 @@ from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_an
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none, get_grant_recipients
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisations
-from app.common.data.models import Grant, Organisation
+from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import OrganisationModeEnum, RoleEnum
 from app.extensions import db
@@ -420,6 +420,19 @@ def get_invitations_by_email(email: str, is_usable: bool | None = None) -> Seque
     if is_usable is not None:
         stmt = stmt.where(Invitation.is_usable.is_(is_usable))
     return db.session.scalars(stmt).all()
+
+
+def get_usable_invitations_for_grant_recipient(grant_recipient: GrantRecipient) -> Sequence[Invitation]:
+    """Pending invitations to `grant_recipient`, whether for its grant specifically or across its organisation."""
+    return db.session.scalars(
+        select(Invitation)
+        .where(
+            Invitation.organisation_id == grant_recipient.organisation_id,
+            or_(Invitation.grant_id == grant_recipient.grant_id, Invitation.grant_id.is_(None)),
+            Invitation.is_usable.is_(True),
+        )
+        .order_by(Invitation.name, Invitation.email)
+    ).all()
 
 
 @flush_and_rollback_on_exceptions

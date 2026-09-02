@@ -122,6 +122,7 @@ def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValu
     return render_template(
         "access_grant_funding/grant_team.html",
         users=users,
+        invitations=interfaces.user.get_usable_invitations_for_grant_recipient(grant_recipient),
         organisation=organisation,
         grant_recipient=grant_recipient,
         service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
@@ -143,8 +144,25 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
         assert form.email_address.data
         user_to_add = interfaces.user.get_user_by_email(form.email_address.data)
         if user_to_add is None:
-            # TODO: https://mhclgdigital.atlassian.net/browse/FSPT-1586
-            return abort(500)
+            assert form.full_name.data
+            invitation = interfaces.user.create_invitation(
+                email=form.email_address.data,
+                permissions=[RoleEnum.DATA_PROVIDER],
+                grant=grant_recipient.grant,
+                organisation=organisation,
+                name=form.full_name.data,
+                by_user=interfaces.user.get_current_user(),
+            )
+            notification_service.send_access_grant_team_member_invited(
+                invitation.email, grant_recipient=grant_recipient
+            )
+            flash(
+                {"user_name": invitation.name},  # ty: ignore[invalid-argument-type]
+                FlashMessageType.ACCESS_TEAM_MEMBER_INVITED,
+            )
+            return redirect(
+                url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
+            )
 
         # Covers existing data providers and certifiers; certifiers must not be given edit and submit permissions
         if AuthorisationHelper.is_access_grant_member(grant_recipient, user_to_add):
