@@ -6,7 +6,7 @@ from flask.typing import ResponseReturnValue
 from app.access_grant_funding.session_models import clear_public_sign_up_session
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
-from app.common.data.interfaces.grant_recipients import create_grant_recipient
+from app.common.data.interfaces.grant_recipients import create_grant_recipient, get_grant_recipient_or_none
 from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User
 from app.common.data.types import (
@@ -66,6 +66,41 @@ def sign_up_as_grant_recipient(
         FlashMessageType.PUBLIC_SIGN_UP_SUCCESS,
     )
     return grant_recipient
+
+
+def sign_up_with_matched_organisation(
+    *, user: User, grant: Grant, collection: Collection, organisation: Organisation, modes: SignUpModes
+) -> ResponseReturnValue:
+    """Separated out sign up when matching an existing org gives us consistent behaviour even
+    if needing to request more information like the users name.
+    """
+    grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
+
+    # No grant recipient exists, create one and sign the user up as a data provider
+    if grant_recipient is None:
+        grant_recipient = sign_up_as_grant_recipient(
+            user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
+        )
+    # A grant recipient exists, and user does not have access to it
+    elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
+        return redirect(
+            url_for(
+                "access_grant_funding.already_applying",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                organisation_id=organisation.id,
+            )
+        )
+    # A grant recipient exists, and user already has access to it
+    else:
+        flash(
+            {"grant_name": grant.name},  # ty: ignore[invalid-argument-type]
+            FlashMessageType.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
+        )
+
+    return complete_public_sign_up_session_and_redirect(
+        user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission
+    )
 
 
 def complete_public_sign_up_session_and_redirect(

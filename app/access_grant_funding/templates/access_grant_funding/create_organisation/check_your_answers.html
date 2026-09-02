@@ -27,13 +27,13 @@
             },
             {
               "key": {"text": "Full name"},
-              "value": {"text": user_name},
+              "value": {"text": org_session.user_name or current_user.name},
               "actions": {"items": [{
-                "href": user_name_change_href,
+                "href": url_for("access_grant_funding.create_organisation_user_name", grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
                 "visuallyHiddenText": "full name"
-              }]} if user_name_change_href else None
+              }]} if org_session.user_name else None
             },
             {
               "key": {"text": "Organisation type"},
