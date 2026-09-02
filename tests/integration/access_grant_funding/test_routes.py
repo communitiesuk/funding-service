@@ -1860,7 +1860,7 @@ class TestEligibleToApplyPage:
         soup = BeautifulSoup(followed_response.data, "html.parser")
         assert "Important" in soup.text
         assert "You already have access to this grant" in soup.text
-        assert "In future you can sign in to access this grant directly using" in soup.text
+        assert "In the future you can access this grant directly using this link" in soup.text
         assert "Added to organisation" not in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
