@@ -206,6 +206,7 @@ def remove_grant_team_member(organisation_id: UUID, grant_id: UUID, user_id: UUI
             grant=grant_recipient.grant,
             by_user=current_user,
         )
+        notification_service.send_access_team_member_removed(email_address=user.email, grant_recipient=grant_recipient)
         flash(
             {  # ty: ignore[invalid-argument-type]
                 "user_name": user.name,
