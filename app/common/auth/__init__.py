@@ -83,7 +83,8 @@ def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug
 @redirect_if_authenticated
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
-    form = SignInForm()
+    form = SignInForm(allow_invitations=True)
+
     link_expired = request.args.get("link_expired", False)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
