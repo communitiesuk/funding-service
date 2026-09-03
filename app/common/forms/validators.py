@@ -80,6 +80,24 @@ class CommunitiesEmail(Email):
 
 
 class AccessGrantFundingEmail(Email):
+    def __init__(
+        self,
+        allow_invitations: bool,
+        message=None,
+        granular_message=False,
+        check_deliverability=False,
+        allow_smtputf8=True,
+        allow_empty_local=False,
+    ):
+        super().__init__(
+            message=message,
+            granular_message=granular_message,
+            check_deliverability=check_deliverability,
+            allow_smtputf8=allow_smtputf8,
+            allow_empty_local=allow_empty_local,
+        )
+        self.allow_invitations = allow_invitations
+
     def __call__(self, form: BaseForm, field: Field) -> None:
         email = field.data
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
@@ -91,6 +109,11 @@ class AccessGrantFundingEmail(Email):
             return
 
         user = interfaces.user.get_user_by_email(email)
+
+        if self.allow_invitations:
+            invitations = interfaces.user.get_invitations_by_email(email, is_usable=True)
+            if any(invitations):
+                return
 
         if user is None or not user.get_grant_recipients():
             raise ValidationError(

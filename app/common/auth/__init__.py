@@ -83,7 +83,8 @@ def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug
 @redirect_if_authenticated
 @auto_commit_after_request
 def request_a_link_to_sign_in() -> ResponseReturnValue:
-    form = SignInForm()
+    form = SignInForm(allow_invitations=True)
+
     link_expired = request.args.get("link_expired", False)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
@@ -169,7 +170,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     if form.validate_on_submit():
         user = magic_link.user
         if not user:
-            user = interfaces.user.upsert_user_by_email(email_address=str(magic_link.email))
+            user = interfaces.user.create_user_and_claim_invitations(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
             return abort(400)

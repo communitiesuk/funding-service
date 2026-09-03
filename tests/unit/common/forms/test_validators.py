@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from unittest.mock import Mock, patch
 
 import pytest
@@ -219,7 +220,7 @@ class TestAccessGrantFundingEmail:
     def _get_mocks(self) -> tuple[AccessGrantFundingEmail, Mock, Mock]:
         form = Mock()
         field = Mock()
-        validator = AccessGrantFundingEmail()
+        validator = AccessGrantFundingEmail(allow_invitations=False)
         return validator, form, field
 
     def test_empty_field_returns(self):
@@ -285,6 +286,36 @@ class TestAccessGrantFundingEmail:
         field.data = user.email
 
         validator(form, field)
+
+    @pytest.mark.parametrize("create_invitation, expect_error", [(True, False), (False, True)])
+    def test_allowed_with_invitation(self, factories, mocker, create_invitation, expect_error):
+        form, field, validator = Mock(), Mock(), AccessGrantFundingEmail(allow_invitations=True)
+
+        grant_recipient = factories.grant_recipient.build()
+        user = factories.user.build()
+        factories.user_role.build(user=user, grant=grant_recipient.grant, organisation=grant_recipient.organisation)
+
+        invitations = (
+            [
+                factories.invitation.build(
+                    user=user,
+                    grant=grant_recipient.grant,
+                    organisation=grant_recipient.organisation,
+                    permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+                )
+            ]
+            if create_invitation
+            else []
+        )
+
+        mocker.patch("app.common.forms.validators.interfaces.user.get_user_by_email", return_value=user)
+        mocker.patch("app.common.forms.validators.interfaces.user.get_invitations_by_email", return_value=invitations)
+
+        field.data = user.email
+
+        context_manager = pytest.raises(ValidationError) if expect_error else nullcontext()
+        with context_manager:
+            validator(form, field)
 
 
 class TestMaxDecimalPlaces:

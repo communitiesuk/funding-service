@@ -13,7 +13,7 @@ from app.common.collections.forms import build_question_form
 from app.common.data.interfaces.collections import add_component_eligibility
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_audit import AuditEvent as AuditEventModel
-from app.common.data.models_user import UserRole
+from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import (
     AuditEventType,
     AuthMethodEnum,
@@ -190,6 +190,54 @@ class TestListGrantTeam:
             grant_id=grant.id,
             user_id=other_user.id,
         )
+
+    def test_get_list_grant_team_shows_pending_invitations(
+        self, authenticated_grant_recipient_data_provider_client, factories
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        factories.invitation.create(
+            email="user@hastings.gov.uk",
+            name="My User",
+            organisation=client.organisation,
+            grant=client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.invitation.create(
+            email="claimed@hastings.gov.uk",
+            name="Claimed Person",
+            organisation=client.organisation,
+            grant=client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+            is_claimed=True,
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Invited" in [h2.get_text(strip=True) for h2 in soup.find_all("h2")]
+        assert "Team members have 7 days to accept their invitation." in soup.get_text()
+        invited_row = next(row for row in soup.find_all("tr") if "user@hastings.gov.uk" in row.get_text())
+        assert "My User" in invited_row.get_text()
+        assert "Can edit and submit" in invited_row.get_text()
+        assert "claimed@hastings.gov.uk" not in response.text
+
+    def test_get_list_grant_team_hides_invited_section_without_pending_invitations(
+        self, authenticated_grant_recipient_data_provider_client
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+            )
+        )
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Invited" not in [h2.get_text(strip=True) for h2 in soup.find_all("h2")]
 
     def test_get_list_grant_team_shows_multiple_permissions(
         self, authenticated_grant_recipient_data_provider_client, factories
@@ -535,9 +583,12 @@ class TestAddGrantTeamMember:
         assert all(RoleEnum.DATA_PROVIDER not in role.permissions for role in certifier.roles)
         assert db_session.scalars(select(AuditEventModel)).all() == []
 
-    def test_post_returns_500_for_email_without_an_account(self, authenticated_grant_recipient_data_provider_client):
+    def test_post_invites_person_without_an_account(
+        self, authenticated_grant_recipient_data_provider_client, db_session, mock_notification_service_calls
+    ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
+        grant_recipient = client.grant_recipient
 
         response = client.post(
             url_for(
@@ -545,9 +596,86 @@ class TestAddGrantTeamMember:
                 organisation_id=client.organisation.id,
                 grant_id=client.grant.id,
             ),
-            data={"full_name": "Local user", "email_address": "no-account@hastings.gov.uk"},
+            data={"full_name": "My User", "email_address": "user@hastings.gov.uk"},
         )
-        assert response.status_code == 500
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
+        )
+
+        assert db_session.scalar(select(User).where(User.email == "user@hastings.gov.uk")) is None
+        invitation = db_session.scalars(select(Invitation)).one()
+        assert invitation.email == "user@hastings.gov.uk"
+        assert invitation.name == "My User"
+        assert invitation.organisation_id == client.organisation.id
+        assert invitation.grant_id == client.grant.id
+        assert set(invitation.permissions) == {RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER}
+        assert invitation.is_usable is True
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+        assert audit_event.user_id == client.user.id
+        assert audit_event.data["action"] == "user_invited"
+        assert audit_event.data["invitation_id"] == str(invitation.id)
+        assert audit_event.data["grant_recipient_id"] == str(client.grant_recipient.id)
+
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == ("user@hastings.gov.uk", "ae3b6d9c-0e20-4510-84fb-d3406cf1e18c")
+        assert notification_call.kwargs["personalisation"] == {
+            "organisation_name": client.organisation.name,
+            "grant_name": client.grant.name,
+            "is_test_data": "no",
+            "email_address": "user@hastings.gov.uk",
+            "grant_submission_url": url_for(
+                "access_grant_funding.list_collections",
+                organisation_id=grant_recipient.organisation_id,
+                grant_id=grant_recipient.grant_id,
+                _external=True,
+            ),
+            "service_desk_url": client.application.config["ACCESS_SERVICE_DESK_URL"],
+        }
+
+        team_page = client.get(response.location)
+        soup = BeautifulSoup(team_page.data, "html.parser")
+        banner = soup.find(class_="govuk-notification-banner")
+        assert banner is not None
+        assert "Team member invited" in banner.get_text()
+        assert (
+            f"We’ve emailed My User an invite to {client.organisation.name}’s {client.grant.name}." in banner.get_text()
+        )
+        invited_row = next(row for row in soup.find_all("tr") if "user@hastings.gov.uk" in row.get_text())
+        assert "My User" in invited_row.get_text()
+        assert "Can edit and submit" in invited_row.get_text()
+
+    def test_post_reinvites_person_with_a_pending_invitation(
+        self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        enable_access_user_management_flag(client)
+        earlier_invitation = factories.invitation.create(
+            email="user@hastings.gov.uk",
+            name="My User",
+            organisation=client.organisation,
+            grant=client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "My Full User", "email_address": "user@hastings.gov.uk"},
+        )
+        assert response.status_code == 302
+
+        db_session.refresh(earlier_invitation)
+        assert earlier_invitation.is_usable is False
+        usable_invitation = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).one()
+        assert usable_invitation.name == "My Full User"
+        assert len(mock_notification_service_calls) == 1
 
     def test_post_with_invalid_email_shows_error(self, authenticated_grant_recipient_data_provider_client):
         client = authenticated_grant_recipient_data_provider_client

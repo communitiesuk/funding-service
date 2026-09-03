@@ -17,7 +17,7 @@ from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_an
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none, get_grant_recipients
 from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.organisations import get_organisations
-from app.common.data.models import Grant, Organisation
+from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import OrganisationModeEnum, RoleEnum
 from app.extensions import db
@@ -422,10 +422,25 @@ def get_invitations_by_email(email: str, is_usable: bool | None = None) -> Seque
     return db.session.scalars(stmt).all()
 
 
+def get_usable_invitations_for_grant_recipient(grant_recipient: GrantRecipient) -> Sequence[Invitation]:
+    """Pending invitations to `grant_recipient`, whether for its grant specifically or across its organisation."""
+    return db.session.scalars(
+        select(Invitation)
+        .where(
+            Invitation.organisation_id == grant_recipient.organisation_id,
+            or_(Invitation.grant_id == grant_recipient.grant_id, Invitation.grant_id.is_(None)),
+            Invitation.is_usable.is_(True),
+        )
+        .order_by(Invitation.name, Invitation.email)
+    ).all()
+
+
 @flush_and_rollback_on_exceptions
 def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     invitation.claimed_at_utc = func.now()
     invitation.user = user
+    if not user.name and invitation.name:
+        user.name = invitation.name
 
     # Set new grant team members up as test users for each of the grant's grant recipients
     if invitation.organisation and invitation.organisation.can_manage_grants and invitation.grant is not None:
@@ -445,17 +460,27 @@ def claim_invitation(invitation: Invitation, user: User) -> Invitation:
 
 
 @flush_and_rollback_on_exceptions
-def create_user_and_claim_invitations(azure_ad_subject_id: str, email_address: str, name: str) -> User:
-    # We do a check that there are invitations that exist for this email address before calling this function, but it's
-    # safer to do this check again in here to avoid passing in invitations that don't belong to this user. SQLAlchemy
-    # should cache the result of this query from when it was previously called so shouldn't impact performance.
-    invitations = get_invitations_by_email(email=email_address, is_usable=True)
-    user = upsert_user_by_azure_ad_subject_id(
-        azure_ad_subject_id=azure_ad_subject_id,
-        email_address=email_address,
-        name=name,
-    )
-    for invite in invitations:
+def create_user_and_claim_invitations(
+    email_address: str,
+    *,
+    name: str | TNotProvided = NOT_PROVIDED,
+    azure_ad_subject_id: str | None = None,
+) -> User:
+    """Create (or update) the user for `email_address` and grant them the permissions from every usable invitation
+    sent to that address, claiming each one.
+
+    SSO users pass `azure_ad_subject_id` and are keyed by it, so their email and name follow Entra; magic link users
+    are keyed by email. The azure-id branch raises if the email already belongs to a different user (see FSPT-515).
+    """
+    if azure_ad_subject_id is None:
+        user = upsert_user_by_email(email_address=email_address, name=name)
+    else:
+        user = upsert_user_by_azure_ad_subject_id(
+            azure_ad_subject_id=azure_ad_subject_id,
+            email_address=email_address,
+            name=name,
+        )
+    for invite in get_invitations_by_email(email=email_address, is_usable=True):
         add_permissions_to_user(
             user=user,
             permissions=invite.permissions,
