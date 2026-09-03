@@ -2145,7 +2145,7 @@ class SubmissionsListPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{report_name} Reports"),
+            heading=page.get_by_role("heading", name=f"{report_name} Submissions"),
         )
         self.report_name = report_name
 
@@ -2179,7 +2179,7 @@ class PreAwardSubmissionsListPage(ReportsBasePage):
             page,
             domain,
             grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"{form_name} Forms"),
+            heading=page.get_by_role("heading", name=f"{form_name} Submissions"),
         )
         self.form_name = form_name
 
