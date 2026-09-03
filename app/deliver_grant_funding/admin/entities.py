@@ -439,15 +439,17 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         "expires_at_utc",
         "claimed_at_utc",
         "email",
+        "name",
         "user.id",
         "organisation.name",
         "grant.name",
         "permissions",
     ]
-    form_columns = ["email", "organisation", "grant", "permissions"]
+    form_columns = ["email", "name", "organisation", "grant", "permissions"]
 
     form_args = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
+        "name": {"filters": [lambda val: val.strip() if isinstance(val, str) else val]},
         "user": {"get_label": "email"},
         "organisation": {"get_label": "name"},
         "grant": {"get_label": "name"},

@@ -246,6 +246,7 @@ class Invitation(BaseModel):
     __tablename__ = "invitation"
 
     email: Mapped[CIStr]
+    name: Mapped[str | None] = mapped_column(nullable=True)
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("user.id"), nullable=True)
     organisation_id: Mapped[uuid.UUID | None] = mapped_column(

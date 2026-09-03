@@ -1270,6 +1270,7 @@ class _InvitationFactory(SQLAlchemyModelFactory):
 
     id = factory.LazyFunction(uuid4)
     email = factory.Faker("email")
+    name = None
     user_id = None
     user = None
     organisation_id = None

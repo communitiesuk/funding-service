@@ -1,19 +1,47 @@
 import datetime
+from collections.abc import Iterator
 from enum import IntEnum, StrEnum
+from typing import Any, Literal, get_origin
 from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
 from app.common.audit import (
+    AuditEvent,
     DatabaseModelChange,
     SystemEvent,
     UserPermissionsAdded,
     UserPermissionsRemoved,
+    _audit_event_adapters,
     _serialize_value,
     parse_audit_event,
 )
 from app.common.data.types import AuditEventType, RoleEnum
+
+
+def _all_subclasses(cls: type[AuditEvent]) -> Iterator[type[AuditEvent]]:
+    for subclass in cls.__subclasses__():
+        yield subclass
+        yield from _all_subclasses(subclass)
+
+
+def _concrete_audit_event_classes() -> list[type[AuditEvent]]:
+    return [
+        event_class
+        for event_class in _all_subclasses(AuditEvent)
+        if get_origin(event_class.model_fields["action"].annotation) is Literal
+    ]
+
+
+def _audit_event_classes_parsed_by(schema: Any) -> set[type[AuditEvent]]:
+    if isinstance(schema, dict):
+        is_audit_event_model = schema.get("type") == "model" and issubclass(schema["cls"], AuditEvent)
+        found = {schema["cls"]} if is_audit_event_model else set()
+        return found.union(*(_audit_event_classes_parsed_by(value) for value in schema.values()))
+    if isinstance(schema, list):
+        return set().union(*(_audit_event_classes_parsed_by(item) for item in schema))
+    return set()
 
 
 class TestSerializeValue:
@@ -335,10 +363,17 @@ class TestParseAuditEvent:
         with pytest.raises(ValidationError):
             parse_audit_event(event_type, {})
 
+    @pytest.mark.parametrize("event_class", _concrete_audit_event_classes(), ids=lambda cls: cls.__name__)
+    def test_every_audit_event_class_is_registered_under_its_event_type(self, event_class):
+        event_type = event_class.model_fields["event_type"].default
+        registered_classes = _audit_event_classes_parsed_by(_audit_event_adapters[event_type].core_schema)
+        assert event_class in registered_classes, (
+            f"Add {event_class.__name__} to `_audit_event_adapters[{event_type}]` in app/common/audit.py so the "
+            "platform admin can parse and render it"
+        )
+
 
 class TestAuditEventFieldOrder:
-    @pytest.mark.parametrize(
-        "event_class", [DatabaseModelChange, SystemEvent, UserPermissionsAdded, UserPermissionsRemoved]
-    )
+    @pytest.mark.parametrize("event_class", _concrete_audit_event_classes(), ids=lambda cls: cls.__name__)
     def test_common_fields_come_first(self, event_class):
         assert list(event_class.model_fields)[:4] == ["event_type", "timestamp", "user_id", "action"]
