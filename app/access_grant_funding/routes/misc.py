@@ -6,6 +6,11 @@ from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
+from app.access_grant_funding.session_models import (
+    CreateOrganisationSession,
+    clear_public_sign_up_session,
+    start_public_sign_up,
+)
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
@@ -44,6 +49,7 @@ from app.common.helpers.collections import (
 )
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
+from app.constants import SESSION_CREATE_ORGANISATION
 from app.extensions import auto_commit_after_request, notification_service
 from app.types import FlashMessageType
 
@@ -323,7 +329,7 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
                 )
             )
 
-        session["signing_up_for_collection_id"] = collection.id
+        start_public_sign_up(collection.id)
         return redirect(
             url_for(
                 "auth.collection_request_a_link_to_public_sign_up",
@@ -377,12 +383,25 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
     matched_orgs = get_matched_organisations(user, email_domain, mode=organisation_mode)
 
-    # No organisations matched, show message and link to sign up a new organisation
+    # No organisations matched, show message and let the user start setting up a new organisation
     if len(matched_orgs.all()) == 0:
+        form = GenericSubmitForm()
+        if form.validate_on_submit():
+            session[SESSION_CREATE_ORGANISATION] = CreateOrganisationSession(
+                collection_id=collection.id
+            ).to_session_dict()
+            return redirect(
+                url_for(
+                    "access_grant_funding.create_organisation_type",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                )
+            )
         return render_template(
             "access_grant_funding/eligible_to_apply.html",
             grant=grant,
             collection=collection,
+            form=form,
             service_desk_url=current_app.config["ACCESS_SERVICE_DESK_URL"],
         )
 
@@ -394,12 +413,14 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
 
     if form.validate_on_submit():
         selected = form.organisation.data
-        # If user selected to create a new organisation
+        # If user selected to set up a new organisation
         if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
-            # TODO: wire up to the create-account/org flow once it exists
+            session[SESSION_CREATE_ORGANISATION] = CreateOrganisationSession(
+                collection_id=collection.id
+            ).to_session_dict()
             return redirect(
                 url_for(
-                    "access_grant_funding.eligible_to_apply",
+                    "access_grant_funding.create_organisation_type",
                     grant_slug=grant_slug,
                     collection_slug=collection_slug,
                 )
@@ -454,8 +475,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
 
         claim_or_discard_unclaimed_submission(user, collection, submission_mode, grant_recipient)
+
         # Delete the public sign off session if user successfully signs in
-        session.pop("signing_up_for_collection_id", None)
+        clear_public_sign_up_session()
 
         return redirect(
             url_for(

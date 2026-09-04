@@ -46,13 +46,15 @@
         <p class="govuk-body">We could not find an organisation with the email address you provided.</p>
         <p class="govuk-body">Before you can apply, you must create an organisation.</p>
 
-        {# TODO: wire up to the create-account/org flow once it exists #}
-        {{
-          govukButton({
-            "text": "Create an organisation",
-            "href": "#"
-          })
-        }}
+        <form method="post" novalidate>
+          {{ form.csrf_token }}
+          {{
+            govukButton({
+              "text": "Create an organisation",
+              "type": "submit"
+            })
+          }}
+        </form>
 
         <h2 class="govuk-heading-m">Get help</h2>
         <p class="govuk-body">
