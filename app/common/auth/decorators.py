@@ -355,6 +355,9 @@ def are_submissions_visible() -> Callable[[Callable[..., ResponseReturnValue]], 
             ):
                 raise ValueError("Submission mode required.")
 
+            if submission_mode == SubmissionModeEnum.PREVIEW:
+                return abort(404, "Not found")
+
             collection = get_collection(collection_id, grant_id)
             # TODO when we implement FSPT-1636 test submissions should also respect REQUIRES_SUBMITTED_STATUS
             if submission_mode == SubmissionModeEnum.TEST:

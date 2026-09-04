@@ -1043,6 +1043,31 @@ class TestAreSubmissionsVisible:
         )
         assert response == "OK"
 
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, collection_status",
+        [
+            (True, CollectionStatusEnum.OPEN),
+            (False, CollectionStatusEnum.OPEN),
+            (True, CollectionStatusEnum.CLOSED),
+            (False, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_preview_submissions_404(self, factories, allow_public_sign_up, collection_status):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=allow_public_sign_up, status=collection_status)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        with pytest.raises(NotFound) as e:
+            self._view_func(
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.PREVIEW,
+            )
+        assert "Not found" in str(e.value)
+
 
 class TestCollectionIsEditable:
     def test_grant_admin_can_access_draft_collection(self, factories):

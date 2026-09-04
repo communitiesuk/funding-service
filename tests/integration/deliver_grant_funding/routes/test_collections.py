@@ -9747,6 +9747,69 @@ class TestListSubmissions:
         )
         assert response.status_code == 404
 
+    @pytest.mark.parametrize(
+        "client_fixture,allow_public_sign_up, collection_status, can_access",
+        (
+            ("authenticated_no_role_client", True, CollectionStatusEnum.OPEN, False),
+            ("authenticated_no_role_client", True, CollectionStatusEnum.CLOSED, False),
+            ("authenticated_no_role_client", False, CollectionStatusEnum.OPEN, False),
+            ("authenticated_no_role_client", False, CollectionStatusEnum.CLOSED, False),
+            ("authenticated_grant_member_client", True, CollectionStatusEnum.OPEN, False),
+            ("authenticated_grant_member_client", True, CollectionStatusEnum.CLOSED, True),
+            ("authenticated_grant_member_client", False, CollectionStatusEnum.OPEN, True),
+            ("authenticated_grant_member_client", False, CollectionStatusEnum.CLOSED, True),
+        ),
+    )
+    def test_access_control(
+        self,
+        request: FixtureRequest,
+        client_fixture: str,
+        allow_public_sign_up: bool,
+        collection_status: CollectionStatusEnum,
+        can_access: bool,
+        factories,
+    ):
+        client = request.getfixturevalue(client_fixture)
+        collection = factories.collection.create(
+            grant=client.grant or factories.grant.create(),
+            name="Test Report",
+            allow_public_sign_up=allow_public_sign_up,
+            status=collection_status,
+        )
+
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                collection_type=CollectionType.MONITORING_REPORT,
+                grant_id=collection.grant.id,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        if can_access:
+            assert response.status_code == 200
+        else:
+            assert response.status_code == 403
+
+    def test_competed_before_deadline_403(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            allow_public_sign_up=True,
+            status=CollectionStatusEnum.OPEN,
+        )
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        assert response.status_code == 403
+
     def test_no_submissions(self, authenticated_grant_member_client, factories, db_session):
         collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
 
@@ -9762,18 +9825,31 @@ class TestListSubmissions:
         assert response.status_code == 200
         assert "No submissions found for this report" in response.text
 
-    def test_based_on_submission_mode(self, authenticated_grant_member_client, factories, db_session):
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, collection_status",
+        [
+            (True, CollectionStatusEnum.OPEN),
+            (False, CollectionStatusEnum.OPEN),
+            (True, CollectionStatusEnum.CLOSED),
+            (False, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_with_preview_submissions_404(
+        self, authenticated_grant_member_client, factories, db_session, allow_public_sign_up, collection_status
+    ):
         collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_completed_submissions_each_question_type__test=1,
+            allow_public_sign_up=allow_public_sign_up,
+            status=collection_status,
         )
-        test_grant_recipient = factories.grant_recipient.create(
+        factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
             mode=GrantRecipientModeEnum.TEST,
             organisation__name="Test Organisation Ltd",
         )
-        live_grant_recipient = factories.grant_recipient.create(
+        factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant,
             organisation__name="Live Organisation Ltd",
         )
@@ -9781,20 +9857,6 @@ class TestListSubmissions:
             collection=collection,
             mode=SubmissionModeEnum.PREVIEW,
             created_by__email="submitter-preview@recipient.org",
-            status=SubmissionStatusEnum.NOT_STARTED,
-        )
-        factories.submission.create(
-            collection=collection,
-            mode=SubmissionModeEnum.TEST,
-            grant_recipient=test_grant_recipient,
-            created_by__email="submitter-test@recipient.org",
-            status=SubmissionStatusEnum.NOT_STARTED,
-        )
-        factories.submission.create(
-            collection=collection,
-            mode=SubmissionModeEnum.LIVE,
-            grant_recipient=live_grant_recipient,
-            created_by__email="submitter-live@recipient.org",
             status=SubmissionStatusEnum.NOT_STARTED,
         )
 
@@ -9807,6 +9869,43 @@ class TestListSubmissions:
                 submission_mode=SubmissionModeEnum.PREVIEW,
             )
         )
+        assert preview_response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, collection_status",
+        [
+            (True, CollectionStatusEnum.OPEN),
+            (False, CollectionStatusEnum.OPEN),
+            (True, CollectionStatusEnum.CLOSED),
+            (False, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_with_test_submissions(
+        self, authenticated_grant_member_client, factories, db_session, allow_public_sign_up, collection_status
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+            allow_public_sign_up=allow_public_sign_up,
+            status=collection_status,
+        )
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            mode=GrantRecipientModeEnum.TEST,
+            organisation__name="Test Organisation Ltd",
+        )
+        factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation__name="Live Organisation Ltd",
+        )
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            grant_recipient=test_grant_recipient,
+            created_by__email="submitter-test@recipient.org",
+            status=SubmissionStatusEnum.NOT_STARTED,
+        )
         test_response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
@@ -9816,6 +9915,48 @@ class TestListSubmissions:
                 submission_mode=SubmissionModeEnum.TEST,
             )
         )
+        test_soup = BeautifulSoup(test_response.data, "html.parser")
+        assert test_response.status_code == 200
+        test_recipient_link = page_has_link(test_soup, "Test Organisation Ltd")
+        assert test_recipient_link.get("href") == AnyStringMatching(
+            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+        )
+        test_submission_tags = test_soup.select(".govuk-tag")
+
+        assert {tag.text.strip() for tag in test_submission_tags} == {
+            "Not started" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
+        }
+
+    @pytest.mark.parametrize(
+        " collection_status",
+        [
+            (CollectionStatusEnum.OPEN),
+            (CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_with_live_submissions_no_public_sign_up(
+        self, authenticated_grant_member_client, factories, db_session, collection_status
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+            status=collection_status,
+        )
+
+        live_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation__name="Live Organisation Ltd",
+        )
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=live_grant_recipient,
+            created_by__email="submitter-live@recipient.org",
+            status=SubmissionStatusEnum.NOT_STARTED,
+        )
+
         live_response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
@@ -9825,32 +9966,84 @@ class TestListSubmissions:
                 submission_mode=SubmissionModeEnum.LIVE,
             )
         )
-        test_soup = BeautifulSoup(test_response.data, "html.parser")
+
         live_soup = BeautifulSoup(live_response.data, "html.parser")
-        assert preview_response.status_code == 404
-        assert test_response.status_code == 200
         assert live_response.status_code == 200
 
-        test_recipient_link = page_has_link(test_soup, "Test Organisation Ltd")
         live_recipient_link = page_has_link(live_soup, "Live Organisation Ltd")
-        assert test_recipient_link.get("href") == AnyStringMatching(
-            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
-        )
+
         assert live_recipient_link.get("href") == AnyStringMatching(
             "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
         )
 
-        test_submission_tags = test_soup.select(".govuk-tag")
         live_submission_tags = live_soup.select(".govuk-tag")
-        assert {tag.text.strip() for tag in test_submission_tags} == {"Not started"}
-        assert {tag.text.strip() for tag in live_submission_tags} == {"Not started"}
+        assert {tag.text.strip() for tag in live_submission_tags} == {
+            "Not started" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
+        }
+
+    @pytest.mark.parametrize(
+        "collection_status",
+        [
+            (CollectionStatusEnum.OPEN),
+            (CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_with_live_submissions_and_public_sign_up(
+        self, authenticated_grant_member_client, factories, db_session, collection_status
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+            allow_public_sign_up=True,
+            status=collection_status,
+        )
+
+        live_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            organisation__name="Live Organisation Ltd",
+        )
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=live_grant_recipient,
+            created_by__email="submitter-live@recipient.org",
+            status=SubmissionStatusEnum.NOT_STARTED,
+        )
+
+        live_response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+
+        live_soup = BeautifulSoup(live_response.data, "html.parser")
+        if collection_status == CollectionStatusEnum.OPEN:
+            assert live_response.status_code == 403
+        else:
+            assert live_response.status_code == 200
+
+            live_recipient_link = page_has_link(live_soup, "Live Organisation Ltd")
+
+            assert live_recipient_link.get("href") == AnyStringMatching(
+                "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+            )
+
+            live_submission_tags = live_soup.select(".govuk-tag")
+            assert {tag.text.strip() for tag in live_submission_tags} == {
+                "Not started" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
+            }
 
     def test_live_mode_shows_all_grant_recipients_including_those_without_submissions(
         self, authenticated_grant_member_client, factories, db_session
     ):
         collection = factories.collection.create(
-            grant=authenticated_grant_member_client.grant,
-            name="Test Report",
+            grant=authenticated_grant_member_client.grant, name="Test Report", allow_public_sign_up=False
         )
         grant_recipient_with_submission = factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant, organisation__name="Organisation With Submission"
