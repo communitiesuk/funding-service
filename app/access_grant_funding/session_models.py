@@ -1,12 +1,11 @@
-from __future__ import annotations
-
 import enum
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
+from flask import session
+from pydantic import BaseModel, ValidationError
 
-from app.common.data.types import OrganisationType
+from app.constants import SESSION_CREATE_ORGANISATION, SESSION_SIGNING_UP_FOR_COLLECTION_ID
 
 
 class SignUpOrganisationType(enum.StrEnum):
@@ -28,36 +27,33 @@ class SignUpOrganisationType(enum.StrEnum):
             case SignUpOrganisationType.OTHER:
                 return "Other"
 
-    @property
-    def organisation_type(self) -> OrganisationType | None:
-        """The OrganisationType this maps to, or None where the mapping is not one-to-one.
-
-        Local authorities span the nine types in ``_LOCAL_AUTHORITY_TYPES``; a future screen will resolve the
-        specific one by having the user pick their authority, so there is nothing to map here yet.
-        """
-        match self:
-            case SignUpOrganisationType.COMPANY:
-                return OrganisationType.COMPANY
-            case SignUpOrganisationType.CHARITY:
-                return OrganisationType.CHARITY
-            case SignUpOrganisationType.OTHER:
-                return OrganisationType.OTHER
-            case SignUpOrganisationType.LOCAL_AUTHORITY:
-                return None
-
 
 class CreateOrganisationSession(BaseModel):
-    # required: an absent or stale session fails validation and bounces the user back to the start of the journey
     collection_id: UUID
-    # `organisation_type` and `name` match the WTForms field names exactly so `Form(obj=session)` binds off the model
     organisation_type: SignUpOrganisationType | None = None
     name: str = ""
-    custom_code: str = ""
+    external_id: str = ""
 
     def to_session_dict(self) -> dict[str, Any]:
-        # mode="json" so the UUID is serialised to a string rather than put into the signed cookie as a UUID object
         return self.model_dump(mode="json", exclude_none=True)
 
     @classmethod
-    def from_session(cls, session_data: dict[str, Any]) -> CreateOrganisationSession:
-        return cls.model_validate(session_data)
+    def from_session(cls, *, collection_id: UUID, session_data: dict[str, Any]) -> CreateOrganisationSession | None:
+        try:
+            org_session = cls.model_validate(session_data)
+        except ValidationError:
+            return None
+
+        # pin to the current sign up, only one is valid at a time
+        return org_session if org_session.collection_id == collection_id else None
+
+
+def start_public_sign_up(collection_id: UUID) -> None:
+    """Begin (or restart) a public sign up, discarding any in-progress organisation set up."""
+    session.pop(SESSION_CREATE_ORGANISATION, None)
+    session[SESSION_SIGNING_UP_FOR_COLLECTION_ID] = collection_id
+
+
+def clear_public_sign_up_session() -> UUID | None:
+    session.pop(SESSION_CREATE_ORGANISATION, None)
+    return session.pop(SESSION_SIGNING_UP_FOR_COLLECTION_ID, None)

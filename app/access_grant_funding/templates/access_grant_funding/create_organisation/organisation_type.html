@@ -5,7 +5,6 @@
 
 {% block head %}
   {{ super() }}
-  <meta name="robots" content="noindex, nofollow" />
 {% endblock head %}
 
 {% block beforeContent %}
@@ -21,7 +20,7 @@
       {% endset %}
       {% set company_hint_html %}
         Your company must be registered on
-        <a class="govuk-link" href="{{ companies_house_url }}" target="_blank" rel="noreferrer noopener">Companies House (opens in new tab)</a>
+        <a class="govuk-link" href="{{ config.COMPANIES_HOUSE_URL }}" target="_blank" rel="noreferrer noopener">Companies House (opens in new tab)</a>
       {% endset %}
       <form method="post" novalidate>
         {{ form.csrf_token }}

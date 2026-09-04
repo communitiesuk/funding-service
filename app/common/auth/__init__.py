@@ -6,10 +6,10 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
 
+from app.access_grant_funding.session_models import clear_public_sign_up_session, start_public_sign_up
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import collection_is_open_for_sign_up, redirect_if_authenticated
 from app.common.auth.forms import SignInForm
-from app.common.auth.sign_up_session import clear_public_sign_up_session, start_public_sign_up
 from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
 from app.common.data.types import AuthMethodEnum, RoleEnum

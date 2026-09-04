@@ -6,7 +6,11 @@ from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
-from app.access_grant_funding.session_models import CreateOrganisationSession
+from app.access_grant_funding.session_models import (
+    CreateOrganisationSession,
+    clear_public_sign_up_session,
+    start_public_sign_up,
+)
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
@@ -19,7 +23,6 @@ from app.common.auth.decorators import (
     is_signing_up,
     requires_passed_eligibility,
 )
-from app.common.auth.sign_up_session import clear_public_sign_up_session, start_public_sign_up
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug

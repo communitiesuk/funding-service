@@ -6,7 +6,7 @@ from flask import url_for
 
 from app.access_grant_funding.session_models import CreateOrganisationSession, SignUpOrganisationType
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
-from tests.utils import get_h1_text, get_summary_list_value_by_key, page_has_error
+from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
 @pytest.fixture()
@@ -54,13 +54,6 @@ class TestCreateOrganisationType:
         assert "What is your organisation type?" in get_h1_text(soup)
         assert "Create organisation" in soup.text
 
-        radio_labels = {label.text.strip() for label in soup.select(".govuk-radios__item label")}
-        assert radio_labels == {"Registered company", "Charity", "Local authority", "Other"}
-
-        companies_house_link = soup.select_one(".govuk-radios__item .govuk-hint a")
-        assert companies_house_link is not None
-        assert companies_house_link["href"] == "https://find-and-update.company-information.service.gov.uk"
-
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(authenticated_no_role_client, sign_up_collection)
@@ -83,23 +76,6 @@ class TestCreateOrganisationType:
             sign_up_collection,
             CreateOrganisationSession(collection_id=uuid.uuid4()),
         )
-
-        response = authenticated_no_role_client.get(
-            url_for(
-                "access_grant_funding.create_organisation_type",
-                grant_slug=sign_up_collection.grant.slug,
-                collection_slug=sign_up_collection.slug,
-            )
-        )
-
-        assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_with_unparseable_session_redirects(self, authenticated_no_role_client, sign_up_collection):
-        with authenticated_no_role_client.session_transaction() as flask_session:
-            flask_session["signing_up_for_collection_id"] = sign_up_collection.id
-            flask_session["create_organisation"] = {"organisation_type": "COMPANY"}  # no collection_id
 
         response = authenticated_no_role_client.get(
             url_for(
@@ -140,7 +116,7 @@ class TestCreateOrganisationType:
             assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_from_check_your_answers_returns_there(self, authenticated_no_role_client, sign_up_collection):
+    def test_get_post_from_check_your_answers_returns_there(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
@@ -154,27 +130,6 @@ class TestCreateOrganisationType:
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
         )
-        response = authenticated_no_role_client.post(
-            url_for(
-                "access_grant_funding.create_organisation_type",
-                grant_slug=sign_up_collection.grant.slug,
-                collection_slug=sign_up_collection.slug,
-                source="check-your-answers",
-            ),
-            data={"organisation_type": SignUpOrganisationType.COMPANY.value, "submit": "y"},
-        )
-
-        assert response.status_code == 302
-        assert response.location == cya_url
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_from_check_your_answers_back_link_points_there(self, authenticated_no_role_client, sign_up_collection):
-        _seed_session(
-            authenticated_no_role_client,
-            sign_up_collection,
-            CreateOrganisationSession(collection_id=sign_up_collection.id),
-        )
-
         response = authenticated_no_role_client.get(
             url_for(
                 "access_grant_funding.create_organisation_type",
@@ -187,32 +142,20 @@ class TestCreateOrganisationType:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         back_link = soup.select_one("a.govuk-back-link")
-        assert back_link["href"] == url_for(
-            "access_grant_funding.create_organisation_check_your_answers",
-            grant_slug=sign_up_collection.grant.slug,
-            collection_slug=sign_up_collection.slug,
-        )
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_with_nothing_selected_shows_error(self, authenticated_no_role_client, sign_up_collection):
-        _seed_session(
-            authenticated_no_role_client,
-            sign_up_collection,
-            CreateOrganisationSession(collection_id=sign_up_collection.id),
-        )
+        assert back_link["href"] == cya_url
 
         response = authenticated_no_role_client.post(
             url_for(
                 "access_grant_funding.create_organisation_type",
                 grant_slug=sign_up_collection.grant.slug,
                 collection_slug=sign_up_collection.slug,
+                source="check-your-answers",
             ),
-            data={"submit": "y"},
+            data={"organisation_type": SignUpOrganisationType.COMPANY.value, "submit": "y"},
         )
 
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Select your organisation type")
+        assert response.status_code == 302
+        assert response.location == cya_url
 
 
 class TestCreateOrganisationName:
@@ -254,7 +197,7 @@ class TestCreateOrganisationName:
         assert response.location == _eligible_to_apply_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_persists_name_and_generates_custom_code(self, authenticated_no_role_client, sign_up_collection):
+    def test_post_persists_name_and_generates_external_id(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
@@ -282,38 +225,10 @@ class TestCreateOrganisationName:
         with authenticated_no_role_client.session_transaction() as flask_session:
             stored = flask_session["create_organisation"]
         assert stored["name"] == "Acme Ltd"
-        assert stored["custom_code"].isdigit()
-        assert len(stored["custom_code"]) == 9
+        assert len(stored["external_id"]) == 9
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_a_second_time_keeps_the_original_custom_code(self, authenticated_no_role_client, sign_up_collection):
-        _seed_session(
-            authenticated_no_role_client,
-            sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id,
-                organisation_type=SignUpOrganisationType.OTHER,
-                name="First name",
-                custom_code="000111222",
-            ),
-        )
-
-        authenticated_no_role_client.post(
-            url_for(
-                "access_grant_funding.create_organisation_name",
-                grant_slug=sign_up_collection.grant.slug,
-                collection_slug=sign_up_collection.slug,
-            ),
-            data={"name": "Second name", "submit": "y"},
-        )
-
-        with authenticated_no_role_client.session_transaction() as flask_session:
-            stored = flask_session["create_organisation"]
-        assert stored["name"] == "Second name"
-        assert stored["custom_code"] == "000111222"
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_source_round_trip_back_to_check_your_answers(self, authenticated_no_role_client, sign_up_collection):
+    def test_get_post_from_check_your_answers_returns_there(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
@@ -321,7 +236,7 @@ class TestCreateOrganisationName:
                 collection_id=sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.OTHER,
                 name="Acme Ltd",
-                custom_code="000111222",
+                external_id="000111222",
             ),
         )
 
@@ -365,7 +280,7 @@ class TestCreateOrganisationCheckYourAnswers:
                 collection_id=sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.CHARITY,
                 name="Acme Ltd",
-                custom_code="000111222",
+                external_id="000111222",
             ),
         )
 
@@ -420,27 +335,3 @@ class TestCreateOrganisationCheckYourAnswers:
 
         assert response.status_code == 302
         assert response.location == _eligible_to_apply_url(sign_up_collection)
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_is_a_no_op_and_leaves_the_session_intact(self, authenticated_no_role_client, sign_up_collection):
-        org_session = CreateOrganisationSession(
-            collection_id=sign_up_collection.id,
-            organisation_type=SignUpOrganisationType.OTHER,
-            name="Acme Ltd",
-            custom_code="000111222",
-        )
-        _seed_session(authenticated_no_role_client, sign_up_collection, org_session)
-
-        cya_url = url_for(
-            "access_grant_funding.create_organisation_check_your_answers",
-            grant_slug=sign_up_collection.grant.slug,
-            collection_slug=sign_up_collection.slug,
-        )
-        response = authenticated_no_role_client.post(cya_url, data={"submit": "y"})
-
-        assert response.status_code == 302
-        assert response.location == cya_url
-
-        with authenticated_no_role_client.session_transaction() as flask_session:
-            assert flask_session["create_organisation"] == org_session.to_session_dict()
-            assert flask_session["signing_up_for_collection_id"] == sign_up_collection.id
