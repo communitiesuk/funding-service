@@ -538,11 +538,12 @@ class TestAddGrantTeamMember:
         assert "Local user can now edit and submit" in banner.get_text()
         assert "Local user updated" not in banner.get_text()
 
-    def test_post_returns_500_when_person_is_already_a_team_member(
+    def test_post_shows_error_when_person_is_already_a_team_member(
         self, authenticated_grant_recipient_data_provider_client, db_session
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
+        expected_error = f"This user already has access to {client.grant.name}"
 
         response = client.post(
             url_for(
@@ -552,15 +553,30 @@ class TestAddGrantTeamMember:
             ),
             data={"full_name": client.user.name, "email_address": client.user.email},
         )
-        assert response.status_code == 500
+        assert response.status_code == 200
         assert db_session.scalars(select(AuditEventModel)).all() == []
 
+        soup = BeautifulSoup(response.data, "html.parser")
+        error_summary = soup.find("div", class_="govuk-error-summary")
+        assert error_summary is not None
+        error_summary_link = error_summary.find("a", href="#email_address")
+        assert error_summary_link is not None
+        assert expected_error in error_summary_link.get_text()
+
+        email_error = soup.find(id="email_address-error")
+        assert email_error is not None
+        assert expected_error in email_error.get_text()
+        email_input = soup.find("input", id="email_address")
+        assert email_input is not None
+        assert "govuk-input--error" in email_input["class"]
+
     @pytest.mark.parametrize("certifier_is_org_wide", [True, False])
-    def test_post_returns_500_and_does_not_grant_edit_and_submit_to_a_certifier(
+    def test_post_shows_error_and_does_not_grant_edit_and_submit_to_a_certifier(
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, certifier_is_org_wide
     ):
         client = authenticated_grant_recipient_data_provider_client
         enable_access_user_management_flag(client)
+        expected_error = f"This user already has access to {client.grant.name}"
         certifier = factories.user.create(name="Sarah Certifier", email="scertifier@hastings.gov.uk")
         factories.user_role.create(
             user=certifier,
@@ -577,7 +593,21 @@ class TestAddGrantTeamMember:
             ),
             data={"full_name": "Sarah Certifier", "email_address": "scertifier@hastings.gov.uk"},
         )
-        assert response.status_code == 500
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        error_summary = soup.find("div", class_="govuk-error-summary")
+        assert error_summary is not None
+        error_summary_link = error_summary.find("a", href="#email_address")
+        assert error_summary_link is not None
+        assert expected_error in error_summary_link.get_text()
+
+        email_error = soup.find(id="email_address-error")
+        assert email_error is not None
+        assert expected_error in email_error.get_text()
+        email_input = soup.find("input", id="email_address")
+        assert email_input is not None
+        assert "govuk-input--error" in email_input["class"]
 
         db_session.refresh(certifier)
         assert all(RoleEnum.DATA_PROVIDER not in role.permissions for role in certifier.roles)

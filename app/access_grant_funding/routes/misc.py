@@ -164,26 +164,26 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
                 url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
             )
 
-        # Covers existing data providers and certifiers; certifiers must not be given edit and submit permissions
         if AuthorisationHelper.is_access_grant_member(grant_recipient, user_to_add):
-            # TODO: https://mhclgdigital.atlassian.net/browse/FSPT-1588
-            return abort(500)
-
-        interfaces.user.add_permissions_to_user(
-            user=user_to_add,
-            permissions=[RoleEnum.DATA_PROVIDER],
-            organisation=organisation,
-            grant=grant_recipient.grant,
-            by_user=interfaces.user.get_current_user(),
-        )
-        notification_service.send_access_grant_team_member_added(user_to_add.email, grant_recipient=grant_recipient)
-        flash(
-            {"user_name": user_to_add.name},  # ty: ignore[invalid-argument-type]
-            FlashMessageType.ACCESS_TEAM_MEMBER_ADDED,
-        )
-        return redirect(
-            url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
-        )
+            form.email_address.errors.append(  # ty: ignore[unresolved-attribute]
+                f"This user already has access to {grant_recipient.grant.name}"
+            )
+        else:
+            interfaces.user.add_permissions_to_user(
+                user=user_to_add,
+                permissions=[RoleEnum.DATA_PROVIDER],
+                organisation=organisation,
+                grant=grant_recipient.grant,
+                by_user=interfaces.user.get_current_user(),
+            )
+            notification_service.send_access_grant_team_member_added(user_to_add.email, grant_recipient=grant_recipient)
+            flash(
+                {"user_name": user_to_add.name},  # ty: ignore[invalid-argument-type]
+                FlashMessageType.ACCESS_TEAM_MEMBER_ADDED,
+            )
+            return redirect(
+                url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
+            )
 
     return render_template(
         "access_grant_funding/add_grant_team_member.html",
