@@ -25,6 +25,7 @@ from app.common.auth.decorators import (
     is_signing_up,
     redirect_if_authenticated,
     requires_passed_eligibility,
+    submission_is_visible,
 )
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
@@ -972,6 +973,199 @@ class TestHasDeliverGrantRole:
         with pytest.raises(Forbidden) as e:
             view_func(grant_id=grant.id)
         assert "Access denied" in str(e.value)
+
+
+class TestSubmissionIsVisible:
+    @submission_is_visible()
+    def _view_func_with_collection_id(
+        self, grant_id: UUID, collection_id: UUID, submission_mode: SubmissionModeEnum
+    ) -> str:
+        return "OK"
+
+    @submission_is_visible()
+    def _view_func_with_submission_id(self, grant_id: UUID, submission_id: UUID) -> str:
+        return "OK"
+
+    @pytest.mark.parametrize(
+        "view_func,grant_id,collection_id,submission_mode,submission_id,exp_exception_type,exp_error",
+        [
+            (
+                _view_func_with_collection_id,
+                uuid.uuid4(),
+                uuid.uuid4(),
+                SubmissionModeEnum.PREVIEW,
+                None,
+                NotFound,
+                "Not Found",
+            ),
+            (
+                _view_func_with_submission_id,
+                uuid.uuid4(),
+                None,
+                SubmissionModeEnum.PREVIEW,
+                uuid.uuid4(),
+                NotFound,
+                "Not Found",
+            ),
+            (
+                _view_func_with_submission_id,
+                None,
+                None,
+                SubmissionModeEnum.PREVIEW,
+                uuid.uuid4(),
+                ValueError,
+                "Grant ID required",
+            ),
+            (
+                _view_func_with_collection_id,
+                None,
+                uuid.uuid4(),
+                SubmissionModeEnum.PREVIEW,
+                None,
+                ValueError,
+                "Grant ID required",
+            ),
+            (
+                _view_func_with_collection_id,
+                uuid.uuid4(),
+                None,
+                SubmissionModeEnum.PREVIEW,
+                None,
+                ValueError,
+                "One of submission ID or collection ID with submission mode is required",
+            ),
+            (
+                _view_func_with_collection_id,
+                uuid.uuid4(),
+                uuid.uuid4(),
+                None,
+                None,
+                ValueError,
+                "One of submission ID or collection ID with submission mode is required",
+            ),
+            (
+                _view_func_with_collection_id,
+                uuid.uuid4(),
+                None,
+                None,
+                None,
+                ValueError,
+                "One of submission ID or collection ID with submission mode is required",
+            ),
+            (
+                _view_func_with_submission_id,
+                uuid.uuid4(),
+                None,
+                None,
+                None,
+                ValueError,
+                "One of submission ID or collection ID with submission mode is required",
+            ),
+        ],
+    )
+    def test_param_validation(
+        self,
+        factories,
+        view_func,
+        grant_id,
+        collection_id,
+        submission_mode,
+        submission_id,
+        exp_exception_type,
+        exp_error,
+    ):
+        if submission_id:
+            factories.submission.create(id=submission_id, mode=submission_mode)
+        user = factories.user.create(email="")
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        with pytest.raises(exp_exception_type) as e:
+            view_func(
+                grant_id=grant_id,
+                collection_id=collection_id,
+                submission_mode=submission_mode,
+                submission_id=submission_id,
+            )
+        assert exp_error in str(e.value)
+
+    @pytest.mark.parametrize("submission_mode", [SubmissionModeEnum.LIVE, SubmissionModeEnum.TEST])
+    def test_no_public_sign_up(self, factories, submission_mode):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=False)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func_with_collection_id(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            submission_mode=submission_mode,
+        )
+
+        assert response == "OK"
+
+    def test_public_sign_up_test_submissions(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func_with_collection_id(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.TEST,
+        )
+
+        assert response == "OK"
+
+    def test_public_sign_up_live_submissions_before_deadline(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.OPEN)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        with pytest.raises(Forbidden):
+            self._view_func_with_collection_id(
+                grant_id=collection.grant.id,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+
+    def test_public_sign_up_live_submissions_after_deadline(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.CLOSED)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func_with_collection_id(
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.TEST,
+        )
+        assert response == "OK"
+
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, collection_status",
+        [
+            (True, CollectionStatusEnum.OPEN),
+            (False, CollectionStatusEnum.OPEN),
+            (True, CollectionStatusEnum.CLOSED),
+            (False, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_preview_submissions_404(self, factories, allow_public_sign_up, collection_status):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=allow_public_sign_up, status=collection_status)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        with pytest.raises(NotFound):
+            self._view_func_with_collection_id(
+                grant_id=collection.grant.id,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.PREVIEW,
+            )
 
 
 class TestCollectionIsEditable:
