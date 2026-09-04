@@ -105,6 +105,12 @@ def set_user_last_logged_in_at_utc(user: User) -> User:
 
 
 @flush_and_rollback_on_exceptions
+def set_user_name(user: User, name: str) -> User:
+    user.name = name
+    return user
+
+
+@flush_and_rollback_on_exceptions
 def upsert_user_by_email(
     email_address: str,
     *,
