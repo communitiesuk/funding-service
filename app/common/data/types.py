@@ -309,6 +309,12 @@ class CollectionStatusEnum(enum.StrEnum):
         return ordered_list_of_names.index(self.name) > ordered_list_of_names.index(other.name)
 
 
+class SubmissionVisibilityEnum(enum.StrEnum):
+    ALWAYS_VISIBLE = "Always visible"
+    REQUIRES_SUBMITTED_STATUS = "Requires submitted status"
+    REQUIRES_CLOSED_COLLECTION = "Requires closed collection"
+
+
 class ExpressionType(enum.StrEnum):
     CONDITION = "CONDITION"
     VALIDATION = "VALIDATION"
