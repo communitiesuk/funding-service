@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms import RadioField, StringField, SubmitField
@@ -118,3 +120,20 @@ class CreateOrganisationNameForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CreateOrganisationAllowTeamMembersForm(FlaskForm):
+    allow_team_members = RadioField(
+        choices=[(True, "Yes"), (False, "No")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, *args: Any, organisation_name: str, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.allow_team_members.label.text = (
+            f"Do you want to allow team members to apply as {organisation_name} in the future?"
+        )
+        self.allow_team_members.validators = [
+            DataRequired(f"Select yes if you want to allow team members to apply as {organisation_name}")
+        ]

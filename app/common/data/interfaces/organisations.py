@@ -82,6 +82,7 @@ def create_organisation(
     type_: OrganisationType,
     typed_id: str,
     mode: OrganisationModeEnum = OrganisationModeEnum.LIVE,
+    domains: list[str] | None = None,
 ) -> Organisation:
     """Create an organisation that has signed itself up through the public sign up journey.
 
@@ -96,6 +97,7 @@ def create_organisation(
         mode=mode,
         status=OrganisationStatus.ACTIVE,
         can_manage_grants=False,
+        domains=domains or [],
     )
     organisation.typed_id = typed_id
     organisation.external_id = organisation.make_external_id()
