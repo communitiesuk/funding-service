@@ -5,12 +5,13 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm
-from app.access_grant_funding.routes import access_grant_funding_blueprint
-from app.access_grant_funding.session_models import (
-    CreateOrganisationSession,
-    clear_public_sign_up_session,
-    start_public_sign_up,
+from app.access_grant_funding.helpers import (
+    complete_public_sign_up_session_and_redirect,
+    get_sign_up_modes,
+    sign_up_as_grant_recipient,
 )
+from app.access_grant_funding.routes import access_grant_funding_blueprint
+from app.access_grant_funding.session_models import CreateOrganisationSession, start_public_sign_up
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
@@ -26,27 +27,13 @@ from app.common.auth.decorators import (
 from app.common.collections.forms import build_question_form
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
-from app.common.data.interfaces.grant_recipients import (
-    create_grant_recipient,
-    get_grant_recipient,
-    get_grant_recipient_or_none,
-)
+from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_grant_recipient_or_none
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_matched_organisations, get_organisation
-from app.common.data.types import (
-    GrantRecipientModeEnum,
-    GrantRecipientStatusEnum,
-    OrganisationModeEnum,
-    RoleEnum,
-    SubmissionModeEnum,
-)
+from app.common.data.types import RoleEnum, SubmissionModeEnum
 from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import (
-    SubmissionHelper,
-    claim_or_discard_unclaimed_submission,
-    get_or_create_unclaimed_submission,
-)
+from app.common.helpers.collections import SubmissionHelper, get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.constants import SESSION_CREATE_ORGANISATION
@@ -378,10 +365,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
 
     user = interfaces.user.get_current_user()
     email_domain = user.email_domain
-    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
 
-    organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
-    matched_orgs = get_matched_organisations(user, email_domain, mode=organisation_mode)
+    modes = get_sign_up_modes(user)
+    matched_orgs = get_matched_organisations(user, email_domain, mode=modes.organisation)
 
     # No organisations matched, show message and let the user start setting up a new organisation
     if len(matched_orgs.all()) == 0:
@@ -433,29 +419,12 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
             return abort(403)
 
-        grant_recipient_mode = GrantRecipientModeEnum.TEST if is_deliver_testing else GrantRecipientModeEnum.LIVE
-        submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
         grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
 
-        # No grant recipient exists, create one
+        # No grant recipient exists, create one and sign the user up as a data provider
         if grant_recipient is None:
-            grant_recipient = create_grant_recipient(
-                grant=grant,
-                organisation=organisation,
-                status=GrantRecipientStatusEnum.APPLYING,
-                mode=grant_recipient_mode,
-            )
-
-            interfaces.user.add_permissions_to_user(
-                user=user,
-                permissions=[RoleEnum.DATA_PROVIDER],
-                organisation=organisation,
-                grant=grant,
-                by_user=user,
-            )
-            flash(
-                {"organisation_name": organisation.name, "grant_name": grant.name},  # ty: ignore[invalid-argument-type]
-                FlashMessageType.PUBLIC_SIGN_UP_SUCCESS,
+            grant_recipient = sign_up_as_grant_recipient(
+                user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
             )
         # A grant recipient exists, and user does not have access to it
         elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
@@ -474,17 +443,8 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
                 FlashMessageType.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
             )
 
-        claim_or_discard_unclaimed_submission(user, collection, submission_mode, grant_recipient)
-
-        # Delete the public sign off session if user successfully signs in
-        clear_public_sign_up_session()
-
-        return redirect(
-            url_for(
-                "access_grant_funding.list_collections",
-                organisation_id=organisation.id,
-                grant_id=grant.id,
-            )
+        return complete_public_sign_up_session_and_redirect(
+            user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission
         )
 
     return render_template(
