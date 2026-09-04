@@ -6,6 +6,7 @@ from app.common.data.interfaces.organisations import (
     get_matched_organisations,
     get_organisation_count,
     get_organisations,
+    organisation_name_exists,
     upsert_organisations,
 )
 from app.common.data.interfaces.user import add_permissions_to_user
@@ -218,6 +219,39 @@ class TestGetOrganisationCount:
         factories.organisation.create(name="Regular Org 2", can_manage_grants=False)
 
         assert get_organisation_count() == 2
+
+
+class TestOrganisationNameExists:
+    def test_organisation_name_exists_true(self, factories, db_session):
+        factories.organisation.create(name="Existing Organisation")
+
+        assert organisation_name_exists("Existing Organisation") is True
+
+    def test_organisation_name_exists_false(self, factories, db_session):
+        assert organisation_name_exists("Non-existent Organisation") is False
+
+    def test_organisation_name_exists_case_insensitive(self, factories, db_session):
+        factories.organisation.create(name="Existing Organisation")
+
+        assert organisation_name_exists("existing organisation") is True
+
+    def test_organisation_name_exists_is_scoped_to_mode(self, factories, db_session):
+        factories.organisation.create(name="Live Only Organisation")
+
+        assert organisation_name_exists("Live Only Organisation") is True
+        assert organisation_name_exists("Live Only Organisation", mode=OrganisationModeEnum.TEST) is False
+
+    @pytest.mark.parametrize("searched_name", ["Mirrored Organisation", "Mirrored Organisation (test)"])
+    def test_organisation_name_exists_normalises_the_test_suffix(self, factories, db_session, searched_name):
+        factories.organisation.create(name="Mirrored Organisation (test)", mode=OrganisationModeEnum.TEST)
+
+        assert organisation_name_exists(searched_name, mode=OrganisationModeEnum.TEST) is True
+
+    def test_organisation_name_exists_does_not_add_the_test_suffix_in_live_mode(self, factories, db_session):
+        factories.organisation.create(name="Mirrored Organisation (test)")
+
+        assert organisation_name_exists("Mirrored Organisation") is False
+        assert organisation_name_exists("Mirrored Organisation (test)") is True
 
 
 class TestUpsertOrganisations:

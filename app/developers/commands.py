@@ -704,7 +704,7 @@ def create_test_organisation_from_live(commit: bool) -> None:
         db.session.add(
             Organisation(
                 external_id=organisation.external_id,
-                name=f"{organisation.name} (test)",
+                name=Organisation.make_test_name(organisation.name),
                 status=organisation.status,
                 type=organisation.type,
                 active_date=organisation.active_date,

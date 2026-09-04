@@ -55,6 +55,19 @@ def get_organisation(organisation_id: UUID) -> Organisation:
     return db.session.get_one(Organisation, organisation_id)
 
 
+def organisation_name_exists(name: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> bool:
+    """Check for an organisation by name within a single mode.
+
+    In test mode the name is normalised to its ` (test)` form first, so a name given with or without the suffix
+    finds the same organisation. `Organisation.name` is a CITEXT column, so the match is case-insensitive.
+    """
+    if mode == OrganisationModeEnum.TEST:
+        name = Organisation.make_test_name(name)
+
+    statement = select(Organisation).where(Organisation.name == name, Organisation.mode == mode)
+    return db.session.scalar(statement) is not None
+
+
 def get_organisation_count(mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> int:
     statement = (
         select(func.count())
@@ -84,7 +97,7 @@ def upsert_organisations(
         for org in organisations:
             values = {
                 "external_id": org.external_id,
-                "name": org.name if mode == OrganisationModeEnum.LIVE else f"{org.name} (test)",
+                "name": org.name if mode == OrganisationModeEnum.LIVE else Organisation.make_test_name(org.name),
                 "type": org.type,
                 "can_manage_grants": False,
                 "status": OrganisationStatus.ACTIVE if not org.retirement_date else OrganisationStatus.RETIRED,
