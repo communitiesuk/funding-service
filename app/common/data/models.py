@@ -69,6 +69,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
     json_flat_scalars,
     json_scalars,
 )
@@ -505,6 +506,14 @@ class Collection(BaseModel):
 
     def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
         return [form.title for form in self.forms if str(form.id) in form_ids]
+
+    @property
+    def submission_visibility(self) -> SubmissionVisibilityEnum:
+        return (
+            SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
+            if self.allow_public_sign_up
+            else SubmissionVisibilityEnum.ALWAYS_VISIBLE
+        )
 
 
 class Submission(BaseModel):

@@ -19,6 +19,7 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionVisibilityEnum,
 )
 
 
@@ -731,3 +732,11 @@ class TestCollectionModel:
 
         with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset({date(2026, 6, 22)})):
             assert collection.date_to_send_reminder_emails == date(2026, 6, 18)
+
+    def test_submission_visibility_no_public_sign_up(self, factories):
+        collection = factories.collection.build(allow_public_sign_up=False)
+        assert collection.submission_visibility == SubmissionVisibilityEnum.ALWAYS_VISIBLE
+
+    def test_submission_visibility_with_public_sign_up(self, factories):
+        collection = factories.collection.build(allow_public_sign_up=True)
+        assert collection.submission_visibility == SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
