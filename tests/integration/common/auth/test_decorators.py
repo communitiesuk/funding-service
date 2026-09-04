@@ -10,6 +10,7 @@ from werkzeug.exceptions import Forbidden, InternalServerError, NotFound
 from app import GrantStatusEnum
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
+    are_submissions_visible,
     collection_is_editable,
     collection_is_open_for_sign_up,
     deliver_grant_funding_login_required,
@@ -972,6 +973,75 @@ class TestHasDeliverGrantRole:
         with pytest.raises(Forbidden) as e:
             view_func(grant_id=grant.id)
         assert "Access denied" in str(e.value)
+
+
+class TestAreSubmissionsVisible:
+    @are_submissions_visible()
+    def _view_func(
+        self, grant_id: UUID, collection_type: CollectionType, collection_id: UUID, submission_mode: SubmissionModeEnum
+    ) -> str:
+        return "OK"
+
+    @pytest.mark.parametrize("submission_mode", [SubmissionModeEnum.LIVE, SubmissionModeEnum.TEST])
+    def test_no_public_sign_up(self, factories, submission_mode):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=False)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func(
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.APPLICATION,
+            collection_id=collection.id,
+            submission_mode=submission_mode,
+        )
+
+        assert response == "OK"
+
+    def test_public_sign_up_test_submissions(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func(
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.APPLICATION,
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.TEST,
+        )
+
+        assert response == "OK"
+
+    def test_public_sign_up_live_submissions_before_deadline(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.OPEN)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        with pytest.raises(Forbidden) as e:
+            self._view_func(
+                grant_id=collection.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        assert "Access denied" in str(e.value)
+
+    def test_public_sign_up_live_submissions_after_deadline(self, factories):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.CLOSED)
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func(
+            grant_id=collection.grant.id,
+            collection_type=CollectionType.APPLICATION,
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.TEST,
+        )
+        assert response == "OK"
 
 
 class TestCollectionIsEditable:

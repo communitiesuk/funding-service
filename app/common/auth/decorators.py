@@ -27,6 +27,7 @@ from app.common.data.types import (
     GrantStatusEnum,
     RoleEnum,
     SubmissionModeEnum,
+    SubmissionVisibilityEnum,
 )
 from app.common.helpers.collections import eligibility_answers_currently_pass
 from app.common.helpers.feature_flags import FeatureFlagBase
@@ -336,6 +337,43 @@ def has_deliver_grant_role(
             return func(*args, **kwargs)
 
         return is_deliver_grant_funding_user(wrapped)
+
+    return decorator
+
+
+def are_submissions_visible() -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+        @functools.wraps(func)
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
+                raise ValueError("Grant ID required.")
+            if "collection_id" not in kwargs or (collection_id := cast(uuid.UUID, kwargs["collection_id"])) is None:
+                raise ValueError("Collection ID required.")
+            if (
+                "submission_mode" not in kwargs
+                or (submission_mode := cast(SubmissionModeEnum, kwargs["submission_mode"])) is None
+            ):
+                raise ValueError("Submission mode required.")
+
+            collection = get_collection(collection_id, grant_id)
+            # TODO when we implement FSPT-1636 test submissions should also respect REQUIRES_SUBMITTED_STATUS
+            if submission_mode == SubmissionModeEnum.TEST:
+                return func(*args, **kwargs)
+
+            match collection.submission_visibility:
+                case SubmissionVisibilityEnum.ALWAYS_VISIBLE:
+                    return func(*args, **kwargs)
+                case SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION:
+                    if collection.status == CollectionStatusEnum.CLOSED:
+                        return func(*args, **kwargs)
+                case _:
+                    current_app.logger.error(
+                        "Unhandled value for submission visibility %s", collection.submission_visibility
+                    )
+
+            return abort(403, description="Access denied")
+
+        return wrapped
 
     return decorator
 
