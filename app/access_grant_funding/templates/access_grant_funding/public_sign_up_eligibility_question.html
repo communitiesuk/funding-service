@@ -16,7 +16,7 @@
       <form method="post" novalidate>
         {{ form.csrf_token }}
 
-        <span class="govuk-caption-l">Eligibility questions</span>
+        <span class="govuk-caption-l">{{ question.form.title }}</span>
         {% if question.guidance_body %}
           {{ interpolator(question.guidance_body) | govuk_markdown | safe }}
         {% endif %}

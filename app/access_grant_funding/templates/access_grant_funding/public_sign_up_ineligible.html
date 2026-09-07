@@ -7,7 +7,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug),
+      "href": url_for("access_grant_funding.public_sign_up_eligibility_question", grant_slug=grant.slug, collection_slug=collection.slug, question_id=question.id),
     })
   }}
 {% endblock %}
@@ -15,11 +15,11 @@
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-      <span class="govuk-caption-l">Eligibility questions</span>
+      <span class="govuk-caption-l">{{ question.form.title }}</span>
       <h1 class="govuk-heading-l">You are not eligible to apply</h1>
 
       <p class="govuk-body">You're not eligible to apply for the {{ grant.name }}.</p>
-
+      <p class="govuk-body">This is because you answered <strong>‘{{ answer.get_value_for_text_export() }}’</strong> for ‘{{ question.text }}’.</p>
       <p class="govuk-body">
         {% if collection.prospectus_url %}
           You can review the eligibility criteria in the <a class="govuk-link" href="{{ collection.prospectus_url }}" target="_blank" rel="noopener noreferrer">grant's prospectus (opens in new tab)</a>.
