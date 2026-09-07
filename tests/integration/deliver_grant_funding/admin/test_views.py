@@ -6324,6 +6324,27 @@ class TestPlatformAdminInvitationView:
         invitation = db_session.scalars(select(Invitation).where(Invitation.email == "user@communities.gov.uk")).one()
         assert invitation.name is None
 
+    def test_create_records_created_by(
+        self, authenticated_platform_admin_client, db_session, mock_notification_service_calls
+    ):
+        organisation = _get_grant_managing_organisation()
+
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/invitation/new/",
+            data={
+                "email": "user@communities.gov.uk",
+                "name": "My User",
+                "organisation": str(organisation.id),
+                "grant": "__None",
+                "permissions": ["MEMBER"],
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        invitation = db_session.scalars(select(Invitation).where(Invitation.email == "user@communities.gov.uk")).one()
+        assert invitation.created_by == get_user_by_email("test@communities.gov.uk")
+
 
 class TestGrantRecipientChangeStatus:
     def test_change_status_action_appears_on_list_page(

@@ -27,7 +27,7 @@ class User(BaseModel):
 
     magic_links: Mapped[list[MagicLink]] = relationship("MagicLink", back_populates="user")
     invitations: Mapped[list[Invitation]] = relationship(
-        "Invitation", back_populates="user", cascade="all, delete-orphan"
+        "Invitation", back_populates="user", foreign_keys="Invitation.user_id", cascade="all, delete-orphan"
     )
     roles: Mapped[list[UserRole]] = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     submissions: Mapped[list[Submission]] = relationship("Submission", back_populates="created_by")
@@ -257,10 +257,12 @@ class Invitation(BaseModel):
         postgresql.ARRAY(SqlEnum(RoleEnum, name="role_enum", validate_strings=True)),
         nullable=False,
     )
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id"), nullable=False)
 
-    user: Mapped[User] = relationship("User", back_populates="invitations")
+    user: Mapped[User] = relationship("User", back_populates="invitations", foreign_keys=[user_id])
     organisation: Mapped[Organisation] = relationship("Organisation")
     grant: Mapped[Grant] = relationship("Grant", back_populates="invitations")
+    created_by: Mapped[User] = relationship("User", foreign_keys=[created_by_id])
 
     expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
     claimed_at_utc: Mapped[datetime | None] = mapped_column(nullable=True)

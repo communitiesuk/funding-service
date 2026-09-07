@@ -432,6 +432,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         "user.id": "User ID",
         "organisation.name": "Organisation name",
         "grant.name": "Grant name",
+        "created_by.email": "Invited by",
     }
 
     column_details_list = [
@@ -439,6 +440,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         "expires_at_utc",
         "claimed_at_utc",
         "email",
+        "created_by.email",
         "name",
         "user.id",
         "organisation.name",
@@ -459,6 +461,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
+            model.created_by = get_current_user()
 
             if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # ty: ignore[unresolved-attribute]
                 model.user = user
