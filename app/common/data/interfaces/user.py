@@ -362,8 +362,8 @@ def create_invitation(
     name: str | None = None,
     by_user: User,
 ) -> Invitation:
-    """Invite `email` to take on `permissions`; `by_user` is the user sending the invitation, recorded on the audit
-    event tracked for it."""
+    """Invite `email` to take on `permissions`; `by_user` is the user sending the invitation, recorded as the
+    invitation's `created_by` and on the audit event tracked for it."""
     if organisation is None and grant is not None:
         raise ValueError("If specifying grant, must also specify organisation")
 
@@ -391,6 +391,7 @@ def create_invitation(
         grant_id=grant.id if grant else None,
         permissions=permissions,
         expires_at_utc=func.now() + datetime.timedelta(days=7),
+        created_by=by_user,
     )
     db.session.add(invitation)
     db.session.flush()
