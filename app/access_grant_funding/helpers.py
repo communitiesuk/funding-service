@@ -1,9 +1,9 @@
 from typing import NamedTuple
 
-from flask import flash, redirect, url_for
+from flask import flash, redirect, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.access_grant_funding.session_models import clear_public_sign_up_session
+from app.access_grant_funding.session_models import MatchedOrganisationSession, clear_public_sign_up_session
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.interfaces.grant_recipients import create_grant_recipient, get_grant_recipient_or_none
@@ -17,6 +17,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import claim_or_discard_unclaimed_submission
+from app.constants import SESSION_MATCHED_ORGANISATION
 from app.types import FlashMessageType
 
 
@@ -78,6 +79,20 @@ def sign_up_with_matched_organisation(
 
     # No grant recipient exists, create one and sign the user up as a data provider
     if grant_recipient is None:
+        # We hold no name for this user, so collect one before signing them up
+        # Note we should only match this route if grant recipient isn't already applying
+        if not user.name:
+            session[SESSION_MATCHED_ORGANISATION] = MatchedOrganisationSession(
+                collection_id=collection.id, organisation_id=organisation.id
+            ).to_session_dict()
+            return redirect(
+                url_for(
+                    "access_grant_funding.eligible_to_apply_user_name",
+                    grant_slug=grant.slug,
+                    collection_slug=collection.slug,
+                )
+            )
+
         grant_recipient = sign_up_as_grant_recipient(
             user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
         )

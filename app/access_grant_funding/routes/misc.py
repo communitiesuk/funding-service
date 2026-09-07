@@ -419,19 +419,6 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
             return abort(403)
 
-        # We hold no name for this user, so collect one before signing them up
-        if not user.name:
-            session[SESSION_MATCHED_ORGANISATION] = MatchedOrganisationSession(
-                collection_id=collection.id, organisation_id=organisation.id
-            ).to_session_dict()
-            return redirect(
-                url_for(
-                    "access_grant_funding.eligible_to_apply_user_name",
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                )
-            )
-
         return sign_up_with_matched_organisation(
             user=user, grant=grant, collection=collection, organisation=organisation, modes=modes
         )

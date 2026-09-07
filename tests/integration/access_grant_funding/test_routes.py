@@ -2165,6 +2165,38 @@ class TestEligibleToApplyPage:
         assert db_session.scalars(select(GrantRecipient)).all() == []
 
     @pytest.mark.authenticate_as("test@example-org.com")
+    def test_post_does_not_ask_for_the_users_name_if_org_is_already_applying(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        authenticated_no_role_client.user.name = None
+        db_session.commit()
+
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        # A colleague from the same email domain has already applied, but this user has no role on it yet
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.already_applying",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            organisation_id=organisation.id,
+        )
+
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_redirects_to_submission_page(self, authenticated_grant_member_client, factories):
         grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
