@@ -4,9 +4,13 @@ from flask.typing import ResponseReturnValue
 from app.access_grant_funding.forms import CreateOrganisationNameForm, CreateOrganisationTypeForm
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.access_grant_funding.session_models import CreateOrganisationSession, SignUpOrganisationType
+from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import requires_passed_eligibility
+from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grants import get_grant_by_slug
+from app.common.data.interfaces.organisations import organisation_name_exists
+from app.common.data.types import OrganisationModeEnum
 from app.common.data.utils import generate_organisation_custom_code
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS, SESSION_CREATE_ORGANISATION
@@ -95,6 +99,19 @@ def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseR
         # methods for finding the name and external ID
         org_session.external_id = generate_organisation_custom_code()
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+
+        is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(interfaces.user.get_current_user())
+        organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
+
+        if organisation_name_exists(org_session.name, mode=organisation_mode):
+            return redirect(
+                url_for(
+                    "access_grant_funding.create_organisation_already_exists",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+                )
+            )
         return redirect(check_your_answers_url)
 
     back_link_href = (
@@ -112,6 +129,49 @@ def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseR
         grant=grant,
         collection=collection,
         back_link_href=back_link_href,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-already-exists",
+    methods=["GET"],
+)
+@requires_passed_eligibility
+def create_organisation_already_exists(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    org_session = CreateOrganisationSession.from_session(
+        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
+    )
+    if org_session is None or not all([bool(i) for i in [org_session.name]]):
+        return redirect(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
+        )
+
+    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
+    organisation_name_url = url_for(
+        "access_grant_funding.create_organisation_name",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+        source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+    )
+
+    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(interfaces.user.get_current_user())
+    organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
+
+    # double checks the current session name is in this state before presenting it
+    # going back and forward will change the state but this screen will be stored in
+    # the browser history
+    if not organisation_name_exists(org_session.name, mode=organisation_mode):
+        return redirect(organisation_name_url)
+
+    return render_template(
+        "access_grant_funding/create_organisation/organisation_already_exists.html",
+        grant=grant,
+        collection=collection,
+        organisation_name=org_session.name,
+        back_link_href=organisation_name_url,
     )
 
 
