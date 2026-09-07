@@ -34,6 +34,10 @@
 
       <p class="govuk-body">You'll be able to:</p>
       <ul class="govuk-list govuk-list--bullet">
+        {% if collection.allow_public_sign_up %}
+          <li>complete the eligibility questions</li>
+          <li>sign up a test organisation</li>
+        {% endif %}
         <li>create a test submission</li>
         <li>view all the emails grant recipients receive</li>
         <li>complete the {{ type_constants.singular }} questions</li>
@@ -42,7 +46,9 @@
       </ul>
 
       <div class="govuk-form-group govuk-!-margin-top-6">
-        {% if test_grant_recipients %}
+        {% if collection.allow_public_sign_up %}
+          <a class="govuk-button" href="{{ public_sign_up_url }}" role="button" data-module="govuk-button">Start test application journey</a>
+        {% elif test_grant_recipients %}
           <form method="post" novalidate>
             {{ form.csrf_token }}
             {{ form.organisation(params={ "label": { "text": "Select a test organisation:", "classes": "govuk-label--s" } }) }}

@@ -50,6 +50,7 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionPresentationOptions,
+    RoleEnum,
     SubmissionAssessmentStatusEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -1053,6 +1054,70 @@ class TestListCollectionSections:
         # The eligibility section has no move up/down actions, and isn't counted as one of the "Sections"
         assert not page_has_link(soup, "Move up")
         assert not page_has_link(soup, "Move down")
+
+    def test_get_shows_test_grant_recipient_journey_button_when_public_sign_up_off(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=test_grant_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Test grant recipient journey") is not None
+
+    def test_get_shows_test_application_journey_button_when_public_sign_up_on(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+        )
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=test_grant_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Test application journey") is not None
 
     @pytest.mark.parametrize(
         "client_fixture, can_edit",
@@ -17102,3 +17167,63 @@ class TestSelectCollectionToCopy:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Select the report to copy")
+
+
+class TestStartTestGrantRecipientJourney:
+    def test_get_shows_organisation_dropdown_when_public_sign_up_off(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=test_grant_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Start test submission journey") is not None
+
+    def test_get_shows_public_sign_up_button_when_public_sign_up_on(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Start test submission journey") is None
+        link = page_has_link(soup, "Start test application journey")
+        assert link is not None
+        assert link["href"] == url_for(
+            "access_grant_funding.public_sign_up_start_page",
+            grant_slug=authenticated_grant_member_client.grant.slug,
+            collection_slug=collection.slug,
+        )

@@ -167,7 +167,7 @@
           {% endif %}
           {% if user_can_test_grant_recipient_journey %}
             <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
-              >Test grant recipient journey</a
+              >{{ "Test application journey" if collection.allow_public_sign_up else "Test grant recipient journey" }}</a
             >
           {% endif %}
         </div>

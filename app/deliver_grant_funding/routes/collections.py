@@ -239,6 +239,20 @@ def start_test_grant_recipient_journey(
         if submission.grant_recipient and submission.grant_recipient.organisation in test_grant_organisations
     ]
 
+    # When public sign up is switched on, Deliver users test the journey by going through the public sign up flow
+    if collection.allow_public_sign_up:
+        return render_template(
+            "deliver_grant_funding/collections/start_test_grant_recipient_journey.html",
+            grant=grant,
+            collection=collection,
+            existing_submissions=existing_submissions,
+            public_sign_up_url=url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            ),
+        )
+
     form = TestGrantRecipientJourneyForm(users_test_grant_recipients=test_grant_recipients)
 
     if form.validate_on_submit():
