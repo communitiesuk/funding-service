@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 from wtforms import Field
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.auth.decorators import collection_is_editable, has_deliver_grant_role
+from app.common.auth.decorators import collection_is_editable, has_deliver_grant_role, submission_is_visible
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
     AddAnotherDependencyException,
@@ -3622,6 +3622,7 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
     methods=["GET", "POST"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 @auto_commit_after_request
 def list_submissions(
     grant_id: UUID, collection_type: CollectionType, collection_id: UUID, submission_mode: SubmissionModeEnum
@@ -3666,6 +3667,7 @@ def list_submissions(
     methods=["GET"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 def export_collection_submissions(
     grant_id: UUID,
     collection_type: CollectionType,
@@ -3714,6 +3716,7 @@ def export_collection_submissions(
     "/grant/<uuid:grant_id>/submission/<uuid:submission_id>", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 @auto_commit_after_request
 def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
@@ -3771,6 +3774,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     methods=["GET"],
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     helper = SubmissionHelper.load(submission_id)
 
@@ -3796,6 +3800,7 @@ def export_submission_pdf(grant_id: UUID, submission_id: UUID) -> ResponseReturn
     "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/reopen", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 @auto_commit_after_request
 def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
 
@@ -3834,6 +3839,7 @@ def reopen_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValu
     "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/request-or-allow-changes", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
 
@@ -3868,6 +3874,7 @@ def request_or_allow_changes(grant_id: UUID, submission_id: UUID) -> ResponseRet
     "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/request-changes", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 @auto_commit_after_request
 def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
@@ -3913,6 +3920,7 @@ def request_changes_submission(grant_id: UUID, submission_id: UUID) -> ResponseR
     "/grant/<uuid:grant_id>/submission/<uuid:submission_id>/approve-or-reject", methods=["GET", "POST"]
 )
 @has_deliver_grant_role(RoleEnum.MEMBER)
+@submission_is_visible()
 @auto_commit_after_request
 def approve_or_reject_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
     submission_helper = SubmissionHelper.load(submission_id)
