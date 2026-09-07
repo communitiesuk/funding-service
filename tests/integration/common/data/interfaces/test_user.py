@@ -162,6 +162,17 @@ class TestSetUserLastLoggedInAt:
         assert user.last_logged_in_at_utc is not None
 
 
+class TestSetUserName:
+    def test_set_user_name(self, db_session, factories) -> None:
+        user = factories.user.create(email="test@communites.gov.uk", name=None)
+
+        interfaces.user.set_user_name(user, "Test user")
+
+        db_session.commit()
+        db_session.refresh(user)
+        assert user.name == "Test user"
+
+
 class TestUpsertUserByEmail:
     def test_create_new_user(self, db_session):
         assert db_session.scalar(select(func.count()).select_from(User)) == 0
