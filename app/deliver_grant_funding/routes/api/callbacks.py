@@ -12,8 +12,13 @@ from pydantic import BaseModel, ValidationError, field_serializer, field_validat
 from app.common.audit import create_system_event_for_delete
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data.interfaces.audit import track_audit_event
-from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_organisation
+from app.common.data.interfaces.grant_recipients import (
+    get_grant_recipient_or_none,
+    get_grant_recipients_for_organisation,
+)
 from app.common.data.interfaces.user import (
+    cancel_invitation,
+    get_invitation,
     get_or_create_system_user,
     get_user_by_email,
     get_users_covering_grant_role,
@@ -21,12 +26,12 @@ from app.common.data.interfaces.user import (
 )
 from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
 from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
-from app.extensions import auto_commit_after_request
-from app.services.notify import NotificationReference
+from app.extensions import auto_commit_after_request, notification_service
+from app.services.notify import NotificationReference, NotificationReferenceType
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation
-    from app.common.data.models_user import User
+    from app.common.data.models_user import Invitation, User
 
 
 class GovukNotifyStatus(enum.StrEnum):
@@ -70,7 +75,29 @@ class GovukNotifyCallbackModel(BaseModel):
         return reference.reference if reference else None
 
 
-def handle_permanent_email_failure(notification_id: uuid.UUID, recipient_email: str) -> None:
+def _get_invitation_for_reference(reference: NotificationReference | None) -> "Invitation | None":
+    if reference is None or reference.type_ != NotificationReferenceType.INVITATION:
+        return None
+    return get_invitation(reference.id)
+
+
+def handle_permanent_email_failure(
+    notification_id: uuid.UUID, recipient_email: str, reference: NotificationReference | None
+) -> None:
+    invitation = _get_invitation_for_reference(reference)
+    if invitation:
+        cancel_invitation(invitation, by_user=get_or_create_system_user())
+
+        # If the invitation was for grant recipient permissions, send a notification to the person that created
+        # the invitation to let them know delivery failed.
+        organisation, grant = invitation.organisation, invitation.grant
+        if organisation and grant:
+            grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
+            if grant_recipient:
+                notification_service.send_access_team_member_invitation_perm_delivery_failure(
+                    invitation.created_by.email, invitation=invitation, grant_recipient=grant_recipient
+                )
+
     user = get_user_by_email(recipient_email)
     if user is None:
         current_app.logger.error(
@@ -111,7 +138,19 @@ def handle_permanent_email_failure(notification_id: uuid.UUID, recipient_email: 
     )
 
 
-def handle_temporary_email_failure(recipient_email: str) -> None:
+def handle_temporary_email_failure(recipient_email: str, reference: NotificationReference | None) -> None:
+    invitation = _get_invitation_for_reference(reference)
+    if invitation:
+        # If the invitation was for grant recipient permissions, send a notification to the person that created
+        # the invitation to let them know delivery failed.
+        organisation, grant = invitation.organisation, invitation.grant
+        if organisation and grant:
+            grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
+            if grant_recipient:
+                notification_service.send_access_team_member_invitation_temp_delivery_failure(
+                    invitation.created_by.email, invitation=invitation, grant_recipient=grant_recipient
+                )
+
     user = get_user_by_email(recipient_email)
     if user is None:
         current_app.logger.error(
@@ -231,11 +270,11 @@ def govuk_notify_callback() -> ResponseReturnValue:
             return jsonify(), 202
 
         if callback_data.status == GovukNotifyStatus.PERMANENT_FAILURE:
-            handle_permanent_email_failure(callback_data.id, callback_data.to)
+            handle_permanent_email_failure(callback_data.id, callback_data.to, callback_data.reference)
             return jsonify(), 202
 
         if callback_data.status == GovukNotifyStatus.TEMPORARY_FAILURE:
-            handle_temporary_email_failure(callback_data.to)
+            handle_temporary_email_failure(callback_data.to, callback_data.reference)
             return jsonify(), 202
 
         if callback_data.status != GovukNotifyStatus.DELIVERED:
