@@ -18,6 +18,7 @@ from app.common.data.types import (
 from app.deliver_grant_funding.routes.api.callbacks import GovukNotifyCallbackModel
 from app.extensions import db
 from app.services.notify import NotificationReference, NotificationReferenceType
+from tests.models import _get_grant_managing_organisation
 
 
 def _manual_intervention_logs(caplog) -> list[str]:
@@ -171,10 +172,17 @@ class TestGovukNotifyCallback:
 
     class TestPermanentFailureCallback:
         @staticmethod
-        def _post(anonymous_client, *, status: str, to: str, notification_id: uuid.UUID | None = None) -> tuple:
+        def _post(
+            anonymous_client,
+            *,
+            status: str,
+            to: str,
+            notification_id: uuid.UUID | None = None,
+            reference: str | None = None,
+        ) -> tuple:
             payload = {
                 "id": str(notification_id or uuid.uuid4()),
-                "reference": None,
+                "reference": reference,
                 "notification_type": "email",
                 "template_id": str(uuid.uuid4()),
                 "template_version": 1,
@@ -369,12 +377,126 @@ class TestGovukNotifyCallback:
             assert remaining == []
             assert _manual_intervention_logs(caplog) == []
 
+        def test_permanent_failure_for_access_invitation_emails_creator(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+                reference=f"db:invitation:{invitation.id}",
+            )
+
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == [
+                mocker.call(invitation.created_by.email, invitation=invitation, grant_recipient=gr)
+            ]
+
+        def test_permanent_failure_without_reference_does_not_email_anyone(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+            )
+
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == []
+
+        def test_permanent_failure_for_deleted_invitation_is_ignored(
+            self,
+            anonymous_client,
+            factories,
+            mocker: MockerFixture,
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+                reference="db:invitation:00000000-0000-0000-0000-000000000000",
+            )
+
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == []
+
+        def test_permanent_failure_for_invitation_without_grant_recipient_does_not_email(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            invitation = factories.invitation.create()
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+                reference=f"db:invitation:{invitation.id}",
+            )
+
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == []
+
+        def test_permanent_failure_for_deliver_invitation_does_not_email(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            org = _get_grant_managing_organisation()
+            invitation = factories.invitation.create(organisation=org)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+                reference=f"db:invitation:{invitation.id}",
+            )
+
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == []
+
+        def test_permanent_failure_for_non_invitation_reference_does_not_email_or_error(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            invitation = factories.invitation.create()
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+                reference="invalid",
+            )
+
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == []
+
+        def test_permanent_failure_for_unknown_reference_kind_does_not_email_or_error(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            invitation = factories.invitation.create()
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            response, _ = self._post(
+                anonymous_client,
+                to=invitation.email,
+                status="permanent-failure",
+                reference=f"db:not_a_kind:{invitation.id}",
+            )
+
+            assert response.status_code == 202
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == []
+
     class TestTemporaryFailureCallback:
         @staticmethod
-        def _post(anonymous_client, *, to: str) -> tuple:
+        def _post(anonymous_client, *, to: str, reference: str | None = None) -> tuple:
             payload = {
                 "id": str(uuid.uuid4()),
-                "reference": None,
+                "reference": reference,
                 "notification_type": "email",
                 "template_id": str(uuid.uuid4()),
                 "template_version": 1,
@@ -467,3 +589,107 @@ class TestGovukNotifyCallback:
             assert response.status_code == 202
             assert any("not-a-user@example.com" in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR)
             assert _manual_intervention_logs(caplog) == []
+
+        def test_temporary_failure_for_access_invitation_emails_creator(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                reference=f"db:invitation:{invitation.id}",
+            )
+
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == [
+                mocker.call(invitation.created_by.email, invitation=invitation, grant_recipient=gr)
+            ]
+
+        def test_temporary_failure_without_reference_does_not_email_anyone(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+            )
+
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == []
+
+        def test_temporary_failure_for_deleted_invitation_is_ignored(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                reference="db:invitation:00000000-0000-0000-0000-000000000000",
+            )
+
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == []
+
+        def test_temporary_failure_for_invitation_without_grant_recipient_does_not_email(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            invitation = factories.invitation.create()
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                reference=f"db:invitation:{invitation.id}",
+            )
+
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == []
+
+        def test_temporary_failure_for_deliver_invitation_does_not_email(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            org = _get_grant_managing_organisation()
+            invitation = factories.invitation.create(organisation=org)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                reference=f"db:invitation:{invitation.id}",
+            )
+
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == []
+
+        def test_temporary_failure_for_non_invitation_reference_does_not_email_or_error(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            invitation = factories.invitation.create()
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            self._post(
+                anonymous_client,
+                to=invitation.email,
+                reference="invalid",
+            )
+
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == []
+
+        def test_temporary_failure_for_unknown_reference_kind_does_not_email_or_error(
+            self, anonymous_client, factories, mocker: MockerFixture
+        ) -> None:
+            invitation = factories.invitation.create()
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            response, _ = self._post(
+                anonymous_client,
+                to=invitation.email,
+                reference=f"db:not_a_kind:{invitation.id}",
+            )
+
+            assert response.status_code == 202
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == []
