@@ -2,18 +2,24 @@ from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import CreateOrganisationNameForm, CreateOrganisationTypeForm
+from app.access_grant_funding.helpers import (
+    complete_public_sign_up_session_and_redirect,
+    get_sign_up_modes,
+    sign_up_as_grant_recipient,
+)
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.access_grant_funding.session_models import CreateOrganisationSession, SignUpOrganisationType
-from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import requires_passed_eligibility
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
+from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant_by_slug
-from app.common.data.interfaces.organisations import organisation_name_exists
-from app.common.data.types import OrganisationModeEnum
+from app.common.data.interfaces.organisations import create_organisation, organisation_name_exists
+from app.common.data.types import OrganisationType
 from app.common.data.utils import generate_organisation_custom_code
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS, SESSION_CREATE_ORGANISATION
+from app.extensions import auto_commit_after_request
 
 
 @access_grant_funding_blueprint.route(
@@ -100,10 +106,8 @@ def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseR
         org_session.external_id = generate_organisation_custom_code()
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
 
-        is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(interfaces.user.get_current_user())
-        organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
-
-        if organisation_name_exists(org_session.name, mode=organisation_mode):
+        modes = get_sign_up_modes(interfaces.user.get_current_user())
+        if organisation_name_exists(org_session.name, mode=modes.organisation):
             return redirect(
                 url_for(
                     "access_grant_funding.create_organisation_already_exists",
@@ -157,13 +161,12 @@ def create_organisation_already_exists(grant_slug: str, collection_slug: str) ->
         source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
     )
 
-    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(interfaces.user.get_current_user())
-    organisation_mode = OrganisationModeEnum.TEST if is_deliver_testing else OrganisationModeEnum.LIVE
+    modes = get_sign_up_modes(interfaces.user.get_current_user())
 
     # double checks the current session name is in this state before presenting it
     # going back and forward will change the state but this screen will be stored in
     # the browser history
-    if not organisation_name_exists(org_session.name, mode=organisation_mode):
+    if not organisation_name_exists(org_session.name, mode=modes.organisation):
         return redirect(organisation_name_url)
 
     return render_template(
@@ -180,6 +183,7 @@ def create_organisation_already_exists(grant_slug: str, collection_slug: str) ->
     methods=["GET", "POST"],
 )
 @requires_passed_eligibility
+@auto_commit_after_request
 def create_organisation_check_your_answers(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
@@ -187,24 +191,42 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
     org_session = CreateOrganisationSession.from_session(
         collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
     )
-    session_complete = org_session is not None and all(
+    if org_session is None or not all(
         [bool(i) for i in [org_session.organisation_type, org_session.name, org_session.external_id]]
-    )
-    if not session_complete:
+    ):
         return redirect(
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
         )
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
-        # TODO: create the organisation (type OTHER, map external_id from the session to custom code)
-        #       then allow existing code to connect org to grant as-is
-        return redirect(
-            url_for(
-                "access_grant_funding.create_organisation_check_your_answers",
-                grant_slug=grant_slug,
-                collection_slug=collection_slug,
+        user = interfaces.user.get_current_user()
+        modes = get_sign_up_modes(user)
+        try:
+            organisation = create_organisation(
+                name=org_session.name,
+                # TODO: for now all organisations are considered OTHER but when the different
+                #       mechanisms for fetching the required identifiers for companies and charities
+                #       are implemented this should match their appropriate type
+                type_=OrganisationType.OTHER,
+                typed_id=org_session.external_id,
+                mode=modes.organisation,
             )
+        except DuplicateValueError:
+            return redirect(
+                url_for(
+                    "access_grant_funding.create_organisation_already_exists",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    source=CHECK_YOUR_ANSWERS,
+                )
+            )
+
+        grant_recipient = sign_up_as_grant_recipient(
+            user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
+        )
+        return complete_public_sign_up_session_and_redirect(
+            user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission
         )
 
     return render_template(

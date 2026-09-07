@@ -2,7 +2,9 @@ import datetime
 
 import pytest
 
+from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.organisations import (
+    create_organisation,
     get_matched_organisations,
     get_organisation_count,
     get_organisations,
@@ -252,6 +254,66 @@ class TestOrganisationNameExists:
 
         assert organisation_name_exists("Mirrored Organisation") is False
         assert organisation_name_exists("Mirrored Organisation (test)") is True
+
+
+class TestCreateOrganisation:
+    def test_creates_an_other_organisation(self, db_session):
+        organisation = create_organisation(name="Acme Ltd", type_=OrganisationType.OTHER, typed_id="000111222")
+
+        assert organisation.id is not None
+        assert organisation.name == "Acme Ltd"
+        assert organisation.type == OrganisationType.OTHER
+        assert organisation.custom_code == "000111222"
+        assert organisation.external_id == "FS-000111222"
+        assert organisation.mode == OrganisationModeEnum.LIVE
+        assert organisation.status == OrganisationStatus.ACTIVE
+        assert organisation.can_manage_grants is False
+        assert organisation.domains == []
+
+    def test_test_mode_suffixes_the_name(self, db_session):
+        organisation = create_organisation(
+            name="Acme Ltd",
+            type_=OrganisationType.OTHER,
+            typed_id="000111222",
+            mode=OrganisationModeEnum.TEST,
+        )
+
+        assert organisation.name == "Acme Ltd (test)"
+        assert organisation.mode == OrganisationModeEnum.TEST
+        assert organisation.external_id == "FS-000111222"
+
+    def test_an_external_id_taken_in_the_same_mode_raises_duplicate_value_error(self, factories, db_session):
+        factories.organisation.create(name="Acme Holdings", type=OrganisationType.OTHER, external_id="FS-000111222")
+
+        with pytest.raises(DuplicateValueError):
+            create_organisation(name="Acme Ltd", type_=OrganisationType.OTHER, typed_id="000111222")
+
+    def test_an_external_id_taken_only_in_the_other_mode_is_allowed(self, factories, db_session):
+        factories.organisation.create(
+            name="Acme Holdings (test)",
+            type=OrganisationType.OTHER,
+            external_id="FS-000111222",
+            mode=OrganisationModeEnum.TEST,
+        )
+
+        organisation = create_organisation(name="Acme Ltd", type_=OrganisationType.OTHER, typed_id="000111222")
+
+        assert organisation.mode == OrganisationModeEnum.LIVE
+        assert organisation.external_id == "FS-000111222"
+
+    def test_a_name_taken_in_the_same_mode_raises_duplicate_value_error(self, factories, db_session):
+        factories.organisation.create(name="Acme Ltd")
+
+        with pytest.raises(DuplicateValueError):
+            create_organisation(name="Acme Ltd", type_=OrganisationType.OTHER, typed_id="000111222")
+
+    def test_a_name_taken_only_in_the_other_mode_is_allowed(self, factories, db_session):
+        factories.organisation.create(name="Acme Ltd (test)", mode=OrganisationModeEnum.TEST)
+
+        organisation = create_organisation(name="Acme Ltd", type_=OrganisationType.OTHER, typed_id="000111222")
+
+        assert organisation.mode == OrganisationModeEnum.LIVE
+        assert organisation.name == "Acme Ltd"
 
 
 class TestUpsertOrganisations:

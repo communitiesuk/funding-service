@@ -4,11 +4,18 @@ from uuid import UUID
 from flask import current_app
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
+from sqlalchemy.exc import IntegrityError
 
-from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
+from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
 from app.common.data.models import Organisation
 from app.common.data.models_user import User
-from app.common.data.types import MatchedOrganisations, OrganisationData, OrganisationModeEnum, OrganisationStatus
+from app.common.data.types import (
+    MatchedOrganisations,
+    OrganisationData,
+    OrganisationModeEnum,
+    OrganisationStatus,
+    OrganisationType,
+)
 from app.extensions import db
 from app.types import NOT_PROVIDED
 
@@ -66,6 +73,34 @@ def organisation_name_exists(name: str, mode: OrganisationModeEnum = Organisatio
 
     statement = select(Organisation).where(Organisation.name == name, Organisation.mode == mode)
     return db.session.scalar(statement) is not None
+
+
+@flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
+def create_organisation(
+    *,
+    name: str,
+    type_: OrganisationType,
+    typed_id: str,
+    mode: OrganisationModeEnum = OrganisationModeEnum.LIVE,
+) -> Organisation:
+    """Create an organisation that has signed itself up through the public sign up journey.
+
+    Raises DuplicateValueError - a clash means we are being asked to sign up an organisation the service already
+    knows about.
+
+    In test mode the name carries the ` (test)` suffix, matching every other test organisation in the service.
+    """
+    organisation = Organisation(
+        type=type_,
+        name=Organisation.make_test_name(name) if mode == OrganisationModeEnum.TEST else name,
+        mode=mode,
+        status=OrganisationStatus.ACTIVE,
+        can_manage_grants=False,
+    )
+    organisation.typed_id = typed_id
+    organisation.external_id = organisation.make_external_id()
+    db.session.add(organisation)
+    return organisation
 
 
 def get_organisation_count(mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> int:
