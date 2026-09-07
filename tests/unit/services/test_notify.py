@@ -10,7 +10,7 @@ from app.common.filters import format_datetime
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions import notification_service
-from app.services.notify import Notification
+from app.services.notify import Notification, NotificationReference
 
 
 class TestNotificationService:
@@ -35,7 +35,6 @@ class TestNotificationService:
                             "request_new_magic_link": "https://new-magic-link",
                             "service_desk_url": app.config["ACCESS_SERVICE_DESK_URL"],
                         },
-                        "reference": "abc123",
                     }
                 )
             ],
@@ -48,7 +47,6 @@ class TestNotificationService:
             # Timestamp is in UTC; `send_magic_link` will convert to Europe/London local time
             magic_link_expires_at_utc=datetime.datetime.fromisoformat("2025-04-04T12:00:00+00:00"),
             request_new_magic_link_url="https://new-magic-link",
-            govuk_notify_reference="abc123",
         )
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
@@ -182,34 +180,33 @@ class TestNotificationService:
             grant__name="Test grant",
             mode=grant_recipient_mode,
         )
-        email_address = "test@hastings.gov.uk"
+        invitation = factories.invitation.build(email="test@hastings.gov.uk")
         request_matcher = responses.post(
             url="https://api.notifications.service.gov.uk/v2/notifications/email",
             status=201,
             match=[
                 matchers.json_params_matcher(
                     {
-                        "email_address": email_address,
+                        "email_address": invitation.email,
                         "template_id": "ae3b6d9c-0e20-4510-84fb-d3406cf1e18c",
                         "personalisation": {
                             "organisation_name": "Test organisation",
                             "grant_name": "Test grant",
                             "is_test_data": expected_is_test_data,
-                            "email_address": email_address,
+                            "email_address": invitation.email,
                             "grant_submission_url": (
                                 "http://funding.communities.gov.localhost:8080/access/organisation/"
                                 f"{grant_recipient.organisation_id}/grants/{grant_recipient.grant_id}/forms"
                             ),
                             "service_desk_url": app.config["ACCESS_SERVICE_DESK_URL"],
                         },
+                        "reference": f"db:invitation:{invitation.id}",
                     }
                 )
             ],
             json={"id": "00000000-0000-0000-0000-000000000000"},
         )
-        resp = notification_service.send_access_grant_team_member_invited(
-            email_address, grant_recipient=grant_recipient
-        )
+        resp = notification_service.send_access_grant_team_member_invited(invitation, grant_recipient=grant_recipient)
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
 
@@ -929,3 +926,40 @@ class TestNotificationService:
                 export_json='{"hello": "world"}',
                 filename="grants.json",
             )
+
+
+class TestNotificationReference:
+    def test_from_instance(self, factories):
+        invitation = factories.invitation.build()
+
+        reference = NotificationReference.from_instance(invitation)
+
+        assert reference == NotificationReference(table_name="invitation", id=invitation.id)
+        assert reference.reference == f"db:invitation:{invitation.id}"
+
+    def test_from_reference(self):
+        id_ = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+        reference = NotificationReference.from_reference(f"db:invitation:{id_}")
+
+        assert reference == NotificationReference(table_name="invitation", id=id_)
+
+    def test_from_reference_round_trips(self, factories):
+        reference = NotificationReference.from_instance(factories.invitation.build())
+
+        assert NotificationReference.from_reference(reference.reference) == reference
+
+    @pytest.mark.parametrize(
+        "reference",
+        [
+            "",
+            "abc123",
+            "db:invitation",
+            "db:invitation:11111111-1111-1111-1111-111111111111:extra",
+            "notdb:invitation:11111111-1111-1111-1111-111111111111",
+            "db:invitation:not-a-uuid",
+        ],
+    )
+    def test_from_reference_rejects_invalid_values(self, reference):
+        with pytest.raises(ValueError):
+            NotificationReference.from_reference(reference)
