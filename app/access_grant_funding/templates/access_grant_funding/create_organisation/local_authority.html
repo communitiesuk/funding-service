@@ -1,0 +1,27 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Contact our support desk" %}
+
+{% block head %}
+  {{ super() }}
+{% endblock head %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Create organisation</span>
+      <h1 class="govuk-heading-l">Contact our support desk</h1>
+
+      <p class="govuk-body">
+        To continue your application on behalf of a local authority, contact our
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ config.ACCESS_SERVICE_DESK_URL }}" target="_blank">support desk (opens in new tab)</a>.
+      </p>
+      <p class="govuk-body">Monday to Friday 9am to 5pm (except public holidays).</p>
+    </div>
+  </div>
+{% endblock content %}
