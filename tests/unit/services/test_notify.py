@@ -351,6 +351,87 @@ class TestNotificationService:
         assert request_matcher.call_count == 1
 
     @responses.activate
+    def test_send_access_team_member_invitation_temp_delivery_failure(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
+            grant__name="Test grant",
+            mode=GrantRecipientModeEnum.TEST,
+        )
+        invitation = factories.invitation.build(email="test-invitee@local.gov.uk", name="Test Invitee")
+        email_address = "test-admin@local.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "8b7ad73b-e828-452a-9961-94c551c3dcbf",
+                        "personalisation": {
+                            "email_address": email_address,
+                            "is_test_data": "yes",
+                            "invitee_name": "Test Invitee",
+                            "grant_name": "Test grant",
+                            "organisation_name": "Test organisation",
+                            "service_desk_url": app.config["ACCESS_SERVICE_DESK_URL"],
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+
+        resp = notification_service.send_access_team_member_invitation_temp_delivery_failure(
+            email_address, invitation=invitation, grant_recipient=grant_recipient
+        )
+
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_send_access_team_member_invitation_perm_delivery_failure(self, app, factories):
+        grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
+            grant__name="Test grant",
+            mode=GrantRecipientModeEnum.TEST,
+        )
+        invitation = factories.invitation.build(email="test-invitee@local.gov.uk", name="Test Invitee")
+        email_address = "test-admin@local.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "f7ca8e85-f336-45c5-9295-23643c6167a5",
+                        "personalisation": {
+                            "email_address": email_address,
+                            "is_test_data": "yes",
+                            "invitee_name": "Test Invitee",
+                            "invitee_email": "test-invitee@local.gov.uk",
+                            "grant_name": "Test grant",
+                            "organisation_name": "Test organisation",
+                            "service_desk_url": app.config["ACCESS_SERVICE_DESK_URL"],
+                            "grant_submission_url": (
+                                "http://funding.communities.gov.localhost:8080/access/organisation/"
+                                f"{grant_recipient.organisation_id}/grants/{grant_recipient.grant_id}/forms"
+                            ),
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+
+        resp = notification_service.send_access_team_member_invitation_perm_delivery_failure(
+            email_address, invitation=invitation, grant_recipient=grant_recipient
+        )
+
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
+    @responses.activate
     def test_send_access_submission_send_for_sign_off_confirmation(self, app, factories):
         grant_recipient = factories.grant_recipient.build(
             organisation__name="Test organisation",
