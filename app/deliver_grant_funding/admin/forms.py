@@ -1,6 +1,5 @@
 import csv
 import datetime
-import random
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
@@ -32,6 +31,7 @@ from app.common.data.types import (
     OrganisationType,
     TraceLevelEnum,
 )
+from app.common.data.utils import generate_organisation_custom_code
 from app.common.filters import format_date_short
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
 from app.common.utils import comma_join_items, uppercase_first
@@ -138,7 +138,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
                         f" an ID starting with '{prefix}'."
                     )
                 if not external_id:
-                    custom_code = f"{random.randint(0, 999_999_999):09d}"
+                    custom_code = generate_organisation_custom_code()
                 else:
                     custom_code = external_id.removeprefix(prefix)
                 normalised_organisations.append(

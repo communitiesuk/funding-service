@@ -9,3 +9,6 @@ DATA_SET_PREVIEW_LENGTH = 3
 
 SESSION_DATA_SET_UPLOAD = "data_set_upload"
 SESSION_DATA_SET_REPLACE = "data_set_replace"
+
+SESSION_SIGNING_UP_FOR_COLLECTION_ID = "signing_up_for_collection_id"
+SESSION_CREATE_ORGANISATION = "create_organisation"

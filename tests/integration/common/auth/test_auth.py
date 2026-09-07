@@ -519,6 +519,9 @@ class TestClaimMagicLinkView:
         collection = factories.collection.create(slug="collection-slug", grant=grant)
         magic_link = factories.magic_link.create(email="new-applicant@example.com", collection=collection)
 
+        with anonymous_client.session_transaction() as session:
+            session["create_organisation"] = {"collection_id": str(uuid4())}
+
         response = anonymous_client.post(
             url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
             json={"submit": "yes"},
@@ -528,12 +531,15 @@ class TestClaimMagicLinkView:
         assert response.status_code == 302
         with anonymous_client.session_transaction() as session:
             assert session["signing_up_for_collection_id"] == collection.id
+            # restarting a public sign up discards any in-progress organisation set up
+            assert "create_organisation" not in session
 
     def test_post_without_collection_clears_signing_up_session_flag(self, anonymous_client, factories):
         magic_link = factories.magic_link.create(email="test@communities.gov.uk")
 
         with anonymous_client.session_transaction() as session:
             session["signing_up_for_collection_id"] = uuid4()
+            session["create_organisation"] = {"collection_id": str(uuid4())}
 
         response = anonymous_client.post(
             url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
@@ -544,6 +550,7 @@ class TestClaimMagicLinkView:
         assert response.status_code == 302
         with anonymous_client.session_transaction() as session:
             assert "signing_up_for_collection_id" not in session
+            assert "create_organisation" not in session
 
 
 class TestSignOutView:
@@ -574,6 +581,7 @@ class TestSignOutView:
 
         with client.session_transaction() as session:
             session["signing_up_for_collection_id"] = collection.id
+            session["create_organisation"] = {"collection_id": str(collection.id)}
 
         response = client.get(url_for("auth.sign_out"), follow_redirects=False)
 
@@ -586,6 +594,7 @@ class TestSignOutView:
             assert "_user_id" not in session
             assert "auth" not in session
             assert "signing_up_for_collection_id" not in session
+            assert "create_organisation" not in session
 
 
 class TestSSOSignInView:
