@@ -1,3 +1,4 @@
+import json
 import logging
 import uuid
 
@@ -14,7 +15,9 @@ from app.common.data.types import (
     OrganisationModeEnum,
     RoleEnum,
 )
+from app.deliver_grant_funding.routes.api.callbacks import GovukNotifyCallbackModel
 from app.extensions import db
+from app.services.notify import NotificationReference, NotificationReferenceType
 
 
 def _manual_intervention_logs(caplog) -> list[str]:
@@ -129,6 +132,34 @@ class TestGovukNotifyCallback:
 
         assert response.status_code == 400
         capture_exception.assert_called_once()
+
+    def test_reference_is_parsed_into_notification_reference(self) -> None:
+        invitation_id = uuid.uuid4()
+
+        callback_data = GovukNotifyCallbackModel.model_validate_json(
+            json.dumps(self._payload(reference=f"db:invitation:{invitation_id}"))
+        )
+
+        assert callback_data.reference == NotificationReference(
+            type_=NotificationReferenceType.INVITATION, id=invitation_id
+        )
+
+    def test_null_reference_is_parsed_as_none(self) -> None:
+        callback_data = GovukNotifyCallbackModel.model_validate_json(json.dumps(self._payload(reference=None)))
+
+        assert callback_data.reference is None
+
+    def test_invalid_reference_does_not_break(self, anonymous_client) -> None:
+        callback_data = GovukNotifyCallbackModel.model_validate_json(json.dumps(self._payload(reference="blah")))
+
+        assert callback_data.reference is None
+
+    def test_reference_round_trips_through_model_dump(self) -> None:
+        reference = f"db:invitation:{uuid.uuid4()}"
+
+        callback_data = GovukNotifyCallbackModel.model_validate_json(json.dumps(self._payload(reference=reference)))
+
+        assert callback_data.model_dump(mode="json")["reference"] == reference
 
     def test_ignores_internal_domains(self, anonymous_client, mocker: MockerFixture) -> None:
         capture_message = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.sentry_sdk.capture_message")

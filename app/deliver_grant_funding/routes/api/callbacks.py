@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal
 import sentry_sdk
 from flask import current_app, jsonify, request
 from flask.typing import ResponseReturnValue
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_serializer, field_validator
 
 from app.common.audit import create_system_event_for_delete
 from app.common.auth.authorisation_helper import AuthorisationHelper
@@ -22,6 +22,7 @@ from app.common.data.interfaces.user import (
 from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
 from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
 from app.extensions import auto_commit_after_request
+from app.services.notify import NotificationReference
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation
@@ -38,7 +39,7 @@ class GovukNotifyStatus(enum.StrEnum):
 
 class GovukNotifyCallbackModel(BaseModel):
     id: uuid.UUID
-    reference: str | None
+    reference: NotificationReference | None
 
     notification_type: Literal["email", "sms"]
     template_id: uuid.UUID
@@ -50,6 +51,23 @@ class GovukNotifyCallbackModel(BaseModel):
     created_at: datetime.datetime
     sent_at: datetime.datetime | None
     completed_at: datetime.datetime | None
+
+    @field_validator("reference", mode="before")
+    @classmethod
+    def _parse_reference(cls, value: str | NotificationReference | None) -> NotificationReference | None:
+        if isinstance(value, str):
+            try:
+                return NotificationReference.from_reference(value)
+            except ValueError:
+                current_app.logger.exception(
+                    "GOV.UK notification reference could not be parsed: %(reference)s", dict(reference=value)
+                )
+                return None
+        return value
+
+    @field_serializer("reference")
+    def _serialize_reference(self, reference: NotificationReference | None) -> str | None:
+        return reference.reference if reference else None
 
 
 def handle_permanent_email_failure(notification_id: uuid.UUID, recipient_email: str) -> None:
