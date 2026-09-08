@@ -161,18 +161,6 @@ class TestGovukNotifyCallback:
 
         assert callback_data.model_dump(mode="json")["reference"] == reference
 
-    def test_ignores_internal_domains(self, anonymous_client, mocker: MockerFixture) -> None:
-        capture_message = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.sentry_sdk.capture_message")
-
-        response = anonymous_client.post(
-            url_for("deliver_grant_funding.api.govuk_notify_callback"),
-            json=self._payload(to="test@test.communities.gov.uk"),
-            headers={"Authorization": "Bearer local-use-secret"},
-        )
-
-        assert response.status_code == 202
-        capture_message.assert_not_called()
-
     def test_non_json_returns_400(self, anonymous_client) -> None:
         response = anonymous_client.post(
             url_for("deliver_grant_funding.api.govuk_notify_callback"),

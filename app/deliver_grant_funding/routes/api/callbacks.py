@@ -230,9 +230,6 @@ def govuk_notify_callback() -> ResponseReturnValue:
             )
             return jsonify(), 202
 
-        if callback_data.to.endswith(current_app.config["GOVUK_NOTIFY_IGNORE_CALLBACK_DOMAINS"]):
-            return jsonify(), 202
-
         if callback_data.status == GovukNotifyStatus.PERMANENT_FAILURE:
             handle_permanent_email_failure(callback_data.id, callback_data.to)
             return jsonify(), 202
