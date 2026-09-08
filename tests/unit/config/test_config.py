@@ -32,8 +32,8 @@ def test_config_subclasses_do_not_define_new_variables() -> None:
             )
 
 
-def test_deployed_config_reads_internal_domains_from_environment() -> None:
-    env = {
+def _deployed_environment() -> dict[str, str]:
+    return {
         **build_db_config(None),
         "SECRET_KEY": "test-secret",  # pragma: allowlist secret
         "SERVER_NAME": "funding.communities.gov.uk",
@@ -44,10 +44,13 @@ def test_deployed_config_reads_internal_domains_from_environment() -> None:
         "AZURE_AD_CLIENT_SECRET": "test-client-secret",  # pragma: allowlist secret
         "AZURE_AD_TENANT_ID": "test-tenant-id",
         "JIRA_DATA_CONNECTOR_API_TOKEN": "test-jira-token",  # pragma: allowlist secret
+        "COMPANIES_HOUSE_API_KEY": "test-companies-house-key",  # pragma: allowlist secret
         "INTERNAL_DOMAINS": json.dumps(["@communities.gov.uk", "@example.com"]),
     }
 
-    with patch.dict(os.environ, env, clear=True):
+
+def test_deployed_config_reads_internal_domains_from_environment() -> None:
+    with patch.dict(os.environ, _deployed_environment(), clear=True):
         config = ProdConfig()
 
     assert config.INTERNAL_DOMAINS == ("@communities.gov.uk", "@example.com")

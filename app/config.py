@@ -350,6 +350,12 @@ class _SharedConfig(_BaseConfig):
 
     # External registries
     COMPANIES_HOUSE_URL: str = "https://find-and-update.company-information.service.gov.uk"
+    # Companies House public data API. Only production talks to the live register; every other environment overrides
+    # this with the sandbox, which needs its own (sandbox) API key.
+    COMPANIES_HOUSE_API_URL: str = "https://api.company-information.service.gov.uk"
+    COMPANIES_HOUSE_API_KEY: str
+    COMPANIES_HOUSE_DISABLE: bool = False
+    COMPANIES_HOUSE_CACHE_TTL_SECONDS: int = 60 * 60
 
     PLATFORM_DEPARTMENT_ORGANISATION_CONFIG: dict[str, str] = {
         "name": "Ministry of Housing, Communities and Local Government",
@@ -421,6 +427,10 @@ class LocalConfig(_SharedConfig):
     GOVUK_NOTIFY_API_KEY: str = "invalid-00000000-0000-0000-0000-000000000000-00000000-0000-0000-0000-000000000000"
     GOVUK_NOTIFY_CALLBACK_TOKEN: str = "local-use-secret"
 
+    # Companies House
+    COMPANIES_HOUSE_DISABLE: bool = True  # By default; update in .env when you have a sandbox key.
+    COMPANIES_HOUSE_API_KEY: str = "invalid-companies-house-api-key"  # pragma: allowlist secret
+
     # Jira data connector
     JIRA_DATA_CONNECTOR_API_TOKEN: str = "insecure-local-token"  # pragma: allowlist secret
 
@@ -446,6 +456,9 @@ class UnitTestConfig(LocalConfig):
 
     # GOV.UK Notify
     GOVUK_NOTIFY_DISABLE: bool = False  # We want to test the real code paths
+
+    # Companies House
+    COMPANIES_HOUSE_DISABLE: bool = False  # We want to test the real code paths
 
     SEED_SYSTEM_DATA: bool = False
 

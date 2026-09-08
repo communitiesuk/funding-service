@@ -29,8 +29,10 @@ jobs:
       - name: Generate env file
         env:
           PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
+          PULLPREVIEW_COMPANIES_HOUSE_API_KEY: ${{ secrets.PULLPREVIEW_COMPANIES_HOUSE_API_KEY }}
         run: |
           echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
+          echo "COMPANIES_HOUSE_API_KEY=$PULLPREVIEW_COMPANIES_HOUSE_API_KEY" >> .env
       - uses: pullpreview/action@179f963326f568dc1665707c796aaac590667632  # v6.2.0
         with:
           admins: 'samuelhwilliams,srh-sloan,sfount,gidsg,marcusher,nuwan-samarasinghe'

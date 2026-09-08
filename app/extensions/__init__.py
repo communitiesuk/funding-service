@@ -10,6 +10,7 @@ from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExten
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from app.extensions.psycopg_citext import PsycopgCitextExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
+from app.services.companies_house import CompaniesHouseService
 from app.services.notify import NotificationService
 from app.services.s3 import S3Service
 
@@ -18,6 +19,7 @@ auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 notification_service = NotificationService()
 s3_service = S3Service()
+companies_house_service = CompaniesHouseService()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
 login_manager = LoginManager()
@@ -49,6 +51,7 @@ __all__ = [
     "toolbar",
     "notification_service",
     "s3_service",
+    "companies_house_service",
     "talisman",
     "flask_assets_vite",
     "login_manager",
