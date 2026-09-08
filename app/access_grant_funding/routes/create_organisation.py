@@ -378,7 +378,7 @@ def create_organisation_check_your_answers(
             interfaces.user.set_user_name(user, org_session.user_name)
 
         grant_recipient = sign_up_as_grant_recipient(
-            user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
+            user=user, grant=grant, collection=collection, organisation=organisation, mode=modes.grant_recipient
         )
         return complete_public_sign_up_session_and_redirect(
             user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission

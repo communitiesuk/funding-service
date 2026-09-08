@@ -213,6 +213,64 @@ class TestNotificationService:
         assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
         assert request_matcher.call_count == 1
 
+    @pytest.mark.parametrize(
+        "grant_recipient_mode, expected_is_test_data",
+        [(GrantRecipientModeEnum.LIVE, "no"), (GrantRecipientModeEnum.TEST, "yes")],
+    )
+    @pytest.mark.parametrize(
+        "submission_period_end_date, expected_submission_deadline",
+        [
+            (datetime.date(2025, 12, 31), "Wednesday 31 December 2025"),
+            (None, "(Dates to be confirmed)"),
+        ],
+    )
+    @responses.activate
+    def test_send_access_confirm_public_sign_up(
+        self,
+        app,
+        factories,
+        grant_recipient_mode,
+        expected_is_test_data,
+        submission_period_end_date,
+        expected_submission_deadline,
+    ):
+        grant_recipient = factories.grant_recipient.build(
+            organisation__name="Test organisation",
+            grant__name="Test grant",
+            mode=grant_recipient_mode,
+        )
+        collection = factories.collection.build(
+            name="Test collection",
+            grant=grant_recipient.grant,
+            submission_period_end_date=submission_period_end_date,
+        )
+        email_address = "test@hastings.gov.uk"
+        request_matcher = responses.post(
+            url="https://api.notifications.service.gov.uk/v2/notifications/email",
+            status=201,
+            match=[
+                matchers.json_params_matcher(
+                    {
+                        "email_address": email_address,
+                        "template_id": "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+                        "personalisation": {
+                            "submission_name": "Test collection",
+                            "organisation_name": "Test organisation",
+                            "grant_name": "Test grant",
+                            "submission_deadline": expected_submission_deadline,
+                            "is_test_data": expected_is_test_data,
+                        },
+                    }
+                )
+            ],
+            json={"id": "00000000-0000-0000-0000-000000000000"},
+        )
+        resp = notification_service.send_access_confirm_public_sign_up(
+            email_address, collection=collection, grant_recipient=grant_recipient
+        )
+        assert resp == Notification(id=uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        assert request_matcher.call_count == 1
+
     @responses.activate
     def test_send_access_report_opened(self, app, factories):
         grant_recipient = factories.grant_recipient.build(

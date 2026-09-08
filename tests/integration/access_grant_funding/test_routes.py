@@ -1919,7 +1919,7 @@ class TestEligibleToApplyPage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_creates_grant_recipient_and_grants_data_provider_role(
-        self, authenticated_no_role_client, factories, db_session
+        self, authenticated_no_role_client, factories, db_session, mock_notification_service_calls
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
@@ -1966,6 +1966,16 @@ class TestEligibleToApplyPage:
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
             assert "create_organisation" not in flask_session
+
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == (
+            authenticated_no_role_client.user.email,
+            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+        )
+        assert notification_call.kwargs["personalisation"]["submission_name"] == collection.name
+        assert notification_call.kwargs["personalisation"]["organisation_name"] == "Test Organisation"
+        assert notification_call.kwargs["personalisation"]["grant_name"] == "Test grant name"
 
         # Success banner shows on the forms page
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
@@ -2028,7 +2038,7 @@ class TestEligibleToApplyPage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
-        self, authenticated_no_role_client, factories, db_session
+        self, authenticated_no_role_client, factories, db_session, mock_notification_service_calls
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
@@ -2061,6 +2071,8 @@ class TestEligibleToApplyPage:
 
         assert len(grant_recipients) == 1
         assert grant_recipients[0].id == existing_grant_recipient.id
+
+        assert mock_notification_service_calls == []
 
         # We clear the public sign-up session state
         with authenticated_no_role_client.session_transaction() as flask_session:
@@ -2237,7 +2249,7 @@ class TestEligibleToApplyPage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_as_deliver_user_without_existing_grant_recipient_creates_one(
-        self, authenticated_grant_member_client, factories, db_session
+        self, authenticated_grant_member_client, factories, db_session, mock_notification_service_calls
     ):
         grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
@@ -2278,6 +2290,13 @@ class TestEligibleToApplyPage:
             )
         ).one()
         assert RoleEnum.DATA_PROVIDER in user_role.permissions
+
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == (
+            authenticated_grant_member_client.user.email,
+            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+        )
 
         # Submission page now loads successfully, with the "added to organisation" banner shown
         followed_response = authenticated_grant_member_client.get(response.location, follow_redirects=True)
@@ -2332,7 +2351,7 @@ class TestEligibleToApplyPage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_claims_unclaimed_submission_when_new_grant_recipient_created(
-        self, authenticated_no_role_client, factories, db_session
+        self, authenticated_no_role_client, factories, db_session, mock_notification_service_calls
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
@@ -2531,7 +2550,12 @@ class TestEligibleToApplyUserNamePage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_sets_the_name_and_creates_grant_recipient_and_data_provider_role(
-        self, authenticated_no_role_client, sign_up_collection, matched_organisation, db_session
+        self,
+        authenticated_no_role_client,
+        sign_up_collection,
+        matched_organisation,
+        db_session,
+        mock_notification_service_calls,
     ):
         authenticated_no_role_client.user.name = None
         db_session.commit()
@@ -2570,6 +2594,13 @@ class TestEligibleToApplyUserNamePage:
         ).one()
         assert RoleEnum.DATA_PROVIDER in user_role.permissions
 
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == (
+            authenticated_no_role_client.user.email,
+            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+        )
+
         # We clear the public sign-up session state
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
@@ -2583,7 +2614,13 @@ class TestEligibleToApplyUserNamePage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_reuses_existing_grant_recipient_when_user_already_has_role(
-        self, authenticated_no_role_client, sign_up_collection, matched_organisation, factories, db_session
+        self,
+        authenticated_no_role_client,
+        sign_up_collection,
+        matched_organisation,
+        factories,
+        db_session,
+        mock_notification_service_calls,
     ):
         authenticated_no_role_client.user.name = None
         db_session.commit()
@@ -2616,6 +2653,8 @@ class TestEligibleToApplyUserNamePage:
         ).all()
         assert len(grant_recipients) == 1
         assert grant_recipients[0].id == existing_grant_recipient.id
+
+        assert mock_notification_service_calls == []
 
         # "Already have access" banner shown on the forms page, not the "added to organisation" one
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)

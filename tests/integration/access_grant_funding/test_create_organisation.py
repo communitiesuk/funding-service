@@ -1077,7 +1077,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_creates_the_organisation_grant_recipient_and_data_provider_role(
-        self, authenticated_no_role_client, sign_up_collection, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
     ):
         _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
 
@@ -1122,6 +1122,16 @@ class TestCreateOrganisationCheckYourAnswers:
             assert "create_organisation" not in flask_session
             assert "signing_up_for_collection_id" not in flask_session
 
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == (
+            authenticated_no_role_client.user.email,
+            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+        )
+        assert notification_call.kwargs["personalisation"]["submission_name"] == sign_up_collection.name
+        assert notification_call.kwargs["personalisation"]["organisation_name"] == "Acme Ltd"
+        assert notification_call.kwargs["personalisation"]["grant_name"] == "Test grant name"
+
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
         assert followed_response.status_code == 200
         assert (
@@ -1130,7 +1140,7 @@ class TestCreateOrganisationCheckYourAnswers:
         )
 
     def test_post_creates_a_test_organisation_for_a_deliver_user_testing_access(
-        self, anonymous_client, sign_up_collection, factories, user, db_session
+        self, anonymous_client, sign_up_collection, factories, user, db_session, mock_notification_service_calls
     ):
         factories.user_role.create(
             user=user,
@@ -1159,8 +1169,14 @@ class TestCreateOrganisationCheckYourAnswers:
 
         assert response.status_code == 302
 
+        assert len(mock_notification_service_calls) == 1
+        notification_call = mock_notification_service_calls[0]
+        assert notification_call.args == (user.email, "2f2a5a36-b40b-45a5-9595-ae086eafacdd")
+
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_claims_the_eligibility_submission(self, authenticated_no_role_client, sign_up_collection, db_session):
+    def test_post_claims_the_eligibility_submission(
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
+    ):
         unclaimed_submission = get_or_create_unclaimed_submission(
             authenticated_no_role_client.user, sign_up_collection, SubmissionModeEnum.LIVE
         ).submission
@@ -1181,7 +1197,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_sets_the_users_name_from_the_session(
-        self, authenticated_no_role_client, sign_up_collection, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
     ):
         authenticated_no_role_client.user.name = None
         db_session.commit()
@@ -1200,7 +1216,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_leaves_a_name_we_already_hold_alone(
-        self, authenticated_no_role_client, sign_up_collection, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
     ):
         existing_name = authenticated_no_role_client.user.name
         _seed_session(
@@ -1217,7 +1233,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_does_not_set_the_users_name_when_the_organisation_name_was_taken(
-        self, authenticated_no_role_client, sign_up_collection, factories, db_session
+        self, authenticated_no_role_client, sign_up_collection, factories, db_session, mock_notification_service_calls
     ):
         authenticated_no_role_client.user.name = None
         db_session.commit()
@@ -1234,6 +1250,8 @@ class TestCreateOrganisationCheckYourAnswers:
         assert response.status_code == 302
         db_session.refresh(authenticated_no_role_client.user)
         assert authenticated_no_role_client.user.name is None
+
+        assert mock_notification_service_calls == []
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_redirects_to_already_exists_when_the_name_was_taken_in_the_meantime(
@@ -1256,7 +1274,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_twice_creates_a_single_organisation_and_grant_recipient(
-        self, authenticated_no_role_client, sign_up_collection, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
     ):
         for _ in range(2):
             _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
@@ -1266,6 +1284,8 @@ class TestCreateOrganisationCheckYourAnswers:
             db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one() is not None
         )
         assert len(db_session.scalars(select(GrantRecipient)).all()) == 1
+
+        assert len(mock_notification_service_calls) == 1
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_without_a_complete_session_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -1341,7 +1361,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_with_allow_team_members_writes_the_email_domain_to_the_organisation(
-        self, authenticated_no_role_client, sign_up_collection, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
     ):
         _seed_session(
             authenticated_no_role_client,
@@ -1357,7 +1377,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_without_allow_team_members_leaves_the_organisation_domains_empty(
-        self, authenticated_no_role_client, sign_up_collection, db_session
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
     ):
         _seed_session(
             authenticated_no_role_client,
