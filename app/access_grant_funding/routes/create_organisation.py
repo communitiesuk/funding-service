@@ -247,7 +247,7 @@ def create_organisation_allow_team_members(
     )
 
     # this page isn't needed for shared emails
-    if not user.can_share_email_domain:
+    if not org_session.can_share_email_domain:
         return redirect(user_name_url)
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
@@ -302,9 +302,8 @@ def create_organisation_user_name(
         collection_slug=collection_slug,
     )
 
-    user = interfaces.user.get_current_user()
     # we already hold a name for this user, so there is nothing to ask them and this step drops out of the journey
-    if user.name:
+    if not org_session.needs_user_name:
         return redirect(check_your_answers_url)
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
@@ -321,7 +320,7 @@ def create_organisation_user_name(
         if from_check_your_answers
         else url_for(
             "access_grant_funding.create_organisation_allow_team_members"
-            if user.can_share_email_domain
+            if org_session.can_share_email_domain
             else "access_grant_funding.create_organisation_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
@@ -351,8 +350,6 @@ def create_organisation_check_your_answers(
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
     user = interfaces.user.get_current_user()
 
-    show_allow_team_members = user.can_share_email_domain
-
     form = GenericSubmitForm()
     if form.validate_on_submit():
         modes = get_sign_up_modes(user)
@@ -377,7 +374,7 @@ def create_organisation_check_your_answers(
                 )
             )
 
-        if not user.name:
+        if org_session.needs_user_name:
             interfaces.user.set_user_name(user, org_session.user_name)
 
         grant_recipient = sign_up_as_grant_recipient(
@@ -397,9 +394,9 @@ def create_organisation_check_your_answers(
         # how we've arrived here
         back_link_href=url_for(
             "access_grant_funding.create_organisation_user_name"
-            if not user.name
+            if org_session.needs_user_name
             else "access_grant_funding.create_organisation_allow_team_members"
-            if show_allow_team_members
+            if org_session.can_share_email_domain
             else "access_grant_funding.create_organisation_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,

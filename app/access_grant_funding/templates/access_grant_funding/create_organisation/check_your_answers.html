@@ -28,7 +28,7 @@
               "classes": "govuk-link--no-visited-state",
               "text": "Change",
               "visuallyHiddenText": "full name"
-            }]} if org_session.user_name else None
+            }]} if org_session.needs_user_name else None
           },
           {
             "key": {"text": "Organisation type"},
@@ -52,7 +52,7 @@
           }
         ]
       %}
-      {% if org_session.allow_team_members is not none %}
+      {% if org_session.can_share_email_domain %}
         {%
           set rows = rows + [
             {
