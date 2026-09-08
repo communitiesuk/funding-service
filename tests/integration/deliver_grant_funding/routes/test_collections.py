@@ -1096,15 +1096,6 @@ class TestListCollectionSections:
             type=CollectionType.APPLICATION,
             allow_public_sign_up=True,
         )
-        test_grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
-        )
-        factories.user_role.create(
-            user=authenticated_grant_member_client.user,
-            organisation=test_grant_recipient.organisation,
-            grant=authenticated_grant_member_client.grant,
-            permissions=[RoleEnum.DATA_PROVIDER],
-        )
 
         response = authenticated_grant_member_client.get(
             url_for(

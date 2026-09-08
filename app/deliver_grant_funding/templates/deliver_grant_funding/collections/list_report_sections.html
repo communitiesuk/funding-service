@@ -14,7 +14,7 @@
 {% set can_preview = collection.data_sources | length == 0 and collection.status != enum.collection_status.CLOSED %}
 
 {# this does kick off one more request to the database - we could revisit making this check more concise #}
-{% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
+{% set user_can_test_grant_recipient_journey = (grant.test_grant_recipients and grant in current_user.access_grants) or collection.allow_public_sign_up %}
 
 {% block beforeContent %}
   {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection_type=collection.type, this_page_breadcrumb_item={"text":collection.name}) }}

@@ -47,7 +47,7 @@
 
       <div class="govuk-form-group govuk-!-margin-top-6">
         {% if collection.allow_public_sign_up %}
-          <a class="govuk-button" href="{{ public_sign_up_url }}" role="button" data-module="govuk-button">Start test application journey</a>
+          <a class="govuk-button" href="{{ url_for('access_grant_funding.public_sign_up_start_page', grant_slug=grant.slug, collection_slug=collection.slug) }}" role="button" data-module="govuk-button">Start test application journey</a>
         {% elif test_grant_recipients %}
           <form method="post" novalidate>
             {{ form.csrf_token }}
