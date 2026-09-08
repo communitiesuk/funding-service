@@ -50,6 +50,20 @@ def _organisation_already_registered(org_session: CreateOrganisationSession, mod
     )
 
 
+def _organisation_details_url(
+    org_session: CreateOrganisationSession, grant_slug: str, collection_slug: str, source: str | None = None
+) -> str:
+    """The step that collected the organisation's details, which differs for companies found on Companies House."""
+    return url_for(
+        "access_grant_funding.create_organisation_company_search"
+        if org_session.is_registered_company
+        else "access_grant_funding.create_organisation_name",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+        source=source,
+    )
+
+
 @access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-type", methods=["GET", "POST"]
 )
@@ -84,13 +98,31 @@ def create_organisation_type(
                     source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
                 )
             )
-        if from_check_your_answers:
+        # registered companies are found on Companies House, unless one has already been selected and the user is
+        # just confirming the type from check your answers
+        if (
+            org_session.organisation_type == SignUpOrganisationType.COMPANY
+            and FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP.is_enabled
+            and not (from_check_your_answers and org_session.is_registered_company)
+        ):
+            return redirect(
+                url_for(
+                    "access_grant_funding.create_organisation_company_search",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+                )
+            )
+        # changing type away from a company found on Companies House leaves nothing to identify the organisation by,
+        # so the name is asked for before returning to check your answers
+        if from_check_your_answers and org_session.typed_id:
             return redirect(check_your_answers_url)
         return redirect(
             url_for(
                 "access_grant_funding.create_organisation_name",
                 grant_slug=grant_slug,
                 collection_slug=collection_slug,
+                source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
             )
         )
 
@@ -159,14 +191,28 @@ def create_organisation_name(
         collection_slug=collection_slug,
     )
 
+    # registered companies take their name from Companies House rather than this screen
+    if (
+        org_session.organisation_type == SignUpOrganisationType.COMPANY
+        and FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP.is_enabled
+    ):
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_company_search",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+            )
+        )
+
     form = CreateOrganisationNameForm(obj=org_session)
     if form.validate_on_submit():
         assert form.name.data is not None
         org_session.name = form.name.data
-        # for now all organisations are going to be considered to have type "OTHER" which means that
-        # we'll generate their identifier, other ways of looking up organisations will have their own
-        # methods for finding the name and external ID
+        # organisations named here are considered to have type "OTHER" and are given a generated identifier;
+        # a company previously selected from Companies House is superseded by the name given here
         org_session.external_id = generate_organisation_custom_code()
+        org_session.companies_house_number = None
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
 
         modes = get_sign_up_modes(interfaces.user.get_current_user())
@@ -220,27 +266,24 @@ def create_organisation_already_exists(
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
-    organisation_name_url = url_for(
-        "access_grant_funding.create_organisation_name",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-        source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+    organisation_details_url = _organisation_details_url(
+        org_session, grant_slug, collection_slug, source=CHECK_YOUR_ANSWERS if from_check_your_answers else None
     )
 
     modes = get_sign_up_modes(interfaces.user.get_current_user())
 
-    # double checks the current session name is in this state before presenting it
+    # double checks the current session organisation is in this state before presenting it
     # going back and forward will change the state but this screen will be stored in
     # the browser history
-    if not organisation_name_exists(org_session.name, mode=modes.organisation):
-        return redirect(organisation_name_url)
+    if not _organisation_already_registered(org_session, modes.organisation):
+        return redirect(organisation_details_url)
 
     return render_template(
         "access_grant_funding/create_organisation/organisation_already_exists.html",
         grant=grant,
         collection=collection,
         organisation_name=org_session.name,
-        back_link_href=organisation_name_url,
+        back_link_href=organisation_details_url,
     )
 
 
@@ -336,12 +379,12 @@ def create_organisation_user_name(
         check_your_answers_url
         if from_check_your_answers
         else url_for(
-            "access_grant_funding.create_organisation_allow_team_members"
-            if org_session.can_share_email_domain
-            else "access_grant_funding.create_organisation_name",
+            "access_grant_funding.create_organisation_allow_team_members",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
         )
+        if org_session.can_share_email_domain
+        else _organisation_details_url(org_session, grant_slug, collection_slug)
     )
     return render_template(
         "access_grant_funding/user_name.html",
@@ -373,11 +416,10 @@ def create_organisation_check_your_answers(
         try:
             organisation = create_organisation(
                 name=org_session.name,
-                # TODO: for now all organisations are considered OTHER but when the different
-                #       mechanisms for fetching the required identifiers for companies and charities
-                #       are implemented this should match their appropriate type
-                type_=OrganisationType.OTHER,
-                typed_id=org_session.external_id,
+                # TODO: charities are considered OTHER until there is a way to look up their Charity Commission
+                #       number, as there is for companies through Companies House
+                type_=OrganisationType.COMPANY if org_session.is_registered_company else OrganisationType.OTHER,
+                typed_id=org_session.typed_id,
                 mode=modes.organisation,
                 domains=[user.email_domain] if org_session.allow_team_members else None,
             )
@@ -410,14 +452,18 @@ def create_organisation_check_your_answers(
         # avoids optionally skipped steps based on
         # how we've arrived here
         back_link_href=url_for(
-            "access_grant_funding.create_organisation_user_name"
-            if org_session.needs_user_name
-            else "access_grant_funding.create_organisation_allow_team_members"
-            if org_session.can_share_email_domain
-            else "access_grant_funding.create_organisation_name",
+            "access_grant_funding.create_organisation_user_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
-        ),
+        )
+        if org_session.needs_user_name
+        else url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+        )
+        if org_session.can_share_email_domain
+        else _organisation_details_url(org_session, grant_slug, collection_slug),
     )
 
 

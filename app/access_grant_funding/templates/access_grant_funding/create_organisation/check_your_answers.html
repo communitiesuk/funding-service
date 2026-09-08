@@ -14,6 +14,7 @@
       <span class="govuk-caption-l">Create organisation</span>
       <h1 class="govuk-heading-l">Confirm your details are correct</h1>
 
+      {% set organisation_details_endpoint = "access_grant_funding.create_organisation_company_search" if org_session.is_registered_company else "access_grant_funding.create_organisation_name" %}
       {%
         set rows = [
           {
@@ -44,7 +45,7 @@
             "key": {"text": "Organisation name"},
             "value": {"text": org_session.name},
             "actions": {"items": [{
-              "href": url_for("access_grant_funding.create_organisation_name", grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
+              "href": url_for(organisation_details_endpoint, grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
               "classes": "govuk-link--no-visited-state",
               "text": "Change",
               "visuallyHiddenText": "organisation name"
@@ -52,6 +53,22 @@
           }
         ]
       %}
+      {% if org_session.is_registered_company %}
+        {%
+          set rows = rows + [
+            {
+              "key": {"text": "Company number"},
+              "value": {"text": org_session.companies_house_number},
+              "actions": {"items": [{
+                "href": url_for(organisation_details_endpoint, grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "company number"
+              }]}
+            }
+          ]
+        %}
+      {% endif %}
       {% if org_session.can_share_email_domain %}
         {%
           set rows = rows + [
