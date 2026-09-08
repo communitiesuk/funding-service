@@ -101,11 +101,28 @@ class UserInvited(AuditEvent):
     permissions: list[RoleEnum]
 
 
+class UserInvitationCancelled(AuditEvent):
+    """Tracked when a valid invitation is prematurely cancelled, eg by the system when Notify tells us that the email
+    is permanently undeliverable.
+    """
+
+    event_type: AuditEventType = AuditEventType.USER_MANAGEMENT
+    action: Literal["user_invitation_cancelled"] = "user_invitation_cancelled"
+    invitation_id: UUID
+    organisation_id: UUID | None
+    grant_id: UUID | None
+    grant_recipient_id: UUID | None
+    permissions: list[RoleEnum]
+
+
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
     AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
     AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
     AuditEventType.USER_MANAGEMENT: TypeAdapter(
-        Annotated[UserPermissionsAdded | UserPermissionsRemoved | UserInvited, Field(discriminator="action")]
+        Annotated[
+            UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled,
+            Field(discriminator="action"),
+        ]
     ),
 }
 

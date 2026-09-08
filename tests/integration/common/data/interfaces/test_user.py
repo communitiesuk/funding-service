@@ -853,6 +853,60 @@ class TestInvitations:
         audit_event = db_session.scalars(select(AuditEventModel)).one()
         assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
 
+    def test_cancel_invitation(self, db_session, factories):
+        organisation = factories.organisation.create()
+        invitation = factories.invitation.create(
+            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER]
+        )
+        cancelling_user = factories.user.create()
+
+        interfaces.user.cancel_invitation(invitation, by_user=cancelling_user)
+
+        assert db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all() == []
+        db_session.refresh(invitation)
+        assert invitation.claimed_at_utc is None
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.event_type == AuditEventType.USER_MANAGEMENT
+        assert audit_event.user_id == cancelling_user.id
+        assert audit_event.data["action"] == "user_invitation_cancelled"
+        assert audit_event.data["invitation_id"] == str(invitation.id)
+        assert audit_event.data["organisation_id"] == str(organisation.id)
+        assert audit_event.data["grant_id"] is None
+        assert audit_event.data["grant_recipient_id"] is None
+        assert audit_event.data["permissions"] == [RoleEnum.MEMBER.value]
+
+    def test_cancel_invitation_records_grant_recipient_on_audit_event(self, db_session, factories):
+        grant_recipient = factories.grant_recipient.create()
+        invitation = factories.invitation.create(
+            email="test@email.com",
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        interfaces.user.cancel_invitation(invitation, by_user=factories.user.create())
+
+        audit_event = db_session.scalars(select(AuditEventModel)).one()
+        assert audit_event.data["organisation_id"] == str(grant_recipient.organisation.id)
+        assert audit_event.data["grant_id"] == str(grant_recipient.grant.id)
+        assert audit_event.data["grant_recipient_id"] == str(grant_recipient.id)
+        assert audit_event.data["permissions"] == [RoleEnum.MEMBER.value, RoleEnum.DATA_PROVIDER.value]
+
+    def test_cancel_invitation_leaves_other_invitations_usable(self, db_session, factories):
+        organisation = factories.organisation.create()
+        invitation = factories.invitation.create(
+            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER]
+        )
+        other_invitation = factories.invitation.create(
+            email="test@email.com", organisation=organisation, permissions=[RoleEnum.MEMBER]
+        )
+
+        interfaces.user.cancel_invitation(invitation, by_user=factories.user.create())
+
+        usable_invitations = db_session.scalars(select(Invitation).where(Invitation.is_usable.is_(True))).all()
+        assert [usable_invitation.id for usable_invitation in usable_invitations] == [other_invitation.id]
+
 
 class TestUserGrantRelationships:
     def test_deliver_grants_direct_grant_access(self, db_session, factories):

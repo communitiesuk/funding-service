@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
-from app.common.audit import UserInvited, UserPermissionsAdded, UserPermissionsRemoved
+from app.common.audit import UserInvitationCancelled, UserInvited, UserPermissionsAdded, UserPermissionsRemoved
 from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none, get_grant_recipients
@@ -408,6 +408,23 @@ def create_invitation(
         by_user,
     )
     return invitation
+
+
+@flush_and_rollback_on_exceptions
+def cancel_invitation(invitation: Invitation, *, by_user: User) -> None:
+    db.session.execute(update(Invitation).where(Invitation.id == invitation.id).values(expires_at_utc=func.now()))
+
+    track_audit_event(
+        UserInvitationCancelled(
+            user_id=by_user.id,
+            invitation_id=invitation.id,
+            organisation_id=invitation.organisation_id,
+            grant_id=invitation.grant_id,
+            grant_recipient_id=_get_access_grant_recipient_id(invitation.organisation, invitation.grant),
+            permissions=list(invitation.permissions),
+        ),
+        by_user,
+    )
 
 
 @flush_and_rollback_on_exceptions

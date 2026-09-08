@@ -11,6 +11,7 @@ from app.common.audit import (
     AuditEvent,
     DatabaseModelChange,
     SystemEvent,
+    UserInvitationCancelled,
     UserPermissionsAdded,
     UserPermissionsRemoved,
     _audit_event_adapters,
@@ -292,6 +293,22 @@ class TestParseAuditEvent:
         parsed = parse_audit_event(AuditEventType.USER_MANAGEMENT, event.model_dump(mode="json"))
 
         assert isinstance(parsed, UserPermissionsRemoved)
+        assert parsed == event
+
+    def test_parses_user_invitation_cancelled_event(self, factories):
+        user = factories.user.build()
+        event = UserInvitationCancelled(
+            user_id=user.id,
+            invitation_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=uuid4(),
+            grant_recipient_id=uuid4(),
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        parsed = parse_audit_event(AuditEventType.USER_MANAGEMENT, event.model_dump(mode="json"))
+
+        assert isinstance(parsed, UserInvitationCancelled)
         assert parsed == event
 
     def test_invitation_id_defaults_to_none_when_absent(self, factories):
