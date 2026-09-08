@@ -14,7 +14,7 @@
 {% set can_preview = collection.data_sources | length == 0 and collection.status != enum.collection_status.CLOSED %}
 
 {# this does kick off one more request to the database - we could revisit making this check more concise #}
-{% set user_can_test_grant_recipient_journey = grant.test_grant_recipients and grant in current_user.access_grants %}
+{% set user_can_test_grant_recipient_journey = (grant.test_grant_recipients and grant in current_user.access_grants) or collection.allow_public_sign_up %}
 
 {% block beforeContent %}
   {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection_type=collection.type, this_page_breadcrumb_item={"text":collection.name}) }}
@@ -167,7 +167,7 @@
           {% endif %}
           {% if user_can_test_grant_recipient_journey %}
             <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
-              >Test grant recipient journey</a
+              >{{ "Test application journey" if collection.allow_public_sign_up else "Test grant recipient journey" }}</a
             >
           {% endif %}
         </div>
