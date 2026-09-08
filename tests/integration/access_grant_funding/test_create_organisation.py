@@ -40,9 +40,9 @@ def _seed_session(client, collection, org_session: CreateOrganisationSession | N
             flask_session["create_organisation"] = org_session.to_session_dict()
 
 
-def _eligible_to_apply_url(collection):
+def _sign_up_router_url(collection):
     return url_for(
-        "access_grant_funding.eligible_to_apply",
+        "access_grant_funding.public_sign_up_router",
         grant_slug=collection.grant.slug,
         collection_slug=collection.slug,
     )
@@ -83,7 +83,7 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_session_for_another_collection_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -102,7 +102,7 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_saves_choice_and_continues_to_name(self, authenticated_no_role_client, sign_up_collection):
@@ -280,7 +280,7 @@ class TestCreateOrganisationLocalAuthority:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
@@ -336,7 +336,7 @@ class TestCreateOrganisationName:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_persists_name_and_generates_external_id(self, authenticated_no_role_client, sign_up_collection):
@@ -620,7 +620,7 @@ class TestCreateOrganisationAlreadyExists:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_a_name_in_the_session_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -641,7 +641,7 @@ class TestCreateOrganisationAlreadyExists:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_a_name_that_is_not_taken_redirects_back_to_the_name_page(
@@ -747,7 +747,7 @@ class TestCreateOrganisationAllowTeamMembers:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_a_name_in_the_session_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -762,7 +762,7 @@ class TestCreateOrganisationAllowTeamMembers:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_stores_the_answer_and_continues_to_the_full_name_step(
@@ -873,7 +873,7 @@ class TestCreateOrganisationUserName:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_skips_the_step_when_we_already_hold_a_name(self, authenticated_no_role_client, sign_up_collection):
@@ -1056,7 +1056,7 @@ class TestCreateOrganisationCheckYourAnswers:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     def _complete_session(self, collection, *, allow_team_members=False, **kwargs) -> CreateOrganisationSession:
         return CreateOrganisationSession(
@@ -1280,7 +1280,7 @@ class TestCreateOrganisationCheckYourAnswers:
         response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     def _allow_team_members_change_href(self, collection) -> str:
         return url_for(
@@ -1339,7 +1339,7 @@ class TestCreateOrganisationCheckYourAnswers:
         response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_with_allow_team_members_writes_the_email_domain_to_the_organisation(

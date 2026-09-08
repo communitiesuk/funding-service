@@ -1,6 +1,7 @@
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
+from app.access_grant_funding.decorators import requires_create_organisation_session
 from app.access_grant_funding.forms import (
     CreateOrganisationAllowTeamMembersForm,
     CreateOrganisationNameForm,
@@ -8,13 +9,17 @@ from app.access_grant_funding.forms import (
     UserNameForm,
 )
 from app.access_grant_funding.helpers import (
-    can_share_email_domain,
     complete_public_sign_up_session_and_redirect,
     get_sign_up_modes,
     sign_up_as_grant_recipient,
 )
 from app.access_grant_funding.routes import access_grant_funding_blueprint
-from app.access_grant_funding.session_models import CreateOrganisationSession, SignUpOrganisationType
+from app.access_grant_funding.session_models import (
+    CompleteCreateOrganisationSession,
+    CreateOrganisationSession,
+    NamedCreateOrganisationSession,
+    SignUpOrganisationType,
+)
 from app.common.auth.decorators import requires_passed_eligibility
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
@@ -32,17 +37,12 @@ from app.extensions import auto_commit_after_request
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-type", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-def create_organisation_type(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session()
+def create_organisation_type(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    if org_session is None:
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
     check_your_answers_url = url_for(
@@ -95,17 +95,12 @@ def create_organisation_type(grant_slug: str, collection_slug: str) -> ResponseR
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/local-authority", methods=["GET"]
 )
 @requires_passed_eligibility
-def create_organisation_local_authority(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session()
+def create_organisation_local_authority(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    if org_session is None:
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
     organisation_type_url = url_for(
@@ -133,17 +128,12 @@ def create_organisation_local_authority(grant_slug: str, collection_slug: str) -
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-name", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session()
+def create_organisation_name(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    if org_session is None:
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
     check_your_answers_url = url_for(
@@ -205,17 +195,12 @@ def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseR
     methods=["GET"],
 )
 @requires_passed_eligibility
-def create_organisation_already_exists(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session(NamedCreateOrganisationSession)
+def create_organisation_already_exists(
+    grant_slug: str, collection_slug: str, org_session: NamedCreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    if org_session is None or not all([bool(i) for i in [org_session.name]]):
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
     organisation_name_url = url_for(
@@ -247,18 +232,12 @@ def create_organisation_already_exists(grant_slug: str, collection_slug: str) ->
     methods=["GET", "POST"],
 )
 @requires_passed_eligibility
-def create_organisation_allow_team_members(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session(NamedCreateOrganisationSession)
+def create_organisation_allow_team_members(
+    grant_slug: str, collection_slug: str, org_session: NamedCreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    # the page copy names the organisation, so a session without one can't be presented
-    if org_session is None or not all([bool(i) for i in [org_session.name]]):
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
 
     user = interfaces.user.get_current_user()
     user_name_url = url_for(
@@ -268,7 +247,7 @@ def create_organisation_allow_team_members(grant_slug: str, collection_slug: str
     )
 
     # this page isn't needed for shared emails
-    if not can_share_email_domain(user):
+    if not user.can_share_email_domain:
         return redirect(user_name_url)
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
@@ -310,17 +289,12 @@ def create_organisation_allow_team_members(grant_slug: str, collection_slug: str
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/your-full-name", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-def create_organisation_user_name(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session()
+def create_organisation_user_name(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    if org_session is None:
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
 
     check_your_answers_url = url_for(
         "access_grant_funding.create_organisation_check_your_answers",
@@ -347,7 +321,7 @@ def create_organisation_user_name(grant_slug: str, collection_slug: str) -> Resp
         if from_check_your_answers
         else url_for(
             "access_grant_funding.create_organisation_allow_team_members"
-            if can_share_email_domain(user)
+            if user.can_share_email_domain
             else "access_grant_funding.create_organisation_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
@@ -369,31 +343,15 @@ def create_organisation_user_name(grant_slug: str, collection_slug: str) -> Resp
 )
 @requires_passed_eligibility
 @auto_commit_after_request
-def create_organisation_check_your_answers(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+@requires_create_organisation_session(CompleteCreateOrganisationSession)
+def create_organisation_check_your_answers(
+    grant_slug: str, collection_slug: str, org_session: CompleteCreateOrganisationSession
+) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
     user = interfaces.user.get_current_user()
 
-    show_allow_team_members = can_share_email_domain(user)
-
-    org_session = CreateOrganisationSession.from_session(
-        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
-    )
-    if org_session is None or not all(
-        [
-            bool(i)
-            for i in [
-                org_session.organisation_type,
-                org_session.name,
-                org_session.external_id,
-                (org_session.user_name or user.name),
-                (org_session.allow_team_members is not None or not show_allow_team_members),
-            ]
-        ]
-    ):
-        return redirect(
-            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-        )
+    show_allow_team_members = user.can_share_email_domain
 
     form = GenericSubmitForm()
     if form.validate_on_submit():
