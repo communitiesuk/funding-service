@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.models import Collection
-from app.common.data.types import CollectionStatusEnum, CollectionType, GrantStatusEnum
+from app.common.data.types import CollectionStatusEnum, CollectionType, GrantStatusEnum, SubmissionModeEnum
 from app.common.forms import GenericConfirmDeletionForm
 from tests.utils import AnyStringMatching, get_form_data, page_has_button, page_has_link
 
@@ -60,7 +60,9 @@ class TestListPreAwardForms:
         client = request.getfixturevalue(client_fixture)
         grant = client.grant or factories.grant.create()
         grant.allow_pre_award = True
-        factories.collection.create(grant=grant, type=CollectionType.APPLICATION)
+        form = factories.collection.create(grant=grant, type=CollectionType.APPLICATION)
+        factories.submission.create_batch(2, collection=form, mode=SubmissionModeEnum.LIVE)
+        factories.submission.create_batch(3, collection=form, mode=SubmissionModeEnum.TEST)
 
         response = client.get(url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id))
         assert response.status_code == 200
@@ -68,13 +70,18 @@ class TestListPreAwardForms:
         soup = BeautifulSoup(response.data, "html.parser")
         assert grant.name in soup.text
 
-        test_submission_links = page_has_link(soup, "0 test submissions")
+        assert page_has_link(soup, "3 test submissions in progress") is None
+        assert "3 test submissions in progress" in soup.text
+
+        test_submission_links = page_has_link(soup, "0 test submissions submitted")
         assert test_submission_links is not None
         assert test_submission_links.get("href") == AnyStringMatching(
             r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/submissions/test"
         )
+        assert page_has_link(soup, "2 live submissions in progress") is None
+        assert "2 live submissions in progress" in soup.text
 
-        live_submissions_links = page_has_link(soup, "0 live submissions")
+        live_submissions_links = page_has_link(soup, "0 live submissions submitted")
         assert live_submissions_links is not None
         assert live_submissions_links.get("href") == AnyStringMatching(
             r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/submissions/live"
@@ -90,6 +97,36 @@ class TestListPreAwardForms:
 
             if can_edit:
                 assert link.get("href") == expected_link[1]
+
+    def test_grant_member_get_with_forms_submissions_not_visible(self, factories, authenticated_grant_member_client):
+        grant = authenticated_grant_member_client.grant or factories.grant.create()
+        grant.allow_pre_award = True
+        form = factories.collection.create(
+            grant=grant, type=CollectionType.APPLICATION, allow_public_sign_up=True, status=CollectionStatusEnum.OPEN
+        )
+        factories.submission.create_batch(2, collection=form, mode=SubmissionModeEnum.LIVE)
+        factories.submission.create_batch(3, collection=form, mode=SubmissionModeEnum.TEST)
+
+        response = authenticated_grant_member_client.get(
+            url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id)
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert grant.name in soup.text
+
+        assert page_has_link(soup, "2 live submissions in progress") is None
+        assert "2 live submissions in progress" in soup.text
+        assert page_has_link(soup, "0 live submissions submitted") is None
+        assert "0 live submissions submitted" in soup.text
+
+        test_submission_links = page_has_link(soup, "0 test submissions submitted")
+        assert test_submission_links is not None
+        assert test_submission_links.get("href") == AnyStringMatching(
+            r"/deliver/grant/[a-z0-9-]{36}/applications/[a-z0-9-]{36}/submissions/test"
+        )
+        assert page_has_link(soup, "3 test submissions in progress") is None
+        assert "3 test submissions in progress" in soup.text
 
     def test_get_with_delete_parameter_no_submissions(self, authenticated_grant_admin_client, factories):
         authenticated_grant_admin_client.grant.allow_pre_award = True

@@ -40,6 +40,7 @@ from app.common.data.types import (
     SubmissionAssessmentStatusEnum,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
     TasklistSectionStatusEnum,
 )
 from app.common.exceptions import RedirectException
@@ -347,6 +348,7 @@ def create_app() -> Flask:  # noqa: C901
                 maximum_file_size_enum=MaximumFileSize,
                 data_source_type_enum=DataSourceType,
                 collection_type_enum=CollectionType,
+                submission_visibility=SubmissionVisibilityEnum,
             ),
             feature_flags=FeatureFlags,
             request_tracing_state=get_tracing_state(),

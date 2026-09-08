@@ -41,32 +41,51 @@
     {% endif %}
   {% endset %}
 
+  {% set test_counts = collection.get_submission_counts(enum.submission_mode.TEST) %}
+  {% set live_counts = collection.get_submission_counts(enum.submission_mode.LIVE) %}
 
-  {% set liveSubmissionsText %}
-    {% trans count = collection.live_submissions | length %}{{ count }} live submission{% pluralize %}{{ count }} live submissions{% endtrans %}
+
+  {% set liveInProgressText %}
+    {{ live_counts.count_in_progress }} <span class="govuk-visually-hidden">live {% trans count = live_counts.count_in_progress %}submission{% pluralize %}submissions{% endtrans %}</span> in progress
     <span class="govuk-visually-hidden">for {{ collection.name }}</span>
   {% endset %}
-  {% set testSubmissionsText %}
-    {% trans count = collection.test_submissions | length %}{{ count }} test submission{% pluralize %}{{ count }} test submissions{% endtrans %}
+
+
+  {% set liveSubmittedText %}
+    {{ live_counts.count_submitted }} <span class="govuk-visually-hidden">live {% trans count = live_counts.count_submitted %}submission{% pluralize %}submissions{% endtrans %}</span> submitted
     <span class="govuk-visually-hidden">for {{ collection.name }}</span>
   {% endset %}
-
-
-  {% set submissionsHtml %}
+  {% set liveSubmissionsHtml %}
+    <p class="govuk-body">{{ liveInProgressText }}</p>
     <p class="govuk-body">
-      <a
-        class="govuk-link govuk-link--no-visited-state"
-        href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.LIVE) }}">
-        {{ liveSubmissionsText }}
-      </a>
+      {% if collection.submission_visibility == enum.submission_visibility.REQUIRES_CLOSED_COLLECTION and not collection.is_closed %}
+        {{ liveSubmittedText }}
+      {% else %}
+        <a
+          class="govuk-link govuk-link--no-visited-state"
+          href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.LIVE) }}">
+          {{ liveSubmittedText }}
+        </a>
+      {% endif %}
     </p>
+  {% endset %}
 
-    {# TODO: hide test submissions link when the reporting round status is live #}
+
+  {% set testInProgressText %}
+    {{ test_counts.count_in_progress }} <span class="govuk-visually-hidden">test {% trans count = test_counts.count_in_progress %}submission{% pluralize %}submissions{% endtrans %}</span> in progress
+    <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+  {% endset %}
+  {% set testSubmittedText %}
+    {{ test_counts.count_submitted }} <span class="govuk-visually-hidden">test {% trans count = test_counts.count_submitted %}submission{% pluralize %}submissions{% endtrans %}</span> submitted
+    <span class="govuk-visually-hidden">for {{ collection.name }}</span>
+  {% endset %}
+  {% set testSubmissionsHtml %}
+    <p class="govuk-body">{{ testInProgressText }}</p>
     <p class="govuk-body">
       <a
         class="govuk-link govuk-link--no-visited-state"
         href="{{ url_for('deliver_grant_funding.list_submissions', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, submission_mode=enum.submission_mode.TEST) }}">
-        {{ testSubmissionsText }}
+        {{ testSubmittedText }}
       </a>
     </p>
   {% endset %}
@@ -102,7 +121,8 @@
             {"key": {"text": "Uploaded data sets"}, "value": {"html": dataSetsHtml} },
             {"key": {"text": "Reporting period"}, "value": {"text": reportingPeriodText} } if collection.is_monitoring_collection else {},
             {"key": {"text": "Submission period"}, "value": {"text": submissionPeriodText} },
-            {"key": {"text": "Submissions"}, "value": {"html": submissionsHtml} },
+            {"key": {"text": "Submissions"}, "value": {"html": liveSubmissionsHtml} },
+            {"key": {"text": "Test Submissions"}, "value": {"html": testSubmissionsHtml} },
             {"key": {"text": "Created by"}, "value": {"text": collection.created_by.email} },
         ],
     })

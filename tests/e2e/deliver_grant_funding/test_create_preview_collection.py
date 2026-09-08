@@ -1548,7 +1548,9 @@ def test_deliver_test_grant_recipient_journey(
     # Reopen the submission
     grant_reports_page = GrantReportsPage(page, domain, data["grant_name"])
     grant_reports_page.navigate(data["grant_id"])
-    submissions_list_page = grant_reports_page.click_view_submissions(data["collection_name"])
+    submissions_list_page = grant_reports_page.click_view_test_submissions(
+        data["collection_name"], submission_status="submitted"
+    )
     view_submission_page = submissions_list_page.click_on_submission(data["test_org_name"])
     reopen_page = view_submission_page.click_reopen_submission()
     reopen_page.fill_reopen_reason("Reopening for e2e tests")
