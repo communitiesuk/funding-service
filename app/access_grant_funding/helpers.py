@@ -51,7 +51,7 @@ def can_share_email_domain(user: User) -> bool:
 
 
 def sign_up_as_grant_recipient(
-    *, user: User, grant: Grant, organisation: Organisation, mode: GrantRecipientModeEnum
+    *, user: User, grant: Grant, collection: Collection, organisation: Organisation, mode: GrantRecipientModeEnum
 ) -> GrantRecipient:
     grant_recipient = create_grant_recipient(
         grant=grant,
@@ -59,17 +59,34 @@ def sign_up_as_grant_recipient(
         status=GrantRecipientStatusEnum.APPLYING,
         mode=mode,
     )
-    # TODO: in test mode for consistency we could set up each of the
-    #       grant team members as users
-    # TODO: in test mode if the collection requires certification we
-    #       should also give certifier permissions
-    interfaces.user.add_permissions_to_user(
-        user=user,
-        permissions=[RoleEnum.DATA_PROVIDER],
-        organisation=organisation,
-        grant=grant,
-        by_user=user,
-    )
+
+    permissions = [RoleEnum.DATA_PROVIDER]
+    users_to_set_up = [user]
+
+    if mode == GrantRecipientModeEnum.TEST:
+        if collection.requires_certification:
+            permissions.append(RoleEnum.CERTIFIER)
+
+        # Test grant recipients are shared by the whole grant team, so keep the one we've just created
+        # consistent with those set up elsewhere:
+        #   * `set_up_grant_recipients` (app/deliver_grant_funding/admin/views.py) gives every existing grant
+        #     team member access when a platform admin creates test grant recipients for a grant
+        #   * `claim_invitation` and `add_grant_member_role_or_create_invitation`
+        #     (app/common/data/interfaces/user.py) give each new grant team member access to the grant's
+        #     existing test grant recipients
+        users_to_set_up += [
+            grant_team_member for grant_team_member in grant.grant_team_users if grant_team_member != user
+        ]
+
+    for user_to_set_up in users_to_set_up:
+        interfaces.user.add_permissions_to_user(
+            user=user_to_set_up,
+            permissions=permissions,
+            organisation=organisation,
+            grant=grant,
+            by_user=user,
+        )
+
     flash(
         {"organisation_name": organisation.name, "grant_name": grant.name},  # ty: ignore[invalid-argument-type]
         FlashMessageType.PUBLIC_SIGN_UP_SUCCESS,
@@ -102,7 +119,7 @@ def sign_up_with_matched_organisation(
             )
 
         grant_recipient = sign_up_as_grant_recipient(
-            user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
+            user=user, grant=grant, collection=collection, organisation=organisation, mode=modes.grant_recipient
         )
     # A grant recipient exists, and user does not have access to it
     elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
