@@ -137,3 +137,13 @@ class CreateOrganisationAllowTeamMembersForm(FlaskForm):
         self.allow_team_members.validators = [
             DataRequired(f"Select yes if you want to allow team members to apply as {organisation_name}")
         ]
+
+
+class CompaniesHouseSearchForm(FlaskForm):
+    query = StringField(
+        "Search by company name or number",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter a company name or number")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Search", widget=GovSubmitInput())

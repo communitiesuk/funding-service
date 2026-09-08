@@ -1,0 +1,77 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+
+{% set showing_results = results is not none or search_unavailable %}
+{% set page_title = "Search results" if showing_results else "Search Companies House register" %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Create organisation</span>
+      <h1 class="govuk-heading-l">{{ page_title }}</h1>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {{
+          form.query(params={
+            "label": {"classes": "govuk-label--s"},
+            "classes": "govuk-!-width-two-thirds",
+          })
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+
+  {% if search_unavailable %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+        <p class="govuk-body">
+          Companies House search is not available at the moment. Try again later or contact our
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ config.ACCESS_SERVICE_DESK_URL }}" target="_blank">support desk (opens in new tab)</a>.
+        </p>
+      </div>
+    </div>
+  {% elif results is not none %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full">
+        <p class="govuk-body">{{ results.total_results }} search result{{ "" if results.total_results == 1 else "s" }}</p>
+        {% if results.items | length == 0 %}
+          <p class="govuk-body">No companies found. Check the spelling or try searching by the company number.</p>
+        {% else %}
+          {% if results.items | length < results.total_results %}
+            <p class="govuk-body">Showing the first {{ results.items | length }}. Add more of the name or use the company number to narrow the search.</p>
+          {% endif %}
+          {% set rows = [] %}
+          {% for company in results.items %}
+            {% set action %}
+              <a
+                class="govuk-link govuk-link--no-visited-state"
+                href="{{ url_for('access_grant_funding.create_organisation_company_select', grant_slug=grant.slug, collection_slug=collection.slug, company_number=company.company_number, source=constants.check_your_answers if from_check_your_answers else none) }}"
+                >Select<span class="govuk-visually-hidden"> {{ company.title }}</span></a
+              >
+            {% endset %}
+            {% do rows.append([{"text": company.title}, {"text": company.company_number}, {"text": company.address_snippet or ""}, {"html": action}]) %}
+          {% endfor %}
+          {{
+            govukTable({
+              "firstCellIsHeader": false,
+              "head": [
+                {"text": "Company name"},
+                {"text": "Company number"},
+                {"text": "Registered address"},
+                {"html": '<span class="govuk-visually-hidden">Action</span>'},
+              ],
+              "rows": rows
+            })
+          }}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock content %}

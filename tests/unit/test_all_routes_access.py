@@ -191,6 +191,8 @@ routes_with_expected_requires_passed_eligibility_access = [
     "access_grant_funding.create_organisation_allow_team_members",
     "access_grant_funding.create_organisation_user_name",
     "access_grant_funding.create_organisation_check_your_answers",
+    "access_grant_funding.create_organisation_company_search",
+    "access_grant_funding.create_organisation_company_select",
 ]
 
 routes_with_expected_access_grant_funding_grant_recipient_role = [

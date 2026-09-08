@@ -75,6 +75,14 @@ def organisation_name_exists(name: str, mode: OrganisationModeEnum = Organisatio
     return db.session.scalar(statement) is not None
 
 
+def organisation_typed_id_exists(
+    type_: OrganisationType, typed_id: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> bool:
+    """Check for an organisation of the given type by its typed identifier (e.g. a Companies House number)."""
+    external_id = f"{type_.external_id_prefix or ''}{typed_id}"
+    return bool(get_organisations(with_external_ids=[external_id], mode=mode))
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_organisation(
     *,

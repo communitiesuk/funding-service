@@ -119,9 +119,16 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
+class AccessGrantFundingCompaniesHouseLookupFeatureFlag(SessionFeatureFlag):
+    description = "Look up registered companies on Companies House when creating an organisation in public sign up."
+    resolver_description = "Toggled on and off in the session."
+    uses_request_context = False
+
+
 class FeatureFlags:
     PRE_AWARD = PreAwardGrantFeatureFlag()
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
+    ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP = AccessGrantFundingCompaniesHouseLookupFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:

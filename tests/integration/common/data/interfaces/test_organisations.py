@@ -9,6 +9,7 @@ from app.common.data.interfaces.organisations import (
     get_organisation_count,
     get_organisations,
     organisation_name_exists,
+    organisation_typed_id_exists,
     upsert_organisations,
 )
 from app.common.data.interfaces.user import add_permissions_to_user
@@ -254,6 +255,29 @@ class TestOrganisationNameExists:
 
         assert organisation_name_exists("Mirrored Organisation") is False
         assert organisation_name_exists("Mirrored Organisation (test)") is True
+
+
+class TestOrganisationTypedIdExists:
+    def test_true_for_an_organisation_of_that_type_with_the_typed_id(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
+
+        assert organisation_typed_id_exists(OrganisationType.COMPANY, "00000001") is True
+
+    def test_false_when_no_organisation_has_the_typed_id(self, factories, db_session):
+        assert organisation_typed_id_exists(OrganisationType.COMPANY, "00000001") is False
+
+    def test_is_scoped_to_type(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.CHARITY, external_id="CC-00000001")
+
+        assert organisation_typed_id_exists(OrganisationType.COMPANY, "00000001") is False
+
+    def test_is_scoped_to_mode(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
+
+        assert organisation_typed_id_exists(OrganisationType.COMPANY, "00000001") is True
+        assert (
+            organisation_typed_id_exists(OrganisationType.COMPANY, "00000001", mode=OrganisationModeEnum.TEST) is False
+        )
 
 
 class TestCreateOrganisation:

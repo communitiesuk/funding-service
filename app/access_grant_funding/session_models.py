@@ -74,7 +74,10 @@ class CreateOrganisationSession(SignUpSession):
 
     organisation_type: SignUpOrganisationType | None = None
     name: str | None = None
+    # the generated custom code for organisations we identify ourselves; unset for registered companies
     external_id: str | None = None
+    # set when the organisation was selected from the Companies House register; unset otherwise
+    companies_house_number: str | None = None
     # optional as only needed for users we don't have a name for on the model
     user_name: str | None = None
     # optional as only asked of users whose email domain isn't a shared provider
@@ -88,11 +91,26 @@ class CreateOrganisationSession(SignUpSession):
             can_share_email_domain=user.can_share_email_domain,
         )
 
+    @property
+    def is_registered_company(self) -> bool:
+        return self.organisation_type == SignUpOrganisationType.COMPANY and bool(self.companies_house_number)
+
+    @property
+    def typed_id(self) -> str:
+        """The identifier that will be stored against the organisation's type when it is created."""
+        return (self.companies_house_number if self.is_registered_company else self.external_id) or ""
+
 
 class NamedCreateOrganisationSession(CreateOrganisationSession):
     organisation_type: SignUpOrganisationType
     name: str = Field(min_length=1)
-    external_id: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def check_organisation_is_identified(self) -> Self:
+        if not self.typed_id:
+            raise ValueError("Organisation identifier required")
+
+        return self
 
 
 class CompleteCreateOrganisationSession(NamedCreateOrganisationSession):

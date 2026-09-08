@@ -1,8 +1,9 @@
-from flask import redirect, render_template, request, session, url_for
+from flask import abort, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
 from app.access_grant_funding.forms import (
+    CompaniesHouseSearchForm,
     CreateOrganisationAllowTeamMembersForm,
     CreateOrganisationNameForm,
     CreateOrganisationTypeForm,
@@ -20,17 +21,33 @@ from app.access_grant_funding.session_models import (
     NamedCreateOrganisationSession,
     SignUpOrganisationType,
 )
-from app.common.auth.decorators import requires_passed_eligibility
+from app.common.auth.decorators import has_feature_flag_enabled, requires_passed_eligibility
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant_by_slug
-from app.common.data.interfaces.organisations import create_organisation, organisation_name_exists
-from app.common.data.types import OrganisationType
+from app.common.data.interfaces.organisations import (
+    create_organisation,
+    organisation_name_exists,
+    organisation_typed_id_exists,
+)
+from app.common.data.types import OrganisationModeEnum, OrganisationType
 from app.common.data.utils import generate_organisation_custom_code
 from app.common.forms import GenericSubmitForm
+from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import CHECK_YOUR_ANSWERS, SESSION_CREATE_ORGANISATION
-from app.extensions import auto_commit_after_request
+from app.extensions import auto_commit_after_request, companies_house_service
+from app.services.companies_house import CompaniesHouseError, CompaniesHouseNotFoundError
+
+
+def _organisation_already_registered(org_session: CreateOrganisationSession, mode: OrganisationModeEnum) -> bool:
+    """Whether the organisation described by the sign up session already exists in the service."""
+    assert org_session.name is not None
+    if organisation_name_exists(org_session.name, mode=mode):
+        return True
+    return org_session.is_registered_company and organisation_typed_id_exists(
+        OrganisationType.COMPANY, org_session.typed_id, mode=mode
+    )
 
 
 @access_grant_funding_blueprint.route(
@@ -401,4 +418,149 @@ def create_organisation_check_your_answers(
             grant_slug=grant_slug,
             collection_slug=collection_slug,
         ),
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search", methods=["GET", "POST"]
+)
+@requires_passed_eligibility
+@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
+@requires_create_organisation_session()
+def create_organisation_company_search(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
+    source = CHECK_YOUR_ANSWERS if from_check_your_answers else None
+    organisation_type_url = url_for(
+        "access_grant_funding.create_organisation_type",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+        source=source,
+    )
+
+    # double checks the current session type is in this state before presenting it
+    # going back and forward will change the state but this screen will be stored in
+    # the browser history
+    if org_session.organisation_type != SignUpOrganisationType.COMPANY:
+        return redirect(organisation_type_url)
+
+    # a search is a GET with the query in the URL so that the results can be revisited with the back button;
+    # submitting the form validates the query and redirects to that URL
+    query = request.args.get("q", "").strip() if request.method == "GET" else ""
+    form = CompaniesHouseSearchForm(query=query)
+    if form.validate_on_submit():
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_company_search",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                q=form.query.data,
+                source=source,
+            )
+        )
+
+    results = None
+    search_unavailable = False
+    if query:
+        try:
+            results = companies_house_service.search_companies(query)
+        except CompaniesHouseError:
+            search_unavailable = True
+
+    back_link_href = (
+        url_for(
+            "access_grant_funding.create_organisation_company_search",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+            source=source,
+        )
+        if query
+        else organisation_type_url
+    )
+    return render_template(
+        "access_grant_funding/create_organisation/company_search.html",
+        form=form,
+        grant=grant,
+        collection=collection,
+        query=query,
+        results=results,
+        search_unavailable=search_unavailable,
+        from_check_your_answers=from_check_your_answers,
+        back_link_href=back_link_href,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/select-company/<string:company_number>",
+    methods=["GET"],
+)
+@requires_passed_eligibility
+@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
+@requires_create_organisation_session()
+def create_organisation_company_select(
+    grant_slug: str, collection_slug: str, company_number: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
+    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
+    source = CHECK_YOUR_ANSWERS if from_check_your_answers else None
+
+    if org_session.organisation_type != SignUpOrganisationType.COMPANY:
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_type",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                source=source,
+            )
+        )
+
+    try:
+        company = companies_house_service.get_company(company_number)
+    except CompaniesHouseNotFoundError:
+        return abort(404)
+    except CompaniesHouseError:
+        # the search page explains that Companies House is unavailable, or shows the results again if it recovered
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_company_search",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                q=company_number,
+                source=source,
+            )
+        )
+
+    org_session.name = company.company_name
+    org_session.companies_house_number = company.company_number
+    org_session.external_id = None
+    session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+
+    modes = get_sign_up_modes(interfaces.user.get_current_user())
+    if _organisation_already_registered(org_session, modes.organisation):
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                source=source,
+            )
+        )
+
+    if from_check_your_answers:
+        return redirect(
+            url_for(
+                "access_grant_funding.create_organisation_check_your_answers",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+    return redirect(
+        url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+        )
     )
