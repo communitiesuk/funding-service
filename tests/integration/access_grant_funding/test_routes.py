@@ -34,6 +34,7 @@ from app.common.expressions.managed import GreaterThan, IsNo
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import FeatureFlags
+from tests.models import FactoryAnswer
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
 
@@ -3021,9 +3022,13 @@ class TestPublicSignUpIneligiblePage:
             flask_session["auth"] = AuthMethodEnum.SSO
         db_session.commit()
 
-        unclaimed_submission = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.TEST)
-        unclaimed_submission.submission.data_manager.set(question, YesNoAnswer(False))
-        db_session.commit()
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            created_by=user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(question, YesNoAnswer(False))],
+        )
 
         response = anonymous_client.get(
             url_for(
@@ -3107,13 +3112,15 @@ class TestPublicSignUpIneligiblePage:
 
         assert response.status_code == 404
 
-    def test_get_with_known_grant_and_collection(self, authenticated_no_role_client, factories, db_session):
+    def test_get_with_known_grant_and_collection(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
         eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
-        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+        question = factories.question.create(
+            form=eligibility_form, data_type=QuestionDataType.YES_NO, text="Are you eligible?"
+        )
         add_component_eligibility(
             question,
             authenticated_no_role_client.user,
@@ -3123,11 +3130,13 @@ class TestPublicSignUpIneligiblePage:
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
 
-        unclaimed_submission = get_or_create_unclaimed_submission(
-            authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=authenticated_no_role_client.user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(question, YesNoAnswer(False))],
         )
-        unclaimed_submission.submission.data_manager.set(question, YesNoAnswer(False))
-        db_session.commit()
 
         response = authenticated_no_role_client.get(
             url_for(
@@ -3139,9 +3148,11 @@ class TestPublicSignUpIneligiblePage:
         )
 
         assert response.status_code == 200
-        assert "You are not eligible to apply" in response.data.decode()
-        assert "Test grant name" in response.data.decode()
-        assert "This is because you answered" in response.data.decode()
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You are not eligible to apply" in soup.text
+        assert "Test grant name" in soup.text
+        reason_paragraph = next(p for p in soup.find_all("p") if "This is because" in p.get_text())
+        assert reason_paragraph.get_text() == "This is because you answered ‘No’ for ‘Are you eligible?’."
 
 
 class TestPublicSignUpEligibilityQuestion:

@@ -581,10 +581,8 @@ def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     user = interfaces.user.get_current_user()
-    is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
-    submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
-
-    unclaimed_submission = get_unclaimed_submission_for_user(user, collection, submission_mode)
+    modes = get_sign_up_modes(user)
+    unclaimed_submission = get_unclaimed_submission_for_user(user, collection, modes.submission)
     # If there is no unclaimed submission, we redirect them away
     if unclaimed_submission is None:
         return redirect(
@@ -603,7 +601,7 @@ def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id
     except ValueError:
         abort(404)
 
-    answer = submission_helper.submission.data_manager.get(question)
+    answer = submission_helper.cached_get_answer_for_question(question.id)
 
     # If the answer is None, it means the user has not answered the question yet
     # we redirect them back to the question page
