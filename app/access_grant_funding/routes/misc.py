@@ -33,7 +33,11 @@ from app.common.data.interfaces.organisations import get_matched_organisations, 
 from app.common.data.types import RoleEnum, SubmissionModeEnum
 from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.collections import SubmissionHelper, get_or_create_unclaimed_submission
+from app.common.helpers.collections import (
+    SubmissionHelper,
+    get_or_create_unclaimed_submission,
+    get_unclaimed_submission_for_user,
+)
 from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.constants import SESSION_CREATE_ORGANISATION, SESSION_MATCHED_ORGANISATION
@@ -522,6 +526,7 @@ def public_sign_up_eligibility_question(
                     "access_grant_funding.public_sign_up_ineligible",
                     grant_slug=grant_slug,
                     collection_slug=collection_slug,
+                    question_id=question.id,
                 )
             )
 
@@ -567,14 +572,53 @@ def public_sign_up_eligibility_question(
     )
 
 
-@access_grant_funding_blueprint.route("/grant/<string:grant_slug>/<string:collection_slug>/ineligible", methods=["GET"])
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligibility/<uuid:question_id>/ineligible", methods=["GET"]
+)
 @is_signing_up
-def public_sign_up_ineligible(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id: UUID) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    user = interfaces.user.get_current_user()
+    modes = get_sign_up_modes(user)
+    unclaimed_submission = get_unclaimed_submission_for_user(user, collection, modes.submission)
+    # If there is no unclaimed submission, we redirect them away
+    if unclaimed_submission is None:
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+
+    submission_helper = SubmissionHelper.load(unclaimed_submission.id)
+
+    # If the question is not found, we return a 404 error
+    try:
+        question = submission_helper.get_question(question_id)
+    except ValueError:
+        abort(404)
+
+    answer = submission_helper.cached_get_answer_for_question(question.id)
+
+    # If the answer is None, it means the user has not answered the question yet
+    # we redirect them back to the question page
+    if answer is None:
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                question_id=question.id,
+            )
+        )
 
     return render_template(
         "access_grant_funding/public_sign_up_ineligible.html",
         grant=grant,
         collection=collection,
+        question=question,
+        answer=answer,
     )

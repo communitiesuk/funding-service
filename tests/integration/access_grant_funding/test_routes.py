@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
 from app.access_grant_funding.session_models import MatchedOrganisationSession
 from app.common.collections.forms import build_question_form
+from app.common.collections.types import YesNoAnswer
 from app.common.data.interfaces.collections import add_component_eligibility
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_audit import AuditEvent as AuditEventModel
@@ -29,10 +30,11 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import GreaterThan
+from app.common.expressions.managed import GreaterThan, IsNo
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import FeatureFlags
+from tests.models import FactoryAnswer
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
 
@@ -2922,6 +2924,7 @@ class TestPublicSignUpIneligiblePage:
                 "access_grant_funding.public_sign_up_ineligible",
                 grant_slug="not-a-real-grant",
                 collection_slug=collection.slug,
+                question_id=uuid.uuid4(),
             )
         )
 
@@ -2935,6 +2938,7 @@ class TestPublicSignUpIneligiblePage:
                 "access_grant_funding.public_sign_up_ineligible",
                 grant_slug=grant.slug,
                 collection_slug="not-a-real-collection",
+                question_id=uuid.uuid4(),
             )
         )
 
@@ -2973,6 +2977,7 @@ class TestPublicSignUpIneligiblePage:
                 "access_grant_funding.public_sign_up_ineligible",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
+                question_id=uuid.uuid4(),
             )
         )
 
@@ -3001,6 +3006,13 @@ class TestPublicSignUpIneligiblePage:
             allow_public_sign_up=True,
             slug="collection-slug",
         )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+        add_component_eligibility(
+            question,
+            user,
+            IsNo(subject_reference=ExpressionReference.from_question(question)),
+        )
         factories.user_role.create(
             user=user, organisation=can_manage_grants_organisation, grant=grant, permissions=[RoleEnum.MEMBER]
         )
@@ -3010,11 +3022,20 @@ class TestPublicSignUpIneligiblePage:
             flask_session["auth"] = AuthMethodEnum.SSO
         db_session.commit()
 
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            created_by=user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(question, YesNoAnswer(False))],
+        )
+
         response = anonymous_client.get(
             url_for(
                 "access_grant_funding.public_sign_up_ineligible",
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
+                question_id=question.id,
             )
         )
 
@@ -3028,7 +3049,10 @@ class TestPublicSignUpIneligiblePage:
 
         response = authenticated_no_role_client.get(
             url_for(
-                "access_grant_funding.public_sign_up_ineligible", grant_slug=grant.slug, collection_slug=collection.slug
+                "access_grant_funding.public_sign_up_ineligible",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=uuid.uuid4(),
             )
         )
 
@@ -3037,24 +3061,98 @@ class TestPublicSignUpIneligiblePage:
             "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
         )
 
+    def test_get_redirects_to_router_when_no_unclaimed_submission(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        # No unclaimed submission has been created for this user/collection
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_ineligible",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
+    def test_get_404s_for_unknown_question_id(self, authenticated_no_role_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        get_or_create_unclaimed_submission(authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE)
+        db_session.commit()
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_ineligible",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=uuid.uuid4(),
+            )
+        )
+
+        assert response.status_code == 404
+
     def test_get_with_known_grant_and_collection(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(
+            form=eligibility_form, data_type=QuestionDataType.YES_NO, text="Are you eligible?"
+        )
+        add_component_eligibility(
+            question,
+            authenticated_no_role_client.user,
+            IsNo(subject_reference=ExpressionReference.from_question(question)),
+        )
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
 
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=authenticated_no_role_client.user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(question, YesNoAnswer(False))],
+        )
+
         response = authenticated_no_role_client.get(
             url_for(
-                "access_grant_funding.public_sign_up_ineligible", grant_slug=grant.slug, collection_slug=collection.slug
+                "access_grant_funding.public_sign_up_ineligible",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
             )
         )
 
         assert response.status_code == 200
-        assert "You are not eligible to apply" in response.data.decode()
-        assert "Test grant name" in response.data.decode()
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "You are not eligible to apply" in soup.text
+        assert "Test grant name" in soup.text
+        reason_paragraph = next(p for p in soup.find_all("p") if "This is because" in p.get_text())
+        assert reason_paragraph.get_text() == "This is because you answered ‘No’ for ‘Are you eligible?’."
 
 
 class TestPublicSignUpEligibilityQuestion:
@@ -3339,7 +3437,10 @@ class TestPublicSignUpEligibilityQuestion:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.public_sign_up_ineligible", grant_slug=grant.slug, collection_slug=collection.slug
+            "access_grant_funding.public_sign_up_ineligible",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
         )
 
     def test_post_passes_eligibility_redirects_to_eligible_to_apply(self, authenticated_no_role_client, factories):
