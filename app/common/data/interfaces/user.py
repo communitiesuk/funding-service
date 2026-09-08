@@ -264,7 +264,7 @@ def _track_user_permissions_change(
 @flush_and_rollback_on_exceptions
 def add_permissions_to_user(
     user: User,
-    permissions: list[RoleEnum],
+    permissions: Sequence[RoleEnum],
     organisation: Organisation | None = None,
     grant: Grant | None = None,
     *,
@@ -273,17 +273,14 @@ def add_permissions_to_user(
 ) -> UserRole:
     """Grant `permissions` to `user`; `by_user` is the user making the change, recorded on the audit event tracked
     when this changes the user's role. Pass `invitation` when the permissions come from `user` claiming it."""
-    # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
-    # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
-    #       and is up for removal in the future.
-    if RoleEnum.MEMBER not in permissions:
-        permissions.append(RoleEnum.MEMBER)
-
     organisation_id = organisation.id if organisation else None
     grant_id = grant.id if grant else None
     existing_user_role = get_user_role(user, organisation_id, grant_id)
     existing_permissions = list(existing_user_role.permissions) if existing_user_role else []
-    combined_permissions = list(set(existing_permissions + permissions))
+    # We make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
+    # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
+    #       and is up for removal in the future.
+    combined_permissions = list({*existing_permissions, *permissions, RoleEnum.MEMBER})
 
     user_role = _upsert_user_role(user, combined_permissions, organisation_id, grant_id)
 
@@ -355,7 +352,7 @@ def remove_permissions_from_user(
 @flush_and_rollback_on_exceptions
 def create_invitation(
     email: str,
-    permissions: list[RoleEnum],
+    permissions: Sequence[RoleEnum],
     grant: Grant | None = None,
     organisation: Organisation | None = None,
     *,
@@ -367,8 +364,9 @@ def create_invitation(
     if organisation is None and grant is not None:
         raise ValueError("If specifying grant, must also specify organisation")
 
-    if RoleEnum.MEMBER not in permissions:
-        permissions.append(RoleEnum.MEMBER)
+    invited_permissions = list(permissions)
+    if RoleEnum.MEMBER not in invited_permissions:
+        invited_permissions.append(RoleEnum.MEMBER)
 
     # Expire any existing invitations for the same email, organisation, and grant,
     # filtering on NULL if org/grant not passed
@@ -389,7 +387,7 @@ def create_invitation(
         name=name,
         organisation_id=organisation.id if organisation else None,
         grant_id=grant.id if grant else None,
-        permissions=permissions,
+        permissions=invited_permissions,
         expires_at_utc=func.now() + datetime.timedelta(days=7),
     )
     db.session.add(invitation)

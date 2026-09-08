@@ -1159,6 +1159,45 @@ class TestCreateOrganisationCheckYourAnswers:
 
         assert response.status_code == 302
 
+    def test_post_sets_the_grant_team_up_on_a_test_grant_recipient(
+        self, anonymous_client, sign_up_collection, factories, user, db_session
+    ):
+        grant = sign_up_collection.grant
+        colleague = factories.user.create()
+        for grant_team_member in (user, colleague):
+            factories.user_role.create(
+                user=grant_team_member,
+                organisation=grant.organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER],
+            )
+
+        login_user(user)
+        with anonymous_client.session_transaction() as flask_session:
+            flask_session["auth"] = AuthMethodEnum.SSO
+        db_session.commit()
+
+        _seed_session(anonymous_client, sign_up_collection, self._complete_session(sign_up_collection))
+
+        response = anonymous_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+        assert response.status_code == 302
+
+        assert sign_up_collection.requires_certification is True
+
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+
+        # all grant team members have been given roles
+        # all roles include certification because this collection requires it
+        for grant_team_member in (user, colleague):
+            user_role = db_session.scalars(
+                select(UserRole).where(
+                    UserRole.user_id == grant_team_member.id,
+                    UserRole.organisation_id == organisation.id,
+                    UserRole.grant_id == grant.id,
+                )
+            ).one()
+            assert set(user_role.permissions) == {RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER, RoleEnum.MEMBER}
+
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_claims_the_eligibility_submission(self, authenticated_no_role_client, sign_up_collection, db_session):
         unclaimed_submission = get_or_create_unclaimed_submission(
