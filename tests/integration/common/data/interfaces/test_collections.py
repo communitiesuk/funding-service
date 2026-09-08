@@ -1493,25 +1493,27 @@ def test_move_form_up_down(db_session, factories):
 
 
 class TestMoveFormUpDownEligibility:
-    def test_move_form_up_does_nothing_for_eligibility_form(self, factories):
+    def test_move_form_up_raises_for_eligibility_form(self, factories):
         collection = factories.collection.create()
         create_form(title="Form A", collection=collection)
         eligibility_form = create_form(
             title="Eligibility questions", collection=collection, is_eligibility_section=True
         )
 
-        move_form_up(eligibility_form)
+        with pytest.raises(RuntimeError):
+            move_form_up(eligibility_form)
 
         assert eligibility_form.order == 0
 
-    def test_move_form_down_does_nothing_for_eligibility_form(self, factories):
+    def test_move_form_down_raises_for_eligibility_form(self, factories):
         collection = factories.collection.create()
         create_form(title="Form A", collection=collection)
         eligibility_form = create_form(
             title="Eligibility questions", collection=collection, is_eligibility_section=True
         )
 
-        move_form_down(eligibility_form)
+        with pytest.raises(RuntimeError):
+            move_form_down(eligibility_form)
 
         assert eligibility_form.order == 0
 
@@ -1522,7 +1524,8 @@ class TestMoveFormUpDownEligibility:
             title="Eligibility questions", collection=collection, is_eligibility_section=True
         )
 
-        move_form_up(form_a)
+        with pytest.raises(RuntimeError):
+            move_form_up(form_a)
 
         assert eligibility_form.order == 0
         assert form_a.order == 1
