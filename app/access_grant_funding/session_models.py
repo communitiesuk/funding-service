@@ -65,6 +65,8 @@ class CreateOrganisationSession(SignUpSession):
     external_id: str = ""
     # optional as only needed for users we don't have a name for on the model
     user_name: str | None = None
+    # optional as only asked of users whose email domain isn't a shared provider
+    allow_team_members: bool | None = None
 
 
 def start_public_sign_up(collection_id: UUID) -> None:

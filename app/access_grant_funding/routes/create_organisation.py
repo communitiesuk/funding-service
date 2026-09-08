@@ -1,8 +1,14 @@
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
-from app.access_grant_funding.forms import CreateOrganisationNameForm, CreateOrganisationTypeForm, UserNameForm
+from app.access_grant_funding.forms import (
+    CreateOrganisationAllowTeamMembersForm,
+    CreateOrganisationNameForm,
+    CreateOrganisationTypeForm,
+    UserNameForm,
+)
 from app.access_grant_funding.helpers import (
+    can_share_email_domain,
     complete_public_sign_up_session_and_redirect,
     get_sign_up_modes,
     sign_up_as_grant_recipient,
@@ -170,7 +176,7 @@ def create_organisation_name(grant_slug: str, collection_slug: str) -> ResponseR
             return redirect(check_your_answers_url)
         return redirect(
             url_for(
-                "access_grant_funding.create_organisation_user_name",
+                "access_grant_funding.create_organisation_allow_team_members",
                 grant_slug=grant_slug,
                 collection_slug=collection_slug,
             )
@@ -237,6 +243,70 @@ def create_organisation_already_exists(grant_slug: str, collection_slug: str) ->
 
 
 @access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/allow-team-members",
+    methods=["GET", "POST"],
+)
+@requires_passed_eligibility
+def create_organisation_allow_team_members(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    org_session = CreateOrganisationSession.from_session(
+        collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
+    )
+    # the page copy names the organisation, so a session without one can't be presented
+    if org_session is None or not all([bool(i) for i in [org_session.name]]):
+        return redirect(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
+        )
+
+    user = interfaces.user.get_current_user()
+    user_name_url = url_for(
+        "access_grant_funding.create_organisation_user_name",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+    )
+
+    # this page isn't needed for shared emails
+    if not can_share_email_domain(user):
+        return redirect(user_name_url)
+
+    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
+    check_your_answers_url = url_for(
+        "access_grant_funding.create_organisation_check_your_answers",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+    )
+
+    form = CreateOrganisationAllowTeamMembersForm(obj=org_session, organisation_name=org_session.name)
+    if form.validate_on_submit():
+        org_session.allow_team_members = form.allow_team_members.data == "True"
+        session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+        if from_check_your_answers:
+            return redirect(check_your_answers_url)
+        return redirect(user_name_url)
+
+    back_link_href = (
+        check_your_answers_url
+        if from_check_your_answers
+        else url_for(
+            "access_grant_funding.create_organisation_name",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+        )
+    )
+    return render_template(
+        "access_grant_funding/create_organisation/allow_team_members.html",
+        form=form,
+        grant=grant,
+        collection=collection,
+        organisation_name=org_session.name,
+        email_domain=user.email_domain,
+        back_link_href=back_link_href,
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/your-full-name", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
@@ -258,8 +328,9 @@ def create_organisation_user_name(grant_slug: str, collection_slug: str) -> Resp
         collection_slug=collection_slug,
     )
 
+    user = interfaces.user.get_current_user()
     # we already hold a name for this user, so there is nothing to ask them and this step drops out of the journey
-    if interfaces.user.get_current_user().name:
+    if user.name:
         return redirect(check_your_answers_url)
 
     from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
@@ -275,7 +346,9 @@ def create_organisation_user_name(grant_slug: str, collection_slug: str) -> Resp
         check_your_answers_url
         if from_check_your_answers
         else url_for(
-            "access_grant_funding.create_organisation_name",
+            "access_grant_funding.create_organisation_allow_team_members"
+            if can_share_email_domain(user)
+            else "access_grant_funding.create_organisation_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
         )
@@ -301,6 +374,8 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
     user = interfaces.user.get_current_user()
 
+    show_allow_team_members = can_share_email_domain(user)
+
     org_session = CreateOrganisationSession.from_session(
         collection_id=collection.id, session_data=session.get(SESSION_CREATE_ORGANISATION, {})
     )
@@ -312,6 +387,7 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
                 org_session.name,
                 org_session.external_id,
                 (org_session.user_name or user.name),
+                (org_session.allow_team_members is not None or not show_allow_team_members),
             ]
         ]
     ):
@@ -331,6 +407,7 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
                 type_=OrganisationType.OTHER,
                 typed_id=org_session.external_id,
                 mode=modes.organisation,
+                domains=[user.email_domain] if org_session.allow_team_members else None,
             )
         except DuplicateValueError:
             return redirect(
@@ -358,10 +435,14 @@ def create_organisation_check_your_answers(grant_slug: str, collection_slug: str
         grant=grant,
         collection=collection,
         org_session=org_session,
+        # avoids optionally skipped steps based on
+        # how we've arrived here
         back_link_href=url_for(
-            "access_grant_funding.create_organisation_name"
-            if user.name
-            else "access_grant_funding.create_organisation_user_name",
+            "access_grant_funding.create_organisation_user_name"
+            if not user.name
+            else "access_grant_funding.create_organisation_allow_team_members"
+            if show_allow_team_members
+            else "access_grant_funding.create_organisation_name",
             grant_slug=grant_slug,
             collection_slug=collection_slug,
         ),
