@@ -268,6 +268,7 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
     "/grant/<string:grant_slug>/<string:collection_slug>/public-sign-up", methods=["GET"]
 )
 @is_signing_up
+@auto_commit_after_request
 def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseReturnValue:
     destination = request.args.get("destination", "start")
     if destination not in ("start", "end"):
@@ -278,15 +279,25 @@ def public_sign_up_router(grant_slug: str, collection_slug: str) -> ResponseRetu
     eligibility_form = collection.eligibility_form
 
     if eligibility_form is not None and eligibility_form.components:
-        question = eligibility_form.components[0] if destination == "start" else eligibility_form.components[-1]
-        return redirect(
-            url_for(
-                "access_grant_funding.public_sign_up_eligibility_question",
-                grant_slug=grant_slug,
-                collection_slug=collection_slug,
-                question_id=question.id,
-            )
+        user = interfaces.user.get_current_user()
+        modes = get_sign_up_modes(user)
+
+        submission_helper = get_or_create_unclaimed_submission(user, collection, modes.submission)
+
+        question = (
+            submission_helper.get_first_question_for_form(eligibility_form)
+            if destination == "start"
+            else submission_helper.get_last_question_for_form(eligibility_form)
         )
+        if question is not None:
+            return redirect(
+                url_for(
+                    "access_grant_funding.public_sign_up_eligibility_question",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    question_id=question.id,
+                )
+            )
 
     return redirect(
         url_for(
