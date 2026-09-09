@@ -682,7 +682,7 @@ class ActionFilter(BaseSQLAFilter):
         return "equals"
 
 
-class PlatformAdminAuditEventView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
+class PlatformAdminAuditEventView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = AuditEvent
 
     column_default_sort = ("created_at_utc", True)
