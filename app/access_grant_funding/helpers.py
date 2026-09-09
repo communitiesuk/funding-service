@@ -18,6 +18,7 @@ from app.common.data.types import (
 )
 from app.common.helpers.collections import claim_or_discard_unclaimed_submission
 from app.constants import SESSION_MATCHED_ORGANISATION
+from app.extensions import notification_service
 from app.types import FlashMessageType
 
 
@@ -43,7 +44,7 @@ def get_sign_up_modes(user: User) -> SignUpModes:
 
 
 def sign_up_as_grant_recipient(
-    *, user: User, grant: Grant, organisation: Organisation, mode: GrantRecipientModeEnum
+    *, user: User, grant: Grant, collection: Collection, organisation: Organisation, mode: GrantRecipientModeEnum
 ) -> GrantRecipient:
     grant_recipient = create_grant_recipient(
         grant=grant,
@@ -61,6 +62,9 @@ def sign_up_as_grant_recipient(
         organisation=organisation,
         grant=grant,
         by_user=user,
+    )
+    notification_service.send_access_confirm_public_sign_up(
+        user.email, collection=collection, grant_recipient=grant_recipient
     )
     flash(
         {"organisation_name": organisation.name, "grant_name": grant.name},  # ty: ignore[invalid-argument-type]
@@ -94,7 +98,7 @@ def sign_up_with_matched_organisation(
             )
 
         grant_recipient = sign_up_as_grant_recipient(
-            user=user, grant=grant, organisation=organisation, mode=modes.grant_recipient
+            user=user, grant=grant, collection=collection, organisation=organisation, mode=modes.grant_recipient
         )
     # A grant recipient exists, and user does not have access to it
     elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):

@@ -168,6 +168,25 @@ class NotificationService:
             },
         )
 
+    def send_access_confirm_public_sign_up(
+        self, email_address: str, *, collection: Collection, grant_recipient: GrantRecipient
+    ) -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_CONFIRM_PUBLIC_SIGN_UP_TEMPLATE_ID"],
+            personalisation={
+                "submission_name": collection.name,
+                "organisation_name": grant_recipient.organisation.name,
+                "grant_name": grant_recipient.grant.name,
+                "submission_deadline": (
+                    format_date(collection.submission_period_end_date)
+                    if collection.submission_period_end_date
+                    else "(Dates to be confirmed)"
+                ),
+                "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+            },
+        )
+
     def send_access_report_opened(
         self,
         email_address: str,

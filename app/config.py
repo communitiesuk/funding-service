@@ -288,6 +288,7 @@ class _SharedConfig(_BaseConfig):
     GOVUK_NOTIFY_CHANGES_REQUESTED_SUBMISSION_TEMPLATE_ID: str = "07c9df47-e33f-4d71-841c-673f1ca0d0a6"
     GOVUK_NOTIFY_SUBMISSION_WITH_CHANGES_NOTIFY_REQUESTER_TEMPLATE_ID: str = "8ee3b678-d69f-4f50-bcc2-87dcd6ad4d43"
     GOVUK_NOTIFY_ACCESS_TEAM_MEMBER_REMOVED_TEMPLATE_ID: str = "df45b766-9af8-4cde-a336-f84ea2e50542"
+    GOVUK_NOTIFY_ACCESS_CONFIRM_PUBLIC_SIGN_UP_TEMPLATE_ID: str = "2f2a5a36-b40b-45a5-9595-ae086eafacdd"
     GOVUK_NOTIFY_GRANT_EXPORT_TEMPLATE_ID: str = "580db095-420e-4690-a640-c0ebd9748a0b"
 
     # System user used as the acting user for automated audit events (e.g. permission removal
