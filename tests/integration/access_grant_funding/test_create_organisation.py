@@ -33,6 +33,18 @@ def sign_up_collection(factories):
     )
 
 
+def _create_organisation_session(
+    collection_id, *, needs_user_name: bool = False, can_share_email_domain: bool = True, **answers
+) -> CreateOrganisationSession:
+    """A session started by a user we already hold a name for, on an email domain they could share."""
+    return CreateOrganisationSession(
+        collection_id=collection_id,
+        needs_user_name=needs_user_name,
+        can_share_email_domain=can_share_email_domain,
+        **answers,
+    )
+
+
 def _seed_session(client, collection, org_session: CreateOrganisationSession | None = None) -> None:
     with client.session_transaction() as flask_session:
         flask_session["signing_up_for_collection_id"] = collection.id
@@ -40,9 +52,9 @@ def _seed_session(client, collection, org_session: CreateOrganisationSession | N
             flask_session["create_organisation"] = org_session.to_session_dict()
 
 
-def _eligible_to_apply_url(collection):
+def _sign_up_router_url(collection):
     return url_for(
-        "access_grant_funding.eligible_to_apply",
+        "access_grant_funding.public_sign_up_router",
         grant_slug=collection.grant.slug,
         collection_slug=collection.slug,
     )
@@ -54,7 +66,7 @@ class TestCreateOrganisationType:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(collection_id=sign_up_collection.id),
+            _create_organisation_session(sign_up_collection.id),
         )
 
         response = authenticated_no_role_client.get(
@@ -83,14 +95,14 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_session_for_another_collection_redirects(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(collection_id=uuid.uuid4()),
+            _create_organisation_session(uuid.uuid4()),
         )
 
         response = authenticated_no_role_client.get(
@@ -102,14 +114,14 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_saves_choice_and_continues_to_name(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(collection_id=sign_up_collection.id),
+            _create_organisation_session(sign_up_collection.id),
         )
 
         response = authenticated_no_role_client.post(
@@ -136,7 +148,7 @@ class TestCreateOrganisationType:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(collection_id=sign_up_collection.id),
+            _create_organisation_session(sign_up_collection.id),
         )
 
         response = authenticated_no_role_client.post(
@@ -169,9 +181,7 @@ class TestCreateOrganisationType:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.post(
@@ -197,9 +207,7 @@ class TestCreateOrganisationType:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         cya_url = url_for(
@@ -257,8 +265,8 @@ class TestCreateOrganisationLocalAuthority:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.LOCAL_AUTHORITY
+            _create_organisation_session(
+                sign_up_collection.id, organisation_type=SignUpOrganisationType.LOCAL_AUTHORITY
             ),
         )
 
@@ -280,7 +288,7 @@ class TestCreateOrganisationLocalAuthority:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
@@ -289,9 +297,7 @@ class TestCreateOrganisationLocalAuthority:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.CHARITY
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.CHARITY),
         )
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
@@ -306,9 +312,7 @@ class TestCreateOrganisationName:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.get(
@@ -336,16 +340,14 @@ class TestCreateOrganisationName:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_persists_name_and_generates_external_id(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.post(
@@ -377,9 +379,7 @@ class TestCreateOrganisationName:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.post(
@@ -410,8 +410,8 @@ class TestCreateOrganisationName:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id,
+            _create_organisation_session(
+                sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.OTHER,
                 name="Some other name",
                 external_id="000111222",
@@ -444,9 +444,7 @@ class TestCreateOrganisationName:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.post(
@@ -486,9 +484,7 @@ class TestCreateOrganisationName:
         _seed_session(
             anonymous_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = anonymous_client.post(
@@ -512,8 +508,8 @@ class TestCreateOrganisationName:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id,
+            _create_organisation_session(
+                sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.OTHER,
                 name="Acme Ltd",
                 external_id="000111222",
@@ -554,8 +550,8 @@ class TestCreateOrganisationAlreadyExists:
     @pytest.fixture()
     def duplicate_org_session(self, sign_up_collection, factories):
         factories.organisation.create(name="Acme Ltd")
-        return CreateOrganisationSession(
-            collection_id=sign_up_collection.id,
+        return _create_organisation_session(
+            sign_up_collection.id,
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
@@ -620,16 +616,14 @@ class TestCreateOrganisationAlreadyExists:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_a_name_in_the_session_redirects(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.get(
@@ -641,7 +635,7 @@ class TestCreateOrganisationAlreadyExists:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_a_name_that_is_not_taken_redirects_back_to_the_name_page(
@@ -650,8 +644,8 @@ class TestCreateOrganisationAlreadyExists:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id,
+            _create_organisation_session(
+                sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.OTHER,
                 name="Nobody Else Ltd",
                 external_id="000111222",
@@ -676,8 +670,8 @@ class TestCreateOrganisationAlreadyExists:
 
 class TestCreateOrganisationAllowTeamMembers:
     def _org_session(self, collection, **kwargs) -> CreateOrganisationSession:
-        return CreateOrganisationSession(
-            collection_id=collection.id,
+        return _create_organisation_session(
+            collection.id,
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
@@ -733,7 +727,11 @@ class TestCreateOrganisationAllowTeamMembers:
     def test_get_with_a_shared_email_domain_skips_to_the_full_name_step(
         self, authenticated_no_role_client, sign_up_collection
     ):
-        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._org_session(sign_up_collection, can_share_email_domain=False),
+        )
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
@@ -747,22 +745,20 @@ class TestCreateOrganisationAllowTeamMembers:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_a_name_in_the_session_redirects(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_stores_the_answer_and_continues_to_the_full_name_step(
@@ -802,9 +798,11 @@ class TestCreateOrganisationAllowTeamMembers:
 
 
 class TestCreateOrganisationUserName:
-    def _org_session(self, collection, **kwargs) -> CreateOrganisationSession:
-        return CreateOrganisationSession(
-            collection_id=collection.id,
+    # this step is only in the journey for users we hold no name for
+    def _org_session(self, collection, *, needs_user_name: bool = True, **kwargs) -> CreateOrganisationSession:
+        return _create_organisation_session(
+            collection.id,
+            needs_user_name=needs_user_name,
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
@@ -873,11 +871,15 @@ class TestCreateOrganisationUserName:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_skips_the_step_when_we_already_hold_a_name(self, authenticated_no_role_client, sign_up_collection):
-        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._org_session(sign_up_collection, needs_user_name=False),
+        )
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
@@ -939,8 +941,8 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id,
+            _create_organisation_session(
+                sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.CHARITY,
                 name="Acme Ltd",
                 external_id="000111222",
@@ -1015,7 +1017,7 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Test applicant"),
+            self._complete_session(sign_up_collection, needs_user_name=True, user_name="Test applicant"),
         )
 
         response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
@@ -1042,9 +1044,7 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.get(
@@ -1056,11 +1056,11 @@ class TestCreateOrganisationCheckYourAnswers:
         )
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     def _complete_session(self, collection, *, allow_team_members=False, **kwargs) -> CreateOrganisationSession:
-        return CreateOrganisationSession(
-            collection_id=collection.id,
+        return _create_organisation_session(
+            collection.id,
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
@@ -1189,7 +1189,7 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Test applicant"),
+            self._complete_session(sign_up_collection, needs_user_name=True, user_name="Test applicant"),
         )
 
         response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
@@ -1225,7 +1225,7 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, user_name="Test applicant"),
+            self._complete_session(sign_up_collection, needs_user_name=True, user_name="Test applicant"),
         )
         factories.organisation.create(name="Acme Ltd", mode=OrganisationModeEnum.LIVE)
 
@@ -1272,15 +1272,13 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            CreateOrganisationSession(
-                collection_id=sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER
-            ),
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     def _allow_team_members_change_href(self, collection) -> str:
         return url_for(
@@ -1318,7 +1316,7 @@ class TestCreateOrganisationCheckYourAnswers:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, allow_team_members=None),
+            self._complete_session(sign_up_collection, can_share_email_domain=False, allow_team_members=None),
         )
 
         response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
@@ -1339,7 +1337,7 @@ class TestCreateOrganisationCheckYourAnswers:
         response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _eligible_to_apply_url(sign_up_collection)
+        assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_with_allow_team_members_writes_the_email_domain_to_the_organisation(

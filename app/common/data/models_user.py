@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from email_validator import validate_email
+from free_email_domains import whitelist as SHARED_EMAIL_DOMAINS
 from pytz import utc
 from sqlalchemy import CheckConstraint, ColumnElement, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy import Enum as SqlEnum
@@ -163,6 +164,13 @@ class User(BaseModel):
     @property
     def email_domain(self) -> str:
         return validate_email(self.email, check_deliverability=False).domain
+
+    @property
+    def can_share_email_domain(self) -> bool:
+        """Excludes commonly used and shared email providers, to avoid accidentally sharing more widely
+        than the user would expect. Intended to avoid mistakes but will need monitoring.
+        """
+        return self.email_domain.casefold() not in SHARED_EMAIL_DOMAINS
 
 
 class UserRole(BaseModel):
