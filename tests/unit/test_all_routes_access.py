@@ -487,6 +487,7 @@ routes_with_get_change_state_exception = [
     "deliver_grant_funding.move_section",
     "deliver_grant_funding.move_component",
     "access_grant_funding.route_to_submission",
+    "access_grant_funding.public_sign_up_router",
 ]
 
 

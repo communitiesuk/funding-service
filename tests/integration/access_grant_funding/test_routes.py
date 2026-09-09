@@ -12,7 +12,7 @@ from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
 from app.access_grant_funding.session_models import MatchedOrganisationSession
 from app.common.collections.forms import build_question_form
 from app.common.collections.types import YesNoAnswer
-from app.common.data.interfaces.collections import add_component_eligibility
+from app.common.data.interfaces.collections import add_component_condition, add_component_eligibility
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import Invitation, User, UserRole
@@ -30,7 +30,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
-from app.common.expressions.managed import GreaterThan, IsNo
+from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import get_or_create_unclaimed_submission
 from tests.models import FactoryAnswer
@@ -1501,6 +1501,50 @@ class TestPublicSignUpRouter:
             grant_slug=grant.slug,
             collection_slug=collection.slug,
             question_id=last_question.id,
+        )
+
+    def test_get_skips_last_eligibility_question_when_currently_hidden(
+        self, authenticated_grant_member_client, factories
+    ):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        trigger_question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+        conditional_question = factories.question.create(form=eligibility_form)
+        add_component_condition(
+            conditional_question,
+            authenticated_grant_member_client.user,
+            IsYes(subject_reference=ExpressionReference.from_question(trigger_question)),
+        )
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            created_by=authenticated_grant_member_client.user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(trigger_question, YesNoAnswer(False))],
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                destination="end",
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=trigger_question.id,
         )
 
 
