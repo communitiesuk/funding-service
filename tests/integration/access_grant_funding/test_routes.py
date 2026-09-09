@@ -33,14 +33,8 @@ from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, IsNo
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import get_or_create_unclaimed_submission
-from app.common.helpers.feature_flags import FeatureFlags
 from tests.models import FactoryAnswer
 from tests.utils import get_form_data, get_h1_text, get_h2_text
-
-
-def enable_access_user_management_flag(client):
-    with client.session_transaction() as session:
-        session[FeatureFlags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT.name] = "on"
 
 
 class TestIndex:
@@ -158,8 +152,6 @@ class TestListOrganisations:
 
 class TestListGrantTeam:
     def test_get_list_grant_team(self, authenticated_grant_recipient_data_provider_client, factories):
-        client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         organisation = authenticated_grant_recipient_data_provider_client.organisation
         grant = authenticated_grant_recipient_data_provider_client.grant
         other_user = factories.user.create(name="Other User")
@@ -260,11 +252,8 @@ class TestListGrantTeam:
         assert any("Can certify" in td.get_text() for td in soup.find_all("td"))
         assert any("Can edit and submit" in td.get_text() for td in soup.find_all("td"))
 
-    def test_add_team_member_button_shown_for_data_provider_when_flag_enabled(
-        self, authenticated_grant_recipient_data_provider_client
-    ):
+    def test_add_team_member_button_shown_for_data_provider(self, authenticated_grant_recipient_data_provider_client):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
 
         response = client.get(
             url_for(
@@ -287,28 +276,8 @@ class TestListGrantTeam:
         assert "Certifier access" in h2_texts
         assert "Changing access and permissions" not in h2_texts
 
-    def test_add_team_member_button_hidden_when_flag_disabled(self, authenticated_grant_recipient_data_provider_client):
-        client = authenticated_grant_recipient_data_provider_client
-
-        response = client.get(
-            url_for(
-                "access_grant_funding.list_grant_team", organisation_id=client.organisation.id, grant_id=client.grant.id
-            )
-        )
-        assert response.status_code == 200
-        assert "Add team member" not in response.text
-        soup = BeautifulSoup(response.data, "html.parser")
-        h2_texts = [h2.get_text(strip=True) for h2 in soup.find_all("h2")]
-        assert "Changing access and permissions" in h2_texts
-        assert "Certifier access" not in h2_texts
-        assert not any("Action" in th.get_text() for th in soup.find_all("th"))
-        assert "Remove" not in response.text
-
-    def test_add_team_member_button_hidden_for_member_when_flag_enabled(
-        self, authenticated_grant_recipient_member_client
-    ):
+    def test_add_team_member_button_hidden_for_member(self, authenticated_grant_recipient_member_client):
         client = authenticated_grant_recipient_member_client
-        enable_access_user_management_flag(client)
 
         response = client.get(
             url_for(
@@ -324,7 +293,6 @@ class TestListGrantTeam:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         other_user = factories.user.create(name="Other User")
         factories.user_role.create(
             user=other_user,
@@ -350,7 +318,6 @@ class TestListGrantTeam:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         certifier = factories.user.create(name="Certifier User")
         factories.user_role.create(
             user=certifier,
@@ -376,7 +343,6 @@ class TestListGrantTeam:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         user = factories.user.create(name="Edit And Certify User")
         factories.user_role.create(
             user=user,
@@ -407,21 +373,8 @@ class TestListGrantTeam:
 
 
 class TestAddGrantTeamMember:
-    def test_get_returns_404_when_flag_disabled(self, authenticated_grant_recipient_data_provider_client):
-        client = authenticated_grant_recipient_data_provider_client
-
-        response = client.get(
-            url_for(
-                "access_grant_funding.add_grant_team_member",
-                organisation_id=client.organisation.id,
-                grant_id=client.grant.id,
-            )
-        )
-        assert response.status_code == 404
-
     def test_get_forbidden_for_member(self, authenticated_grant_recipient_member_client):
         client = authenticated_grant_recipient_member_client
-        enable_access_user_management_flag(client)
 
         response = client.get(
             url_for(
@@ -434,7 +387,6 @@ class TestAddGrantTeamMember:
 
     def test_get_forbidden_for_certifier(self, authenticated_grant_recipient_certifier_client):
         client = authenticated_grant_recipient_certifier_client
-        enable_access_user_management_flag(client)
 
         response = client.get(
             url_for(
@@ -447,7 +399,6 @@ class TestAddGrantTeamMember:
 
     def test_get_shows_form(self, authenticated_grant_recipient_data_provider_client):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
 
         response = client.get(
             url_for(
@@ -470,7 +421,6 @@ class TestAddGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         existing_user = factories.user.create(name="Local user", email="user@local.gov.uk")
         grant_recipient = client.grant_recipient
 
@@ -520,7 +470,6 @@ class TestAddGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         existing_user = factories.user.create(name="Local user", email="user@local.gov.uk")
 
         response = client.post(
@@ -545,7 +494,6 @@ class TestAddGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, db_session
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         expected_error = f"This user already has access to {client.grant.name}"
 
         response = client.post(
@@ -578,7 +526,6 @@ class TestAddGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, certifier_is_org_wide
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         expected_error = f"This user already has access to {client.grant.name}"
         certifier = factories.user.create(name="Sarah Certifier", email="scertifier@hastings.gov.uk")
         factories.user_role.create(
@@ -620,7 +567,6 @@ class TestAddGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         grant_recipient = client.grant_recipient
 
         response = client.post(
@@ -685,7 +631,6 @@ class TestAddGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         earlier_invitation = factories.invitation.create(
             email="user@hastings.gov.uk",
             name="My User",
@@ -712,7 +657,6 @@ class TestAddGrantTeamMember:
 
     def test_post_with_invalid_email_shows_error(self, authenticated_grant_recipient_data_provider_client):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
 
         response = client.post(
             url_for(
@@ -727,7 +671,6 @@ class TestAddGrantTeamMember:
 
     def test_post_with_missing_fields_shows_errors(self, authenticated_grant_recipient_data_provider_client):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
 
         response = client.post(
             url_for(
@@ -743,24 +686,8 @@ class TestAddGrantTeamMember:
 
 
 class TestRemoveGrantTeamMember:
-    def test_get_returns_404_when_flag_disabled(self, authenticated_grant_recipient_data_provider_client):
-        client = authenticated_grant_recipient_data_provider_client
-        user = client.user
-
-        response = client.get(
-            url_for(
-                "access_grant_funding.remove_grant_team_member",
-                organisation_id=client.organisation.id,
-                grant_id=client.grant.id,
-                user_id=user.id,
-            )
-        )
-
-        assert response.status_code == 404
-
     def test_get_forbidden_for_member(self, authenticated_grant_recipient_member_client, factories):
         client = authenticated_grant_recipient_member_client
-        enable_access_user_management_flag(client)
         user = factories.user.create()
         factories.user_role.create(
             user=user, organisation=client.organisation, grant=client.grant, permissions=[RoleEnum.DATA_PROVIDER]
@@ -779,7 +706,6 @@ class TestRemoveGrantTeamMember:
 
     def test_get_remove_grant_team_member_page(self, authenticated_grant_recipient_data_provider_client, factories):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         organisation = client.organisation
         grant = client.grant
         user = factories.user.create(name="Test User", email="test.user@communities.gov.uk")
@@ -813,7 +739,6 @@ class TestRemoveGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
 
         response = client.get(
             url_for(
@@ -830,7 +755,6 @@ class TestRemoveGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         organisation = client.organisation
         grant = client.grant
         user = factories.user.create()
@@ -850,7 +774,6 @@ class TestRemoveGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         user = factories.user.create()
         factories.user_role.create(
             user=user,
@@ -874,7 +797,6 @@ class TestRemoveGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         user = factories.user.create()
         factories.user_role.create(
             user=user,
@@ -898,7 +820,6 @@ class TestRemoveGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         organisation = client.organisation
         grant = client.grant
         user = factories.user.create(name="Test User", email="test.user@communities.gov.uk")
@@ -949,7 +870,6 @@ class TestRemoveGrantTeamMember:
         self, authenticated_grant_recipient_data_provider_client, factories, db_session, mock_notification_service_calls
     ):
         client = authenticated_grant_recipient_data_provider_client
-        enable_access_user_management_flag(client)
         organisation = client.organisation
         grant = client.grant
         user = factories.user.create(name="Test User", email="test.user@communities.gov.uk")

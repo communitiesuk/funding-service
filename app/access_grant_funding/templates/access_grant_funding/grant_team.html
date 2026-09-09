@@ -7,7 +7,7 @@
 
 {% set page_title = "Team" %}
 
-{% set can_add_team_members = feature_flags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT.is_enabled and authorisation_helper.can_invite_access_grant_team_member(grant_recipient, current_user) %}
+{% set can_add_team_members = authorisation_helper.can_invite_access_grant_team_member(grant_recipient, current_user) %}
 
 {% block content %}
   <div class="govuk-grid-row">
