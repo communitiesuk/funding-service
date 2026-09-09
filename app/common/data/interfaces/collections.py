@@ -59,6 +59,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
 )
 from app.common.data.utils import generate_submission_reference
 from app.common.exceptions import WTFormRenderableException
@@ -740,15 +741,26 @@ class ListSubmissionData:
 
 
 def get_submission_list_for_collection(
-    collection: Collection,
-    submission_mode: SubmissionModeEnum,
+    collection: Collection, submission_mode: SubmissionModeEnum
 ) -> Sequence[ListSubmissionData]:
     """Fetch the rows needed to render a collection's submissions list.
 
-    Both modes are grant-recipient centric: every grant recipient produces at least one row, so the
-    listing can show recipients who have not started a submission. For multiple-submission collections
+    The behaviour is slightly different depending on the current visibility of submissions (determined
+    by collection.submission_visibility).
+
+    When only submitted submissions are visible:
+    There is one row per submitted submission. If multiple submissions are enabled, there is a row for each
+    submitted submission.
+
+    When all submissions (any status, including those we expect but don't yet exist) are visible:
+
+    Every grant recipient produces at least one row, so the
+    listing can show recipients who have not started a submission.
+
+    For multiple-submission collections
     a recipient with submissions produces one row per submission (and one `submission_id=None` row when
     they have none yet); for single-submission collections a recipient produces exactly one row.
+
 
     Selects only the columns needed to render the list, deriving the submission name in SQL (via the
     Submission hybrid property) rather than loading the full `data` blob into Python. The last-updated
@@ -774,38 +786,61 @@ def get_submission_list_for_collection(
         "last_updated_at_utc"
     )
 
+    submitted_only = collection.submission_visibility != SubmissionVisibilityEnum.ALWAYS_VISIBLE
+
     grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
     name_column = Submission.name.label("name") if collection.allow_multiple_submissions else null().label("name")
     order_by: List[Any] = [Organisation.name]
     if collection.allow_multiple_submissions:
         order_by.append(name_column)
 
-    stmt = (
-        select(
-            Organisation.name.label("organisation_name"),
-            name_column,
-            Submission.id.label("submission_id"),
-            Submission.status,
-            Submission.assessment_status,
-            last_updated_at_utc,
-            Submission.is_overdue.label("is_overdue"),
-            Submission.is_assessed.label("is_assessed"),
-        )
-        .select_from(GrantRecipient)
-        .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
-        .outerjoin(
-            Submission,
-            and_(
-                Submission.grant_recipient_id == GrantRecipient.id,
-                Submission.collection_id == collection.id,
-                Submission.mode == submission_mode,
-            ),
-        )
-        .outerjoin(Collection, Collection.id == Submission.collection_id)
-        .outerjoin(latest_event, latest_event.c.submission_id == Submission.id)
-        .where(GrantRecipient.grant_id == collection.grant_id, GrantRecipient.mode == grant_recipient_mode)
-        .order_by(*order_by)
+    stmt = select(
+        Organisation.name.label("organisation_name"),
+        name_column,
+        Submission.id.label("submission_id"),
+        Submission.status,
+        Submission.assessment_status,
+        last_updated_at_utc,
+        Submission.is_overdue.label("is_overdue"),
+        Submission.is_assessed.label("is_assessed"),
     )
+    if submitted_only:
+        stmt = (
+            stmt.select_from(Submission)
+            .join(
+                GrantRecipient,
+                and_(
+                    Submission.grant_recipient_id == GrantRecipient.id,
+                    Submission.collection_id == collection.id,
+                    Submission.mode == submission_mode,
+                ),
+            )
+            .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
+            .join(Collection, Collection.id == Submission.collection_id)
+            .join(latest_event, latest_event.c.submission_id == Submission.id)
+            .where(
+                GrantRecipient.grant_id == collection.grant_id,
+                GrantRecipient.mode == grant_recipient_mode,
+                Submission.is_submitted.is_(True),
+            )
+        )
+    else:
+        stmt = (
+            stmt.select_from(GrantRecipient)
+            .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
+            .outerjoin(
+                Submission,
+                and_(
+                    Submission.grant_recipient_id == GrantRecipient.id,
+                    Submission.collection_id == collection.id,
+                    Submission.mode == submission_mode,
+                ),
+            )
+            .outerjoin(Collection, Collection.id == Submission.collection_id)
+            .outerjoin(latest_event, latest_event.c.submission_id == Submission.id)
+            .where(GrantRecipient.grant_id == collection.grant_id, GrantRecipient.mode == grant_recipient_mode)
+        )
+    stmt = stmt.order_by(*order_by)
     return [
         ListSubmissionData(
             organisation_name=row.organisation_name,
