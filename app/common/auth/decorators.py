@@ -16,6 +16,7 @@ from app.common.data.interfaces.collections import (
     get_component_by_id,
     get_expression_by_id,
     get_form_by_id,
+    get_submission,
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
@@ -27,6 +28,7 @@ from app.common.data.types import (
     GrantStatusEnum,
     RoleEnum,
     SubmissionModeEnum,
+    SubmissionVisibilityEnum,
 )
 from app.common.helpers.collections import eligibility_answers_currently_pass
 from app.common.helpers.feature_flags import FeatureFlagBase
@@ -337,6 +339,56 @@ def has_deliver_grant_role(
             return func(*args, **kwargs)
 
         return is_deliver_grant_funding_user(wrapped)
+
+    return decorator
+
+
+def submission_is_visible() -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+        @functools.wraps(func)
+        def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
+            if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
+                raise ValueError("Grant ID required")
+            collection_id = cast(uuid.UUID, kwargs["collection_id"]) if "collection_id" in kwargs else None
+            submission_mode = (
+                cast(SubmissionModeEnum, kwargs["submission_mode"]) if "submission_mode" in kwargs else None
+            )
+            submission_id = cast(uuid.UUID, kwargs["submission_id"]) if "submission_id" in kwargs else None
+
+            if submission_id:
+                submission = get_submission(submission_id)
+                collection_id = submission.collection_id
+                submission_mode = submission.mode
+
+            if not (collection_id and submission_mode):
+                raise ValueError("One of submission ID or collection ID with submission mode is required")
+
+            if submission_mode == SubmissionModeEnum.PREVIEW:
+                return abort(
+                    404,
+                )
+
+            collection = get_collection(collection_id, grant_id)
+            # TODO when we implement FSPT-1636 test submissions should also respect REQUIRES_SUBMITTED_STATUS
+            if submission_mode == SubmissionModeEnum.TEST:
+                return func(*args, **kwargs)
+
+            match collection.submission_visibility:
+                case SubmissionVisibilityEnum.ALWAYS_VISIBLE:
+                    return func(*args, **kwargs)
+                case SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION:
+                    if collection.status == CollectionStatusEnum.CLOSED:
+                        return func(*args, **kwargs)
+                case _:
+                    current_app.logger.error(
+                        "Unhandled value for submission visibility %s", collection.submission_visibility
+                    )
+
+            return abort(
+                403,
+            )
+
+        return wrapped
 
     return decorator
 

@@ -319,8 +319,8 @@ class GrantReportsPage(ReportsBasePage):
         self.add_report_button = self.page.get_by_role("button", name="Create a report").or_(
             self.page.get_by_role("button", name="Create another report")
         )
-        self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
-            has=page.get_by_text("Submissions")
+        self.summary_row_test_submissions = page.locator("div.govuk-summary-list__row").filter(
+            has=page.get_by_text("Test Submissions")
         )
 
     def navigate(self, grant_id: str) -> None:
@@ -355,8 +355,12 @@ class GrantReportsPage(ReportsBasePage):
         expect(report_sections_page.heading).to_be_visible()
         return report_sections_page
 
-    def click_view_submissions(self, report_name: str) -> SubmissionsListPage:
-        self.summary_row_submissions.get_by_role("link", name="1 test submission").click()
+    def click_view_test_submissions(
+        self, report_name: str, submission_status: Literal["in progress", "submitted"]
+    ) -> SubmissionsListPage:
+        self.summary_row_test_submissions.get_by_role(
+            "link", name=re.compile(rf"\d+ test submissions? {submission_status}")
+        ).click()
         submissions_list_page = SubmissionsListPage(self.page, self.domain, self.grant_name, report_name)
         expect(submissions_list_page.heading).to_be_visible()
         return submissions_list_page
@@ -371,7 +375,8 @@ class GrantReportsPage(ReportsBasePage):
 class GrantPreAwardFormsPage(ReportsBasePage):
     # GrantReportsPage equivalent in pre-award
     add_form_button: Locator
-    summary_row_submissions: Locator
+    summary_row_live_submissions: Locator
+    summary_row_test_submissions: Locator
 
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
         super().__init__(
@@ -380,8 +385,11 @@ class GrantPreAwardFormsPage(ReportsBasePage):
         self.add_form_button = self.page.get_by_role("button", name="Create a form").or_(
             self.page.get_by_role("button", name="Create another form")
         )
-        self.summary_row_submissions = page.locator("div.govuk-summary-list__row").filter(
+        self.summary_row_live_submissions = page.locator("div.govuk-summary-list__row").filter(
             has=page.get_by_text("Submissions")
+        )
+        self.summary_row_test_submissions = page.locator("div.govuk-summary-list__row").filter(
+            has=page.get_by_text("Test Submissions")
         )
 
     def navigate(self, grant_id: str) -> None:
@@ -414,8 +422,22 @@ class GrantPreAwardFormsPage(ReportsBasePage):
         expect(form_sections_page.heading).to_be_visible()
         return form_sections_page
 
-    def click_view_submissions(self, form_name: str) -> PreAwardSubmissionsListPage:
-        self.summary_row_submissions.get_by_role("link", name=re.compile(r"\d+ test submissions?")).click()
+    def click_view_test_submissions(
+        self, form_name: str, submission_status: Literal["in progress", "submitted"]
+    ) -> PreAwardSubmissionsListPage:
+        self.summary_row_test_submissions.get_by_role(
+            "link", name=re.compile(rf"\d+ test submissions? {submission_status}")
+        ).click()
+        submissions_list_page = PreAwardSubmissionsListPage(self.page, self.domain, self.grant_name, form_name)
+        expect(submissions_list_page.heading).to_be_visible()
+        return submissions_list_page
+
+    def click_view_live_submissions(
+        self, form_name: str, submission_status: Literal["in progress", "submitted"]
+    ) -> PreAwardSubmissionsListPage:
+        self.summary_row_live_submissions.get_by_role(
+            "link", name=re.compile(rf"\d+ live submissions? {submission_status}")
+        ).click()
         submissions_list_page = PreAwardSubmissionsListPage(self.page, self.domain, self.grant_name, form_name)
         expect(submissions_list_page.heading).to_be_visible()
         return submissions_list_page

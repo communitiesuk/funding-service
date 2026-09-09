@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from decimal import Decimal
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 from zoneinfo import ZoneInfo
 
 from flask import current_app, url_for
@@ -69,6 +69,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
     json_flat_scalars,
     json_scalars,
 )
@@ -355,6 +356,11 @@ class Organisation(BaseModel):
     )
 
 
+class SubmissionTotals(NamedTuple):
+    count_in_progress: int
+    count_submitted: int
+
+
 class Collection(BaseModel):
     __tablename__ = "collection"
 
@@ -447,12 +453,19 @@ class Collection(BaseModel):
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.PREVIEW)
 
     @property
+    def live_submissions(self) -> list[Submission]:
+        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
+
+    @property
     def test_submissions(self) -> list[Submission]:
         return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.TEST)
 
-    @property
-    def live_submissions(self) -> list[Submission]:
-        return list(submission for submission in self._submissions if submission.mode == SubmissionModeEnum.LIVE)
+    def get_submission_counts(self, submission_mode: SubmissionModeEnum) -> SubmissionTotals:
+        submissions = self.live_submissions if submission_mode == SubmissionModeEnum.LIVE else self.test_submissions
+        return SubmissionTotals(
+            count_in_progress=len([submission for submission in submissions if not submission.is_submitted]),
+            count_submitted=len([submission for submission in submissions if submission.is_submitted]),
+        )
 
     @property
     def eligibility_form(self) -> Form | None:
@@ -516,6 +529,14 @@ class Collection(BaseModel):
 
     def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
         return [form.title for form in self.forms if str(form.id) in form_ids]
+
+    @property
+    def submission_visibility(self) -> SubmissionVisibilityEnum:
+        return (
+            SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
+            if self.allow_public_sign_up
+            else SubmissionVisibilityEnum.ALWAYS_VISIBLE
+        )
 
 
 class Submission(BaseModel):

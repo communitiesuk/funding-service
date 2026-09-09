@@ -258,7 +258,7 @@ def test_reopen_and_reject(
     # Back on the Deliver side
     grant_pre_award_forms_page = GrantPreAwardFormsPage(page, domain, data["grant_name"])
     grant_pre_award_forms_page.navigate(data["grant_id"])
-    submissions_list_page = grant_pre_award_forms_page.click_view_submissions(data["collection_name"])
+    submissions_list_page = grant_pre_award_forms_page.click_view_test_submissions(data["collection_name"], "submitted")
     view_submission_page = submissions_list_page.click_on_submission(data["reject_test_org_name"])
 
     # Reopen the submission flow
@@ -308,7 +308,9 @@ def test_reopen_and_reject(
     # Back on the Deliver side
     grant_pre_award_forms_page = GrantPreAwardFormsPage(page, domain, data["grant_name"])
     grant_pre_award_forms_page.navigate(data["grant_id"])
-    submissions_list_page = grant_pre_award_forms_page.click_view_submissions(data["collection_name"])
+    submissions_list_page = grant_pre_award_forms_page.click_view_test_submissions(
+        data["collection_name"], submission_status="submitted"
+    )
     view_submission_page = submissions_list_page.click_on_submission(data["reject_test_org_name"])
 
     # Check for the Submission status
@@ -388,7 +390,9 @@ def test_request_changes_and_approve(
     # On the Deliver side: request changes to Section 2 only
     grant_pre_award_forms_page = GrantPreAwardFormsPage(page, domain, data["grant_name"])
     grant_pre_award_forms_page.navigate(data["grant_id"])
-    submissions_list_page = grant_pre_award_forms_page.click_view_submissions(data["collection_name"])
+    submissions_list_page = grant_pre_award_forms_page.click_view_test_submissions(
+        data["collection_name"], submission_status="submitted"
+    )
     view_submission_page = submissions_list_page.click_on_submission(data["approve_test_org_name"])
 
     request_or_allow_changes_page = view_submission_page.click_request_or_allow_changes()
@@ -429,7 +433,9 @@ def test_request_changes_and_approve(
 
     # Back on the Deliver side: approve the resubmission
     grant_pre_award_forms_page.navigate(data["grant_id"])
-    submissions_list_page = grant_pre_award_forms_page.click_view_submissions(data["collection_name"])
+    submissions_list_page = grant_pre_award_forms_page.click_view_test_submissions(
+        data["collection_name"], submission_status="submitted"
+    )
     view_submission_page = submissions_list_page.click_on_submission(data["approve_test_org_name"])
 
     approve_or_reject_page = view_submission_page.click_approve_or_reject()

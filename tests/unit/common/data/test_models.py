@@ -1,7 +1,8 @@
 from datetime import date
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
+import factory
 import pytest
 
 from app import CollectionStatusEnum
@@ -19,6 +20,9 @@ from app.common.data.types import (
     QuestionDataType,
     QuestionPresentationOptions,
     RoleEnum,
+    SubmissionModeEnum,
+    SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
 )
 
 
@@ -731,6 +735,59 @@ class TestCollectionModel:
 
         with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset({date(2026, 6, 22)})):
             assert collection.date_to_send_reminder_emails == date(2026, 6, 18)
+
+    def test_submission_visibility_no_public_sign_up(self, factories):
+        collection = factories.collection.build(allow_public_sign_up=False)
+        assert collection.submission_visibility == SubmissionVisibilityEnum.ALWAYS_VISIBLE
+
+    def test_submission_visibility_with_public_sign_up(self, factories):
+        collection = factories.collection.build(allow_public_sign_up=True)
+        assert collection.submission_visibility == SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
+
+    def test_get_submission_counts(self, factories, mocker):
+
+        collection = factories.collection.build()
+        all_submissions = factories.submission.build_batch(
+            8,
+            collection=collection,
+            mode=factory.Iterator(
+                [
+                    SubmissionModeEnum.LIVE,
+                    SubmissionModeEnum.LIVE,
+                    SubmissionModeEnum.LIVE,
+                    SubmissionModeEnum.LIVE,
+                    SubmissionModeEnum.LIVE,
+                    SubmissionModeEnum.TEST,
+                    SubmissionModeEnum.TEST,
+                    SubmissionModeEnum.TEST,
+                ],
+            ),
+            status=factory.Iterator(
+                [
+                    SubmissionStatusEnum.SUBMITTED,
+                    SubmissionStatusEnum.SUBMITTED_WITH_CHANGES,
+                    SubmissionStatusEnum.NOT_STARTED,
+                    SubmissionStatusEnum.AWAITING_SIGN_OFF,
+                    SubmissionStatusEnum.IN_PROGRESS,
+                    SubmissionStatusEnum.SUBMITTED,
+                    SubmissionStatusEnum.SUBMITTED_WITH_CHANGES,
+                    SubmissionStatusEnum.READY_TO_SUBMIT,
+                ]
+            ),
+        )
+
+        mocker.patch(
+            "app.common.data.models.Collection._submissions",
+            new_callable=PropertyMock,
+            return_value=all_submissions,
+        )
+
+        assert len(collection.live_submissions) == 5
+        assert collection.get_submission_counts(SubmissionModeEnum.LIVE).count_in_progress == 3
+        assert collection.get_submission_counts(SubmissionModeEnum.LIVE).count_submitted == 2
+        assert len(collection.test_submissions) == 3
+        assert collection.get_submission_counts(SubmissionModeEnum.TEST).count_in_progress == 1
+        assert collection.get_submission_counts(SubmissionModeEnum.TEST).count_submitted == 2
 
 
 class TestOrganisationModel:
