@@ -1976,7 +1976,7 @@ class TestCreateOrganisationCompanySearch:
         response = authenticated_no_role_client.get(_company_search_url(sign_up_collection, q="TEST COMPANY"))
 
         assert response.status_code == 200
-        mock_companies_house.search_companies.assert_called_once_with("TEST COMPANY")
+        mock_companies_house.search_companies.assert_called_once_with("TEST COMPANY", page=1)
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Search results" in get_h1_text(soup)
         assert "1 search result" in soup.text
@@ -1988,6 +1988,75 @@ class TestCreateOrganisationCompanySearch:
         assert "00000001" in row.text
         assert "1 Test Street, Testtown, TE1 1ST" in row.text
         assert row.select_one("a")["href"] == _company_select_url(sign_up_collection, "00000001")
+        assert soup.select_one("nav.govuk-pagination") is None
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_a_query_and_many_results_paginates_them(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
+        mock_companies_house.search_companies.return_value = CompanySearchResults(
+            items=[TEST_COMPANY], total_results=125, start_index=60, items_per_page=20
+        )
+
+        response = authenticated_no_role_client.get(
+            _company_search_url(sign_up_collection, q="TEST COMPANY", page=4, source="check-your-answers")
+        )
+
+        assert response.status_code == 200
+        mock_companies_house.search_companies.assert_called_once_with("TEST COMPANY", page=4)
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "125 search results" in soup.text
+
+        def page_url(number):
+            return _company_search_url(
+                sign_up_collection, q="TEST COMPANY", page=number if number > 1 else None, source="check-your-answers"
+            )
+
+        pagination = soup.select_one("nav.govuk-pagination")
+        assert pagination.select_one("a.govuk-pagination__link[rel=prev]")["href"] == page_url(3)
+        assert pagination.select_one("a.govuk-pagination__link[rel=next]")["href"] == page_url(5)
+        page_items = pagination.select("li.govuk-pagination__item")
+        assert [item.text.strip() for item in page_items] == ["1", "⋯", "3", "4", "5", "⋯", "7"]
+        assert pagination.select_one("li.govuk-pagination__item--current").text.strip() == "4"
+        assert pagination.select_one("a[aria-label='Page 1']")["href"] == page_url(1)
+        assert pagination.select_one("a[aria-label='Page 7']")["href"] == page_url(7)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_a_query_on_the_first_of_two_pages_has_no_previous_link(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
+        mock_companies_house.search_companies.return_value = CompanySearchResults(
+            items=[TEST_COMPANY], total_results=21, start_index=0, items_per_page=20
+        )
+
+        response = authenticated_no_role_client.get(_company_search_url(sign_up_collection, q="TEST COMPANY"))
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        pagination = soup.select_one("nav.govuk-pagination")
+        assert pagination.select_one("a.govuk-pagination__link[rel=prev]") is None
+        assert pagination.select_one("a.govuk-pagination__link[rel=next]")["href"] == _company_search_url(
+            sign_up_collection, q="TEST COMPANY", page=2
+        )
+        assert [item.text.strip() for item in pagination.select("li.govuk-pagination__item")] == ["1", "2"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize("page", ["0", "-1", "abc"])
+    def test_get_with_an_invalid_page_searches_the_first_page(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house, page
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
+
+        response = authenticated_no_role_client.get(
+            _company_search_url(sign_up_collection, q="TEST COMPANY", page=page)
+        )
+
+        assert response.status_code == 200
+        mock_companies_house.search_companies.assert_called_once_with("TEST COMPANY", page=1)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_a_query_from_check_your_answers_puts_the_source_on_the_select_links(

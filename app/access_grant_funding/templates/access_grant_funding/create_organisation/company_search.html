@@ -1,6 +1,7 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "govuk_frontend_jinja/components/pagination/macro.html" import govukPagination %}
 
 {% set showing_results = results is not none or search_unavailable %}
 {% set page_title = "Search results" if showing_results else "Search Companies House register" %}
@@ -44,9 +45,6 @@
         {% if results.items | length == 0 %}
           <p class="govuk-body">No companies found. Check the spelling or try searching by the company number.</p>
         {% else %}
-          {% if results.items | length < results.total_results %}
-            <p class="govuk-body">Showing the first {{ results.items | length }}. Add more of the name or use the company number to narrow the search.</p>
-          {% endif %}
           {% set rows = [] %}
           {% for company in results.items %}
             {% set action %}
@@ -70,6 +68,9 @@
               "rows": rows
             })
           }}
+          {% if pagination %}
+            {{ govukPagination(pagination) }}
+          {% endif %}
         {% endif %}
       </div>
     </div>

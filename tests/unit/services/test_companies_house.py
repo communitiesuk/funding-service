@@ -74,7 +74,7 @@ class TestCompaniesHouseService:
             url=_search_url(app),
             status=200,
             match=[
-                matchers.query_param_matcher({"q": "test company", "items_per_page": "20"}),
+                matchers.query_param_matcher({"q": "test company", "items_per_page": "20", "start_index": "0"}),
                 matchers.header_matcher({"Authorization": _basic_auth_header(app)}),
             ],
             json=SEARCH_RESPONSE,
@@ -98,8 +98,46 @@ class TestCompaniesHouseService:
                 ),
             ],
             total_results=2,
+            start_index=0,
+            items_per_page=20,
         )
+        assert results.page == 1
+        assert results.total_pages == 1
         assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_search_companies_requests_the_start_index_for_a_page(self, app):
+        request_matcher = responses.get(
+            url=_search_url(app),
+            match=[matchers.query_param_matcher({"q": "test company", "items_per_page": "20", "start_index": "40"})],
+            json={**SEARCH_RESPONSE, "start_index": 40, "total_results": 45},
+        )
+
+        results = companies_house_service.search_companies("test company", page=3)
+
+        assert results.page == 3
+        assert results.total_pages == 3
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_search_companies_caches_pages_separately(self, app):
+        first_page = responses.get(
+            url=_search_url(app),
+            match=[matchers.query_param_matcher({"q": "test company", "items_per_page": "20", "start_index": "0"})],
+            json=SEARCH_RESPONSE,
+        )
+        second_page = responses.get(
+            url=_search_url(app),
+            match=[matchers.query_param_matcher({"q": "test company", "items_per_page": "20", "start_index": "20"})],
+            json={**SEARCH_RESPONSE, "start_index": 20},
+        )
+
+        companies_house_service.search_companies("test company")
+        companies_house_service.search_companies("test company", page=2)
+        companies_house_service.search_companies("test company", page=2)
+
+        assert first_page.call_count == 1
+        assert second_page.call_count == 1
 
     @responses.activate
     def test_search_companies_returns_cached_result_for_repeated_query(self, app):

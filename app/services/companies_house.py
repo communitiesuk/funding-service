@@ -1,3 +1,4 @@
+import math
 import time
 from collections.abc import Callable
 from typing import Any, Protocol
@@ -34,6 +35,16 @@ class CompanySearchResult(BaseModel):
 class CompanySearchResults(BaseModel):
     items: list[CompanySearchResult] = Field(default_factory=list)
     total_results: int = 0
+    start_index: int = 0
+    items_per_page: int = _SEARCH_ITEMS_PER_PAGE
+
+    @property
+    def page(self) -> int:
+        return self.start_index // self.items_per_page + 1
+
+    @property
+    def total_pages(self) -> int:
+        return max(1, math.ceil(self.total_results / self.items_per_page))
 
 
 class CompanyProfile(BaseModel):
@@ -87,8 +98,15 @@ class CompaniesHouseService:
         # Companies House authenticates with HTTP basic auth, using the API key as the username and no password.
         self._http.auth = (app.config["COMPANIES_HOUSE_API_KEY"], "")
 
-    def search_companies(self, query: str) -> CompanySearchResults:
-        data = self._get_json("/search/companies", {"q": query, "items_per_page": _SEARCH_ITEMS_PER_PAGE})
+    def search_companies(self, query: str, page: int = 1) -> CompanySearchResults:
+        data = self._get_json(
+            "/search/companies",
+            {
+                "q": query,
+                "items_per_page": _SEARCH_ITEMS_PER_PAGE,
+                "start_index": (max(page, 1) - 1) * _SEARCH_ITEMS_PER_PAGE,
+            },
+        )
         return self._parse(CompanySearchResults, data)
 
     def get_company(self, company_number: str) -> CompanyProfile:

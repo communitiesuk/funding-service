@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import Any
+
 from flask import abort, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
@@ -37,7 +40,7 @@ from app.common.forms import GenericSubmitForm
 from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import CHECK_YOUR_ANSWERS, SESSION_CREATE_ORGANISATION
 from app.extensions import auto_commit_after_request, companies_house_service
-from app.services.companies_house import CompaniesHouseError, CompaniesHouseNotFoundError
+from app.services.companies_house import CompaniesHouseError, CompaniesHouseNotFoundError, CompanySearchResults
 
 
 def _organisation_already_registered(org_session: CreateOrganisationSession, mode: OrganisationModeEnum) -> bool:
@@ -48,6 +51,27 @@ def _organisation_already_registered(org_session: CreateOrganisationSession, mod
     return org_session.is_registered_company and organisation_typed_id_exists(
         OrganisationType.COMPANY, org_session.typed_id, mode=mode
     )
+
+
+def _search_pagination(results: CompanySearchResults, page_url: Callable[[int], str]) -> dict[str, Any] | None:
+    """Parameters for the GOV.UK pagination component: first and last pages, the current page and its neighbours."""
+    if results.total_pages <= 1:
+        return None
+
+    shown = {1, results.total_pages, results.page - 1, results.page, results.page + 1}
+    items: list[dict[str, Any]] = []
+    for number in range(1, results.total_pages + 1):
+        if number not in shown:
+            if not items[-1].get("ellipsis"):
+                items.append({"ellipsis": True})
+            continue
+        items.append({"number": number, "href": page_url(number), "current": number == results.page})
+
+    return {
+        "previous": {"href": page_url(results.page - 1)} if results.page > 1 else None,
+        "next": {"href": page_url(results.page + 1)} if results.page < results.total_pages else None,
+        "items": items,
+    }
 
 
 def _organisation_details_url(
@@ -509,13 +533,27 @@ def create_organisation_company_search(
             )
         )
 
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
     results = None
+    pagination = None
     search_unavailable = False
     if query:
         try:
-            results = companies_house_service.search_companies(query)
+            results = companies_house_service.search_companies(query, page=page)
         except CompaniesHouseError:
             search_unavailable = True
+        else:
+            pagination = _search_pagination(
+                results,
+                lambda number: url_for(
+                    "access_grant_funding.create_organisation_company_search",
+                    grant_slug=grant_slug,
+                    collection_slug=collection_slug,
+                    q=query,
+                    page=number if number > 1 else None,
+                    source=source,
+                ),
+            )
 
     back_link_href = (
         url_for(
@@ -534,6 +572,7 @@ def create_organisation_company_search(
         collection=collection,
         query=query,
         results=results,
+        pagination=pagination,
         search_unavailable=search_unavailable,
         from_check_your_answers=from_check_your_answers,
         back_link_href=back_link_href,
