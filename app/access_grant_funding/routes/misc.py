@@ -19,7 +19,6 @@ from app.common.auth.decorators import (
     collection_is_open_for_sign_up,
     has_access_grant_recipient_role,
     has_access_grant_role,
-    has_feature_flag_enabled,
     is_access_org_member,
     is_signing_up,
     requires_passed_eligibility,
@@ -38,7 +37,6 @@ from app.common.helpers.collections import (
     get_or_create_unclaimed_submission,
     get_unclaimed_submission_for_user,
 )
-from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.constants import SESSION_CREATE_ORGANISATION, SESSION_MATCHED_ORGANISATION
 from app.extensions import auto_commit_after_request, notification_service
@@ -130,7 +128,6 @@ def list_grant_team(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValu
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/users/add", methods=["GET", "POST"]
 )
 @can_invite_access_grant_team_member
-@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT)
 @auto_commit_after_request
 def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseReturnValue:
     organisation = get_organisation(organisation_id=organisation_id)
@@ -195,7 +192,6 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/users/<uuid:user_id>/remove", methods=["GET", "POST"]
 )
 @can_invite_access_grant_team_member
-@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_USER_MANAGEMENT)
 @auto_commit_after_request
 def remove_grant_team_member(organisation_id: UUID, grant_id: UUID, user_id: UUID) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
