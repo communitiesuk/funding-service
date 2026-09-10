@@ -15,11 +15,13 @@ from app.common.data.types import AuditEventType, RoleEnum
 from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
-class TestPlatformAdminAuditEventViewAccess:
+class TestPlatformAdminAuditEventView:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
             ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
@@ -32,8 +34,6 @@ class TestPlatformAdminAuditEventViewAccess:
         response = client.get("/deliver/admin/auditevent/")
         assert response.status_code == expected_code
 
-
-class TestPlatformAdminAuditEventView:
     def test_displays_audit_events_list(self, authenticated_platform_admin_client, factories, db_session):
         audit_event = factories.audit_event.create(
             data={
