@@ -760,6 +760,30 @@ class TestCreateOrganisationName:
         assert response.location == _company_search_url(sign_up_collection, source="check-your-answers")
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_when_companies_house_was_unavailable_asks_for_the_name(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            _company_session(sign_up_collection, companies_house_unavailable=True),
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_name",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What is the name of your organisation?" in get_h1_text(soup)
+        assert soup.select_one("a.govuk-back-link")["href"] == _company_search_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_replaces_a_previously_selected_company(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
@@ -2098,17 +2122,21 @@ class TestCreateOrganisationCompanySearch:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_a_query_whose_first_page_is_not_found_shows_the_unavailable_message(
-        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house, mocker
     ):
         _enable_companies_house_lookup(authenticated_no_role_client)
         _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
         mock_companies_house.search_companies.side_effect = CompaniesHouseNotFoundError()
+        capture_exception = mocker.patch(
+            "app.access_grant_funding.routes.create_organisation.sentry_sdk.capture_exception"
+        )
 
         response = authenticated_no_role_client.get(_company_search_url(sign_up_collection, q="TEST COMPANY"))
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Companies House search is not available at the moment" in soup.text
+        capture_exception.assert_called_once()
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_a_query_from_check_your_answers_puts_the_source_on_the_select_links(
@@ -2148,19 +2176,36 @@ class TestCreateOrganisationCompanySearch:
         assert soup.select_one("table") is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_with_a_query_when_companies_house_is_unavailable_shows_a_message(
-        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+    def test_get_with_a_query_when_companies_house_is_unavailable_offers_to_enter_the_details_by_hand(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house, mocker
     ):
         _enable_companies_house_lookup(authenticated_no_role_client)
         _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
-        mock_companies_house.search_companies.side_effect = CompaniesHouseError()
+        error = CompaniesHouseError()
+        mock_companies_house.search_companies.side_effect = error
+        capture_exception = mocker.patch(
+            "app.access_grant_funding.routes.create_organisation.sentry_sdk.capture_exception"
+        )
 
-        response = authenticated_no_role_client.get(_company_search_url(sign_up_collection, q="TEST COMPANY"))
+        response = authenticated_no_role_client.get(
+            _company_search_url(sign_up_collection, q="TEST COMPANY", source="check-your-answers")
+        )
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Companies House search is not available at the moment" in soup.text
         assert soup.select_one("table") is None
+        manual_entry_button = soup.select_one("a.govuk-button")
+        assert manual_entry_button.text.strip() == "Enter organisation details"
+        assert manual_entry_button["href"] == url_for(
+            "access_grant_funding.create_organisation_name",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+            source="check-your-answers",
+        )
+        capture_exception.assert_called_once_with(error)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["companies_house_unavailable"] is True
 
 
 class TestCreateOrganisationCompanySelect:
@@ -2326,11 +2371,15 @@ class TestCreateOrganisationCompanySelect:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_when_companies_house_is_unavailable_returns_to_the_search(
-        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house, mocker
     ):
         _enable_companies_house_lookup(authenticated_no_role_client)
         _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
-        mock_companies_house.get_company.side_effect = CompaniesHouseError()
+        error = CompaniesHouseError()
+        mock_companies_house.get_company.side_effect = error
+        capture_exception = mocker.patch(
+            "app.access_grant_funding.routes.create_organisation.sentry_sdk.capture_exception"
+        )
 
         response = authenticated_no_role_client.get(
             _company_select_url(sign_up_collection, "00000001", source="check-your-answers")
@@ -2338,5 +2387,6 @@ class TestCreateOrganisationCompanySelect:
 
         assert response.status_code == 302
         assert response.location == _company_search_url(sign_up_collection, q="00000001", source="check-your-answers")
+        capture_exception.assert_called_once_with(error)
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "name" not in flask_session["create_organisation"]

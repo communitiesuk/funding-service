@@ -69,6 +69,15 @@ class TestCreateOrganisationSession:
         assert "name" not in session_dict
         assert "external_id" not in session_dict
 
+    def test_companies_house_unavailable_defaults_to_false_and_round_trips(self):
+        collection_id = uuid.uuid4()
+
+        assert _session(collection_id).companies_house_unavailable is False
+
+        session_dict = _session(collection_id, companies_house_unavailable=True).to_session_dict()
+        restored = CreateOrganisationSession.from_session(collection_id=collection_id, session_data=session_dict)
+        assert restored.companies_house_unavailable is True
+
     def test_to_session_dict_keeps_allow_team_members_when_false(self):
         collection_id = uuid.uuid4()
         session_dict = _session(collection_id, allow_team_members=False).to_session_dict()

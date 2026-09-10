@@ -1,5 +1,6 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
 {% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
 {% from "govuk_frontend_jinja/components/pagination/macro.html" import govukPagination %}
 
@@ -32,10 +33,14 @@
   {% if search_unavailable %}
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-two-thirds">
-        <p class="govuk-body">
-          Companies House search is not available at the moment. Try again later or contact our
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ config.ACCESS_SERVICE_DESK_URL }}" target="_blank">support desk (opens in new tab)</a>.
-        </p>
+        <p class="govuk-body">Companies House search is not available at the moment. You can try again later, or enter your organisation's details yourself instead.</p>
+        {{
+          govukButton({
+            "text": "Enter organisation details",
+            "href": organisation_name_url,
+            "classes": "govuk-button--secondary",
+          })
+        }}
       </div>
     </div>
   {% elif results is not none %}

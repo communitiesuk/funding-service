@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
+import sentry_sdk
 from flask import abort, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
@@ -215,19 +216,20 @@ def create_organisation_name(
         collection_slug=collection_slug,
     )
 
-    # registered companies take their name from Companies House rather than this screen
-    if (
+    # registered companies take their name from Companies House rather than this screen, unless a search failed and
+    # the user is entering the company's details by hand instead
+    company_search_url = url_for(
+        "access_grant_funding.create_organisation_company_search",
+        grant_slug=grant_slug,
+        collection_slug=collection_slug,
+        source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
+    )
+    uses_company_search = (
         org_session.organisation_type == SignUpOrganisationType.COMPANY
         and FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP.is_enabled
-    ):
-        return redirect(
-            url_for(
-                "access_grant_funding.create_organisation_company_search",
-                grant_slug=grant_slug,
-                collection_slug=collection_slug,
-                source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
-            )
-        )
+    )
+    if uses_company_search and not org_session.companies_house_unavailable:
+        return redirect(company_search_url)
 
     form = CreateOrganisationNameForm(obj=org_session)
     if form.validate_on_submit():
@@ -262,6 +264,8 @@ def create_organisation_name(
     back_link_href = (
         check_your_answers_url
         if from_check_your_answers
+        else company_search_url
+        if uses_company_search
         else url_for(
             "access_grant_funding.create_organisation_type",
             grant_slug=grant_slug,
@@ -552,6 +556,11 @@ def create_organisation_company_search(
                         source=source,
                     )
                 )
+            # a developer should look into why the register couldn't be searched, and in the meantime the user can
+            # enter the company's details by hand rather than being stuck
+            sentry_sdk.capture_exception(e)
+            org_session.companies_house_unavailable = True
+            session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
             search_unavailable = True
         else:
             pagination = _search_pagination(
@@ -585,6 +594,12 @@ def create_organisation_company_search(
         results=results,
         pagination=pagination,
         search_unavailable=search_unavailable,
+        organisation_name_url=url_for(
+            "access_grant_funding.create_organisation_name",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+            source=source,
+        ),
         from_check_your_answers=from_check_your_answers,
         back_link_href=back_link_href,
     )
@@ -617,8 +632,9 @@ def create_organisation_company_select(
         company = companies_house_service.get_company(company_number)
     except CompaniesHouseNotFoundError:
         return abort(404)
-    except CompaniesHouseError:
+    except CompaniesHouseError as e:
         # the search page explains that Companies House is unavailable, or shows the results again if it recovered
+        sentry_sdk.capture_exception(e)
         return redirect(
             url_for(
                 "access_grant_funding.create_organisation_company_search",

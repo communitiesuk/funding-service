@@ -78,6 +78,8 @@ class CreateOrganisationSession(SignUpSession):
     external_id: str | None = None
     # set when the organisation was selected from the Companies House register; unset otherwise
     companies_house_number: str | None = None
+    # set when a Companies House search failed, letting a registered company's details be entered by hand instead
+    companies_house_unavailable: bool = False
     # optional as only needed for users we don't have a name for on the model
     user_name: str | None = None
     # optional as only asked of users whose email domain isn't a shared provider
