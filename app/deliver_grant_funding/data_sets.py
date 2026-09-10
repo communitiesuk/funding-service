@@ -405,7 +405,7 @@ def generate_latest_csv_template(data_source: DataSource) -> StringIO:
     csv_output = StringIO()
     csv_writer = csv.DictWriter(csv_output, fieldnames=headers)
     csv_writer.writeheader()
-    grant_recipients = get_grant_recipients(grant=data_source.grant, with_organisations=True)
+    grant_recipients = get_grant_recipients(grant=data_source.grant, with_organisations=True, exclude_applicants=True)
     for gr in grant_recipients:
         if gr.organisation.mode == OrganisationModeEnum.TEST:
             continue

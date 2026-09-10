@@ -23,7 +23,7 @@ def grant_details(grant_id: UUID) -> ResponseReturnValue:
         grant=grant,
         roles_enum=RoleEnum,
         grant_recipients=get_grant_recipients(
-            grant, with_data_providers=True, with_certifiers=True, with_organisations=True
+            grant, with_data_providers=True, with_certifiers=True, with_organisations=True, exclude_applicants=True
         ),
     )
 
