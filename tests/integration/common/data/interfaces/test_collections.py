@@ -5576,6 +5576,48 @@ class TestGetSubmissions:
         )
         assert len(submission_results) == 3
 
+    def test_get_all_submissions_with_mode_for_collection_submitted_only_none(self, db_session, factories):
+        collection = factories.collection.create(create_submissions__live=3, create_submissions__test=1)
+
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, only_submitted=True
+            )
+        )
+        assert len(submission_results) == 0
+
+    def test_get_all_submissions_with_mode_for_collection_submitted_only(self, db_session, factories):
+        collection = factories.collection.create()
+        question = factories.question.create(form__collection=collection)
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
+        )
+
+        factories.submission_event.create_batch(
+            2,
+            submission=submission1,
+            related_entity_id=collection.forms[0].id,
+            event_type=factory.Iterator(
+                [SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, SubmissionEventType.SUBMISSION_SUBMITTED]
+            ),
+        )
+        submission1.status = SubmissionStatusEnum.SUBMITTED
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, only_submitted=True
+            )
+        )
+        assert len(submission_results) == 1
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE, only_submitted=False
+            )
+        )
+        assert len(submission_results) == 2
+
     def test_get_all_submissions_with_mode_for_collection_mode_and_grant_recipient_id(self, db_session, factories):
         collection = factories.collection.create(create_submissions__live=3, create_submissions__test=1)
         live_submissions = collection.live_submissions

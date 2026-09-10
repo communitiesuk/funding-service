@@ -42,6 +42,7 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import User
 from app.common.data.types import (
+    SUBMITTED_STATUSES,
     CollectionStatusEnum,
     CollectionType,
     ComponentType,
@@ -665,6 +666,7 @@ def get_all_submissions_with_mode_for_collection(
     *,
     with_full_schema: bool = True,
     with_users: bool = False,
+    only_submitted: bool = False,
 ) -> Sequence[Submission]:
     """
     Use this function to get all submission data for a collection - it
@@ -711,6 +713,9 @@ def get_all_submissions_with_mode_for_collection(
         stmt = stmt.options(
             joinedload(Submission.created_by),
         )
+
+    if only_submitted:
+        stmt = stmt.where(Submission.status.in_(SUBMITTED_STATUSES))
 
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))

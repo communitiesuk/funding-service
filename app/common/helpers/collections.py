@@ -66,6 +66,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
     TasklistSectionStatusEnum,
 )
 from app.common.exceptions import SubmissionAnswerConflict
@@ -1826,7 +1827,16 @@ class AllSubmissionsHelper:
 
         self.collection = collection
         self.submission_mode = submission_mode
-        self.submissions = [s for s in (get_all_submissions_with_mode_for_collection(collection.id, submission_mode))]
+        self.submissions = [
+            s
+            for s in (
+                get_all_submissions_with_mode_for_collection(
+                    collection.id,
+                    submission_mode,
+                    only_submitted=collection.submission_visibility != SubmissionVisibilityEnum.ALWAYS_VISIBLE,
+                )
+            )
+        ]
         self.submission_helpers = {s.id: SubmissionHelper(s) for s in self.submissions}
 
         grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
