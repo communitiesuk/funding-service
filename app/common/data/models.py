@@ -339,7 +339,7 @@ class Organisation(BaseModel):
         ),
         UniqueConstraint("external_id", "mode", name="uq_organisation_external_id_mode"),
         UniqueConstraint("name", "mode", name="uq_organisation_name_mode"),
-        CheckConstraint("status = 'retired' OR retirement_date IS NULL", name="ck_retirement"),
+        CheckConstraint("status = 'RETIRED' OR retirement_date IS NULL", name="retirement"),
         CheckConstraint(
             """
             (type = 'CENTRAL_GOVERNMENT' AND iati_id IS NOT NULL) OR
@@ -351,7 +351,7 @@ class Organisation(BaseModel):
             (type = 'COMPANY' AND companies_house_number IS NOT NULL) OR
             (type = 'OTHER' AND custom_code IS NOT NULL)
             """,
-            name="ck_typed_external_id",
+            name="typed_external_id",
         ),
     )
 
@@ -440,11 +440,11 @@ class Collection(BaseModel):
         UniqueConstraint("name", "grant_id", name="uq_collection_name_grant_id"),
         CheckConstraint(
             "submission_name_question_id IS NULL OR allow_multiple_submissions = true",
-            name="ck_submission_name_question_requires_multiple_submissions",
+            name="submission_name_question_requires_multiple",
         ),
         CheckConstraint(
             "multiple_submissions_are_managed_by_service = false OR allow_multiple_submissions = true",
-            name="ck_multiple_submissions_are_managed_by_service",
+            name="multiple_submissions_are_managed_by_service",
         ),
     )
 
@@ -1006,7 +1006,7 @@ class Component(BaseModel):
         UniqueConstraint("name", "form_id", name="uq_component_name_form"),
         CheckConstraint(
             f"data_type IS NOT NULL OR type != '{ComponentType.QUESTION.value}'",
-            name="ck_component_type_question_requires_data_type",
+            name="type_question_requires_data_type",
         ),
     )
 
@@ -1509,11 +1509,11 @@ class DataSource(BaseModel, SafeDidMixin):
                 "(name IS NOT NULL AND grant_id IS NOT NULL AND collection_id IS NOT NULL AND schema IS NOT NULL "
                 "AND file_metadata IS NOT NULL)"
             ),
-            name="ck_data_source_non_custom_requires_name_grant_collection_and_schema_and_file_metadata",
+            name="non_custom_requires_core_fields",
         ),
         CheckConstraint(
             "collection_id IS NULL OR grant_id IS NOT NULL",
-            name="ck_data_source_collection_requires_grant",
+            name="collection_requires_grant",
         ),
         Index("ix_data_source_grant_id", "grant_id"),
         Index("ix_data_source_collection_id", "collection_id"),
@@ -1788,15 +1788,15 @@ class ComponentReference(BaseModel):
         # specific data-source item for CUSTOM radio choices), or a data-source column.
         CheckConstraint(
             "(depends_on_component_id IS NOT NULL) != (depends_on_data_source_id IS NOT NULL)",
-            name="ck_component_reference_component_xor_data_source",
+            name="component_xor_data_source",
         ),
         CheckConstraint(
             "depends_on_data_source_item_id IS NULL OR depends_on_component_id IS NOT NULL",
-            name="ck_component_reference_item_requires_component",
+            name="item_requires_component",
         ),
         CheckConstraint(
             "(depends_on_data_source_id IS NULL) = (depends_on_column_name IS NULL)",
-            name="ck_component_reference_data_source_requires_column",
+            name="data_source_requires_column",
         ),
     )
 
