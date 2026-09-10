@@ -1,6 +1,7 @@
 import datetime
 import uuid
 
+import factory
 import pytest
 from sqlalchemy import Date, func, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -5767,8 +5768,11 @@ class TestGetSubmissions:
 
 
 class TestGetSubmissionListForCollection:
-    def test_single_submission_collection_returns_a_row_per_grant_recipient(self, db_session, factories):
-        collection = factories.collection.create()
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_single_submission_collection_returns_a_row_per_grant_recipient(
+        self, db_session, factories, allow_public_sign_up
+    ):
+        collection = factories.collection.create(allow_public_sign_up=allow_public_sign_up)
         recipient_with_submission = factories.grant_recipient.create(
             grant=collection.grant, organisation__name="Acme Corp"
         )
@@ -5779,24 +5783,35 @@ class TestGetSubmissionListForCollection:
             grant_recipient=recipient_with_submission,
         )
 
-        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        rows = get_submission_list_for_collection(
+            collection=collection,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
 
-        rows_by_org = {row.organisation_name: row for row in rows}
-        assert set(rows_by_org) == {"Acme Corp", "Beta Ltd"}
+        if allow_public_sign_up:
+            assert len(rows) == 0
+        else:
+            rows_by_org = {row.organisation_name: row for row in rows}
+            assert set(rows_by_org) == {"Acme Corp", "Beta Ltd"}
 
-        started = rows_by_org["Acme Corp"]
-        assert started.submission_id == submission.id
-        assert started.status == submission.status
-        assert started.name is None
+            started = rows_by_org["Acme Corp"]
+            assert started.submission_id == submission.id
+            assert started.status == submission.status
+            assert started.name is None
 
-        not_started = rows_by_org["Beta Ltd"]
-        assert not_started.submission_id is None
-        assert not_started.status is None
-        assert not_started.last_updated_at_utc is None
-        assert not_started.name is None
+            not_started = rows_by_org["Beta Ltd"]
+            assert not_started.submission_id is None
+            assert not_started.status is None
+            assert not_started.last_updated_at_utc is None
+            assert not_started.name is None
 
-    def test_multi_submission_collection_returns_a_row_per_submission(self, db_session, factories):
-        collection = factories.collection.create(allow_multiple_submissions=True)
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_multi_submission_collection_returns_a_row_per_submission(
+        self, db_session, factories, allow_public_sign_up
+    ):
+        collection = factories.collection.create(
+            allow_multiple_submissions=True, allow_public_sign_up=allow_public_sign_up
+        )
         grant_recipient = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
         first = factories.submission.create(
             collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
@@ -5805,10 +5820,75 @@ class TestGetSubmissionListForCollection:
             collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
         )
 
-        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        rows = get_submission_list_for_collection(
+            collection=collection,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
 
-        assert {row.submission_id for row in rows} == {first.id, second.id}
-        assert all(row.organisation_name == "Acme Corp" for row in rows)
+        if allow_public_sign_up:
+            assert len(rows) == 0
+        else:
+            assert {row.submission_id for row in rows} == {first.id, second.id}
+            assert all(row.organisation_name == "Acme Corp" for row in rows)
+
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_multi_submission_collection_returns_a_row_per_submission_when_submitted(
+        self, db_session, factories, allow_public_sign_up
+    ):
+        collection = factories.collection.create(
+            allow_multiple_submissions=True, allow_public_sign_up=allow_public_sign_up
+        )
+        question = factories.question.create(form__collection=collection)
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
+        first = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        second = factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Alpha Project"))],
+        )
+        third = factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=grant_recipient,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Beta Project"))],
+        )
+        factories.submission_event.create_batch(
+            4,
+            submission=factory.Iterator(
+                [
+                    second,
+                    third,
+                    second,
+                    third,
+                ]
+            ),
+            event_type=factory.Iterator(
+                [
+                    SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    SubmissionEventType.SUBMISSION_SUBMITTED,
+                    SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                    SubmissionEventType.SUBMISSION_SUBMITTED,
+                ]
+            ),
+            related_entity_id=question.form.id,
+        )
+        second.status = SubmissionStatusEnum.SUBMITTED
+        third.status = SubmissionStatusEnum.SUBMITTED
+
+        rows = get_submission_list_for_collection(
+            collection=collection,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
+
+        if allow_public_sign_up:
+            assert len(rows) == 2
+        else:
+            assert len(rows) == 3
+            assert {row.submission_id for row in rows} == {first.id, second.id, third.id}
+            assert all(row.organisation_name == "Acme Corp" for row in rows)
 
     @pytest.mark.parametrize(
         "offset_days, expected_overdue",
@@ -5838,8 +5918,13 @@ class TestGetSubmissionListForCollection:
         row = next(row for row in rows if row.submission_id == submission.id)
         assert row.is_overdue is expected_overdue
 
-    def test_multi_submission_collection_returns_a_row_for_recipients_with_no_submissions(self, db_session, factories):
-        collection = factories.collection.create(allow_multiple_submissions=True)
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_multi_submission_collection_returns_a_row_for_recipients_with_no_submissions(
+        self, db_session, factories, allow_public_sign_up
+    ):
+        collection = factories.collection.create(
+            allow_multiple_submissions=True, allow_public_sign_up=allow_public_sign_up
+        )
         recipient_with_submission = factories.grant_recipient.create(
             grant=collection.grant, organisation__name="Acme Corp"
         )
@@ -5850,20 +5935,26 @@ class TestGetSubmissionListForCollection:
             grant_recipient=recipient_with_submission,
         )
 
-        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        rows = get_submission_list_for_collection(
+            collection=collection,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
 
-        rows_by_org = {row.organisation_name: row for row in rows}
-        assert set(rows_by_org) == {"Acme Corp", "Beta Ltd"}
+        if allow_public_sign_up:
+            assert len(rows) == 0
+        else:
+            rows_by_org = {row.organisation_name: row for row in rows}
+            assert set(rows_by_org) == {"Acme Corp", "Beta Ltd"}
 
-        started = rows_by_org["Acme Corp"]
-        assert started.submission_id == submission.id
-        assert started.status == submission.status
+            started = rows_by_org["Acme Corp"]
+            assert started.submission_id == submission.id
+            assert started.status == submission.status
 
-        not_started = rows_by_org["Beta Ltd"]
-        assert not_started.submission_id is None
-        assert not_started.name is None
-        assert not_started.status is None
-        assert not_started.last_updated_at_utc is None
+            not_started = rows_by_org["Beta Ltd"]
+            assert not_started.submission_id is None
+            assert not_started.name is None
+            assert not_started.status is None
+            assert not_started.last_updated_at_utc is None
 
     def test_single_submission_collection_orders_rows_by_organisation_name(self, db_session, factories):
         collection = factories.collection.create()
@@ -5978,6 +6069,46 @@ class TestGetSubmissionListForCollection:
         rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
 
         assert [row.submission_id for row in rows] == [live_submission.id]
+
+    @pytest.mark.parametrize("allow_public_sign_up,exp_rows_returned", [(True, 1), (False, 2)])
+    def test_only_returns_rows_for_the_right_submission_state(
+        self, db_session, factories, allow_public_sign_up, exp_rows_returned
+    ):
+        collection = factories.collection.create(
+            requires_certification=False, allow_public_sign_up=allow_public_sign_up
+        )
+
+        question = factories.question.create(form__collection=collection)
+        live_recipient = factories.grant_recipient.create(grant=collection.grant)
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=live_recipient,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
+        )
+        factories.submission_event.create(
+            submission=submission1,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission1,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=question.form.id,
+        )
+        submission1.status = SubmissionStatusEnum.SUBMITTED
+        db_session.commit()
+
+        rows = get_submission_list_for_collection(
+            collection=collection,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
+        assert len(rows) == exp_rows_returned
+        rows = get_submission_list_for_collection(
+            collection=collection,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
 
     def test_last_updated_at_utc_reflects_latest_event(self, db_session, factories):
         collection = factories.collection.create()

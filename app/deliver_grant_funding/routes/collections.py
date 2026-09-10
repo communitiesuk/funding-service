@@ -46,7 +46,6 @@ from app.common.data.interfaces.collections import (
     get_form_by_id,
     get_group_by_id,
     get_question_by_id,
-    get_submission_list_for_collection,
     move_component_down,
     move_component_up,
     move_form_down,
@@ -3650,7 +3649,9 @@ def list_submissions(
             )
         )
 
-    submissions = get_submission_list_for_collection(collection=collection, submission_mode=submission_mode)
+    submissions = interfaces.collections.get_submission_list_for_collection(
+        collection=collection, submission_mode=submission_mode
+    )
 
     return render_template(
         "deliver_grant_funding/collections/list_submissions.html",

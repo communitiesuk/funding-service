@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import cast
 from unittest.mock import patch
 
+import factory
 import pytest
 from _pytest.fixtures import FixtureRequest
 from bs4 import BeautifulSoup
@@ -9928,16 +9929,22 @@ class TestListSubmissions:
         assert preview_response.status_code == 404
 
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status",
+        "allow_public_sign_up, collection_status,exp_show_in_progress",
         [
-            (True, CollectionStatusEnum.OPEN),
-            (False, CollectionStatusEnum.OPEN),
-            (True, CollectionStatusEnum.CLOSED),
-            (False, CollectionStatusEnum.CLOSED),
+            (True, CollectionStatusEnum.OPEN, False),
+            (False, CollectionStatusEnum.OPEN, True),
+            (True, CollectionStatusEnum.CLOSED, False),
+            (False, CollectionStatusEnum.CLOSED, True),
         ],
     )
     def test_with_test_submissions(
-        self, authenticated_grant_member_client, factories, db_session, allow_public_sign_up, collection_status
+        self,
+        authenticated_grant_member_client,
+        factories,
+        db_session,
+        allow_public_sign_up,
+        collection_status,
+        exp_show_in_progress,
     ):
         collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
@@ -9946,22 +9953,33 @@ class TestListSubmissions:
             allow_public_sign_up=allow_public_sign_up,
             status=collection_status,
         )
-        test_grant_recipient = factories.grant_recipient.create(
+        question = factories.question.create(form__collection=collection)
+        gr_in_progress, gr_submitted = factories.grant_recipient.create_batch(
+            2,
             grant=authenticated_grant_member_client.grant,
             mode=GrantRecipientModeEnum.TEST,
-            organisation__name="Test Organisation Ltd",
+            organisation__name=factory.Iterator(["Test Organisation 1 Ltd", "Test Organisation 2 Ltd"]),
         )
-        factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant,
-            organisation__name="Live Organisation Ltd",
-        )
-        factories.submission.create(
+        submission1, submission2 = factories.submission.create_batch(
+            2,
             collection=collection,
             mode=SubmissionModeEnum.TEST,
-            grant_recipient=test_grant_recipient,
-            created_by__email="submitter-test@recipient.org",
-            status=SubmissionStatusEnum.NOT_STARTED,
+            grant_recipient=factory.Iterator([gr_in_progress, gr_submitted]),
+            created_by__email=factory.Iterator(["submitter-test@recipient.org", "submitter-test-2@recipient.org"]),
+            status=SubmissionStatusEnum.IN_PROGRESS,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
         )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=question.form.id,
+        )
+        submission2.status = SubmissionStatusEnum.SUBMITTED
         test_response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
@@ -9973,15 +9991,26 @@ class TestListSubmissions:
         )
         test_soup = BeautifulSoup(test_response.data, "html.parser")
         assert test_response.status_code == 200
-        test_recipient_link = page_has_link(test_soup, "Test Organisation Ltd")
-        assert test_recipient_link.get("href") == AnyStringMatching(
+        gr_in_progress_link = page_has_link(test_soup, "Test Organisation 1 Ltd")
+        gr_submitted_link = page_has_link(test_soup, "Test Organisation 2 Ltd")
+
+        assert gr_submitted_link is not None
+        assert gr_submitted_link.get("href") == AnyStringMatching(
             "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
         )
-        test_submission_tags = test_soup.select(".govuk-tag")
+        assert gr_submitted_link.parent.parent.find_all("td")[1].text.strip() == "Submitted"
 
-        assert {tag.text.strip() for tag in test_submission_tags} == {
-            "Not started" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
-        }
+        if exp_show_in_progress:
+            assert gr_in_progress_link.get("href") == AnyStringMatching(
+                "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+            )
+            test_submission_tags = test_soup.select(".govuk-tag")
+
+            assert {tag.text.strip() for tag in test_submission_tags} == {
+                "In progress" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
+            }
+        else:
+            assert gr_in_progress_link is None
 
     @pytest.mark.parametrize(
         " collection_status",
@@ -9997,21 +10026,36 @@ class TestListSubmissions:
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
             create_completed_submissions_each_question_type__test=1,
+            allow_public_sign_up=False,
             status=collection_status,
         )
-
-        live_grant_recipient = factories.grant_recipient.create(
+        question = factories.question.create(form__collection=collection)
+        gr_in_progress, gr_submitted = factories.grant_recipient.create_batch(
+            2,
             grant=authenticated_grant_member_client.grant,
-            organisation__name="Live Organisation Ltd",
+            mode=GrantRecipientModeEnum.LIVE,
+            organisation__name=factory.Iterator(["Test Organisation 1 Ltd", "Test Organisation 2 Ltd"]),
         )
-
-        factories.submission.create(
+        submission1, submission2 = factories.submission.create_batch(
+            2,
             collection=collection,
             mode=SubmissionModeEnum.LIVE,
-            grant_recipient=live_grant_recipient,
-            created_by__email="submitter-live@recipient.org",
-            status=SubmissionStatusEnum.NOT_STARTED,
+            grant_recipient=factory.Iterator([gr_in_progress, gr_submitted]),
+            created_by__email=factory.Iterator(["submitter-test@recipient.org", "submitter-test-2@recipient.org"]),
+            status=SubmissionStatusEnum.IN_PROGRESS,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
         )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=question.form.id,
+        )
+        submission2.status = SubmissionStatusEnum.SUBMITTED
 
         live_response = authenticated_grant_member_client.get(
             url_for(
@@ -10026,16 +10070,22 @@ class TestListSubmissions:
         live_soup = BeautifulSoup(live_response.data, "html.parser")
         assert live_response.status_code == 200
 
-        live_recipient_link = page_has_link(live_soup, "Live Organisation Ltd")
+        gr_in_progress_link = page_has_link(live_soup, "Test Organisation 1 Ltd")
+        gr_submitted_link = page_has_link(live_soup, "Test Organisation 2 Ltd")
 
-        assert live_recipient_link.get("href") == AnyStringMatching(
+        assert gr_in_progress_link.get("href") == AnyStringMatching(
             "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
         )
+        assert (
+            gr_in_progress_link.parent.parent.find_all("td")[1].text.strip() == "In progress"
+            if collection_status == CollectionStatusEnum.OPEN
+            else "Not submitted"
+        )
 
-        live_submission_tags = live_soup.select(".govuk-tag")
-        assert {tag.text.strip() for tag in live_submission_tags} == {
-            "Not started" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
-        }
+        assert gr_submitted_link.get("href") == AnyStringMatching(
+            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
+        )
+        assert gr_submitted_link.parent.parent.find_all("td")[1].text.strip() == "Submitted"
 
     @pytest.mark.parametrize(
         "collection_status",
@@ -10054,19 +10104,33 @@ class TestListSubmissions:
             allow_public_sign_up=True,
             status=collection_status,
         )
-
-        live_grant_recipient = factories.grant_recipient.create(
+        question = factories.question.create(form__collection=collection)
+        gr_in_progress, gr_submitted = factories.grant_recipient.create_batch(
+            2,
             grant=authenticated_grant_member_client.grant,
-            organisation__name="Live Organisation Ltd",
+            mode=GrantRecipientModeEnum.LIVE,
+            organisation__name=factory.Iterator(["Test Organisation 1 Ltd", "Test Organisation 2 Ltd"]),
         )
-
-        factories.submission.create(
+        submission1, submission2 = factories.submission.create_batch(
+            2,
             collection=collection,
             mode=SubmissionModeEnum.LIVE,
-            grant_recipient=live_grant_recipient,
-            created_by__email="submitter-live@recipient.org",
-            status=SubmissionStatusEnum.NOT_STARTED,
+            grant_recipient=factory.Iterator([gr_in_progress, gr_submitted]),
+            created_by__email=factory.Iterator(["submitter-test@recipient.org", "submitter-test-2@recipient.org"]),
+            status=SubmissionStatusEnum.IN_PROGRESS,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
         )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=question.form.id,
+        )
+        submission2.status = SubmissionStatusEnum.SUBMITTED
 
         live_response = authenticated_grant_member_client.get(
             url_for(
@@ -10084,62 +10148,15 @@ class TestListSubmissions:
         else:
             assert live_response.status_code == 200
 
-            live_recipient_link = page_has_link(live_soup, "Live Organisation Ltd")
+            gr_in_progress_link = page_has_link(live_soup, "Test Organisation 1 Ltd")
+            gr_submitted_link = page_has_link(live_soup, "Test Organisation 2 Ltd")
 
-            assert live_recipient_link.get("href") == AnyStringMatching(
+            assert gr_in_progress_link is None
+
+            assert gr_submitted_link.get("href") == AnyStringMatching(
                 "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
             )
-
-            live_submission_tags = live_soup.select(".govuk-tag")
-            assert {tag.text.strip() for tag in live_submission_tags} == {
-                "Not started" if collection_status == CollectionStatusEnum.OPEN else "Not submitted"
-            }
-
-    def test_live_mode_shows_all_grant_recipients_including_those_without_submissions(
-        self, authenticated_grant_member_client, factories, db_session
-    ):
-        collection = factories.collection.create(
-            grant=authenticated_grant_member_client.grant, name="Test Report", allow_public_sign_up=False
-        )
-        grant_recipient_with_submission = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant, organisation__name="Organisation With Submission"
-        )
-        factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant, organisation__name="Organisation Without Submission"
-        )
-        factories.submission.create(
-            collection=collection,
-            mode=SubmissionModeEnum.LIVE,
-            grant_recipient=grant_recipient_with_submission,
-        )
-
-        response = authenticated_grant_member_client.get(
-            url_for(
-                "deliver_grant_funding.list_submissions",
-                grant_id=authenticated_grant_member_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-                submission_mode=SubmissionModeEnum.LIVE,
-            )
-        )
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert response.status_code == 200
-
-        assert "Organisation With Submission" in response.text
-        assert "Organisation Without Submission" in response.text
-
-        link_with_submission = page_has_link(soup, "Organisation With Submission")
-        assert link_with_submission is not None
-        assert link_with_submission.get("href") == AnyStringMatching(
-            "/deliver/grant/[a-z0-9-]{36}/submission/[a-z0-9-]{36}"
-        )
-
-        link_without_submission = page_has_link(soup, "Organisation Without Submission")
-        assert link_without_submission is None
-
-        submission_tags = soup.select(".govuk-tag")
-        tag_texts = {tag.text.strip() for tag in submission_tags}
-        assert "Not started" in tag_texts
+            assert gr_submitted_link.parent.parent.find_all("td")[1].text.strip() == "Submitted"
 
     def test_live_mode_shows_overdue_status_when_submission_period_passed(
         self, authenticated_grant_member_client, grant_recipient, factories, db_session
