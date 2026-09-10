@@ -3567,6 +3567,21 @@ class TestSubmissionsHelper:
         assert live_submissions_helper.submission_mode == SubmissionModeEnum.LIVE
         assert len(live_submissions_helper.submissions) == 3
 
+    def test_init_submissions_helper_with_unclaimed_submission(self, factories):
+        collection = factories.collection.create(allow_public_sign_up=True, create_submissions__test=1)
+        unclaimed_submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
+        )
+
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
+
+        assert len(subs_helper.submissions) == 2
+        assert unclaimed_submission.id in subs_helper.submission_helpers
+        assert unclaimed_submission.id not in [
+            helper.submission.id if helper else None
+            for helper in subs_helper.grant_recipients_submission_helpers.values()
+        ]
+
     def test_get_all_possible_questions_for_collection_includes_eligibility_form_questions(self, factories):
         collection = factories.collection.create()
         form_a = factories.form.create(collection=collection)

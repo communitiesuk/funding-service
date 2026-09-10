@@ -1838,7 +1838,11 @@ class AllSubmissionsHelper:
             gr.id: None for gr in self.grant_recipients
         }
         self.grant_recipients_submission_helpers.update(
-            {helper.grant_recipient.id: helper for helper in self.submission_helpers.values()}
+            {
+                helper.submission.grant_recipient.id: helper
+                for helper in self.submission_helpers.values()
+                if helper.submission.grant_recipient is not None
+            }
         )
 
     @property
