@@ -147,9 +147,7 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
                 name=form.full_name.data,
                 by_user=interfaces.user.get_current_user(),
             )
-            notification_service.send_access_grant_team_member_invited(
-                invitation.email, grant_recipient=grant_recipient
-            )
+            notification_service.send_access_grant_team_member_invited(invitation, grant_recipient=grant_recipient)
             flash(
                 {"user_name": invitation.name},  # ty: ignore[invalid-argument-type]
                 FlashMessageType.ACCESS_TEAM_MEMBER_INVITED,

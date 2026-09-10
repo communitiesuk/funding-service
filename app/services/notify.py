@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import enum
 import uuid
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -9,6 +10,7 @@ from flask import Flask, current_app, url_for
 from notifications_python_client import NotificationsAPIClient, prepare_upload
 from notifications_python_client.errors import APIError, TokenError
 
+from app.common.data.models_user import Invitation
 from app.common.data.types import GrantRecipientModeEnum
 from app.common.filters import format_date, format_datetime
 
@@ -39,6 +41,34 @@ def _format_utc_timestamp_to_local(dt: datetime.datetime) -> str:
     return f"{hour_format} on {date_format}"
 
 
+class NotificationReferenceType(enum.StrEnum):
+    INVITATION = "invitation"
+
+
+@dataclasses.dataclass(frozen=True)
+class NotificationReference:
+    type_: NotificationReferenceType
+    id: uuid.UUID
+
+    @staticmethod
+    def for_invitation(invitation: Invitation) -> "NotificationReference":
+        return NotificationReference(type_=NotificationReferenceType.INVITATION, id=invitation.id)
+
+    @staticmethod
+    def from_reference(reference: str) -> "NotificationReference":
+        try:
+            prefix, type_, id_ = reference.split(":")
+        except ValueError as e:
+            raise ValueError(f"Invalid notification reference: {reference!r}") from e
+        if prefix != "db":
+            raise ValueError(f"Invalid notification reference: {reference!r}")
+        return NotificationReference(type_=NotificationReferenceType(type_), id=uuid.UUID(id_))
+
+    @property
+    def reference(self) -> str:
+        return f"db:{self.type_}:{self.id}"
+
+
 class NotificationService:
     def __init__(self) -> None:
         self.client: NotificationsAPIClient | None = None
@@ -52,7 +82,7 @@ class NotificationService:
         email_address: str,
         template_id: str,
         personalisation: dict[str, Any] | None,
-        govuk_notify_reference: str | None = None,
+        govuk_notify_reference: NotificationReference | None = None,
         email_reply_to_id: str | None = None,
         one_click_unsubscribe_url: str | None = None,
     ) -> Notification:
@@ -68,7 +98,7 @@ class NotificationService:
                 email_address=email_address,
                 template_id=template_id,
                 personalisation=personalisation,
-                reference=govuk_notify_reference,
+                reference=govuk_notify_reference.reference if govuk_notify_reference else None,
                 email_reply_to_id=email_reply_to_id,
                 one_click_unsubscribe_url=one_click_unsubscribe_url,
             )
@@ -83,7 +113,6 @@ class NotificationService:
         magic_link_url: str,
         magic_link_expires_at_utc: datetime.datetime,
         request_new_magic_link_url: str,
-        govuk_notify_reference: str | None = None,
     ) -> Notification:
         return self._send_email(
             email_address,
@@ -94,7 +123,6 @@ class NotificationService:
                 "request_new_magic_link": request_new_magic_link_url,
                 "service_desk_url": current_app.config["ACCESS_SERVICE_DESK_URL"],
             },
-            govuk_notify_reference=govuk_notify_reference,
         )
 
     def send_member_confirmation(self, email_address: str, *, grant: Grant) -> Notification:
@@ -148,16 +176,16 @@ class NotificationService:
         )
 
     def send_access_grant_team_member_invited(
-        self, email_address: str, *, grant_recipient: GrantRecipient
+        self, invitation: Invitation, *, grant_recipient: GrantRecipient
     ) -> Notification:
         return self._send_email(
-            email_address,
+            invitation.email,
             current_app.config["GOVUK_NOTIFY_ACCESS_GRANT_TEAM_MEMBER_INVITED_TEMPLATE_ID"],
             personalisation={
                 "grant_name": grant_recipient.grant.name,
                 "organisation_name": grant_recipient.organisation.name,
                 "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
-                "email_address": email_address,
+                "email_address": invitation.email,
                 "grant_submission_url": url_for(
                     "access_grant_funding.list_collections",
                     organisation_id=grant_recipient.organisation.id,
@@ -166,6 +194,7 @@ class NotificationService:
                 ),
                 "service_desk_url": current_app.config["ACCESS_SERVICE_DESK_URL"],
             },
+            govuk_notify_reference=NotificationReference.for_invitation(invitation),
         )
 
     def send_access_confirm_public_sign_up(
