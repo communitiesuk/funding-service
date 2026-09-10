@@ -1918,7 +1918,8 @@ class AllSubmissionsHelper:
         csv_writer = csv.DictWriter(csv_output, fieldnames=all_headers)
         csv_writer.writeheader()
         for submission in sorted(
-            [helper for _submission_id, helper in self.submission_helpers.items()], key=lambda helper: helper.reference
+            [helper for _submission_id, helper in self.submission_helpers.items()],
+            key=lambda helper: helper.reference,
         ):
             submission_csv_data = {
                 "Submission reference": submission.reference,

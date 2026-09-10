@@ -714,6 +714,11 @@ def get_all_submissions_with_mode_for_collection(
 
     if grant_recipient_ids is not NOT_PROVIDED:
         stmt = stmt.where(Submission.grant_recipient_id.in_(grant_recipient_ids))
+    else:
+        if submission_mode != SubmissionModeEnum.PREVIEW:
+            # Filter out any submissions with no grant recipient
+            # (those that have not yet been claimed through the sign up journey)
+            stmt = stmt.where(Submission.grant_recipient_id.is_not(None))
     return db.session.scalars(stmt).unique().all()
 
 

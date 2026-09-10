@@ -5620,6 +5620,20 @@ class TestGetSubmissions:
         )
         assert len(submission_results) == 1
 
+    def test_get_all_submissions_with_mode_for_collection_excludes_unclaimed(self, db_session, factories):
+        collection = factories.collection.create()
+        submission = factories.submission.create()
+        submission.grant_recipient_id = None
+
+        assert submission.grant_recipient is None
+
+        submission_results = list(
+            get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.LIVE
+            )
+        )
+        assert len(submission_results) == 0
+
     def test_get_all_submissions_with_mode_for_collection_with_users(self, db_session, factories, track_sql_queries):
         collection = factories.collection.create(create_submissions__live=2, create_submissions__test=1)
         collection_id = collection.id
