@@ -17,7 +17,7 @@ from app.common.data.types import (
 )
 from app.deliver_grant_funding.routes.api.callbacks import GovukNotifyCallbackModel
 from app.extensions import db
-from app.services.notify import NotificationReference, NotificationReferenceType
+from app.services.notify import NotificationError, NotificationReference, NotificationReferenceType
 from tests.models import _get_grant_managing_organisation
 
 
@@ -395,6 +395,34 @@ class TestGovukNotifyCallback:
                 mocker.call(invitation.created_by.email, invitation=invitation, grant_recipient=gr)
             ]
 
+        def test_permanent_failure_notify_error_is_logged(
+            self, anonymous_client, factories, mocker: MockerFixture, caplog
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            notify.send_access_team_member_invitation_perm_delivery_failure.side_effect = NotificationError()
+            with caplog.at_level(logging.ERROR, logger="app"):
+                response, _ = self._post(
+                    anonymous_client,
+                    to=invitation.email,
+                    status="permanent-failure",
+                    reference=f"db:invitation:{invitation.id}",
+                )
+
+            assert response.status_code == 202
+            assert notify.send_access_team_member_invitation_perm_delivery_failure.call_args_list == [
+                mocker.call(invitation.created_by.email, invitation=invitation, grant_recipient=gr)
+            ]
+            assert [
+                r.getMessage()
+                for r in caplog.records
+                if r.levelno == logging.ERROR and "Failed to send notification" in r.getMessage()
+            ] == [
+                f"Failed to send notification to user {invitation.created_by_id} who created grant recipient invitation"
+            ]
+
         def test_permanent_failure_without_reference_does_not_email_anyone(
             self, anonymous_client, factories, mocker: MockerFixture
         ) -> None:
@@ -605,6 +633,33 @@ class TestGovukNotifyCallback:
 
             assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == [
                 mocker.call(invitation.created_by.email, invitation=invitation, grant_recipient=gr)
+            ]
+
+        def test_temporary_failure_notify_error_is_logged(
+            self, anonymous_client, factories, mocker: MockerFixture, caplog
+        ) -> None:
+            gr = factories.grant_recipient.create()
+            invitation = factories.invitation.create(organisation=gr.organisation, grant=gr.grant)
+
+            notify = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.notification_service")
+            notify.send_access_team_member_invitation_temp_delivery_failure.side_effect = NotificationError()
+            with caplog.at_level(logging.ERROR, logger="app"):
+                response, _ = self._post(
+                    anonymous_client,
+                    to=invitation.email,
+                    reference=f"db:invitation:{invitation.id}",
+                )
+
+            assert response.status_code == 202
+            assert notify.send_access_team_member_invitation_temp_delivery_failure.call_args_list == [
+                mocker.call(invitation.created_by.email, invitation=invitation, grant_recipient=gr)
+            ]
+            assert [
+                r.getMessage()
+                for r in caplog.records
+                if r.levelno == logging.ERROR and "Failed to send notification" in r.getMessage()
+            ] == [
+                f"Failed to send notification to user {invitation.created_by_id} who created grant recipient invitation"
             ]
 
         def test_temporary_failure_without_reference_does_not_email_anyone(

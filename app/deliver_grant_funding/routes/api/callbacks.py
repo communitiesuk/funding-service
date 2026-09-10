@@ -27,7 +27,7 @@ from app.common.data.interfaces.user import (
 from app.common.data.types import GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
 from app.deliver_grant_funding.routes.api import deliver_grant_funding_api_blueprint
 from app.extensions import auto_commit_after_request, notification_service
-from app.services.notify import NotificationReference, NotificationReferenceType
+from app.services.notify import NotificationError, NotificationReference, NotificationReferenceType
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation
@@ -78,7 +78,8 @@ class GovukNotifyCallbackModel(BaseModel):
 def _get_invitation_for_reference(reference: NotificationReference | None) -> "Invitation | None":
     if reference is None or reference.type_ != NotificationReferenceType.INVITATION:
         return None
-    return get_invitation(reference.id)
+    invitation = get_invitation(reference.id, for_update=True)
+    return invitation if invitation and invitation.is_usable else None
 
 
 def handle_permanent_email_failure(
@@ -94,9 +95,15 @@ def handle_permanent_email_failure(
         if organisation and grant:
             grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
             if grant_recipient:
-                notification_service.send_access_team_member_invitation_perm_delivery_failure(
-                    invitation.created_by.email, invitation=invitation, grant_recipient=grant_recipient
-                )
+                try:
+                    notification_service.send_access_team_member_invitation_perm_delivery_failure(
+                        invitation.created_by.email, invitation=invitation, grant_recipient=grant_recipient
+                    )
+                except NotificationError:
+                    current_app.logger.exception(
+                        "Failed to send notification to user %(inviter)s who created grant recipient invitation",
+                        dict(inviter=invitation.created_by_id),
+                    )
 
     user = get_user_by_email(recipient_email)
     if user is None:
@@ -147,9 +154,15 @@ def handle_temporary_email_failure(recipient_email: str, reference: Notification
         if organisation and grant:
             grant_recipient = get_grant_recipient_or_none(grant.id, organisation.id)
             if grant_recipient:
-                notification_service.send_access_team_member_invitation_temp_delivery_failure(
-                    invitation.created_by.email, invitation=invitation, grant_recipient=grant_recipient
-                )
+                try:
+                    notification_service.send_access_team_member_invitation_temp_delivery_failure(
+                        invitation.created_by.email, invitation=invitation, grant_recipient=grant_recipient
+                    )
+                except NotificationError:
+                    current_app.logger.exception(
+                        "Failed to send notification to user %(inviter)s who created grant recipient invitation",
+                        dict(inviter=invitation.created_by_id),
+                    )
 
     user = get_user_by_email(recipient_email)
     if user is None:
