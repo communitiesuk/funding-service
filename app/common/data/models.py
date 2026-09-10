@@ -610,6 +610,22 @@ class Submission(BaseModel):
         )
 
     @property
+    def is_visible(self):
+        if not self.grant_recipient_id:
+            return False
+        match self.collection.submission_visibility:
+            case SubmissionVisibilityEnum.ALWAYS_VISIBLE:
+                return True
+            case SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION:
+                return (
+                    self.collection.is_closed and self.is_submitted
+                    if self.mode == SubmissionModeEnum.LIVE
+                    else self.is_submitted
+                )
+            case SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS:
+                return self.is_submitted
+
+    @property
     def s3_key_prefix(self) -> str:
         return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{self.mode}/{self.collection_id}/{self.id}"
 
