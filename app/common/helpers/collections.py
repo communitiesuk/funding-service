@@ -1861,7 +1861,7 @@ class AllSubmissionsHelper:
         """
         return [
             question
-            for form in sorted(self.collection.tasklist_forms, key=lambda f: f.order)
+            for form in sorted(self.collection.forms, key=lambda f: f.order)
             for question in form.cached_questions
         ]
 
@@ -2026,7 +2026,7 @@ class AllSubmissionsHelper:
 
             submission_data["sections"] = []
 
-            for form in submission.get_ordered_visible_forms():
+            for form in submission.get_ordered_visible_forms(include_eligibility_forms=True):
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
 
                 add_another_contexts = []
