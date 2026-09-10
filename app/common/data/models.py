@@ -1905,6 +1905,15 @@ class GrantRecipient(BaseModel):
     def submission_mode(self) -> SubmissionModeEnum:
         return SubmissionModeEnum(self.mode.value)
 
+    @hybrid_property
+    def is_applicant(self) -> bool:
+        return self.status == GrantRecipientStatusEnum.APPLYING
+
+    @is_applicant.inplace.expression
+    @classmethod
+    def _is_applicant_expression(cls) -> ColumnElement[bool]:
+        return cls.status == GrantRecipientStatusEnum.APPLYING
+
 
 class ReleaseNote(BaseModel):
     __tablename__ = "release_note"
