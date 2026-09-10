@@ -157,14 +157,6 @@ class Grant(BaseModel):
             if grant_recipient.mode == GrantRecipientModeEnum.TEST
         ]
 
-    @property
-    def live_grant_recipients(self) -> list[GrantRecipient]:
-        return [
-            grant_recipient
-            for grant_recipient in self.grant_recipients
-            if grant_recipient.mode == GrantRecipientModeEnum.LIVE
-        ]
-
     def get_access_reports_for_user(
         self,
         user: User | None = None,
@@ -1803,6 +1795,7 @@ class DataSource(BaseModel, SafeDidMixin):
             .where(
                 GrantRecipient.grant_id == cls.grant_id,
                 GrantRecipient.mode == GrantRecipientModeEnum.LIVE,
+                ~GrantRecipient.is_applicant,
                 Organisation.mode == OrganisationModeEnum.LIVE,
                 DataSourceOrganisationItem.id.is_(None),
             )
