@@ -272,6 +272,45 @@ class NotificationService:
             },
         )
 
+    def send_access_team_member_invitation_temp_delivery_failure(
+        self, email_address: str, *, invitation: Invitation, grant_recipient: GrantRecipient
+    ) -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_TEAM_MEMBER_INVITATION_TEMP_DELIVERY_FAILURE_ID"],
+            personalisation={
+                "email_address": email_address,
+                "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                "invitee_name": invitation.name,
+                "grant_name": grant_recipient.grant.name,
+                "organisation_name": grant_recipient.organisation.name,
+                "service_desk_url": current_app.config["ACCESS_SERVICE_DESK_URL"],
+            },
+        )
+
+    def send_access_team_member_invitation_perm_delivery_failure(
+        self, email_address: str, *, invitation: Invitation, grant_recipient: GrantRecipient
+    ) -> Notification:
+        return self._send_email(
+            email_address,
+            current_app.config["GOVUK_NOTIFY_ACCESS_TEAM_MEMBER_INVITATION_PERM_DELIVERY_FAILURE_ID"],
+            personalisation={
+                "email_address": email_address,
+                "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
+                "invitee_name": invitation.name,
+                "invitee_email": invitation.email,
+                "grant_name": grant_recipient.grant.name,
+                "organisation_name": grant_recipient.organisation.name,
+                "service_desk_url": current_app.config["ACCESS_SERVICE_DESK_URL"],
+                "grant_submission_url": url_for(
+                    "access_grant_funding.list_collections",
+                    organisation_id=grant_recipient.organisation.id,
+                    grant_id=grant_recipient.grant.id,
+                    _external=True,
+                ),
+            },
+        )
+
     def send_access_submission_sent_for_certification_confirmation(
         self, email_address: str, *, submission_helper: SubmissionHelper
     ) -> Notification:
