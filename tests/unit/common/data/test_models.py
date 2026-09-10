@@ -744,6 +744,36 @@ class TestCollectionModel:
         collection = factories.collection.build(allow_public_sign_up=True)
         assert collection.submission_visibility == SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
 
+    def test_live_submissions_excludes_unclaimed_submissions(self, factories, mocker):
+        collection = factories.collection.build()
+        claimed = factories.submission.build(collection=collection, mode=SubmissionModeEnum.LIVE)
+        unclaimed = factories.submission.build(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None, grant_recipient_id=None
+        )
+
+        mocker.patch(
+            "app.common.data.models.Collection._submissions",
+            new_callable=PropertyMock,
+            return_value=[claimed, unclaimed],
+        )
+
+        assert collection.live_submissions == [claimed]
+
+    def test_test_submissions_excludes_unclaimed_submissions(self, factories, mocker):
+        collection = factories.collection.build()
+        claimed = factories.submission.build(collection=collection, mode=SubmissionModeEnum.TEST)
+        unclaimed = factories.submission.build(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None, grant_recipient_id=None
+        )
+
+        mocker.patch(
+            "app.common.data.models.Collection._submissions",
+            new_callable=PropertyMock,
+            return_value=[claimed, unclaimed],
+        )
+
+        assert collection.test_submissions == [claimed]
+
     def test_get_submission_counts(self, factories, mocker):
 
         collection = factories.collection.build()
@@ -775,11 +805,19 @@ class TestCollectionModel:
                 ]
             ),
         )
+        unclaimed_submissions = factories.submission.build_batch(
+            2,
+            collection=collection,
+            grant_recipient=None,
+            grant_recipient_id=None,
+            mode=factory.Iterator([SubmissionModeEnum.LIVE, SubmissionModeEnum.TEST]),
+            status=SubmissionStatusEnum.NOT_STARTED,
+        )
 
         mocker.patch(
             "app.common.data.models.Collection._submissions",
             new_callable=PropertyMock,
-            return_value=all_submissions,
+            return_value=all_submissions + unclaimed_submissions,
         )
 
         assert len(collection.live_submissions) == 5
