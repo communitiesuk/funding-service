@@ -462,6 +462,7 @@ class Collection(BaseModel):
 
     def get_submission_counts(self, submission_mode: SubmissionModeEnum) -> SubmissionTotals:
         submissions = self.live_submissions if submission_mode == SubmissionModeEnum.LIVE else self.test_submissions
+        submissions = [submission for submission in submissions if submission.grant_recipient_id is not None]
         return SubmissionTotals(
             count_in_progress=len([submission for submission in submissions if not submission.is_submitted]),
             count_submitted=len([submission for submission in submissions if submission.is_submitted]),

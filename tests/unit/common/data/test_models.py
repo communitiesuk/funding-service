@@ -775,17 +775,25 @@ class TestCollectionModel:
                 ]
             ),
         )
+        unclaimed_submissions = factories.submission.build_batch(
+            2,
+            collection=collection,
+            grant_recipient=None,
+            grant_recipient_id=None,
+            mode=factory.Iterator([SubmissionModeEnum.LIVE, SubmissionModeEnum.TEST]),
+            status=SubmissionStatusEnum.NOT_STARTED,
+        )
 
         mocker.patch(
             "app.common.data.models.Collection._submissions",
             new_callable=PropertyMock,
-            return_value=all_submissions,
+            return_value=all_submissions + unclaimed_submissions,
         )
 
-        assert len(collection.live_submissions) == 5
+        assert len(collection.live_submissions) == 6
         assert collection.get_submission_counts(SubmissionModeEnum.LIVE).count_in_progress == 3
         assert collection.get_submission_counts(SubmissionModeEnum.LIVE).count_submitted == 2
-        assert len(collection.test_submissions) == 3
+        assert len(collection.test_submissions) == 4
         assert collection.get_submission_counts(SubmissionModeEnum.TEST).count_in_progress == 1
         assert collection.get_submission_counts(SubmissionModeEnum.TEST).count_submitted == 2
 
