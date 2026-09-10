@@ -24,11 +24,11 @@ def get_grant_recipients(
     with_data_providers: bool = False,
     with_certifiers: bool = False,
     with_organisations: bool = False,
-    exclude_applicants: bool = False,
+    include_applicants: bool = False,
 ) -> Sequence[GrantRecipient]:
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
 
-    if exclude_applicants:
+    if not include_applicants:
         stmt = stmt.filter(~GrantRecipient.is_applicant)
 
     if with_data_providers:
@@ -139,12 +139,21 @@ def get_grant_recipient_or_none(grant_id: uuid.UUID, organisation_id: uuid.UUID)
     return db.session.scalars(statement).one_or_none()
 
 
-def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE) -> int:
+def get_grant_recipients_count(
+    grant: Grant,
+    mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
+    *,
+    include_applicants: bool = False,
+) -> int:
     statement = (
         select(func.count())
         .select_from(GrantRecipient)
-        .where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode, ~GrantRecipient.is_applicant)
+        .where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
     )
+
+    if not include_applicants:
+        statement = statement.where(~GrantRecipient.is_applicant)
+
     return db.session.scalar(statement) or 0
 
 
@@ -207,7 +216,7 @@ def get_grant_recipient_data_providers_count(
     data_providers = set()
     recipients_missing_data_providers = []
 
-    for grant_recipient in get_grant_recipients(grant, mode=mode, with_data_providers=True, exclude_applicants=True):
+    for grant_recipient in get_grant_recipients(grant, mode=mode, with_data_providers=True):
         if not grant_recipient.data_providers:
             recipients_missing_data_providers.append(grant_recipient.organisation.name)
         else:

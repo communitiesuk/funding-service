@@ -228,7 +228,7 @@ def copy_collection(collection: Collection, *, name: str, user: User, grant: Gra
         if data_source_data["type"] == DataSourceType.GRANT_RECIPIENT:
             upload_header_only_data_set_files(ds)
 
-            for grant_recipient in grant.live_grant_recipients:
+            for grant_recipient in get_grant_recipients(grant, with_organisations=True):
                 db.session.add(
                     DataSourceOrganisationItem(
                         data_source_id=ds.id, external_id=grant_recipient.organisation.external_id
