@@ -80,6 +80,18 @@ class TestSubmissionHelper:
             assert helper.get_ordered_visible_forms() == [form_a, form_b]
             assert eligibility_form not in helper.get_ordered_visible_forms()
 
+        def test_includes_eligibility_form_when_requested(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            form_a = factories.form.create(collection=collection)
+            form_b = factories.form.create(collection=collection)
+            submission = factories.submission.create(collection=collection)
+
+            helper = SubmissionHelper(submission)
+            forms = helper.get_ordered_visible_forms(include_eligibility_forms=True)
+
+            assert forms == [eligibility_form, form_a, form_b]
+
     class TestAllVisibleQuestions:
         def test_excludes_eligibility_form_questions(self, factories):
             collection = factories.collection.create()

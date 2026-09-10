@@ -792,9 +792,10 @@ class SubmissionHelper:
         else:
             return TasklistSectionStatusEnum.NOT_STARTED
 
-    def get_ordered_visible_forms(self) -> list[Form]:
+    def get_ordered_visible_forms(self, include_eligibility_forms: bool = False) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
-        return sorted(self.collection.tasklist_forms, key=lambda f: f.order)
+        forms = self.collection.forms if include_eligibility_forms else self.collection.tasklist_forms
+        return sorted(forms, key=lambda f: f.order)
 
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None

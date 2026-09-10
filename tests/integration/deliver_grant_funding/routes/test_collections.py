@@ -10900,7 +10900,7 @@ class TestViewSubmission:
         assert "Upload a supporting document" in soup.text
         assert "test-document.pdf" in soup.text
 
-    def test_eligibility_form_excluded_from_submission_responses(self, authenticated_grant_member_client, factories):
+    def test_eligibility_form_included_in_submission_responses(self, authenticated_grant_member_client, factories):
         collection = factories.collection.create(
             grant=authenticated_grant_member_client.grant,
             name="Test Report",
@@ -10923,10 +10923,10 @@ class TestViewSubmission:
 
         soup = BeautifulSoup(response.data, "html.parser")
 
-        # Eligibility section should not show up on Deliver's submission page
-        assert "Eligibility questions" not in soup.text
-        assert "Are you eligible to apply?" not in soup.text
-        # Other sections do show up
+        # Eligibility section should show up on Deliver's submission page
+        assert "Eligibility questions" in soup.text
+        assert "Are you eligible to apply?" in soup.text
+        # Other sections do show up too
         assert "Export test form" in soup.text
         assert "What is your name?" in soup.text
 
@@ -10964,7 +10964,7 @@ class TestViewSubmission:
         timeline_panel = soup.select_one("#timeline")
         assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
 
-    def test_ff_eligibility_form_excluded_from_submission_responses(
+    def test_ff_eligibility_form_included_in_submission_responses(
         self, authenticated_grant_member_client, factories, submission_submitted
     ):
         grant = authenticated_grant_member_client.grant
@@ -10987,10 +10987,10 @@ class TestViewSubmission:
         soup = BeautifulSoup(response.data, "html.parser")
 
         nav_items = [item.text.strip() for item in soup.select(".app-section-nav-list__item")]
-        # Eligibility section should not show up on Deliver's submission page
-        assert "Eligibility questions" not in nav_items
-        assert "Are you eligible to apply?" not in soup.text
-        # Other sections do show up
+        # Eligibility section should show up on Deliver's submission page
+        assert "Eligibility questions" in nav_items
+        assert "Are you eligible to apply?" in soup.text
+        # Other sections do show up too
         application_form = submission_submitted.collection.forms[0]
         assert application_form.title in nav_items
         assert "Question answer" in soup.text
