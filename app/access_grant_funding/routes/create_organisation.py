@@ -540,7 +540,18 @@ def create_organisation_company_search(
     if query:
         try:
             results = companies_house_service.search_companies(query, page=page)
-        except CompaniesHouseError:
+        except CompaniesHouseError as e:
+            # the register has no page of results this far in; start from the first page
+            if isinstance(e, CompaniesHouseNotFoundError) and page > 1:
+                return redirect(
+                    url_for(
+                        "access_grant_funding.create_organisation_company_search",
+                        grant_slug=grant_slug,
+                        collection_slug=collection_slug,
+                        q=query,
+                        source=source,
+                    )
+                )
             search_unavailable = True
         else:
             pagination = _search_pagination(

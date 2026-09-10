@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, ValidationError
 
 _REQUEST_TIMEOUT_SECONDS = 5
 _SEARCH_ITEMS_PER_PAGE = 20
+# the register won't page beyond this many results for a search, answering 416 to requests that try
+_SEARCH_MAX_RESULTS = 1000
 _CACHE_MAXSIZE = 1000
 
 
@@ -21,6 +23,8 @@ class CompaniesHouseError(Exception):
 
 
 class CompaniesHouseNotFoundError(CompaniesHouseError):
+    """Raised for a company that isn't on the register, or a page of search results beyond those it will return."""
+
     def __init__(self, message: str = "The company was not found on the Companies House register"):
         super().__init__(message)
 
@@ -44,7 +48,16 @@ class CompanySearchResults(BaseModel):
 
     @property
     def total_pages(self) -> int:
-        return max(1, math.ceil(self.total_results / self.items_per_page))
+        """The number of pages that can be requested, which stops short of the total for very broad searches."""
+        return max(1, min(math.ceil(self.total_results / self.items_per_page), self.max_page))
+
+    @property
+    def max_page(self) -> int:
+        return _SEARCH_MAX_RESULTS // self.items_per_page
+
+    @property
+    def is_truncated(self) -> bool:
+        return self.total_results > _SEARCH_MAX_RESULTS
 
 
 class CompanyProfile(BaseModel):
@@ -99,12 +112,13 @@ class CompaniesHouseService:
         self._http.auth = (app.config["COMPANIES_HOUSE_API_KEY"], "")
 
     def search_companies(self, query: str, page: int = 1) -> CompanySearchResults:
+        page = min(max(page, 1), _SEARCH_MAX_RESULTS // _SEARCH_ITEMS_PER_PAGE)
         data = self._get_json(
             "/search/companies",
             {
                 "q": query,
                 "items_per_page": _SEARCH_ITEMS_PER_PAGE,
-                "start_index": (max(page, 1) - 1) * _SEARCH_ITEMS_PER_PAGE,
+                "start_index": (page - 1) * _SEARCH_ITEMS_PER_PAGE,
             },
         )
         return self._parse(CompanySearchResults, data)
@@ -132,7 +146,7 @@ class CompaniesHouseService:
             current_app.logger.warning("Companies House request failed for %(path)s", dict(path=path))
             raise CompaniesHouseError() from e
 
-        if response.status_code == 404:
+        if response.status_code in (404, 416):
             raise CompaniesHouseNotFoundError()
         if not response.ok:
             current_app.logger.warning(

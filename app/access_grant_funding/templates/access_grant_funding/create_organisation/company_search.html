@@ -42,6 +42,9 @@
     <div class="govuk-grid-row">
       <div class="govuk-grid-column-full">
         <p class="govuk-body">{{ results.total_results }} search result{{ "" if results.total_results == 1 else "s" }}</p>
+        {% if results.is_truncated %}
+          <p class="govuk-body">Only the first {{ "{:,}".format(results.max_page * results.items_per_page) }} results can be shown. Add more detail to your search to find the company.</p>
+        {% endif %}
         {% if results.items | length == 0 %}
           <p class="govuk-body">No companies found. Check the spelling or try searching by the company number.</p>
         {% else %}

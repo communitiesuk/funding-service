@@ -2059,6 +2059,58 @@ class TestCreateOrganisationCompanySearch:
         mock_companies_house.search_companies.assert_called_once_with("TEST COMPANY", page=1)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_a_query_and_more_results_than_the_register_returns_stops_paging_at_its_limit(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
+        mock_companies_house.search_companies.return_value = CompanySearchResults(
+            items=[TEST_COMPANY], total_results=3000, start_index=980, items_per_page=20
+        )
+
+        response = authenticated_no_role_client.get(_company_search_url(sign_up_collection, q="TEST", page=50))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "3000 search results" in soup.text
+        assert "Only the first 1,000 results can be shown" in soup.text
+        pagination = soup.select_one("nav.govuk-pagination")
+        assert pagination.select_one("a.govuk-pagination__link[rel=next]") is None
+        assert pagination.select_one("li.govuk-pagination__item--current").text.strip() == "50"
+        assert [item.text.strip() for item in pagination.select("li.govuk-pagination__item")] == ["1", "⋯", "49", "50"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_a_query_for_a_page_the_register_will_not_return_starts_from_the_first_page(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
+        mock_companies_house.search_companies.side_effect = CompaniesHouseNotFoundError()
+
+        response = authenticated_no_role_client.get(
+            _company_search_url(sign_up_collection, q="TEST COMPANY", page=51, source="check-your-answers")
+        )
+
+        assert response.status_code == 302
+        assert response.location == _company_search_url(
+            sign_up_collection, q="TEST COMPANY", source="check-your-answers"
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_a_query_whose_first_page_is_not_found_shows_the_unavailable_message(
+        self, authenticated_no_role_client, sign_up_collection, mock_companies_house
+    ):
+        _enable_companies_house_lookup(authenticated_no_role_client)
+        _seed_session(authenticated_no_role_client, sign_up_collection, _company_session(sign_up_collection))
+        mock_companies_house.search_companies.side_effect = CompaniesHouseNotFoundError()
+
+        response = authenticated_no_role_client.get(_company_search_url(sign_up_collection, q="TEST COMPANY"))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Companies House search is not available at the moment" in soup.text
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_a_query_from_check_your_answers_puts_the_source_on_the_select_links(
         self, authenticated_no_role_client, sign_up_collection, mock_companies_house
     ):

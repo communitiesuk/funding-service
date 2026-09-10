@@ -120,6 +120,28 @@ class TestCompaniesHouseService:
         assert request_matcher.call_count == 1
 
     @responses.activate
+    def test_search_companies_requests_the_last_page_the_register_allows_for_a_page_beyond_it(self, app):
+        request_matcher = responses.get(
+            url=_search_url(app),
+            match=[matchers.query_param_matcher({"q": "test company", "items_per_page": "20", "start_index": "980"})],
+            json={**SEARCH_RESPONSE, "start_index": 980, "total_results": 3000},
+        )
+
+        results = companies_house_service.search_companies("test company", page=51)
+
+        assert results.page == 50
+        assert results.total_pages == 50
+        assert results.is_truncated is True
+        assert request_matcher.call_count == 1
+
+    @responses.activate
+    def test_search_companies_raises_not_found_for_a_page_the_register_will_not_return(self, app):
+        responses.get(url=_search_url(app), status=416)
+
+        with pytest.raises(CompaniesHouseNotFoundError):
+            companies_house_service.search_companies("test company", page=50)
+
+    @responses.activate
     def test_search_companies_caches_pages_separately(self, app):
         first_page = responses.get(
             url=_search_url(app),
