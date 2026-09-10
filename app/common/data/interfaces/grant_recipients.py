@@ -24,8 +24,14 @@ def get_grant_recipients(
     with_data_providers: bool = False,
     with_certifiers: bool = False,
     with_organisations: bool = False,
+    exclude_applicants: bool = False,
 ) -> Sequence[GrantRecipient]:
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
+
+    if exclude_applicants:
+        stmt = stmt.filter(
+            GrantRecipient.status.in_([GrantRecipientStatusEnum.AWARDED, GrantRecipientStatusEnum.ALLOCATED])
+        )
 
     if with_data_providers:
         stmt = stmt.options(joinedload(GrantRecipient.data_providers))

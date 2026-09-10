@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.models import Grant
-from app.common.data.types import RoleEnum
+from app.common.data.types import GrantRecipientStatusEnum, RoleEnum
 from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
@@ -65,10 +65,16 @@ class TestViewGrantDetails:
         org_a = factories.organisation.create(name="Organisation A")
         org_b = factories.organisation.create(name="Organisation B")
         org_c = factories.organisation.create(name="Organisation C")
+        org_applying = factories.organisation.create(name="Organisation Applying")
 
         factories.grant_recipient.create(grant=grant, organisation=org_a)
         factories.grant_recipient.create(grant=grant, organisation=org_b)
         factories.grant_recipient.create(grant=grant, organisation=org_c)
+
+        # grant recipients are not shown until they are awarded (or have been directly allocated)
+        factories.grant_recipient.create(
+            grant=grant, organisation=org_applying, status=GrantRecipientStatusEnum.APPLYING
+        )
 
         certifier_1_a = factories.user.create(name="Charlie Brown", email="charlie@org-a.com")
         data_provider_1_a = factories.user.create(name="Alice Smith", email="alice@org-a.com")
@@ -176,6 +182,8 @@ class TestViewGrantDetails:
         eve_pos = row_1_text.find("Eve Davis")
         frank_pos = row_1_text.find("Frank Miller")
         assert eve_pos < frank_pos
+
+        assert "Organisation Applying" not in soup.get_text()
 
     def test_displays_no_recipients_message(self, authenticated_platform_admin_client, factories):
         grant = factories.grant.create()

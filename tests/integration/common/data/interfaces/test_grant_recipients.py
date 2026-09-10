@@ -328,6 +328,18 @@ class TestGetGrantRecipients:
 
         assert len(queries) == 0
 
+    def test_exclude_applicants_limits_to_monitoring_statuses(self, factories, db_session):
+        grant = factories.grant.create()
+
+        awarded = factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.AWARDED)
+        allocated = factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.ALLOCATED)
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+
+        result = get_grant_recipients(grant, exclude_applicants=True)
+
+        assert len(result) == 2
+        assert {gr for gr in result} == {awarded, allocated}
+
 
 class TestGetGrantRecipientsWithOutstandingReports:
     def test_returns_grant_recipients_for_grant_with_status(self, factories, db_session):
