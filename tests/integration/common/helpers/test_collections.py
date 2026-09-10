@@ -8,6 +8,7 @@ from decimal import Decimal
 from io import StringIO
 from unittest import mock
 
+import factory
 import pytest
 from sqlalchemy import select
 
@@ -31,6 +32,7 @@ from app.common.data.types import (
     CollectionStatusEnum,
     DataSourceType,
     ExpressionType,
+    GrantRecipientModeEnum,
     ManagedExpressionsEnum,
     NumberTypeEnum,
     QuestionDataOptions,
@@ -3567,6 +3569,59 @@ class TestSubmissionsHelper:
 
         assert questions == [question_a]
         assert eligibility_question not in questions
+
+    @pytest.mark.parametrize(
+        "collection_status,allow_public_sign_up,exp_rows",
+        [
+            (CollectionStatusEnum.OPEN, True, 1),
+            (CollectionStatusEnum.OPEN, False, 2),
+            (CollectionStatusEnum.CLOSED, True, 1),
+            (CollectionStatusEnum.CLOSED, False, 2),
+        ],
+    )
+    def test_generate_csv_content_excludes_unsubmitted_submissions(
+        self, db_session, factories, collection_status, allow_public_sign_up, exp_rows
+    ):
+        collection = factories.collection.create(
+            name="Test Report",
+            create_completed_submissions_each_question_type__test=1,
+            allow_public_sign_up=allow_public_sign_up,
+            status=collection_status,
+        )
+        question = factories.question.create(form__collection=collection)
+        gr_in_progress, gr_submitted = factories.grant_recipient.create_batch(
+            2,
+            grant=collection.grant,
+            mode=GrantRecipientModeEnum.LIVE,
+            organisation__name=factory.Iterator(["Test Organisation 1 Ltd", "Test Organisation 2 Ltd"]),
+        )
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            grant_recipient=factory.Iterator([gr_in_progress, gr_submitted]),
+            created_by__email=factory.Iterator(["submitter-test@recipient.org", "submitter-test-2@recipient.org"]),
+            status=SubmissionStatusEnum.IN_PROGRESS,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Answer"))],
+        )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+            related_entity_id=question.form.id,
+        )
+        factories.submission_event.create(
+            submission=submission2,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            related_entity_id=question.form.id,
+        )
+        submission2.status = SubmissionStatusEnum.SUBMITTED
+
+        subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+        csv_content = subs_helper.generate_csv_content_for_all_submissions()
+        reader = csv.DictReader(StringIO(csv_content))
+        rows = list(reader)
+
+        assert len(rows) == exp_rows
 
     @pytest.mark.freeze_time("2025-03-01 13:30:00")
     def test_generate_csv_content_check_correct_rows_for_multiple_simple_submissions_every_question_type(
