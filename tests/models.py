@@ -1280,6 +1280,8 @@ class _InvitationFactory(SQLAlchemyModelFactory):
     permissions = None
     expires_at_utc = factory.LazyFunction(lambda: datetime.datetime.now() + datetime.timedelta(days=7))
     claimed_at_utc = None
+    created_by = factory.SubFactory(_UserFactory)
+    created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
 
     class Params:
         has_organisation = factory.Trait(

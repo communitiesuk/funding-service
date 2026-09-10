@@ -403,6 +403,7 @@ class TestInvitations:
         assert invite_from_db.claimed_at_utc is None
         assert invite_from_db.grant_id is None
         assert invite_from_db.organisation_id == organisation.id
+        assert invite_from_db.created_by_id == inviting_user.id
         assert invite_from_db.is_usable is True
 
         audit_event = db_session.scalars(select(AuditEventModel)).one()
