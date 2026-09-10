@@ -3569,7 +3569,7 @@ class TestSubmissionsHelper:
         assert live_submissions_helper.submission_mode == SubmissionModeEnum.LIVE
         assert len(live_submissions_helper.submissions) == 3
 
-    def test_get_all_possible_questions_for_collection_excludes_eligibility_form_questions(self, factories):
+    def test_get_all_possible_questions_for_collection_includes_eligibility_form_questions(self, factories):
         collection = factories.collection.create()
         form_a = factories.form.create(collection=collection)
         question_a = factories.question.create(form=form_a)
@@ -3579,8 +3579,7 @@ class TestSubmissionsHelper:
         subs_helper = AllSubmissionsHelper(collection=collection, submission_mode=SubmissionModeEnum.TEST)
         questions = subs_helper.get_all_possible_questions_for_collection()
 
-        assert questions == [question_a]
-        assert eligibility_question not in questions
+        assert questions == [question_a, eligibility_question]
 
     @pytest.mark.parametrize(
         "collection_status,allow_public_sign_up,exp_rows",
