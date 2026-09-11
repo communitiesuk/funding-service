@@ -82,13 +82,15 @@ class MetricEventName(StrEnum):
     PUBLIC_SIGN_UP_ELIGIBLE = "public-sign-up-eligible"
     PUBLIC_SIGN_UP_INELIGIBLE = "public-sign-up-ineligible"
     PUBLIC_SIGN_UP_ORGANISATION_CREATED = "public-sign-up-organisation-created"
-    PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION = "public-sign-up-matched-existing-organisation"
-    PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN = "public-sign-up-matched-by-email-domain"
-    PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE = "public-sign-up-matched-by-organisation-role"
+    # These three metrics are emitted once matched organisations are shown as options to choose from, not once one is
+    # picked. They measure what was available so we can get an idea of how frequently the matching logic is working.
+    PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE = "public-sign-up-matched-existing-organisation-available"
+    PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE = "public-sign-up-matched-by-email-domain-available"
+    PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE = "public-sign-up-matched-by-organisation-role-available"
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING = "public-sign-up-matched-organisation-already-applying"
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED = "public-sign-up-matched-organisation-application-created"
     PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public-sign-up-already-has-access"
-    PUBLIC_SIGN_UP_LOCAL_AUTHORITY_CONTACT_SUPPORT = "public-sign-up-local-authority-contact-support"
+    PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN = "public-sign-up-local-authority-support-shown"
 
 
 def _get_event_attributes(

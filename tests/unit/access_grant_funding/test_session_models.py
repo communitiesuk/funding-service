@@ -1,13 +1,16 @@
 import uuid
 
 import pytest
+from flask import Flask, session
 
 from app.access_grant_funding.session_models import (
     CompleteCreateOrganisationSession,
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
     SignUpOrganisationType,
+    start_public_sign_up,
 )
+from app.constants import SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS
 
 
 def _session(collection_id, *, needs_user_name=False, can_share_email_domain=True, **answers):
@@ -180,3 +183,27 @@ class TestCompleteCreateOrganisationSession:
         del session_dict["allow_team_members"]
 
         assert self._load(session_dict, collection_id) is not None
+
+
+class TestStartPublicSignUp:
+    def test_re_entering_the_same_collection_keeps_which_metrics_have_already_been_emitted(self, app: Flask):
+        collection_id = uuid.uuid4()
+
+        with app.test_request_context("/"):
+            start_public_sign_up(collection_id)
+            session[SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS] = ["public-sign-up-started"]
+
+            start_public_sign_up(collection_id)
+
+            assert session[SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS] == ["public-sign-up-started"]
+
+    def test_starting_a_different_collection_resets_which_metrics_have_already_been_emitted(self, app: Flask):
+        collection_id = uuid.uuid4()
+        second_collection_id = uuid.uuid4()
+        with app.test_request_context("/"):
+            start_public_sign_up(collection_id)
+            session[SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS] = ["public-sign-up-started"]
+
+            start_public_sign_up(second_collection_id)
+
+            assert SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS not in session

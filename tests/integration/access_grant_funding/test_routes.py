@@ -1256,7 +1256,7 @@ class TestPublicSignUpStartPage:
         with authenticated_grant_member_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
 
-    @patch("app.access_grant_funding.routes.misc.emit_metric_count")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
     def test_get_does_not_emit_started_metric(self, mock_count, anonymous_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
@@ -1274,7 +1274,7 @@ class TestPublicSignUpStartPage:
         assert response.status_code == 200
         mock_count.assert_not_called()
 
-    @patch("app.access_grant_funding.routes.misc.emit_metric_count")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
     def test_post_emits_started_metric(self, mock_count, anonymous_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
@@ -1292,11 +1292,36 @@ class TestPublicSignUpStartPage:
         assert response.status_code == 302
         mock_count.assert_called_once_with(
             MetricEventName.PUBLIC_SIGN_UP_STARTED,
+            grant_recipient=None,
             collection=collection,
             custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
         )
 
-    @patch("app.access_grant_funding.routes.misc.emit_metric_count")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_twice_for_the_same_collection_only_emits_started_metric_once(
+        self, mock_count, anonymous_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        url = url_for(
+            "access_grant_funding.public_sign_up_start_page", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+        first_response = anonymous_client.post(url)
+        second_response = anonymous_client.post(url)
+
+        assert first_response.status_code == 302
+        assert second_response.status_code == 302
+        mock_count.assert_called_once_with(
+            MetricEventName.PUBLIC_SIGN_UP_STARTED,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
+
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
     def test_post_as_deliver_user_testing_access_does_not_emit_metric(
         self, mock_count, authenticated_platform_admin_client, factories
     ):
@@ -2017,20 +2042,20 @@ class TestEligibleToApplyPage:
             custom_attributes=expected_attributes,
         )
         mock_count.assert_any_call(
-            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE,
             grant_recipient=None,
             collection=collection,
             custom_attributes=expected_attributes,
         )
         mock_count.assert_any_call(
-            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION,
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE,
             grant_recipient=None,
             collection=collection,
             custom_attributes=expected_attributes,
         )
         assert (
             call(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE,
                 grant_recipient=None,
                 collection=collection,
                 custom_attributes=expected_attributes,
@@ -2064,14 +2089,14 @@ class TestEligibleToApplyPage:
         assert response.status_code == 200
         expected_attributes = {MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)}
         mock_count.assert_any_call(
-            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE,
             grant_recipient=None,
             collection=collection,
             custom_attributes=expected_attributes,
         )
         assert (
             call(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE,
                 grant_recipient=None,
                 collection=collection,
                 custom_attributes=expected_attributes,
@@ -2113,19 +2138,19 @@ class TestEligibleToApplyPage:
             custom_attributes=expected_attributes,
         )
         mock_count.assert_any_call(
-            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE,
             grant_recipient=None,
             collection=collection,
             custom_attributes=expected_attributes,
         )
         mock_count.assert_any_call(
-            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE,
             grant_recipient=None,
             collection=collection,
             custom_attributes=expected_attributes,
         )
         mock_count.assert_any_call(
-            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION,
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE,
             grant_recipient=None,
             collection=collection,
             custom_attributes=expected_attributes,

@@ -44,7 +44,7 @@ from app.common.helpers.collections import (
 from app.common.markdown import convert_text_to_govuk_markup
 from app.constants import SESSION_CREATE_ORGANISATION, SESSION_MATCHED_ORGANISATION
 from app.extensions import auto_commit_after_request, notification_service
-from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
+from app.metrics import MetricAttributeName, MetricEventName
 from app.types import FlashMessageType
 
 
@@ -330,12 +330,12 @@ def public_sign_up_start_page(grant_slug: str, collection_slug: str) -> Response
                 )
             )
 
-        emit_metric_count(
+        start_public_sign_up(collection.id)
+        emit_public_sign_up_metric_once(
             MetricEventName.PUBLIC_SIGN_UP_STARTED,
             collection=collection,
             custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
         )
-        start_public_sign_up(collection.id)
         return redirect(
             url_for(
                 "auth.collection_request_a_link_to_public_sign_up",
@@ -395,19 +395,19 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         )
         if matched_orgs.role_matched_orgs:
             emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE,
                 collection=collection,
                 custom_attributes=metric_attributes,
             )
         if matched_orgs.domain_matched_orgs:
             emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE,
                 collection=collection,
                 custom_attributes=metric_attributes,
             )
         if matched_orgs.all():
             emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION,
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE,
                 collection=collection,
                 custom_attributes=metric_attributes,
             )
