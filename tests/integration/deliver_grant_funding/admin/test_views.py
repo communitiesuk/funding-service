@@ -1111,6 +1111,111 @@ class TestCollectionLifecycleTasklist:
         assert "Do once" in task_status.get_text(strip=True)
         assert "govuk-tag--orange" in task_status.get("class")
 
+    def test_invite_and_overdue_email_tasks_are_hidden_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+        task_titles = [
+            item.find("div", {"class": "govuk-task-list__name-and-hint"}).get_text(strip=True)
+            for item in report_task_items
+        ]
+
+        assert "Send emails to data providers" not in task_titles
+        assert "Send report overdue emails" not in task_titles
+        assert "Send deadline reminder emails" in task_titles
+        assert "Send report closed emails" in task_titles
+
+        send_deadline_reminder_emails_task = report_task_items[task_titles.index("Send deadline reminder emails")]
+        task_title = send_deadline_reminder_emails_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert (
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/deadline-reminder"
+            in task_title.get("href")
+        )
+
+        task_status = send_deadline_reminder_emails_task.find("strong", {"class": "govuk-tag"})
+        assert "Do once" in task_status.get_text(strip=True)
+
+    def test_sign_off_task_does_not_need_grant_recipients_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            allow_public_sign_up=True,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        sign_off_task = report_task_items[3]
+        task_title = sign_off_task.find("a", {"class": "govuk-link"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Sign off and lock report"
+        assert f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection" in task_title.get(
+            "href"
+        )
+
+        task_status = sign_off_task.find("strong", {"class": "govuk-tag"})
+        assert "To do" in task_status.get_text(strip=True)
+
+    def test_sign_off_task_hint_only_mentions_grant_recipients_without_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection_with_public_sign_up = factories.collection.create(
+            grant=grant, name="Q1 Report", allow_public_sign_up=True
+        )
+        collection_without_public_sign_up = factories.collection.create(grant=grant, name="Q2 Report")
+
+        for collection, expected_hint in (
+            (collection_with_public_sign_up, "The grant must be live and submission dates set"),
+            (
+                collection_without_public_sign_up,
+                "The grant must be live, submission dates set, and some grant recipients set up",
+            ),
+        ):
+            response = authenticated_platform_grant_lifecycle_manager_client.get(
+                f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+            )
+            assert response.status_code == 200
+
+            soup = BeautifulSoup(response.data, "html.parser")
+            report_task_list = soup.find("ul", {"id": "report-tasks"})
+            report_task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+            sign_off_task = report_task_items[3]
+            task_title = sign_off_task.find("div", {"class": "govuk-task-list__name-and-hint"})
+            assert expected_hint in task_title.get_text(" ", strip=True)
+
+            task_status = sign_off_task.find("div", {"class": "govuk-task-list__status"})
+            assert "Cannot start yet" in task_status.get_text(strip=True)
+
 
 class TestSendEmailsToRecipients:
     @pytest.mark.parametrize(
@@ -1218,6 +1323,56 @@ class TestSendEmailsToRecipients:
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "email_type",
+        [
+            CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION,
+            CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE,
+        ],
+    )
+    def test_send_emails_to_recipients_not_available_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, email_type
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "email_type",
+        [
+            CollectionAdminEmailTypeEnum.DEADLINE_REMINDER,
+            CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION,
+        ],
+    )
+    def test_send_emails_to_recipients_still_available_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, email_type
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=(
+                CollectionStatusEnum.CLOSED
+                if email_type == CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION
+                else CollectionStatusEnum.OPEN
+            ),
+            allow_public_sign_up=True,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+        assert response.status_code == 200
 
     @pytest.mark.parametrize(
         "collection_status, expected_status",
@@ -4489,6 +4644,53 @@ class TestScheduleReport:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now locked")
 
+    def test_post_schedules_collection_with_public_sign_up_and_no_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+            allow_public_sign_up=True,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection",
+            data={"submit": "Sign off and lock collection"},
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    def test_get_confirm_page_with_public_sign_up_mentions_public_sign_up_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            allow_public_sign_up=True,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        page_text = " ".join(BeautifulSoup(response.data, "html.parser").get_text().split())
+        assert "This is what makes the public sign up page live." in page_text
+        assert "send emails to data providers" not in page_text
+
 
 class TestSetCollectionDatesStatusRestriction:
     @pytest.mark.parametrize(
@@ -5005,6 +5207,80 @@ class TestMakeReportLive:
 
         db_session.refresh(collection)
         assert collection.status == CollectionStatusEnum.SCHEDULED
+
+    def test_get_confirm_page_with_public_sign_up_and_no_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            allow_public_sign_up=True,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+
+        with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset()):
+            response = authenticated_platform_grant_lifecycle_manager_client.get(
+                f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+            )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert not any("grant recipient" in label for label in checkbox_labels)
+
+        inset_text = soup.find(class_="govuk-inset-text")
+        assert " ".join(inset_text.get_text().split()) == (
+            "Once the report is open, the sign up page will be publicly accessible, and users from any organisation "
+            "will be able to check if they are eligible and start a submission."
+        )
+
+        sign_up_link = inset_text.find("a", {"class": "govuk-link"})
+        assert sign_up_link.get("href") == f"/access/grant/{grant.slug}/{collection.slug}"
+
+    @pytest.mark.freeze_time("2024-04-01 10:00:00")
+    def test_post_makes_collection_open_with_public_sign_up_and_no_grant_recipients(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            allow_public_sign_up=True,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
+            data={
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_reporting_dates": "y",
+                "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
+                "confirm_reminder_days": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.OPEN
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(
+            soup,
+            "Q1 Report is now open and the sign up page is accessible for anyone to check eligibility, sign up and "
+            "make submissions.",
+        )
 
     def test_get_confirm_page_shows_missing_data_providers_checkbox(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

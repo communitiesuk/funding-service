@@ -627,16 +627,22 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
         super().__init__(*args, **kwargs)
 
         bold = 'class="govuk-!-font-weight-bold"'
-        self.confirm_grant_recipients.label.text = Markup(
-            f"It is correct that this grant has <strong {bold}>"
-            f"{grant_recipients_count} grant recipient{'s' if grant_recipients_count != 1 else ''}"
-            f"</strong> set up and the grant team has reviewed this"
-        )
-        self.confirm_grant_recipient_users.label.text = Markup(
-            f"It is correct that this grant has <strong {bold}>"
-            f"{data_providers_count} grant recipient user{'s' if data_providers_count != 1 else ''}"
-            f"</strong> set up and the grant team has reviewed this"
-        )
+        if collection.allow_public_sign_up and grant_recipients_count == 0:
+            # Grant recipients sign themselves up when public sign up is turned on, so there is nothing to confirm
+            del self.confirm_grant_recipients
+            del self.confirm_grant_recipient_users
+        else:
+            self.confirm_grant_recipients.label.text = Markup(
+                f"It is correct that this grant has <strong {bold}>"
+                f"{grant_recipients_count} grant recipient{'s' if grant_recipients_count != 1 else ''}"
+                f"</strong> set up and the grant team has reviewed this"
+            )
+            self.confirm_grant_recipient_users.label.text = Markup(
+                f"It is correct that this grant has <strong {bold}>"
+                f"{data_providers_count} grant recipient user{'s' if data_providers_count != 1 else ''}"
+                f"</strong> set up and the grant team has reviewed this"
+            )
+
         if recipients_missing_data_providers:
             self.confirm_missing_data_providers.label.text = Markup(
                 "It is expected that the following grant recipients do not have any data providers set up: "
