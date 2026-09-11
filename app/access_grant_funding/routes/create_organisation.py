@@ -118,6 +118,14 @@ def create_organisation_local_authority(
     if org_session.organisation_type != SignUpOrganisationType.LOCAL_AUTHORITY:
         return redirect(organisation_type_url)
 
+    modes = get_sign_up_modes(interfaces.user.get_current_user())
+    if modes.submission == SubmissionModeEnum.LIVE:
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_CONTACT_SUPPORT,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
+        )
+
     return render_template(
         "access_grant_funding/create_organisation/local_authority.html",
         grant=grant,
