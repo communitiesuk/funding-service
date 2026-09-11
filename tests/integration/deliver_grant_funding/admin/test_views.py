@@ -1019,6 +1019,28 @@ class TestCollectionLifecycleTasklist:
         assert "Do once" in task_status.get_text(strip=True)
         assert "govuk-tag--orange" in task_status.get("class")
 
+    def test_send_report_overdue_emails_task_not_shown_for_hard_deadline(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+
+        assert "Send report overdue emails" not in report_task_list.get_text(strip=True)
+
     @pytest.mark.parametrize(
         "collection_status",
         [
@@ -1180,6 +1202,22 @@ class TestSendEmailsToRecipients:
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_status
+
+    def test_send_emails_to_recipients_report_overdue_not_available_for_hard_deadline(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
+        )
+        assert response.status_code == 404
 
     @pytest.mark.parametrize(
         "collection_status, expected_status",
@@ -1566,6 +1604,35 @@ class TestSendEmailsToRecipients:
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
         assert all(line.endswith(",,") for line in lines[1:])
+
+    def test_download_csv_deadline_reminder_formats_hard_submission_deadline(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2025, 4, 30),
+            allow_edits_after_submission_deadline=False,
+        )
+        organisation = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=factories.user.create(email="user1@org1.example.com"),
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+        )
+
+        assert response.status_code == 200
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        assert len(rows) == 1
+        assert rows[0]["submission_deadline"] == "Wednesday 30 April 2025 at 2pm"
 
     def test_download_csv_format_and_content_report_closed(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
