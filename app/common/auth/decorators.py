@@ -343,8 +343,8 @@ def has_deliver_grant_role(
     return decorator
 
 
-def submission_is_visible() -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:
-    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:
+def submission_is_visible() -> Callable[[Callable[..., ResponseReturnValue]], Callable[..., ResponseReturnValue]]:  # noqa: C901
+    def decorator[**P](func: Callable[P, ResponseReturnValue]) -> Callable[P, ResponseReturnValue]:  # noqa: C901
         @functools.wraps(func)
         def wrapped(*args: P.args, **kwargs: P.kwargs) -> ResponseReturnValue:
             if "grant_id" not in kwargs or (grant_id := cast(uuid.UUID, kwargs["grant_id"])) is None:
@@ -354,7 +354,7 @@ def submission_is_visible() -> Callable[[Callable[..., ResponseReturnValue]], Ca
                 cast(SubmissionModeEnum, kwargs["submission_mode"]) if "submission_mode" in kwargs else None
             )
             submission_id = cast(uuid.UUID, kwargs["submission_id"]) if "submission_id" in kwargs else None
-
+            submission = None
             if submission_id:
                 submission = get_submission(submission_id)
                 collection_id = submission.collection_id
@@ -368,8 +368,14 @@ def submission_is_visible() -> Callable[[Callable[..., ResponseReturnValue]], Ca
                     404,
                 )
 
+            if submission:
+                if submission.is_visible:
+                    return func(*args, **kwargs)
+                else:
+                    abort(403)
+
             collection = get_collection(collection_id, grant_id)
-            # TODO when we implement FSPT-1636 test submissions should also respect REQUIRES_SUBMITTED_STATUS
+
             if submission_mode == SubmissionModeEnum.TEST:
                 return func(*args, **kwargs)
 
@@ -379,14 +385,10 @@ def submission_is_visible() -> Callable[[Callable[..., ResponseReturnValue]], Ca
                 case SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION:
                     if collection.status == CollectionStatusEnum.CLOSED:
                         return func(*args, **kwargs)
-                case _:
-                    current_app.logger.error(
-                        "Unhandled value for submission visibility %s", collection.submission_visibility
-                    )
-
-            return abort(
-                403,
-            )
+                    else:
+                        abort(403)
+                case SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS:
+                    return func(*args, **kwargs)
 
         return wrapped
 
