@@ -174,7 +174,8 @@
       %}
 
       {% set dates_are_set = collection.submission_period_start_date and collection.submission_period_end_date %}
-      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_count > 0 and dates_are_set %}
+      {% set grant_recipients_are_set_up = grant_recipients_count > 0 or collection.allow_public_sign_up %}
+      {% set prerequisites_met = grant.status == enum.grant_status.LIVE and grant_recipients_are_set_up and dates_are_set %}
       {% set scheduledReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
 
       {% if collection.status != enum.collection_status.DRAFT %}
@@ -182,10 +183,15 @@
       {% elif not prerequisites_met %}
         {% set scheduledReportStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
       {% endif %}
+      {% if collection.allow_public_sign_up %}
+        {% set scheduledReportHint = "The grant must be live and submission dates set" %}
+      {% else %}
+        {% set scheduledReportHint = "The grant must be live, submission dates set, and some grant recipients set up" %}
+      {% endif %}
       {%
         do rows.append({
           "title": {"text": "Sign off and lock " + collection.type.constants.singular, "classes": "govuk-link--no-visited-state"},
-          "hint": {"text": "The grant must be live, submission dates set, and some grant recipients set up"} if not prerequisites_met else {},
+          "hint": {"text": scheduledReportHint} if not prerequisites_met else {},
           "status": scheduledReportStatus,
           "href": url_for('collection_lifecycle.schedule_collection', grant_id=grant.id, collection_id=collection.id) if prerequisites_met and collection.status == enum.collection_status.DRAFT else "",
         })
@@ -213,13 +219,16 @@
       {% else %}
         {% set sendEmailsStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
       {% endif %}
-      {%
-        do rows.append({
-          "title": {"text": "Send emails to data providers", "classes": "govuk-link--no-visited-state"},
-          "status": sendEmailsStatus,
-          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_OPEN_NOTIFICATION) if collection.status == enum.collection_status.OPEN else "",
-        })
-      %}
+
+      {% if not collection.allow_public_sign_up %}
+        {%
+          do rows.append({
+            "title": {"text": "Send emails to data providers", "classes": "govuk-link--no-visited-state"},
+            "status": sendEmailsStatus,
+            "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_OPEN_NOTIFICATION) if collection.status == enum.collection_status.OPEN else "",
+          })
+        %}
+      {% endif %}
       {%
         do rows.append({
           "title": {"text": "Send deadline reminder emails", "classes": "govuk-link--no-visited-state"},
@@ -228,7 +237,7 @@
         })
       %}
 
-      {% if collection.allow_edits_after_submission_deadline %}
+      {% if collection.allow_edits_after_submission_deadline and not collection.allow_public_sign_up %}
         {% if collection.status == enum.collection_status.CLOSED %}
           {% set sendReportClosedEmailsStatus= {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
         {% elif collection.status == enum.collection_status.OPEN and collection.is_overdue %}

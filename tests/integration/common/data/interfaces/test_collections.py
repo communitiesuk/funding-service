@@ -76,6 +76,7 @@ from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
     GrantMustBeLiveError,
+    GrantRecipientUsersRequiredError,
     InvalidReferenceInExpression,
     StateTransitionError,
 )
@@ -1091,6 +1092,53 @@ class TestUpdateCollection:
             update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
 
         assert "submission period dates must be set" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "from_status, to_status",
+        (
+            (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED),
+            (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.OPEN),
+        ),
+    )
+    def test_scheduling_and_opening_requires_grant_recipients(self, db_session, factories, from_status, to_status):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=from_status,
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        with pytest.raises(GrantRecipientUsersRequiredError) as exc_info:
+            update_collection(collection, status=to_status)
+
+        assert "Grant recipients must be set up" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "from_status, to_status",
+        (
+            (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED),
+            (CollectionStatusEnum.SCHEDULED, CollectionStatusEnum.OPEN),
+        ),
+    )
+    def test_scheduling_and_opening_does_not_require_grant_recipients_with_public_sign_up(
+        self, db_session, factories, from_status, to_status
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=from_status,
+            allow_public_sign_up=True,
+            submission_period_start_date=datetime.date(2025, 1, 1),
+            submission_period_end_date=datetime.date(2025, 1, 31),
+        )
+
+        updated_collection = update_collection(collection, status=to_status)
+
+        assert updated_collection.status == to_status
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.status == to_status
 
     @pytest.mark.freeze_time("2025-01-30 10:00:00")
     def test_update_collection_close_collection_before_submission_end_date_raises_error(self, db_session, factories):

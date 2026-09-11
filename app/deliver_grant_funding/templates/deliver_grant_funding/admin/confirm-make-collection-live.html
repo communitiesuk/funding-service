@@ -23,14 +23,29 @@
       </h1>
       <p class="govuk-body">Opening the {{ collection.type.constants.singular }} will allow grant recipients to start making submissions.</p>
 
-      {{ govukInsetText({ "text": "Once the " + collection.type.constants.singular + " is live, grant recipients will be able to access it and begin submitting their data." }) }}
+      {% set disclaimer_html %}
+        {% if not collection.allow_public_sign_up %}
+          <p class="govuk-body">Once the {{ collection.type.constants.singular }} is open, grant recipients will be able to access it and begin submitting their data.</p>
+        {% else %}
+          <p class="govuk-body">
+            Once the {{ collection.type.constants.singular }} is open, the
+            <a class="govuk-link" href="{{ url_for('access_grant_funding.public_sign_up_start_page', grant_slug=grant.slug, collection_slug=collection.slug) }}">sign up page</a> will be publicly accessible, and users from any organisation
+            will be able to check if they are eligible and start a submission.
+          </p>
+        {% endif %}
+      {% endset %}
+      {{ govukInsetText({ "html": disclaimer_html }) }}
 
       <p class="govuk-body">Confirm the following before opening the {{ collection.type.constants.singular }} for submissions:</p>
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.confirm_grant_recipients }}
-        {{ form.confirm_grant_recipient_users }}
+        {% if 'confirm_grant_recipients' in form %}
+          {{ form.confirm_grant_recipients }}
+        {% endif %}
+        {% if 'confirm_grant_recipient_users' in form %}
+          {{ form.confirm_grant_recipient_users }}
+        {% endif %}
         {% if 'confirm_missing_data_providers' in form %}
           {{ form.confirm_missing_data_providers }}
         {% endif %}

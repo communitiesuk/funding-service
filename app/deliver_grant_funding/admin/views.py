@@ -987,15 +987,20 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             try:
                 update_collection(collection, status=CollectionStatusEnum.OPEN)
-                flash(
-                    (
+
+                if collection.allow_public_sign_up:
+                    flash_message = (
+                        f"{markupsafe.escape(collection.name)} is now open and the sign up page is accessible "
+                        "for anyone to check eligibility, sign up and make submissions."
+                    )
+                else:
+                    flash_message = (
                         f"{markupsafe.escape(collection.name)} is now live and grant recipients can start making "
                         f"submissions. "
                         "<strong>You must now send emails to grant recipient users to let them know the "
                         f"{collection.type.constants.singular} is open for submissions.</strong>"
-                    ),
-                    "success",
-                )
+                    )
+                flash(flash_message, "success")
                 return redirect(
                     url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
                 )

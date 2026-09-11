@@ -573,7 +573,9 @@ def update_collection(  # noqa: C901
                         "reporting_period_start_date and reporting_period_end_date must both be unset or both be set"
                     )
 
-                if not get_grant_recipients(collection.grant):
+                # Grant recipients sign themselves up when public sign up is turned on, so we do not expect any to be
+                # set up in advance.
+                if not collection.allow_public_sign_up and not get_grant_recipients(collection.grant):
                     raise GrantRecipientUsersRequiredError(
                         f"Grant recipients must be set up before {actioning} a {collection.type.constants.singular}"
                     )
