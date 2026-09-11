@@ -1,4 +1,6 @@
+from collections.abc import Mapping
 from typing import NamedTuple
+from uuid import UUID
 
 from flask import flash, redirect, session, url_for
 from flask.typing import ResponseReturnValue
@@ -17,9 +19,34 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import claim_or_discard_unclaimed_submission
-from app.constants import SESSION_MATCHED_ORGANISATION
+from app.constants import SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, SESSION_MATCHED_ORGANISATION
 from app.extensions import notification_service
+from app.metrics import MetricEventName, emit_metric_count
 from app.types import FlashMessageType
+
+
+def emit_public_sign_up_metric_once(
+    event: MetricEventName,
+    *,
+    grant_recipient: GrantRecipient | None = None,
+    collection: Collection | None = None,
+    custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
+) -> None:
+    """
+    Emit each public sign up metric at most once per journey (tracked in the session), so a user refreshing a page
+    partway through doesn't inflate the count.
+    """
+    already_emitted = session.get(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, [])
+    if event in already_emitted:
+        return
+
+    emit_metric_count(
+        event,
+        grant_recipient=grant_recipient,
+        collection=collection,
+        custom_attributes=custom_attributes,
+    )
+    session[SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS] = [*already_emitted, str(event)]
 
 
 class SignUpModes(NamedTuple):

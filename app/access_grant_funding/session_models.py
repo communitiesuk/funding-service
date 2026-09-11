@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from app.common.data.models_user import User
 from app.constants import (
     SESSION_CREATE_ORGANISATION,
+    SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS,
     SESSION_MATCHED_ORGANISATION,
     SESSION_SIGNING_UP_FOR_COLLECTION_ID,
 )
@@ -110,10 +111,12 @@ def start_public_sign_up(collection_id: UUID) -> None:
     """Begin (or restart) a public sign up, discarding any in-progress organisation set up."""
     session.pop(SESSION_CREATE_ORGANISATION, None)
     session.pop(SESSION_MATCHED_ORGANISATION, None)
+    session.pop(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, None)
     session[SESSION_SIGNING_UP_FOR_COLLECTION_ID] = collection_id
 
 
 def clear_public_sign_up_session() -> UUID | None:
     session.pop(SESSION_CREATE_ORGANISATION, None)
     session.pop(SESSION_MATCHED_ORGANISATION, None)
+    session.pop(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, None)
     return session.pop(SESSION_SIGNING_UP_FOR_COLLECTION_ID, None)
