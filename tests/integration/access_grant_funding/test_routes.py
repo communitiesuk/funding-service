@@ -1,7 +1,7 @@
 import datetime
 import logging
 import uuid
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -1966,6 +1966,194 @@ class TestEligibleToApplyPage:
         assert "You are eligible to apply" in get_h1_text(soup)
         assert "Test grant name" in soup.text
         assert "Test Organisation" in soup.text
+
+    @pytest.mark.authenticate_as("test@no-matching-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_get_emits_eligible_metric_but_no_matched_metrics_when_no_organisations_match(
+        self, mock_count, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        mock_count.assert_called_once_with(
+            MetricEventName.PUBLIC_SIGN_UP_ELIGIBLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_get_emits_matched_by_email_domain_metric(self, mock_count, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        expected_attributes = {MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)}
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_ELIGIBLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        assert (
+            call(
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+                grant_recipient=None,
+                collection=collection,
+                custom_attributes=expected_attributes,
+            )
+            not in mock_count.call_args_list
+        )
+        assert mock_count.call_count == 3
+
+    @pytest.mark.authenticate_as("test@no-matching-domain.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_get_emits_matched_by_organisation_role_metric(self, mock_count, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["a-different-domain.com"])
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        expected_attributes = {MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)}
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        assert (
+            call(
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+                grant_recipient=None,
+                collection=collection,
+                custom_attributes=expected_attributes,
+            )
+            not in mock_count.call_args_list
+        )
+        assert mock_count.call_count == 3
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_get_emits_all_matched_metrics_when_matched_by_both_role_and_domain(
+        self, mock_count, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        expected_attributes = {MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)}
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_ELIGIBLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        assert mock_count.call_count == 4
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_get_as_deliver_user_testing_access_does_not_emit_metrics(
+        self, mock_count, authenticated_platform_admin_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], mode=OrganisationModeEnum.TEST
+        )
+
+        with authenticated_platform_admin_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_platform_admin_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        mock_count.assert_not_called()
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_creates_grant_recipient_and_grants_data_provider_role(
