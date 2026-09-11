@@ -64,7 +64,7 @@ from app.common.data.types import (
     TimelineEvent,
     TraceLevelEnum,
 )
-from app.common.filters import format_date
+from app.common.filters import format_collection_submission_deadline
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.feature_flags import FeatureFlags, SessionFeatureFlag
@@ -141,37 +141,24 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                     }
                 )
 
-            if collection.submission_period_end_date:
+            end_date = collection.submission_period_end_date
+            if end_date:
+                event_date = collection.date_to_send_overdue_emails
+                event_type: Literal["closing", "hard_deadline"] = "closing"
                 if not collection.allow_edits_after_submission_deadline:
-                    continue
+                    event_date = end_date if collection.status == CollectionStatusEnum.OPEN else None
+                    event_type = "hard_deadline"
 
-                send_overdue_emails_at = collection.date_to_send_overdue_emails
-                if send_overdue_emails_at and seven_days_ago <= send_overdue_emails_at <= seven_days_ahead:
+                if event_date and seven_days_ago <= event_date <= seven_days_ahead:
                     timeline_events.append(
                         {
-                            "date": send_overdue_emails_at,
-                            "type": "closing",
+                            "date": event_date,
+                            "type": event_type,
                             "collection": collection,
-                            "is_today": send_overdue_emails_at == today,
-                            "is_past": send_overdue_emails_at < today,
+                            "is_today": event_date == today,
+                            "is_past": event_date < today,
                         }
                     )
-
-        for collection in open_collections:
-            if (
-                collection.submission_period_end_date
-                and not collection.allow_edits_after_submission_deadline
-                and seven_days_ago <= collection.submission_period_end_date <= seven_days_ahead
-            ):
-                timeline_events.append(
-                    {
-                        "date": collection.submission_period_end_date,
-                        "type": "hard_deadline",
-                        "collection": collection,
-                        "is_today": collection.submission_period_end_date == today,
-                        "is_past": collection.submission_period_end_date < today,
-                    }
-                )
 
         for collection in [*open_collections, *scheduled_collections]:
             reminder_date = collection.date_to_send_reminder_emails
@@ -1058,7 +1045,11 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                         "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
                     ]
             case CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE:
-                if collection.status != CollectionStatusEnum.OPEN or not collection.is_overdue:
+                if (
+                    collection.status != CollectionStatusEnum.OPEN
+                    or not collection.is_overdue
+                    or not collection.allow_edits_after_submission_deadline
+                ):
                     return abort(404)
                 if collection.multiple_submissions_are_managed_by_service:
                     notify_template_id = current_app.config[
@@ -1142,7 +1133,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 return abort(404)
         for email_recipient, grant_recipient in sorted(email_recipients, key=lambda u: u[0].email):
             submission_name = collection.name
-            submission_deadline = format_date(collection.submission_period_end_date)
+            submission_deadline = format_collection_submission_deadline(collection)
 
             grant_submission_url = url_for(
                 "access_grant_funding.route_to_submission",

@@ -65,7 +65,12 @@ from app.common.helpers.feature_flags import FeatureFlags
 from app.common.helpers.request_tracing import get_tracing_state
 from app.common.utils import comma_join_items, slugify, uppercase_first
 from app.config import get_settings
-from app.constants import CHECK_YOUR_ANSWERS, DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.constants import (
+    CHECK_YOUR_ANSWERS,
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    HARD_SUBMISSION_DEADLINE_TIME_DISPLAY,
+)
 from app.extensions import (
     auto_commit_after_request,
     db,
@@ -331,6 +336,7 @@ def create_app() -> Flask:  # noqa: C901
                 data_set_external_id_column_header=DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
                 data_set_grant_recipient_column_header=DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
                 check_your_answers=CHECK_YOUR_ANSWERS,
+                hard_submission_deadline_time_display=HARD_SUBMISSION_DEADLINE_TIME_DISPLAY,
             ),
             enum=dict(
                 submission_mode=SubmissionModeEnum,

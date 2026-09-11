@@ -87,6 +87,7 @@ from app.common.expressions.references import (
 from app.common.helpers.dates import subtract_business_days
 from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
+from app.constants import HARD_SUBMISSION_DEADLINE_TIME
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -507,11 +508,13 @@ class Collection(BaseModel):
         return self.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT]
 
     @property
-    def submission_deadline_at(self) -> datetime.datetime | None:
+    def submission_deadline_with_time(self) -> datetime.datetime | None:
         if not self.submission_period_end_date:
             return None
 
-        deadline_time = datetime.time(14) if not self.allow_edits_after_submission_deadline else datetime.time.min
+        deadline_time = (
+            HARD_SUBMISSION_DEADLINE_TIME if not self.allow_edits_after_submission_deadline else datetime.time.max
+        )
         return datetime.datetime.combine(
             self.submission_period_end_date, deadline_time, tzinfo=ZoneInfo("Europe/London")
         )
@@ -524,8 +527,8 @@ class Collection(BaseModel):
         # ensure BST/ GMT to line up with the hybrid property expected boundary
         now = datetime.datetime.now(ZoneInfo("Europe/London"))
         if not self.allow_edits_after_submission_deadline:
-            assert self.submission_deadline_at
-            return now >= self.submission_deadline_at
+            assert self.submission_deadline_with_time
+            return now >= self.submission_deadline_with_time
 
         return self.submission_period_end_date < now.date()
 
@@ -534,7 +537,11 @@ class Collection(BaseModel):
     def _is_overdue_expression(cls) -> ColumnElement[bool]:
         london_now = func.timezone("Europe/London", func.now())
         london_today = london_now.cast(Date)
-        hard_submission_deadline = cast(cls.submission_period_end_date, DateTime) + datetime.timedelta(hours=14)
+        hard_submission_deadline = cast(cls.submission_period_end_date, DateTime) + datetime.timedelta(
+            hours=HARD_SUBMISSION_DEADLINE_TIME.hour,
+            minutes=HARD_SUBMISSION_DEADLINE_TIME.minute,
+            seconds=HARD_SUBMISSION_DEADLINE_TIME.second,
+        )
         return and_(
             cls.submission_period_end_date.isnot(None),
             case(
@@ -558,10 +565,11 @@ class Collection(BaseModel):
         if not self.submission_period_end_date:
             return None
 
-        if not self.allow_edits_after_submission_deadline:
-            return self.submission_period_end_date
-
-        return self.submission_period_end_date + datetime.timedelta(days=1)
+        return (
+            self.submission_period_end_date + datetime.timedelta(days=1)
+            if self.allow_edits_after_submission_deadline
+            else None
+        )
 
     @property
     def is_monitoring_collection(self) -> bool:

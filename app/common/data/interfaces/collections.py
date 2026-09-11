@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, List, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from flask import current_app
 from sqlalchemy import and_, delete, func, null, or_, select, text
@@ -338,7 +339,7 @@ def get_overdue_open_collections_excluding_draft_grants() -> Sequence[Collection
 def get_collections_with_dates_near_today_excluding_draft_grants(
     past_days: int = 7, future_days: int = 7
 ) -> Sequence[Collection]:
-    today = datetime.date.today()
+    today = datetime.datetime.now(ZoneInfo("Europe/London")).date()
     start_date = today - datetime.timedelta(days=past_days)
     end_date = today + datetime.timedelta(days=future_days)
     statement = (
@@ -596,8 +597,10 @@ def update_collection(  # noqa: C901
                 CollectionStatusEnum.CLOSED,
             ):
                 assert collection.submission_period_end_date
-                assert collection.submission_deadline_at
-                if datetime.datetime.now(datetime.UTC) < collection.submission_deadline_at.astimezone(datetime.UTC):
+                assert collection.submission_deadline_with_time
+                if datetime.datetime.now(datetime.UTC) < collection.submission_deadline_with_time.astimezone(
+                    datetime.UTC
+                ):
                     raise CollectionChronologyError(
                         f"You cannot close the {collection.type.constants.singular} for submissions before "
                         f"the submission period end date of {collection.submission_period_end_date}"

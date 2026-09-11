@@ -49,7 +49,7 @@
                 <td class="govuk-table__cell">
                   {{ format_date_short(event.date) }}
                   {% if event.type == "hard_deadline" %}
-                    at 2pm
+                    at {{ constants.hard_submission_deadline_time_display }}
                   {% endif %}
                   {% if event.is_today %}
                     {{ govukTag({"text": "today", "classes": "govuk-tag--green"}) }}
