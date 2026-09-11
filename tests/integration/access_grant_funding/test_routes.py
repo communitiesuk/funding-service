@@ -1,6 +1,7 @@
 import datetime
 import logging
 import uuid
+from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -33,6 +34,7 @@ from app.common.expressions import ExpressionContext
 from app.common.expressions.managed import GreaterThan, IsNo, IsYes
 from app.common.expressions.references import ExpressionReference
 from app.common.helpers.collections import get_or_create_unclaimed_submission
+from app.metrics import MetricAttributeName, MetricEventName
 from tests.models import FactoryAnswer
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
@@ -1253,6 +1255,66 @@ class TestPublicSignUpStartPage:
 
         with authenticated_grant_member_client.session_transaction() as flask_session:
             assert "signing_up_for_collection_id" not in flask_session
+
+    @patch("app.access_grant_funding.routes.misc.emit_metric_count")
+    def test_get_does_not_emit_started_metric(self, mock_count, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        mock_count.assert_not_called()
+
+    @patch("app.access_grant_funding.routes.misc.emit_metric_count")
+    def test_post_emits_started_metric(self, mock_count, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = anonymous_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        mock_count.assert_called_once_with(
+            MetricEventName.PUBLIC_SIGN_UP_STARTED,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
+
+    @patch("app.access_grant_funding.routes.misc.emit_metric_count")
+    def test_post_as_deliver_user_testing_access_does_not_emit_metric(
+        self, mock_count, authenticated_platform_admin_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+
+        response = authenticated_platform_admin_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        mock_count.assert_not_called()
 
 
 class TestPublicSignUpRouter:
