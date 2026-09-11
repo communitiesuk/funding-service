@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -22,6 +23,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import get_or_create_unclaimed_submission
+from app.metrics import MetricAttributeName, MetricEventName
 from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
@@ -1172,6 +1174,52 @@ class TestCreateOrganisationCheckYourAnswers:
         assert len(mock_notification_service_calls) == 1
         notification_call = mock_notification_service_calls[0]
         assert notification_call.args == (user.email, "2f2a5a36-b40b-45a5-9595-ae086eafacdd")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_emits_organisation_created_metric_with_organisation_type(
+        self, mock_count, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
+    ):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            _create_organisation_session(
+                sign_up_collection.id,
+                organisation_type=SignUpOrganisationType.CHARITY,
+                name="Acme Ltd",
+                external_id="000111222",
+                allow_team_members=False,
+            ),
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+        assert response.status_code == 302
+
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(GrantRecipient.grant_id == sign_up_collection.grant.id)
+        ).one()
+        mock_count.assert_called_once_with(
+            MetricEventName.PUBLIC_SIGN_UP_ORGANISATION_CREATED,
+            grant_recipient=grant_recipient,
+            collection=sign_up_collection,
+            custom_attributes={
+                MetricAttributeName.ORGANISATION_TYPE: "CHARITY",
+                MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE),
+            },
+        )
+
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_as_deliver_user_testing_access_does_not_emit_metric(
+        self, mock_count, authenticated_platform_admin_client, sign_up_collection, mock_notification_service_calls
+    ):
+        _seed_session(
+            authenticated_platform_admin_client, sign_up_collection, self._complete_session(sign_up_collection)
+        )
+
+        response = authenticated_platform_admin_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        mock_count.assert_not_called()
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_claims_the_eligibility_submission(

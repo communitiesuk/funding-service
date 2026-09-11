@@ -10,6 +10,7 @@ from app.access_grant_funding.forms import (
 )
 from app.access_grant_funding.helpers import (
     complete_public_sign_up_session_and_redirect,
+    emit_public_sign_up_metric_once,
     get_sign_up_modes,
     sign_up_as_grant_recipient,
 )
@@ -26,11 +27,12 @@ from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant_by_slug
 from app.common.data.interfaces.organisations import create_organisation, organisation_name_exists
-from app.common.data.types import OrganisationType
+from app.common.data.types import OrganisationType, SubmissionModeEnum
 from app.common.data.utils import generate_organisation_custom_code
 from app.common.forms import GenericSubmitForm
 from app.constants import CHECK_YOUR_ANSWERS, SESSION_CREATE_ORGANISATION
 from app.extensions import auto_commit_after_request
+from app.metrics import MetricAttributeName, MetricEventName
 
 
 @access_grant_funding_blueprint.route(
@@ -380,6 +382,18 @@ def create_organisation_check_your_answers(
         grant_recipient = sign_up_as_grant_recipient(
             user=user, grant=grant, collection=collection, organisation=organisation, mode=modes.grant_recipient
         )
+
+        if modes.submission == SubmissionModeEnum.LIVE:
+            emit_public_sign_up_metric_once(
+                MetricEventName.PUBLIC_SIGN_UP_ORGANISATION_CREATED,
+                collection=collection,
+                grant_recipient=grant_recipient,
+                custom_attributes={
+                    MetricAttributeName.ORGANISATION_TYPE: str(org_session.organisation_type),
+                    MetricAttributeName.SUBMISSION_MODE: str(modes.submission),
+                },
+            )
+
         return complete_public_sign_up_session_and_redirect(
             user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission
         )
