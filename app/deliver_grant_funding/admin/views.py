@@ -3,7 +3,6 @@ import datetime
 import os
 import zipfile
 from dataclasses import dataclass
-from datetime import timedelta
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any, Literal, Sequence, TypedDict, cast
 from uuid import UUID
@@ -146,8 +145,8 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                 if not collection.allow_edits_after_submission_deadline:
                     continue
 
-                send_overdue_emails_at = collection.submission_period_end_date + timedelta(days=1)
-                if seven_days_ago <= send_overdue_emails_at <= seven_days_ahead:
+                send_overdue_emails_at = collection.date_to_send_overdue_emails
+                if send_overdue_emails_at and seven_days_ago <= send_overdue_emails_at <= seven_days_ahead:
                     timeline_events.append(
                         {
                             "date": send_overdue_emails_at,
