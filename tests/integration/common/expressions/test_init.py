@@ -15,12 +15,22 @@ from app.common.data.types import (
     QuestionDataOptions,
     QuestionDataType,
     QuestionPresentationOptions,
+    SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext, UndefinedFunctionInExpression, evaluate, interpolate
 from app.common.expressions.managed import BetweenDates, GreaterThan
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer
+
+
+def _reference_data_source_column(factories, *, collection, data_source, column_name="c_allocation"):
+    # `_build_data_source_context` only resolves data sources that are referenced somewhere in the collection, so
+    # tests need a component that references the data source column being tested.
+    factories.question.create(
+        form__collection=collection,
+        hint=InterpolationStatement(ExpressionReference.from_data_source_column(data_source, column_name).wrapped),
+    )
 
 
 class TestExpressionContext:
@@ -220,28 +230,50 @@ class TestExpressionContext:
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
             data_source.schema = None
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
             assert context == {}
 
         def test_data_source_with_empty_schema_root_raises_error(self, factories):
-            # This also shouldn't happen in reality but testing the behaviour anyway
+            # This also shouldn't happen in reality but testing the behaviour anyway. The reference is set up against
+            # the data source's normal default schema (otherwise it wouldn't validate), and the schema is then wiped
+            # out afterwards to simulate a column having been referenced before the schema lost all of its columns.
             grant = factories.grant.create()
             collection = factories.collection.create(grant=grant)
             organisation = factories.organisation.create()
             grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
-            factories.data_source.create(
+            data_source = factories.data_source.create(
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
-                schema=DataSourceSchema.model_validate({}),
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
+            data_source.schema = DataSourceSchema.model_validate({})
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             with pytest.raises(ValueError):
                 ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+        def test_submissions_without_grant_recipient_wont_error(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            submission = factories.submission.create(
+                collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
+            )
+            data_source = factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+            )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
+
+            helper = SubmissionHelper.load(submission.id)
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+
+            assert data_source.safe_did in context
 
         def test_org_item_none_evaluation_exposes_none_values(self, factories):
             grant = factories.grant.create()
@@ -254,6 +286,7 @@ class TestExpressionContext:
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
@@ -273,6 +306,7 @@ class TestExpressionContext:
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
@@ -286,13 +320,14 @@ class TestExpressionContext:
             organisation = factories.organisation.create()
             grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
-            factories.data_source.create(
+            data_source = factories.data_source.create(
                 grant=grant,
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
                 create_gr_org_items=True,
                 create_gr_org_items__data=[1000],
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             mocker.patch.object(
                 DataSourceOrganisationItem, "data", new_callable=PropertyMock, return_value=[{"col": "val"}]
@@ -315,6 +350,7 @@ class TestExpressionContext:
                 create_gr_org_items=True,
                 create_gr_org_items__data=[1000],
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
@@ -339,6 +375,7 @@ class TestExpressionContext:
                 create_gr_org_items=True,
                 create_gr_org_items__data=[1000, 9999],
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
@@ -361,6 +398,7 @@ class TestExpressionContext:
                 create_gr_org_items=True,
                 create_gr_org_items__data=[1000],
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
@@ -384,6 +422,7 @@ class TestExpressionContext:
                 create_gr_org_items=True,
                 create_gr_org_items__data=[None],
             )
+            _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
@@ -403,6 +442,7 @@ class TestExpressionContext:
                 collection=collection,
                 type=DataSourceType.GRANT_RECIPIENT,
             )
+            _reference_data_source_column(factories, collection=collection, data_source=ds1)
             ds2 = factories.data_source.create(
                 name="Test data set 2",
                 grant=grant,
@@ -419,12 +459,32 @@ class TestExpressionContext:
                     }
                 ),
             )
+            _reference_data_source_column(factories, collection=collection, data_source=ds2, column_name="notes")
             helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
             context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
 
             assert ds1.safe_did in context
             assert ds2.safe_did in context
             assert ds1.safe_did != ds2.safe_did
+
+        def test_unreferenced_data_source_does_not_require_grant_recipient(self, factories):
+            grant = factories.grant.create()
+            collection = factories.collection.create(grant=grant)
+            submission = factories.submission.create(collection=collection)  # PREVIEW mode, no grant_recipient
+            factories.data_source.create(
+                grant=grant,
+                collection=collection,
+                type=DataSourceType.GRANT_RECIPIENT,
+            )
+
+            helper = SubmissionHelper(submission)
+            # Accessing grant_recipient directly raises - demonstrating why the unreferenced data source above must
+            # not be resolved against a grant recipient.
+            with pytest.raises(ValueError):
+                _ = helper.grant_recipient
+
+            context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
+            assert context == {}
 
 
 class TestEvaluatingManagedExpressions:
@@ -862,6 +922,7 @@ class TestDataSourceInterpolation:
             create_gr_org_items=True,
             create_gr_org_items__data=[1000],
         )
+        _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
         ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
@@ -882,6 +943,7 @@ class TestDataSourceInterpolation:
             collection=collection,
             type=DataSourceType.GRANT_RECIPIENT,
         )
+        _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
         ds_context = ExpressionContext._build_data_source_context(mode="interpolation", submission_helper=helper)
@@ -912,6 +974,7 @@ class TestDataSourceEvaluation:
             create_gr_org_items=True,
             create_gr_org_items__data=[1000],
         )
+        _reference_data_source_column(factories, collection=collection, data_source=data_source)
 
         helper = SubmissionHelper.load(submission.id, grant_recipient_id=grant_recipient.id)
         ds_context = ExpressionContext._build_data_source_context(mode="evaluation", submission_helper=helper)
