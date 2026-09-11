@@ -78,6 +78,7 @@ class MetricEventName(StrEnum):
 
     PUBLIC_SIGN_UP_STARTED = "public-sign-up-started"
     PUBLIC_SIGN_UP_ELIGIBLE = "public-sign-up-eligible"
+    PUBLIC_SIGN_UP_INELIGIBLE = "public-sign-up-ineligible"
     PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION = "public-sign-up-matched-existing-organisation"
     PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN = "public-sign-up-matched-by-email-domain"
     PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE = "public-sign-up-matched-by-organisation-role"

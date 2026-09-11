@@ -3431,6 +3431,50 @@ class TestPublicSignUpIneligiblePage:
         reason_paragraph = next(p for p in soup.find_all("p") if "This is because" in p.get_text())
         assert reason_paragraph.get_text() == "This is because you answered ‘No’ for ‘Are you eligible?’."
 
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_get_emits_ineligible_metric(self, mock_count, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(
+            form=eligibility_form, data_type=QuestionDataType.YES_NO, text="Are you eligible?"
+        )
+        add_component_eligibility(
+            question,
+            authenticated_no_role_client.user,
+            IsNo(subject_reference=ExpressionReference.from_question(question)),
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=authenticated_no_role_client.user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(question, YesNoAnswer(False))],
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_ineligible",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        mock_count.assert_called_once_with(
+            MetricEventName.PUBLIC_SIGN_UP_INELIGIBLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
+
 
 class TestPublicSignUpEligibilityQuestion:
     def test_get_redirects_when_not_authenticated(self, anonymous_client, factories):

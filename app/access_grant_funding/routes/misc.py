@@ -654,6 +654,13 @@ def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id
             )
         )
 
+    if modes.submission == SubmissionModeEnum.LIVE:
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_INELIGIBLE,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
+        )
+
     return render_template(
         "access_grant_funding/public_sign_up_ineligible.html",
         grant=grant,
