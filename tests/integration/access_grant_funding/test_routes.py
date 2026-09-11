@@ -2224,6 +2224,82 @@ class TestEligibleToApplyPage:
         assert "You've been added to Test Organisation. You can now apply for Test grant name." in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_emits_matched_organisation_application_created_metric(
+        self, mock_count, authenticated_no_role_client, factories, db_session, mock_notification_service_calls
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).one()
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED,
+            grant_recipient=grant_recipient,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
+
+    @pytest.mark.parametrize(
+        "has_existing_grant_recipient, has_role",
+        (
+            (False, False),
+            (True, False),
+            (True, True),
+        ),
+    )
+    @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_as_deliver_user_testing_access_does_not_emit_matched_organisation_metrics(
+        self,
+        mock_count,
+        authenticated_platform_admin_client,
+        factories,
+        mock_notification_service_calls,
+        has_existing_grant_recipient,
+        has_role,
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], mode=OrganisationModeEnum.TEST
+        )
+        if has_existing_grant_recipient:
+            factories.grant_recipient.create(grant=grant, organisation=organisation, mode=GrantRecipientModeEnum.TEST)
+        if has_role:
+            factories.user_role.create(
+                user=authenticated_platform_admin_client.user,
+                organisation=organisation,
+                grant=grant,
+                permissions=[RoleEnum.DATA_PROVIDER],
+            )
+
+        response = authenticated_platform_admin_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        mock_count.assert_not_called()
+
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_rejects_organisation_not_in_matched_list(
         self, authenticated_no_role_client, factories, db_session, mocker, caplog
     ):
@@ -2327,6 +2403,40 @@ class TestEligibleToApplyPage:
         assert "Added to organisation" not in soup.text
 
     @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_emits_already_has_access_metric_when_user_already_has_role(
+        self, mock_count, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
+            grant_recipient=existing_grant_recipient,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
+
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_redirects_to_already_applying_when_grant_recipient_exists_and_user_has_no_role(
         self, authenticated_no_role_client, factories, db_session
     ):
@@ -2379,6 +2489,34 @@ class TestEligibleToApplyPage:
         assert followed_response.status_code == 200
         soup = BeautifulSoup(followed_response.data, "html.parser")
         assert "Your organisation is already applying" in get_h1_text(soup)
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    @patch("app.access_grant_funding.helpers.emit_metric_count")
+    def test_post_emits_already_applying_metric_when_grant_recipient_exists_and_user_has_no_role(
+        self, mock_count, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.post(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            data={"organisation": str(organisation.id)},
+        )
+
+        assert response.status_code == 302
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING,
+            grant_recipient=grant_recipient,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
+        )
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_asks_for_the_users_name_when_we_hold_none(self, authenticated_no_role_client, factories, db_session):
