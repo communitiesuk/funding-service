@@ -30,7 +30,7 @@
           for grant recipients that have not yet submitted this {{ collection.type.constants.singular }}.
         </p>
         <ul class="govuk-list govuk-list--bullet">
-          <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
+          <li>Submission deadline: {{ format_collection_submission_deadline_short(collection) }}</li>
           {% if collection.date_to_send_reminder_emails %}
             <li>Date to send reminder email: {{ format_date_short(collection.date_to_send_reminder_emails) }}</li>
           {% endif %}
@@ -45,9 +45,14 @@
           Let grant recipient users know that the submission deadline has passed for {{ collection.grant.name }}. This email is sent to all data providers and certifiers for grant recipients that have not yet fully submitted this
           {{ collection.type.constants.singular }}.
         </p>
+        {% if not collection.allow_edits_after_submission_deadline %}
+          {% set overdue_email_date = format_collection_submission_deadline_short(collection) %}
+        {% else %}
+          {% set overdue_email_date = format_date_short(collection.date_to_send_overdue_emails) %}
+        {% endif %}
         <ul class="govuk-list govuk-list--bullet">
-          <li>Submission deadline: {{ format_date_short(collection.submission_period_end_date) }}</li>
-          <li>Date to send overdue email: {{ format_date_short(collection.submission_period_end_date + timedelta(days=1)) }}</li>
+          <li>Submission deadline: {{ format_collection_submission_deadline_short(collection) }}</li>
+          <li>Date to send overdue email: {{ overdue_email_date }}</li>
         </ul>
       {% elif email_type == enum.report_admin_email_type_enum.COLLECTION_CLOSED_NOTIFICATION %}
         <h1 class="govuk-heading-l">

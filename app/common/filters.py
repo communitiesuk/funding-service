@@ -1,11 +1,16 @@
 import decimal
 from datetime import UTC, date, datetime
-from typing import cast
+from typing import Protocol, cast
 from zoneinfo import ZoneInfo
 
 from num2words import num2words
 
 DEFAULT_DISPLAY_TZ = ZoneInfo("Europe/London")
+
+
+class _CollectionWithSubmissionDeadline(Protocol):
+    submission_period_end_date: date | None
+    allow_edits_after_submission_deadline: bool
 
 
 def _coerce_tz[T: date | datetime](value: T, tz: ZoneInfo | None) -> T:
@@ -31,6 +36,32 @@ def format_date_short(value: date | datetime, tz: ZoneInfo | None = DEFAULT_DISP
     > 16 May 2025
     """
     return _coerce_tz(value, tz).strftime("%-d %B %-Y")
+
+
+def format_collection_submission_deadline(
+    collection: _CollectionWithSubmissionDeadline, missing_text: str = "Dates to be confirmed"
+) -> str:
+    if not collection.submission_period_end_date:
+        return missing_text
+
+    formatted_deadline = format_date(collection.submission_period_end_date)
+    if not collection.allow_edits_after_submission_deadline:
+        return f"{formatted_deadline} at 2pm"
+
+    return formatted_deadline
+
+
+def format_collection_submission_deadline_short(
+    collection: _CollectionWithSubmissionDeadline, missing_text: str = "Dates to be confirmed"
+) -> str:
+    if not collection.submission_period_end_date:
+        return missing_text
+
+    formatted_deadline = format_date_short(collection.submission_period_end_date)
+    if not collection.allow_edits_after_submission_deadline:
+        return f"{formatted_deadline} at 2pm"
+
+    return formatted_deadline
 
 
 def format_date_approximate(value: date | datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY_TZ) -> str:

@@ -96,6 +96,36 @@ class TestSubmissionModel:
         submission = factories.submission.build(collection__submission_period_end_date=date(2026, 7, 17))
         assert submission.collection.is_overdue is True
 
+    @pytest.mark.freeze_time("2026-07-17 12:59:00")
+    def test_hard_deadline_collection_is_not_overdue_before_2pm_europe_london(self, factories):
+        submission = factories.submission.build(
+            collection__submission_period_end_date=date(2026, 7, 17),
+            collection__allow_edits_after_submission_deadline=False,
+        )
+
+        assert submission.collection.is_overdue is False
+        assert submission.is_overdue is False
+
+    @pytest.mark.freeze_time("2026-07-17 13:00:00")
+    def test_hard_deadline_collection_is_overdue_from_2pm_europe_london(self, factories):
+        submission = factories.submission.build(
+            collection__submission_period_end_date=date(2026, 7, 17),
+            collection__allow_edits_after_submission_deadline=False,
+        )
+
+        assert submission.collection.is_overdue is True
+        assert submission.is_overdue is True
+
+    @pytest.mark.freeze_time("2026-07-17 13:00:00")
+    def test_soft_deadline_collection_keeps_current_end_date_behaviour_at_2pm(self, factories):
+        submission = factories.submission.build(
+            collection__submission_period_end_date=date(2026, 7, 17),
+            collection__allow_edits_after_submission_deadline=True,
+        )
+
+        assert submission.collection.is_overdue is False
+        assert submission.is_overdue is False
+
     @pytest.mark.freeze_time("2025-01-10 12:00:00")
     @pytest.mark.parametrize("status", [SubmissionStatusEnum.SUBMITTED, SubmissionStatusEnum.SUBMITTED_WITH_CHANGES])
     def test_submission_is_not_overdue_when_completed(self, factories, status):

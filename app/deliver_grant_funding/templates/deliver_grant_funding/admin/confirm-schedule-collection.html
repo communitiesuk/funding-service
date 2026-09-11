@@ -45,7 +45,6 @@
         }}
       {% endif %}
 
-      {% set submission_close_time = " at 2pm" if not collection.allow_edits_after_submission_deadline else "" %}
       {{
         govukSummaryList({
           "rows": [{
@@ -59,7 +58,7 @@
             "value": { "text": format_date(collection.submission_period_start_date) if collection.submission_period_start_date else "Not set" },
           }, {
             "key": { "text": "Submission close date" },
-            "value": { "text": (format_date(collection.submission_period_end_date) ~ submission_close_time) if collection.submission_period_end_date else "Not set" },
+            "value": { "text": format_collection_submission_deadline(collection, missing_text="Not set") },
           }
           ],
           "classes": "app-!-border-top-line govuk-!-margin-bottom-8"

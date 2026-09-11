@@ -1,8 +1,15 @@
 import datetime
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 from app import format_date, format_date_range, format_datetime, format_datetime_range
-from app.common.filters import format_date_range_short, format_datetime_short, iso_utc
+from app.common.filters import (
+    format_collection_submission_deadline,
+    format_collection_submission_deadline_short,
+    format_date_range_short,
+    format_datetime_short,
+    iso_utc,
+)
 
 
 class TestFormatDate:
@@ -20,6 +27,32 @@ class TestFormatDate:
 
     def test_date_ignores_tz(self):
         assert format_date(datetime.date(2025, 6, 1), tz=None) == "Sunday 1 June 2025"
+
+
+class TestFormatCollectionSubmissionDeadline:
+    def test_soft_deadline_uses_current_long_date_display(self):
+        collection = SimpleNamespace(
+            submission_period_end_date=datetime.date(2025, 12, 31),
+            allow_edits_after_submission_deadline=True,
+        )
+
+        assert format_collection_submission_deadline(collection) == "Wednesday 31 December 2025"
+
+    def test_hard_deadline_includes_2pm_on_long_date_display(self):
+        collection = SimpleNamespace(
+            submission_period_end_date=datetime.date(2025, 12, 31),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        assert format_collection_submission_deadline(collection) == "Wednesday 31 December 2025 at 2pm"
+
+    def test_hard_deadline_includes_2pm_on_short_date_display(self):
+        collection = SimpleNamespace(
+            submission_period_end_date=datetime.date(2025, 12, 31),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        assert format_collection_submission_deadline_short(collection) == "31 December 2025 at 2pm"
 
 
 class TestFormatDatetime:

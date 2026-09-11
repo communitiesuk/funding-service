@@ -321,15 +321,13 @@ def get_collections_by_status_excluding_draft_grants(statuses: list[CollectionSt
 
 
 def get_overdue_open_collections_excluding_draft_grants() -> Sequence[Collection]:
-    today = datetime.date.today()
     statement = (
         select(Collection)
         .join(Collection.grant)
         .options(joinedload(Collection.grant))
         .where(
             Collection.status == CollectionStatusEnum.OPEN,
-            Collection.submission_period_end_date.isnot(None),
-            Collection.submission_period_end_date < today,
+            Collection.is_overdue,
             Grant.status != GrantStatusEnum.DRAFT,
         )
         .order_by(Collection.submission_period_end_date)
@@ -598,9 +596,8 @@ def update_collection(  # noqa: C901
                 CollectionStatusEnum.CLOSED,
             ):
                 assert collection.submission_period_end_date
-                if datetime.datetime.now(datetime.UTC) < datetime.datetime.combine(
-                    collection.submission_period_end_date, datetime.time.min, tzinfo=datetime.UTC
-                ):
+                assert collection.submission_deadline_at
+                if datetime.datetime.now(datetime.UTC) < collection.submission_deadline_at.astimezone(datetime.UTC):
                     raise CollectionChronologyError(
                         f"You cannot close the {collection.type.constants.singular} for submissions before "
                         f"the submission period end date of {collection.submission_period_end_date}"

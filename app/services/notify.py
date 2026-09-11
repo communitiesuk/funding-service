@@ -12,7 +12,7 @@ from notifications_python_client.errors import APIError, TokenError
 
 from app.common.data.models_user import Invitation
 from app.common.data.types import GrantRecipientModeEnum
-from app.common.filters import format_date, format_datetime
+from app.common.filters import format_collection_submission_deadline, format_datetime
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -207,10 +207,8 @@ class NotificationService:
                 "submission_name": collection.name,
                 "organisation_name": grant_recipient.organisation.name,
                 "grant_name": grant_recipient.grant.name,
-                "submission_deadline": (
-                    format_date(collection.submission_period_end_date)
-                    if collection.submission_period_end_date
-                    else "(Dates to be confirmed)"
+                "submission_deadline": format_collection_submission_deadline(
+                    collection, missing_text="(Dates to be confirmed)"
                 ),
                 "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             },
@@ -228,10 +226,8 @@ class NotificationService:
             "grant_name": grant_recipient.grant.name,
             "submission_name": collection.name,
             "requires_certification": "yes" if collection.requires_certification else "no",
-            "submission_deadline": (
-                format_date(collection.submission_period_end_date)
-                if collection.submission_period_end_date
-                else "(Dates to be confirmed)"
+            "submission_deadline": format_collection_submission_deadline(
+                collection, missing_text="(Dates to be confirmed)"
             ),
             "is_test_data": "yes" if grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             "grant_submission_url": (
@@ -350,10 +346,8 @@ class NotificationService:
             "grant_name": submission.collection.grant.name,
             "submitter": submitted_by.name,
             "submission_name": submission_helper.long_collection_name,
-            "submission_deadline": (
-                format_date(submission.collection.submission_period_end_date)
-                if submission.collection.submission_period_end_date
-                else "(Dates to be confirmed)"
+            "submission_deadline": format_collection_submission_deadline(
+                submission.collection, missing_text="(Dates to be confirmed)"
             ),
             "is_test_data": "yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no",
             "grant_submission_url": (
@@ -404,10 +398,8 @@ class NotificationService:
             ),
             "submission_name": submission_helper.long_collection_name,
             "certifier_comments": submission_helper.events.submission_state.declined_reason,
-            "submission_deadline": (
-                format_date(submission_helper.collection.submission_period_end_date)
-                if submission_helper.collection.submission_period_end_date
-                else "(Dates to be confirmed)"
+            "submission_deadline": format_collection_submission_deadline(
+                submission_helper.collection, missing_text="(Dates to be confirmed)"
             ),
             "decline_date": (
                 format_datetime(submission_helper.events.submission_state.declined_at_utc)
@@ -454,10 +446,8 @@ class NotificationService:
                 submission_helper.declined_by.name if submission_helper.declined_by else "(Certifier not known)"
             ),
             "submission_name": submission_helper.long_collection_name,
-            "submission_deadline": (
-                format_date(submission_helper.collection.submission_period_end_date)
-                if submission_helper.collection.submission_period_end_date
-                else "(Dates to be confirmed)"
+            "submission_deadline": format_collection_submission_deadline(
+                submission_helper.collection, missing_text="(Dates to be confirmed)"
             ),
             "certifier_comments": submission_state.declined_reason,
             "is_test_data": ("yes" if submission_helper.grant_recipient.mode == GrantRecipientModeEnum.TEST else "no"),

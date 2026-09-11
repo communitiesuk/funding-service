@@ -5946,6 +5946,45 @@ class TestGetSubmissionListForCollection:
         row = next(row for row in rows if row.submission_id == submission.id)
         assert row.is_overdue is expected_overdue
 
+    @pytest.mark.parametrize(
+        "offset_days, expected_overdue",
+        [
+            pytest.param(-1, True, id="day-after-hard-end-date-is-overdue"),
+            pytest.param(1, False, id="before-hard-end-date-is-not-overdue"),
+        ],
+    )
+    def test_optimised_hybrid_property_is_overdue_handles_hard_deadlines(
+        self, db_session, factories, offset_days, expected_overdue
+    ):
+        london_today = db_session.scalar(select(func.timezone("Europe/London", func.now()).cast(Date)))
+        collection = factories.collection.create(
+            allow_multiple_submissions=True,
+            allow_edits_after_submission_deadline=False,
+            submission_period_end_date=london_today + datetime.timedelta(days=offset_days),
+        )
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant, organisation__name="Acme Corp")
+        submission = factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        row = next(row for row in rows if row.submission_id == submission.id)
+        assert row.is_overdue is expected_overdue
+
+    def test_collection_sql_is_overdue_matches_hard_deadline_2pm_database_time(self, db_session, factories):
+        london_now = db_session.scalar(select(func.timezone("Europe/London", func.now())))
+        london_today = london_now.date()
+        expected_overdue = london_now >= datetime.datetime.combine(london_today, datetime.time(14))
+        collection = factories.collection.create(
+            allow_edits_after_submission_deadline=False,
+            submission_period_end_date=london_today,
+        )
+
+        is_overdue = db_session.scalar(select(Collection.is_overdue).where(Collection.id == collection.id))
+
+        assert is_overdue is expected_overdue
+
     @pytest.mark.parametrize("allow_public_sign_up", [True, False])
     def test_multi_submission_collection_returns_a_row_for_recipients_with_no_submissions(
         self, db_session, factories, allow_public_sign_up
@@ -6867,6 +6906,39 @@ class TestGetOverdueOpenCollectionsExcludingDraftGrants:
             grant=grant,
             status=CollectionStatusEnum.OPEN,
             submission_period_end_date=datetime.date(2099, 12, 31),
+        )
+
+        result = get_overdue_open_collections_excluding_draft_grants()
+
+        assert result == []
+
+    def test_returns_hard_deadline_open_collections_after_2pm_on_end_date(self, db_session, factories):
+        london_now = db_session.scalar(select(func.timezone("Europe/London", func.now())))
+        london_today = london_now.date()
+        hard_deadline_has_passed = london_now >= datetime.datetime.combine(london_today, datetime.time(14))
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_edits_after_submission_deadline=False,
+            submission_period_end_date=london_today,
+        )
+
+        result = get_overdue_open_collections_excluding_draft_grants()
+
+        if hard_deadline_has_passed:
+            assert [result_collection.id for result_collection in result] == [collection.id]
+        else:
+            assert result == []
+
+    def test_excludes_soft_deadline_open_collections_on_end_date(self, db_session, factories):
+        london_today = db_session.scalar(select(func.timezone("Europe/London", func.now()).cast(Date)))
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_edits_after_submission_deadline=True,
+            submission_period_end_date=london_today,
         )
 
         result = get_overdue_open_collections_excluding_draft_grants()

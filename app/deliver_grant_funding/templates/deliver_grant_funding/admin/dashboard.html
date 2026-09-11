@@ -117,7 +117,7 @@
           {% for collection in overdue_collections %}
             <li>
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=collection.grant_id, collection_id=collection.id) }}">{{ collection.name }}</a>
-              ({{ collection.grant.name }}) &mdash; ended {{ format_date_short(collection.submission_period_end_date) }}{{ " at 2pm. This collection must be moved to Closed" if not collection.allow_edits_after_submission_deadline else "" }}
+              ({{ collection.grant.name }}) &mdash; ended {{ format_collection_submission_deadline_short(collection) }}{{ ". This collection must be moved to Closed" if not collection.allow_edits_after_submission_deadline else "" }}
             </li>
           {% endfor %}
         </ul>

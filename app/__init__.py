@@ -46,6 +46,8 @@ from app.common.data.types import (
 from app.common.exceptions import RedirectException
 from app.common.expressions.references import ExpressionReference
 from app.common.filters import (
+    format_collection_submission_deadline,
+    format_collection_submission_deadline_short,
     format_date,
     format_date_approximate,
     format_date_range,
@@ -308,6 +310,8 @@ def create_app() -> Flask:  # noqa: C901
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
             cspNonce=app.jinja_env.globals["csp_nonce"](),  # ty: ignore[no-matching-overload]
+            format_collection_submission_deadline=format_collection_submission_deadline,
+            format_collection_submission_deadline_short=format_collection_submission_deadline_short,
             format_date=format_date,
             format_date_short=format_date_short,
             format_date_approximate=format_date_approximate,

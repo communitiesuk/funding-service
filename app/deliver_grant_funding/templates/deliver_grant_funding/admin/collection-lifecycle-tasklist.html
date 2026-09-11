@@ -144,10 +144,9 @@
         {% endif %}
       {% endset %}
       {% if collection.submission_period_start_date and collection.submission_period_end_date %}
-        {% set submission_close_time = " at 2pm" if not collection.allow_edits_after_submission_deadline else "" %}
         {% set submission_dates_hint %}
           Submission open date: {{ format_date(collection.submission_period_start_date) }}<br />
-          Submission close date: {{ format_date(collection.submission_period_end_date) }}{{ submission_close_time }}
+          Submission close date: {{ format_collection_submission_deadline(collection) }}
         {% endset %}
         {% set submission_dates_hint = {"html": submission_dates_hint | trim} %}
       {% else %}
