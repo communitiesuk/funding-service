@@ -88,6 +88,7 @@ class MetricEventName(StrEnum):
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING = "public-sign-up-matched-organisation-already-applying"
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED = "public-sign-up-matched-organisation-application-created"
     PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public-sign-up-already-has-access"
+    PUBLIC_SIGN_UP_LOCAL_AUTHORITY_CONTACT_SUPPORT = "public-sign-up-local-authority-contact-support"
 
 
 def _get_event_attributes(
