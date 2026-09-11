@@ -398,6 +398,7 @@ class Collection(BaseModel):
     reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
     requires_certification: Mapped[bool]
     allow_submission_reopening: Mapped[bool] = mapped_column(default=True)
+    allow_edits_after_submission_deadline: Mapped[bool] = mapped_column(default=True)
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
     allow_validation: Mapped[bool] = mapped_column(default=False)

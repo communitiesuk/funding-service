@@ -28,6 +28,14 @@
         {{ form.reporting_period_end_date }}
         {{ form.submission_period_start_date }}
         {{ form.submission_period_end_date }}
+        {% if form.allow_edits_after_submission_deadline is defined %}
+          {{
+            form.allow_edits_after_submission_deadline(params={
+            "items": [
+              {"hint": {"text": "Submission deadline is 2pm"
+          }},
+          {}, ], "fieldset": { "legend": { "text": form.allow_edits_after_submission_deadline.label.text, "classes": "govuk-!-font-weight-bold", }, }, }) }}
+        {% endif %}
 
         {{ form.submit }}
       </form>

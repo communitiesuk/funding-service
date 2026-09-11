@@ -385,6 +385,7 @@ def update_collection(  # noqa: C901
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
+    allow_edits_after_submission_deadline: bool | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     """Update the various attributes of a collection.
 
@@ -539,6 +540,9 @@ def update_collection(  # noqa: C901
 
     if allow_submission_reopening is not NOT_PROVIDED:
         collection.allow_submission_reopening = allow_submission_reopening
+
+    if allow_edits_after_submission_deadline is not NOT_PROVIDED:
+        collection.allow_edits_after_submission_deadline = allow_edits_after_submission_deadline
 
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):

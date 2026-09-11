@@ -19,7 +19,7 @@ from markupsafe import Markup, escape
 from wtforms import DateField, IntegerField, RadioField, SubmitField
 from wtforms.fields.choices import SelectField, SelectMultipleField
 from wtforms.fields.simple import BooleanField, EmailField, StringField, TextAreaField
-from wtforms.validators import DataRequired, Email, NumberRange, Optional
+from wtforms.validators import DataRequired, Email, InputRequired, NumberRange, Optional
 from xgovuk_flask_admin import GovSelectWithSearch
 
 from app.common.data.types import (
@@ -513,7 +513,17 @@ class PlatformAdminSetCollectionSubmissionDatesForm(FlaskForm):
         widget=GovDateInput(),
         format=["%d %m %Y", "%d %b %Y", "%d %B %Y"],
     )
-    submit = SubmitField("Save dates", widget=GovSubmitInput())
+    allow_edits_after_submission_deadline = RadioField(
+        "Should users be able to submit after the closing date?",
+        choices=[
+            (False, "Do not allow submissions after the closing date"),
+            (True, "Allow users to submit as overdue"),
+        ],
+        validators=[InputRequired("Select whether users can submit after the closing date")],
+        widget=GovRadioInput(),
+        coerce=lambda value: value in {True, "True", "true"},
+    )
+    submit = SubmitField("Save submission settings", widget=GovSubmitInput())
 
     def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
         result: bool = super().validate(extra_validators)
@@ -580,6 +590,9 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
     )
     confirm_submission_dates = BooleanField(
         validators=[DataRequired("Confirm the submission dates")], widget=GovCheckboxInput()
+    )
+    confirm_deadline_type = BooleanField(
+        validators=[DataRequired("Confirm the deadline type")], widget=GovCheckboxInput()
     )
     confirm_reporting_and_submission_overlap = BooleanField(
         validators=[DataRequired("Confirm the reporting and submission dates overlap")], widget=GovCheckboxInput()
@@ -655,6 +668,20 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
             )
         else:
             self.confirm_submission_dates.label.text = "The submission dates have been set"
+
+        can_submit_after_closing = collection.allow_edits_after_submission_deadline
+        self.confirm_deadline_type.label.text = (
+            "It is correct that users can submit as overdue after the closing date"
+            if can_submit_after_closing
+            else "It is correct that users cannot submit after the closing date"
+        )
+        self.confirm_deadline_type.validators = [
+            DataRequired(
+                "Confirm users can submit as overdue after the closing date"
+                if can_submit_after_closing
+                else "Confirm users cannot submit after the closing date"
+            )
+        ]
 
         if (
             collection.reporting_period_end_date

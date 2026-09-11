@@ -320,6 +320,7 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     type = CollectionType.MONITORING_REPORT
     requires_certification = True  # note: this'll need to change when we have more than just monitoring reports
     allow_submission_reopening = True
+    allow_edits_after_submission_deadline = True
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)

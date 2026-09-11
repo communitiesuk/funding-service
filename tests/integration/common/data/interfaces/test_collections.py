@@ -247,6 +247,22 @@ class TestCreateCollection:
 
         assert collection.requires_certification is expected_requires_certification
 
+    def test_create_collection_allows_edits_after_submission_deadline_by_default(self, db_session, factories):
+        g = factories.grant.create()
+        u = factories.user.create()
+
+        collection = create_collection(
+            name="test collection",
+            user=u,
+            grant=g,
+            type_=CollectionType.MONITORING_REPORT,
+        )
+
+        assert collection.allow_edits_after_submission_deadline is True
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.allow_edits_after_submission_deadline is True
+
     def test_create_collection_name_is_unique_per_grant(self, db_session, factories):
         grants = factories.grant.create_batch(2)
         u = factories.user.create()
@@ -338,6 +354,7 @@ class TestUpdateCollection:
             reporting_period_end_date=datetime.date(2024, 12, 31),
             submission_period_start_date=datetime.date(2025, 1, 1),
             submission_period_end_date=datetime.date(2025, 1, 31),
+            allow_edits_after_submission_deadline=False,
         )
 
         assert updated_collection.name == "New Name"
@@ -346,6 +363,17 @@ class TestUpdateCollection:
         assert updated_collection.reporting_period_end_date == datetime.date(2024, 12, 31)
         assert updated_collection.submission_period_start_date == datetime.date(2025, 1, 1)
         assert updated_collection.submission_period_end_date == datetime.date(2025, 1, 31)
+        assert updated_collection.allow_edits_after_submission_deadline is False
+
+    def test_update_collection_allow_edits_after_submission_deadline(self, db_session, factories):
+        collection = factories.collection.create(allow_edits_after_submission_deadline=True)
+
+        updated_collection = update_collection(collection, allow_edits_after_submission_deadline=False)
+
+        assert updated_collection.allow_edits_after_submission_deadline is False
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.allow_edits_after_submission_deadline is False
 
     def test_update_collection_only_name(self, db_session, factories):
         collection = factories.collection.create(

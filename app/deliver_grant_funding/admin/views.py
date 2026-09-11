@@ -7,6 +7,7 @@ from datetime import timedelta
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any, Literal, Sequence, TypedDict, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import boto3
 import markupsafe
@@ -114,7 +115,7 @@ if TYPE_CHECKING:
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
     @expose("/")
     def index(self) -> Any:
-        today = datetime.date.today()
+        today = datetime.datetime.now(ZoneInfo("Europe/London")).date()
         seven_days_ago = today - datetime.timedelta(days=7)
         seven_days_ahead = today + datetime.timedelta(days=7)
 
@@ -142,8 +143,10 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                 )
 
             if collection.submission_period_end_date:
-                send_overdue_emails_at = collection.submission_period_end_date + timedelta(days=1)
+                if not collection.allow_edits_after_submission_deadline:
+                    continue
 
+                send_overdue_emails_at = collection.submission_period_end_date + timedelta(days=1)
                 if seven_days_ago <= send_overdue_emails_at <= seven_days_ahead:
                     timeline_events.append(
                         {
@@ -154,6 +157,22 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                             "is_past": send_overdue_emails_at < today,
                         }
                     )
+
+        for collection in open_collections:
+            if (
+                collection.submission_period_end_date
+                and not collection.allow_edits_after_submission_deadline
+                and seven_days_ago <= collection.submission_period_end_date <= seven_days_ahead
+            ):
+                timeline_events.append(
+                    {
+                        "date": collection.submission_period_end_date,
+                        "type": "hard_deadline",
+                        "collection": collection,
+                        "is_today": collection.submission_period_end_date == today,
+                        "is_past": collection.submission_period_end_date < today,
+                    }
+                )
 
         for collection in [*open_collections, *scheduled_collections]:
             reminder_date = collection.date_to_send_reminder_emails
@@ -875,6 +894,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 collection,
                 submission_period_start_date=form.submission_period_start_date.data,
                 submission_period_end_date=form.submission_period_end_date.data,
+                allow_edits_after_submission_deadline=form.allow_edits_after_submission_deadline.data,
             )
             flash(f"Updated submission dates for {collection.name}.", "success")
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))

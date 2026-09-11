@@ -2948,7 +2948,7 @@ class SetSubmissionDatesPage:
         self.grant_id = grant_id
         self.collection_id = collection_id
         self.heading = page.get_by_role("heading", name="Set submission dates")
-        self.save_dates_button = page.get_by_role("button", name="Save dates")
+        self.save_dates_button = page.get_by_role("button", name="Save submission settings")
 
     def complete_submission_start_date(self, start_date: datetime.date) -> None:
         ReportsBasePage.fill_in_date_fields(

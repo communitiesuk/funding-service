@@ -24,7 +24,7 @@
       </h1>
       <p class="govuk-body">Sign off and lock the {{ collection.type.constants.singular }} to prevent further edits once the grant policy team has signed off on the form.</p>
       <p class="govuk-body">
-        A Platform admin member must manually open the signed off report for submissions on
+        A Platform admin member must manually open the signed off {{ collection.type.constants.singular }} for submissions by 3pm on
         {{ format_date_short(collection.submission_period_start_date) if collection.submission_period_start_date else "the first day of the submission period" }} and send emails to data providers.
       </p>
 
@@ -45,6 +45,7 @@
         }}
       {% endif %}
 
+      {% set submission_close_time = " at 2pm" if not collection.allow_edits_after_submission_deadline else "" %}
       {{
         govukSummaryList({
           "rows": [{
@@ -54,8 +55,11 @@
             "key": { "text": collection.type.constants.singular | capitalize + " period" },
             "value": { "text": format_date_range(collection.reporting_period_start_date, collection.reporting_period_end_date) if collection.reporting_period_start_date and collection.reporting_period_end_date else "Not set" },
           }, {
-            "key": { "text": "Submission period" },
-            "value": { "text": format_date_range(collection.submission_period_start_date, collection.submission_period_end_date) if collection.submission_period_start_date and collection.submission_period_end_date else "Not set" },
+            "key": { "text": "Submission open date" },
+            "value": { "text": format_date(collection.submission_period_start_date) if collection.submission_period_start_date else "Not set" },
+          }, {
+            "key": { "text": "Submission close date" },
+            "value": { "text": (format_date(collection.submission_period_end_date) ~ submission_close_time) if collection.submission_period_end_date else "Not set" },
           }
           ],
           "classes": "app-!-border-top-line govuk-!-margin-bottom-8"
