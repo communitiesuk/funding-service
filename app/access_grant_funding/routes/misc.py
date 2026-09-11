@@ -5,7 +5,11 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.forms import AddGrantTeamMemberForm, EligibleOrganisationSelectionForm, UserNameForm
-from app.access_grant_funding.helpers import get_sign_up_modes, sign_up_with_matched_organisation
+from app.access_grant_funding.helpers import (
+    emit_public_sign_up_metric_once,
+    get_sign_up_modes,
+    sign_up_with_matched_organisation,
+)
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.access_grant_funding.session_models import (
     CreateOrganisationSession,
@@ -383,6 +387,30 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
 
     modes = get_sign_up_modes(user)
     matched_orgs = get_matched_organisations(user, email_domain, mode=modes.organisation)
+
+    if modes.submission == SubmissionModeEnum.LIVE:
+        metric_attributes = {MetricAttributeName.SUBMISSION_MODE: str(modes.submission)}
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_ELIGIBLE, collection=collection, custom_attributes=metric_attributes
+        )
+        if matched_orgs.role_matched_orgs:
+            emit_public_sign_up_metric_once(
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE,
+                collection=collection,
+                custom_attributes=metric_attributes,
+            )
+        if matched_orgs.domain_matched_orgs:
+            emit_public_sign_up_metric_once(
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN,
+                collection=collection,
+                custom_attributes=metric_attributes,
+            )
+        if matched_orgs.all():
+            emit_public_sign_up_metric_once(
+                MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION,
+                collection=collection,
+                custom_attributes=metric_attributes,
+            )
 
     # No organisations matched, show message and let the user start setting up a new organisation
     if len(matched_orgs.all()) == 0:
