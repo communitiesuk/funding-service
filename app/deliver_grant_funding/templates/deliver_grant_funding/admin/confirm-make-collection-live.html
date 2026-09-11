@@ -21,7 +21,13 @@
         <span class="govuk-caption-l">{{ grant.name }}</span>
         Open the {{ collection.type.constants.singular }} for submissions
       </h1>
-      <p class="govuk-body">Opening the {{ collection.type.constants.singular }} will allow grant recipients to start making submissions.</p>
+
+      {% if collection.allow_public_sign_up %}
+        <p class="govuk-body">Opening the {{ collection.type.constants.singular }} will make the public sign up page live, allowing users from any organisation to check if they are eligible and start a submission.</p>
+      {% else %}
+        <p class="govuk-body">Opening the {{ collection.type.constants.singular }} will allow grant recipients to start making submissions.</p>
+      {% endif %}
+
 
       {% set disclaimer_html %}
         {% if not collection.allow_public_sign_up %}

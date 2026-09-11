@@ -23,7 +23,7 @@
         Sign off and lock {{ collection.type.constants.singular }}
       </h1>
       <p class="govuk-body">Sign off and lock the {{ collection.type.constants.singular }} to prevent further edits once the grant policy team has signed off on the form.</p>
-      
+
       {% set submission_period_start = format_date_short(collection.submission_period_start_date) if collection.submission_period_start_date else "the first day of the submission period" %}
       {% if collection.allow_public_sign_up %}
         <p class="govuk-body">A Platform admin member must manually open the signed off {{ collection.type.constants.singular }} for submissions by 3pm on {{ submission_period_start }}. This is what makes the public sign up page live.</p>

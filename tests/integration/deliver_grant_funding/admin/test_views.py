@@ -1325,6 +1325,56 @@ class TestSendEmailsToRecipients:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
+        "email_type",
+        [
+            CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION,
+            CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE,
+        ],
+    )
+    def test_send_emails_to_recipients_not_available_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, email_type
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "email_type",
+        [
+            CollectionAdminEmailTypeEnum.DEADLINE_REMINDER,
+            CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION,
+        ],
+    )
+    def test_send_emails_to_recipients_still_available_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, email_type
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=(
+                CollectionStatusEnum.CLOSED
+                if email_type == CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION
+                else CollectionStatusEnum.OPEN
+            ),
+            allow_public_sign_up=True,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.parametrize(
         "collection_status, expected_status",
         [
             (CollectionStatusEnum.DRAFT, 404),

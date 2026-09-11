@@ -1028,7 +1028,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
 
         notify_service_id = current_app.config["GOVUK_NOTIFY_SERVICE_ID"]
         match email_type:
-            case CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION:
+            case CollectionAdminEmailTypeEnum.COLLECTION_OPEN_NOTIFICATION if not collection.allow_public_sign_up:
                 if collection.multiple_submissions_are_managed_by_service:
                     notify_template_id = current_app.config[
                         "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_NOTIFICATION_TEMPLATE_ID"
@@ -1054,6 +1054,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     collection.status != CollectionStatusEnum.OPEN
                     or not collection.is_overdue
                     or not collection.allow_edits_after_submission_deadline
+                    or collection.allow_public_sign_up
                 ):
                     return abort(404)
                 if collection.multiple_submissions_are_managed_by_service:
