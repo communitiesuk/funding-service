@@ -309,7 +309,7 @@ class TestCreateOrganisationLocalAuthority:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     @patch("app.access_grant_funding.helpers.emit_metric_count")
-    def test_get_emits_local_authority_contact_support_metric(
+    def test_get_emits_local_authority_support_shown_metric(
         self, mock_count, authenticated_no_role_client, sign_up_collection
     ):
         _seed_session(
@@ -324,7 +324,7 @@ class TestCreateOrganisationLocalAuthority:
 
         assert response.status_code == 200
         mock_count.assert_called_once_with(
-            MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_CONTACT_SUPPORT,
+            MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN,
             grant_recipient=None,
             collection=sign_up_collection,
             custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},

@@ -121,7 +121,7 @@ def create_organisation_local_authority(
     modes = get_sign_up_modes(interfaces.user.get_current_user())
     if modes.submission == SubmissionModeEnum.LIVE:
         emit_public_sign_up_metric_once(
-            MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_CONTACT_SUPPORT,
+            MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN,
             collection=collection,
             custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
         )
