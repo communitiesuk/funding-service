@@ -11,6 +11,8 @@ from app.common.collections.types import (
 )
 from app.common.data.models import ComponentReference, DataSource, Expression, Group, Submission
 from app.common.data.types import (
+    CollectionStatusEnum,
+    CollectionType,
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
@@ -166,6 +168,41 @@ class TestGrantModel:
 
         assert set(grant.grant_recipients) == {grant_recipient_1, grant_recipient_2}
         assert other_grant_recipient not in grant.grant_recipients
+
+    def test_get_access_pre_award_forms_for_user_hides_unstarted_public_sign_up_forms(self, factories):
+        grant = factories.grant.create()
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+
+        regular_form = factories.collection.create(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=False,
+        )
+        public_sign_up_form_not_started = factories.collection.create(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+        )
+        public_sign_up_form_started = factories.collection.create(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+        )
+        factories.submission.create(
+            collection=public_sign_up_form_started,
+            mode=grant_recipient.submission_mode,
+            grant_recipient=grant_recipient,
+        )
+
+        results = grant.get_access_pre_award_forms_for_user(grant_recipient=grant_recipient)
+
+        result_ids = {form.id for form in results}
+        assert public_sign_up_form_started.id in result_ids
+        assert regular_form.id in result_ids
+        assert public_sign_up_form_not_started.id not in result_ids
 
 
 class TestComponentModel:

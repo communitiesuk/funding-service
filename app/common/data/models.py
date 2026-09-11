@@ -190,9 +190,14 @@ class Grant(BaseModel):
         )
 
     def get_access_pre_award_forms_for_user(
-        self, user: User | None = None, *, user_organisation: Organisation | None = None
+        self,
+        user: User | None = None,
+        *,
+        user_organisation: Organisation | None = None,
+        grant_recipient: GrantRecipient | None = None,
     ) -> list[Collection]:
         from app.common.auth.authorisation_helper import AuthorisationHelper
+        from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
 
         # Deliver users testing Access see all pre-award forms
         if user and AuthorisationHelper.is_deliver_user_testing_access(user, user_organisation=user_organisation):
@@ -201,12 +206,25 @@ class Grant(BaseModel):
                 key=lambda form: (form.status, form.submission_period_end_date or datetime.date.max),
             )
 
-        # Regular Access users see only OPEN/CLOSED pre-award forms
-        access_forms = [
-            form
-            for form in self.pre_award_forms
-            if form.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]
-        ]
+        access_forms = []
+        for form in self.pre_award_forms:
+            # Regular Access users see only OPEN/CLOSED pre-award forms
+            if form.status not in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]:
+                continue
+            # Forms with public sign-up are only shown once the grant recipient has started a submission
+            if (
+                grant_recipient
+                and form.allow_public_sign_up
+                and not get_all_submissions_with_mode_for_collection(
+                    collection_id=form.id,
+                    submission_mode=grant_recipient.submission_mode,
+                    grant_recipient_ids=[grant_recipient.id],
+                    with_full_schema=False,
+                )
+            ):
+                continue
+            access_forms.append(form)
+
         return sorted(
             access_forms, key=lambda form: (form.status, form.submission_period_end_date or datetime.date.max)
         )
