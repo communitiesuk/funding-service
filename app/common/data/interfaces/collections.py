@@ -1078,11 +1078,9 @@ def create_form(*, title: str, collection: Collection, is_eligibility_section: b
 
 @flush_and_rollback_on_exceptions
 def move_form_up(form: Form) -> Form:
-    if form.is_eligibility_section:
-        return form
     swap_form = form.collection.forms[form.order - 1]
-    if swap_form.is_eligibility_section:
-        return form
+    if form.is_eligibility_section or swap_form.is_eligibility_section:
+        raise RuntimeError("The eligibility section cannot be moved; the user interface should prevent this")
     _check_form_order_dependency(form, swap_form)
     _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
     return form
@@ -1090,9 +1088,9 @@ def move_form_up(form: Form) -> Form:
 
 @flush_and_rollback_on_exceptions
 def move_form_down(form: Form) -> Form:
-    if form.is_eligibility_section:
-        return form
     swap_form = form.collection.forms[form.order + 1]
+    if form.is_eligibility_section or swap_form.is_eligibility_section:
+        raise RuntimeError("The eligibility section cannot be moved; the user interface should prevent this")
     _check_form_order_dependency(form, swap_form)
     _swap_elements_in_list_and_flush(form.collection.forms, form.order, swap_form.order)
     return form
