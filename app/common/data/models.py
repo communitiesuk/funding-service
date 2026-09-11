@@ -160,13 +160,19 @@ class Grant(BaseModel):
         ]
 
     def get_access_reports_for_user(
-        self, user: User | None = None, *, user_organisation: Organisation | None = None
+        self,
+        user: User | None = None,
+        *,
+        user_organisation: Organisation | None = None,
+        grant_recipient: GrantRecipient | None = None,
     ) -> list[Collection]:
         """Get reports visible to Access users, with special handling for testing.
 
         Args:
             user: Current user. If a Deliver user testing Access, returns all reports.
                   If None or regular Access user, returns only OPEN/CLOSED reports.
+            grant_recipient: If provided, reports are only shown when the grant recipient's
+                  status is AWARDED or ALLOCATED.
 
         Returns:
             List of Collection objects sorted by status and submission end date.
@@ -179,12 +185,19 @@ class Grant(BaseModel):
                 self.reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
             )
 
-        # Regular Access users see only OPEN/CLOSED
-        access_reports = [
-            report
-            for report in self.reports
-            if report.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]
-        ]
+        access_reports = []
+        for report in self.reports:
+            # Regular Access users see only OPEN/CLOSED
+            if report.status not in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]:
+                continue
+            # Reports are only shown to grant recipients who have been awarded or allocated funding
+            if grant_recipient and grant_recipient.status not in [
+                GrantRecipientStatusEnum.AWARDED,
+                GrantRecipientStatusEnum.ALLOCATED,
+            ]:
+                continue
+            access_reports.append(report)
+
         return sorted(
             access_reports, key=lambda report: (report.status, report.submission_period_end_date or datetime.date.max)
         )
