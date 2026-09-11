@@ -76,6 +76,8 @@ class MetricEventName(StrEnum):
 
     CALCULATION_FIELD_INVALID = "calculation-field-invalid"
 
+    PUBLIC_SIGN_UP_STARTED = "public-sign-up-started"
+
 
 def _get_event_attributes(
     grant_recipient: GrantRecipient | None = None,
