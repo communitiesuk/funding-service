@@ -81,7 +81,7 @@
             {%
               do rows.append([
                 {"text": report_name},
-                {"text": format_date_short(report.submission_period_end_date) if report.submission_period_end_date else "Dates to be confirmed"},
+                {"text": format_collection_submission_deadline_short(report)},
                 {"html": submission_status_html},
                 {"html": report_action_html}
               ])
@@ -107,7 +107,7 @@
             {%
               do rows.append([
                 {"text": report_name},
-                {"text": format_date_short(report.submission_period_end_date) if report.submission_period_end_date else "Dates to be confirmed"}, {"html": submission_status_html},
+                {"text": format_collection_submission_deadline_short(report)}, {"html": submission_status_html},
                 {"html": report_action_html}
               ])
             %}

@@ -48,6 +48,9 @@
               <tr class="govuk-table__row">
                 <td class="govuk-table__cell">
                   {{ format_date_short(event.date) }}
+                  {% if event.type == "hard_deadline" %}
+                    at {{ constants.hard_submission_deadline_time_display }}
+                  {% endif %}
                   {% if event.is_today %}
                     {{ govukTag({"text": "today", "classes": "govuk-tag--green"}) }}
                   {% elif event.is_past %}
@@ -59,6 +62,8 @@
                 <td class="govuk-table__cell">
                   {% if event.type == "opening" %}
                     Open for submissions
+                  {% elif event.type == "hard_deadline" %}
+                    Collection must be moved to Closed
                   {% elif event.type == "closing" %}
                     Send overdue emails
                   {% elif event.type == "reminder" %}
@@ -112,7 +117,7 @@
           {% for collection in overdue_collections %}
             <li>
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=collection.grant_id, collection_id=collection.id) }}">{{ collection.name }}</a>
-              ({{ collection.grant.name }}) &mdash; ended {{ format_date_short(collection.submission_period_end_date) }}
+              ({{ collection.grant.name }}) &mdash; ended {{ format_collection_submission_deadline_short(collection) }}{{ ". This collection must be moved to Closed" if not collection.allow_edits_after_submission_deadline else "" }}
             </li>
           {% endfor %}
         </ul>

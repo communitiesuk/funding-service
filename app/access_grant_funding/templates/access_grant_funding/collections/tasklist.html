@@ -50,11 +50,12 @@
       <dl class="app-metadata">
         <dt class="app-metadata__key">Submission deadline:</dt>
         <dd class="app-metadata__value" data-testid="submission-status">
-          {% if runner.submission.collection.submission_period_end_date %}
-            {{ format_date(runner.submission.collection.submission_period_end_date) }}
-          {% else %}
-            <span>(Dates to be confirmed)</span>
-          {% endif %}
+          {{
+            format_collection_submission_deadline(
+              runner.submission.collection,
+              missing_text="(Dates to be confirmed)"
+            )
+          }}
         </dd>
       </dl>
       <dl class="app-metadata govuk-!-margin-bottom-7">

@@ -1130,6 +1130,30 @@ class TestPublicSignUpStartPage:
         assert "Deadline for applications" in soup.get_text()
         assert "30 August 2026" in soup.get_text()
 
+    def test_page_content_with_hard_submission_deadline(self, anonymous_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+            allow_edits_after_submission_deadline=False,
+            submission_period_end_date=datetime.date(2026, 8, 30),
+        )
+
+        response = anonymous_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Deadline for applications" in soup.get_text()
+        assert "30 August 2026 at 2pm" in soup.get_text()
+
     def test_page_content_without_submission_deadline(self, anonymous_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(

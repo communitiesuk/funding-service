@@ -3,6 +3,7 @@
     {
       "collections": [
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
@@ -23,6 +24,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": true,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
@@ -41,6 +43,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
@@ -59,6 +62,7 @@
           "type": "application"
         },
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
@@ -75,6 +79,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
@@ -91,6 +96,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
@@ -111,6 +117,7 @@
           "type": "monitoring report"
         },
         {
+          "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,

@@ -33,7 +33,7 @@ from app.common.data.types import (
 )
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer, _get_grant_managing_organisation
-from tests.utils import get_h1_text, get_h2_text, page_has_error, page_has_flash
+from tests.utils import get_h1_text, get_h2_text, get_summary_list_value_by_key, page_has_error, page_has_flash
 
 
 class TestFlaskAdminAccess:
@@ -740,13 +740,70 @@ class TestCollectionLifecycleTasklist:
 
         task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
         assert task_title is not None
-        assert "Set submission dates" in task_title.get_text(strip=True)
-        assert "Tuesday 1 April 2025 to Wednesday 30 April 2025" in task_title.get_text(strip=True)
+        task_text = task_title.get_text(" ", strip=True)
+        assert "Set submission dates" in task_text
+        assert "Submission open date: Tuesday 1 April 2025" in task_text
+        assert "Submission close date: Wednesday 30 April 2025" in task_text
+        assert "Soft deadline" not in task_text
+        assert "Hard deadline" not in task_text
+        assert "at 2pm" not in task_text
 
         task_status = task_items[1].find("strong", {"class": "govuk-tag"})
         assert task_status is not None
         assert "Completed" in task_status.get_text(strip=True)
         assert "govuk-tag--green" in task_status.get("class")
+
+    def test_get_tasklist_shows_hard_deadline_time(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Draft Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            submission_period_start_date=datetime.date(2025, 4, 1),
+            submission_period_end_date=datetime.date(2025, 4, 30),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        task_text = task_title.get_text(" ", strip=True)
+        assert "Set submission dates" in task_text
+        assert "Submission open date: Tuesday 1 April 2025" in task_text
+        assert "Submission close date: Wednesday 30 April 2025 at 2pm" in task_text
+        assert "Hard deadline" not in task_text
+
+    def test_get_tasklist_does_not_show_deadline_type_without_submission_dates(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Draft Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            allow_edits_after_submission_deadline=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+        task_items = report_task_list.find_all("li", {"class": "govuk-task-list__item"})
+
+        task_title = task_items[1].find("div", {"class": "govuk-task-list__name-and-hint"})
+        assert task_title is not None
+        assert task_title.get_text(strip=True) == "Set submission dates"
 
     @pytest.mark.parametrize(
         "collection_status",
@@ -962,6 +1019,28 @@ class TestCollectionLifecycleTasklist:
         assert "Do once" in task_status.get_text(strip=True)
         assert "govuk-tag--orange" in task_status.get("class")
 
+    def test_send_report_overdue_emails_task_not_shown_for_hard_deadline(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        report_task_list = soup.find("ul", {"id": "report-tasks"})
+
+        assert "Send report overdue emails" not in report_task_list.get_text(strip=True)
+
     @pytest.mark.parametrize(
         "collection_status",
         [
@@ -1123,6 +1202,22 @@ class TestSendEmailsToRecipients:
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
         )
         assert response.status_code == expected_status
+
+    def test_send_emails_to_recipients_report_overdue_not_available_for_hard_deadline(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2020, 1, 1),
+            allow_edits_after_submission_deadline=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE.value}"
+        )
+        assert response.status_code == 404
 
     @pytest.mark.parametrize(
         "collection_status, expected_status",
@@ -1509,6 +1604,35 @@ class TestSendEmailsToRecipients:
         assert all("Wednesday 30 April 2025" in line for line in lines[1:])
         assert all(f"/grants/{grant.id}/collection/{collection.id}" in line for line in lines[1:])
         assert all(line.endswith(",,") for line in lines[1:])
+
+    def test_download_csv_deadline_reminder_formats_hard_submission_deadline(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2025, 4, 30),
+            allow_edits_after_submission_deadline=False,
+        )
+        organisation = factories.organisation.create(name="Organisation 1", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=organisation)
+        factories.user_role.create(
+            user=factories.user.create(email="user1@org1.example.com"),
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{CollectionAdminEmailTypeEnum.DEADLINE_REMINDER.value}"
+        )
+
+        assert response.status_code == 200
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        assert len(rows) == 1
+        assert rows[0]["submission_deadline"] == "Wednesday 30 April 2025 at 2pm"
 
     def test_download_csv_format_and_content_report_closed(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -4100,6 +4224,50 @@ class TestScheduleReport:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Test Grant Sign off and lock report"
         assert soup.find(class_="govuk-warning-text") is None
+        assert soup.find("div", class_="govuk-grid-column-one-half") is not None
+        page_text = " ".join(soup.get_text().split())
+        assert (
+            "A Platform admin member must manually open the signed off report for submissions by 3pm on "
+            "1 April 2024 and send emails to data providers." in page_text
+        )
+        assert get_summary_list_value_by_key(soup, "Submission open date").get_text(strip=True) == "Monday 1 April 2024"
+        assert (
+            get_summary_list_value_by_key(soup, "Submission close date").get_text(strip=True) == "Tuesday 30 April 2024"
+        )
+
+    def test_get_schedule_page_shows_hard_deadline_close_time(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+            allow_edits_after_submission_deadline=False,
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/schedule-collection"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Submission open date").get_text(strip=True) == "Monday 1 April 2024"
+        assert (
+            get_summary_list_value_by_key(soup, "Submission close date").get_text(strip=True)
+            == "Tuesday 30 April 2024 at 2pm"
+        )
 
     def test_get_confirm_page_shows_warning_for_referenced_data_set_with_missing_data(
         self, authenticated_platform_grant_lifecycle_manager_client, factories
@@ -4499,6 +4667,72 @@ class TestSetCollectionDatesStatusRestriction:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == expected_title
 
+    def test_post_set_submission_dates_saves_deadline_type(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+            allow_edits_after_submission_deadline=True,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-submission-dates",
+            data={
+                "submission_period_start_date": "1 5 2025",
+                "submission_period_end_date": "31 5 2025",
+                "allow_edits_after_submission_deadline": "False",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        db_session.refresh(collection)
+        assert collection.submission_period_start_date == datetime.date(2025, 5, 1)
+        assert collection.submission_period_end_date == datetime.date(2025, 5, 31)
+        assert collection.allow_edits_after_submission_deadline is False
+
+    def test_get_set_submission_dates_shows_deadline_type(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.DRAFT,
+            allow_edits_after_submission_deadline=True,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-submission-dates",
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        soft_deadline = soup.find("input", {"name": "allow_edits_after_submission_deadline", "value": "True"})
+        hard_deadline = soup.find("input", {"name": "allow_edits_after_submission_deadline", "value": "False"})
+        assert soft_deadline is not None
+        assert hard_deadline is not None
+        fieldset = hard_deadline.find_parent("fieldset")
+        assert fieldset is not None
+        legend = fieldset.find("legend")
+        assert legend is not None
+        assert "Should users be able to submit after the closing date?" in legend.get_text(strip=True)
+        assert "govuk-!-font-weight-bold" in legend.get("class")
+        assert (
+            hard_deadline.find_next("label").get_text(strip=True) == "Do not allow submissions after the closing date"
+        )
+        assert (
+            hard_deadline.find_next("div", {"class": "govuk-hint"}).get_text(strip=True) == "Submission deadline is 2pm"
+        )
+        assert soft_deadline.find_next("label").get_text(strip=True) == "Allow users to submit as overdue"
+        assert "Save submission settings" in response.get_data(as_text=True)
+        assert soft_deadline.has_attr("checked")
+        assert not hard_deadline.has_attr("checked")
+
     @pytest.mark.parametrize(
         "collection_status",
         [
@@ -4668,12 +4902,109 @@ class TestMakeReportLive:
         assert "The privacy policy has been set up" in checkbox_labels
         assert "It is correct that the report has certification enabled" in checkbox_labels
         assert "The submission dates are 1 April 2024 until 30 April 2024" in checkbox_labels
+        assert "It is correct that users can submit as overdue after the closing date" in checkbox_labels
         reminder_label = soup.find("label", {"for": "confirm_reminder_days"})
         assert " ".join(reminder_label.get_text().split()) == (
             "Reminder emails should be sent 5 business days before closing (on 23 April 2024)"
         )
         assert "It is correct that multiple submissions are disabled" in checkbox_labels
         assert not any("do not have any data providers set up" in label for label in checkbox_labels)
+
+    def test_get_confirm_page_shows_hard_deadline_type(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+            allow_edits_after_submission_deadline=False,
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        checkboxes = soup.find_all("input", {"type": "checkbox"})
+        checkbox_labels = [" ".join(soup.find("label", {"for": cb["id"]}).stripped_strings) for cb in checkboxes]
+        assert "It is correct that users cannot submit after the closing date" in checkbox_labels
+
+    @pytest.mark.parametrize(
+        "allow_edits_after_submission_deadline,expected_error",
+        [
+            (True, "Confirm users can submit as overdue after the closing date"),
+            (False, "Confirm users cannot submit after the closing date"),
+        ],
+    )
+    def test_post_fails_when_deadline_type_not_confirmed(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        allow_edits_after_submission_deadline,
+        expected_error,
+    ):
+        grant = factories.grant.create(name="Test Grant", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=CollectionStatusEnum.SCHEDULED,
+            reporting_period_start_date=datetime.date(2024, 1, 1),
+            reporting_period_end_date=datetime.date(2024, 3, 31),
+            submission_period_start_date=datetime.date(2024, 4, 1),
+            submission_period_end_date=datetime.date(2024, 4, 30),
+            allow_edits_after_submission_deadline=allow_edits_after_submission_deadline,
+        )
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user,
+            organisation=grant_recipient.organisation,
+            grant=grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        certifier = factories.user.create()
+        factories.user_role.create(
+            user=certifier,
+            organisation=grant_recipient.organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live",
+            data={
+                "confirm_grant_recipients": "y",
+                "confirm_grant_recipient_users": "y",
+                "confirm_privacy_policy": "y",
+                "confirm_certification": "y",
+                "confirm_reporting_dates": "y",
+                "confirm_submission_dates": "y",
+                "confirm_reminder_days": "y",
+                "confirm_multiple_submissions": "y",
+                "submit": "y",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, expected_error)
+
+        db_session.refresh(collection)
+        assert collection.status == CollectionStatusEnum.SCHEDULED
 
     def test_get_confirm_page_shows_missing_data_providers_checkbox(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
@@ -4886,6 +5217,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -4950,6 +5282,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5102,6 +5435,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5141,6 +5475,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5188,6 +5523,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5238,6 +5574,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5277,6 +5614,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5327,6 +5665,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "y",
@@ -5382,6 +5721,7 @@ class TestMakeReportLive:
                 "confirm_certification": "y",
                 "confirm_reporting_dates": "y",
                 "confirm_submission_dates": "y",
+                "confirm_deadline_type": "y",
                 "confirm_reminder_days": "y",
                 "confirm_multiple_submissions": "y",
                 "submit": "Open collection for submissions",
@@ -6633,6 +6973,34 @@ class TestAdminDashboard:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "14 June 2026todaySend overdue emailsOverdue Collection" in soup.get_text(strip=True)
 
+    @pytest.mark.freeze_time("2026-06-14 12:00:00")
+    def test_dashboard_shows_hard_deadline_overdue_collection_at_2pm(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Hard Deadline Grant", status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="Hard Deadline Overdue Collection",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_end_date=datetime.date(2026, 6, 13),
+            allow_edits_after_submission_deadline=False,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        page_text = " ".join(soup.get_text(" ").split())
+        assert (
+            "13 June 2026 at 2pm past Collection must be moved to Closed Hard Deadline Overdue Collection "
+            "Hard Deadline Grant"
+        ) in page_text
+        assert (
+            "Hard Deadline Overdue Collection (Hard Deadline Grant) — ended 13 June 2026 at 2pm. "
+            "This collection must be moved to Closed"
+        ) in page_text
+
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_upcoming_timeline(self, authenticated_platform_admin_client, factories, db_session):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
@@ -6657,6 +7025,28 @@ class TestAdminDashboard:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "17 June 2026soonOpen for submissionsOpening Soon" in soup.get_text(strip=True)
         assert "19 June 2026soonSend overdue emailsClosing Soon" in soup.get_text(strip=True)
+
+    @pytest.mark.freeze_time("2026-06-15 12:00:00")
+    def test_dashboard_shows_hard_deadline_at_2pm(self, authenticated_platform_admin_client, factories, db_session):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="Hard Deadline",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date(2026, 6, 1),
+            submission_period_end_date=datetime.date(2026, 6, 18),
+            allow_edits_after_submission_deadline=False,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        page_text = " ".join(soup.get_text(" ").split())
+        assert "18 June 2026 at 2pm soon Collection must be moved to Closed Hard Deadline" in page_text
+        assert "Hard deadline - collection must be moved to Closed" not in page_text
+        assert "19 June 2026 soon Send overdue emails Hard Deadline" not in page_text
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_today_tag(self, authenticated_platform_admin_client, factories, db_session):

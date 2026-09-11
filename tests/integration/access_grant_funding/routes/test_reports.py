@@ -1343,8 +1343,8 @@ class TestDeclineSignOff:
     ):
         update_collection(
             submission_awaiting_sign_off.collection,
-            submission_period_start_date=datetime.date.today() - datetime.timedelta(days=1),
-            submission_period_end_date=datetime.date.today(),
+            submission_period_start_date=datetime.date.today() - datetime.timedelta(days=2),
+            submission_period_end_date=datetime.date.today() - datetime.timedelta(days=1),
             status=CollectionStatusEnum.CLOSED,
         )
         helper = SubmissionHelper(submission_awaiting_sign_off)

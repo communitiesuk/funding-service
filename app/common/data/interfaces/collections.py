@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, List, Literal, Never, Protocol, Unpack, cast, overload
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from flask import current_app
 from sqlalchemy import and_, delete, func, null, or_, select, text
@@ -321,15 +322,13 @@ def get_collections_by_status_excluding_draft_grants(statuses: list[CollectionSt
 
 
 def get_overdue_open_collections_excluding_draft_grants() -> Sequence[Collection]:
-    today = datetime.date.today()
     statement = (
         select(Collection)
         .join(Collection.grant)
         .options(joinedload(Collection.grant))
         .where(
             Collection.status == CollectionStatusEnum.OPEN,
-            Collection.submission_period_end_date.isnot(None),
-            Collection.submission_period_end_date < today,
+            Collection.is_overdue,
             Grant.status != GrantStatusEnum.DRAFT,
         )
         .order_by(Collection.submission_period_end_date)
@@ -340,7 +339,7 @@ def get_overdue_open_collections_excluding_draft_grants() -> Sequence[Collection
 def get_collections_with_dates_near_today_excluding_draft_grants(
     past_days: int = 7, future_days: int = 7
 ) -> Sequence[Collection]:
-    today = datetime.date.today()
+    today = datetime.datetime.now(ZoneInfo("Europe/London")).date()
     start_date = today - datetime.timedelta(days=past_days)
     end_date = today + datetime.timedelta(days=future_days)
     statement = (
@@ -385,6 +384,7 @@ def update_collection(  # noqa: C901
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
+    allow_edits_after_submission_deadline: bool | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     """Update the various attributes of a collection.
 
@@ -540,6 +540,9 @@ def update_collection(  # noqa: C901
     if allow_submission_reopening is not NOT_PROVIDED:
         collection.allow_submission_reopening = allow_submission_reopening
 
+    if allow_edits_after_submission_deadline is not NOT_PROVIDED:
+        collection.allow_edits_after_submission_deadline = allow_edits_after_submission_deadline
+
     if status is not NOT_PROVIDED and collection.status != status:
         match (collection.status, status):
             case (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED) | (
@@ -594,8 +597,9 @@ def update_collection(  # noqa: C901
                 CollectionStatusEnum.CLOSED,
             ):
                 assert collection.submission_period_end_date
-                if datetime.datetime.now(datetime.UTC) < datetime.datetime.combine(
-                    collection.submission_period_end_date, datetime.time.min, tzinfo=datetime.UTC
+                assert collection.submission_deadline_with_time
+                if datetime.datetime.now(datetime.UTC) < collection.submission_deadline_with_time.astimezone(
+                    datetime.UTC
                 ):
                     raise CollectionChronologyError(
                         f"You cannot close the {collection.type.constants.singular} for submissions before "

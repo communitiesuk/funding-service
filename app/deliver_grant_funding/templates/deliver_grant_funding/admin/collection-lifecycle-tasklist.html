@@ -143,10 +143,19 @@
           {{ govukTag({"text": "To do", "classes": "govuk-tag--grey"}) }}
         {% endif %}
       {% endset %}
+      {% if collection.submission_period_start_date and collection.submission_period_end_date %}
+        {% set submission_dates_hint %}
+          Submission open date: {{ format_date(collection.submission_period_start_date) }}<br />
+          Submission close date: {{ format_collection_submission_deadline(collection) }}
+        {% endset %}
+        {% set submission_dates_hint = {"html": submission_dates_hint | trim} %}
+      {% else %}
+        {% set submission_dates_hint = {} %}
+      {% endif %}
       {%
         do rows.append({
           "title": {"text": "Set submission dates", "classes": "govuk-link--no-visited-state"},
-          "hint": {"text": format_date_range(collection.submission_period_start_date, collection.submission_period_end_date)} if collection.submission_period_start_date and collection.submission_period_end_date else {},
+          "hint": submission_dates_hint,
           "status": {"html": submissionDatesTag},
           "href": url_for('collection_lifecycle.set_submission_dates', grant_id=grant.id, collection_id=collection.id) if collection.status == enum.collection_status.DRAFT else "",
         })
@@ -219,20 +228,22 @@
         })
       %}
 
-      {% if collection.status == enum.collection_status.CLOSED %}
-        {% set sendReportClosedEmailsStatus= {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
-      {% elif collection.status == enum.collection_status.OPEN and collection.is_overdue %}
-        {% set sendReportClosedEmailsStatus = {"tag": {"text": "Do once", "classes": "govuk-tag--orange"}} %}
-      {% else %}
-        {% set sendReportClosedEmailsStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+      {% if collection.allow_edits_after_submission_deadline %}
+        {% if collection.status == enum.collection_status.CLOSED %}
+          {% set sendReportClosedEmailsStatus= {"tag": {"text": "Completed", "classes": "govuk-tag--green"} } %}
+        {% elif collection.status == enum.collection_status.OPEN and collection.is_overdue %}
+          {% set sendReportClosedEmailsStatus = {"tag": {"text": "Do once", "classes": "govuk-tag--orange"}} %}
+        {% else %}
+          {% set sendReportClosedEmailsStatus = {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"} %}
+        {% endif %}
+        {%
+          do rows.append({
+            "title": {"text": "Send " ~ collection.type.constants.singular ~ " overdue emails", "classes": "govuk-link--no-visited-state"},
+            "status": sendReportClosedEmailsStatus,
+            "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_OVERDUE) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
+          })
+        %}
       {% endif %}
-      {%
-        do rows.append({
-          "title": {"text": "Send " ~ collection.type.constants.singular ~ " overdue emails", "classes": "govuk-link--no-visited-state"},
-          "status": sendReportClosedEmailsStatus,
-          "href": url_for('collection_lifecycle.send_emails_to_recipients', grant_id=grant.id, collection_id=collection.id, email_type=enum.report_admin_email_type_enum.COLLECTION_OVERDUE) if collection.status == enum.collection_status.OPEN and collection.is_overdue else "",
-        })
-      %}
 
       {% set closeReportStatus = {"tag": {"text": "To do", "classes": "govuk-tag--grey"} } %}
 

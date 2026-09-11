@@ -28,7 +28,7 @@
       </ul>
 
       {% if collection.submission_period_end_date %}
-        <p class="govuk-body"><strong>Deadline for applications:</strong> {{ format_date_short(collection.submission_period_end_date) }}</p>
+        <p class="govuk-body"><strong>Deadline for applications:</strong> {{ format_collection_submission_deadline_short(collection) }}</p>
       {% endif %}
 
       <form method="post" novalidate>

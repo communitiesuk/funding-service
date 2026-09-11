@@ -11,6 +11,7 @@ from sqlalchemy import (
     CheckConstraint,
     ColumnElement,
     Date,
+    DateTime,
     ForeignKey,
     Index,
     Text,
@@ -86,6 +87,7 @@ from app.common.expressions.references import (
 from app.common.helpers.dates import subtract_business_days
 from app.common.safe_ids import SafeDidMixin, SafeQidMixin
 from app.common.utils import comma_join_items
+from app.constants import HARD_SUBMISSION_DEADLINE_TIME
 
 if TYPE_CHECKING:
     from app.common.expressions.managed import ManagedExpression
@@ -398,6 +400,7 @@ class Collection(BaseModel):
     reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
     requires_certification: Mapped[bool]
     allow_submission_reopening: Mapped[bool] = mapped_column(default=True)
+    allow_edits_after_submission_deadline: Mapped[bool] = mapped_column(default=True)
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
     allow_validation: Mapped[bool] = mapped_column(default=False)
@@ -505,11 +508,50 @@ class Collection(BaseModel):
         return self.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT]
 
     @property
+    def submission_deadline_with_time(self) -> datetime.datetime | None:
+        if not self.submission_period_end_date:
+            return None
+
+        deadline_time = (
+            HARD_SUBMISSION_DEADLINE_TIME if not self.allow_edits_after_submission_deadline else datetime.time.max
+        )
+        return datetime.datetime.combine(
+            self.submission_period_end_date, deadline_time, tzinfo=ZoneInfo("Europe/London")
+        )
+
+    @hybrid_property
     def is_overdue(self) -> bool:
         if not self.submission_period_end_date:
             return False
+
         # ensure BST/ GMT to line up with the hybrid property expected boundary
-        return self.submission_period_end_date < datetime.datetime.now(ZoneInfo("Europe/London")).date()
+        now = datetime.datetime.now(ZoneInfo("Europe/London"))
+        if not self.allow_edits_after_submission_deadline:
+            assert self.submission_deadline_with_time
+            return now >= self.submission_deadline_with_time
+
+        return self.submission_period_end_date < now.date()
+
+    @is_overdue.inplace.expression
+    @classmethod
+    def _is_overdue_expression(cls) -> ColumnElement[bool]:
+        london_now = func.timezone("Europe/London", func.now())
+        london_today = london_now.cast(Date)
+        hard_submission_deadline = cast(cls.submission_period_end_date, DateTime) + datetime.timedelta(
+            hours=HARD_SUBMISSION_DEADLINE_TIME.hour,
+            minutes=HARD_SUBMISSION_DEADLINE_TIME.minute,
+            seconds=HARD_SUBMISSION_DEADLINE_TIME.second,
+        )
+        return and_(
+            cls.submission_period_end_date.isnot(None),
+            case(
+                (
+                    cls.allow_edits_after_submission_deadline.is_(False),
+                    london_now >= hard_submission_deadline,
+                ),
+                else_=cls.submission_period_end_date < london_today,
+            ),
+        )
 
     @property
     def date_to_send_reminder_emails(self) -> datetime.date | None:
@@ -517,6 +559,17 @@ class Collection(BaseModel):
             return None
 
         return subtract_business_days(self.submission_period_end_date, self.reminder_email_business_days_before_closing)
+
+    @property
+    def date_to_send_overdue_emails(self) -> datetime.date | None:
+        if not self.submission_period_end_date:
+            return None
+
+        return (
+            self.submission_period_end_date + datetime.timedelta(days=1)
+            if self.allow_edits_after_submission_deadline
+            else None
+        )
 
     @property
     def is_monitoring_collection(self) -> bool:
@@ -725,13 +778,7 @@ class Submission(BaseModel):
     @is_overdue.inplace.expression
     @classmethod
     def _is_overdue_expression(cls) -> ColumnElement[bool]:
-        return (
-            Collection.submission_period_end_date.isnot(None)
-            # ensure both side are dates, when the date side is coerced to date with timestamp it will default
-            # to 00:00 which will always be less than the same day resulting in an exclusive comparison
-            & (Collection.submission_period_end_date < func.timezone("Europe/London", func.now()).cast(Date))
-            & not_(cls.is_submitted)
-        )
+        return Collection.is_overdue & not_(cls.is_submitted)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(reference={self.reference}, mode={self.mode})"

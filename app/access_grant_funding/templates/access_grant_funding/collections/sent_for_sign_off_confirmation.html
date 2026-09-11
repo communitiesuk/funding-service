@@ -32,7 +32,7 @@
 
       <h2 class="govuk-heading-m">What happens next</h2>
 
-      {% set submission_deadline = format_date(submission_helper.collection.submission_period_end_date) if submission_helper.collection.submission_period_end_date else "(Dates to be confirmed)" %}
+      {% set submission_deadline = format_collection_submission_deadline(submission_helper.collection, missing_text="(Dates to be confirmed)") %}
 
       <p class="govuk-body">{{ grant_recipient.certifier_names }} will need to review and sign off the {{ constants.singular }} by {{ submission_deadline }}.</p>
 

@@ -46,6 +46,8 @@ from app.common.data.types import (
 from app.common.exceptions import RedirectException
 from app.common.expressions.references import ExpressionReference
 from app.common.filters import (
+    format_collection_submission_deadline,
+    format_collection_submission_deadline_short,
     format_date,
     format_date_approximate,
     format_date_range,
@@ -63,7 +65,12 @@ from app.common.helpers.feature_flags import FeatureFlags
 from app.common.helpers.request_tracing import get_tracing_state
 from app.common.utils import comma_join_items, slugify, uppercase_first
 from app.config import get_settings
-from app.constants import CHECK_YOUR_ANSWERS, DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER
+from app.constants import (
+    CHECK_YOUR_ANSWERS,
+    DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
+    DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
+    HARD_SUBMISSION_DEADLINE_TIME_DISPLAY,
+)
 from app.extensions import (
     auto_commit_after_request,
     db,
@@ -308,6 +315,8 @@ def create_app() -> Flask:  # noqa: C901
     def _jinja_template_context() -> dict[str, Any]:
         return dict(
             cspNonce=app.jinja_env.globals["csp_nonce"](),  # ty: ignore[no-matching-overload]
+            format_collection_submission_deadline=format_collection_submission_deadline,
+            format_collection_submission_deadline_short=format_collection_submission_deadline_short,
             format_date=format_date,
             format_date_short=format_date_short,
             format_date_approximate=format_date_approximate,
@@ -327,6 +336,7 @@ def create_app() -> Flask:  # noqa: C901
                 data_set_external_id_column_header=DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
                 data_set_grant_recipient_column_header=DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
                 check_your_answers=CHECK_YOUR_ANSWERS,
+                hard_submission_deadline_time_display=HARD_SUBMISSION_DEADLINE_TIME_DISPLAY,
             ),
             enum=dict(
                 submission_mode=SubmissionModeEnum,

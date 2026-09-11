@@ -78,7 +78,7 @@
       {% elif submission.is_awaiting_sign_off %}
         <dl class="app-metadata">
           <dt class="app-metadata__key">Submission deadline:</dt>
-          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.collection.submission_period_end_date) if submission.collection.submission_period_end_date else "Dates to be confirmed" }}</dd>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_collection_submission_deadline(submission.collection) }}</dd>
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Submitted by:</dt>
@@ -99,7 +99,7 @@
 
         <dl class="app-metadata">
           <dt class="app-metadata__key">Submission deadline:</dt>
-          <dd class="app-metadata__value" data-testid="submission-status">{{ format_date(submission.collection.submission_period_end_date) if submission.collection.submission_period_end_date else "Dates to be confirmed" }}</dd>
+          <dd class="app-metadata__value" data-testid="submission-status">{{ format_collection_submission_deadline(submission.collection) }}</dd>
         </dl>
         <dl class="app-metadata">
           <dt class="app-metadata__key">Status:</dt>
@@ -112,8 +112,7 @@
       {% if should_certify %}
         <h2 id="sign-off-and-submit-{{ constants.singular }}" class="govuk-heading-m govuk-!-margin-top-9">Sign off and submit {{ constants.singular }}</h2>
         <p class="govuk-body">
-          Sign off and submit the {{ constants.singular }} to the {{ submission.collection.grant.organisation.name }} by
-          {{ format_date_short(submission.collection.submission_period_end_date) if submission.collection.submission_period_end_date else "(Dates to be confirmed)" }}.
+          Sign off and submit the {{ constants.singular }} to the {{ submission.collection.grant.organisation.name }} by {{ format_collection_submission_deadline_short(submission.collection, missing_text="(Dates to be confirmed)") }}.
         </p>
 
         <p class="govuk-body">If you need to decline the {{ constants.singular }}, provide a reason so {{ submission.sent_for_certification_by.name }} can update and resubmit the {{ constants.singular }}.</p>

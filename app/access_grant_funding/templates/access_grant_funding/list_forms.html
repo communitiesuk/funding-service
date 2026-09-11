@@ -107,7 +107,7 @@
       {%
         do rows.append([
           {"text": collection_name},
-          {"text": format_date_short(collection.submission_period_end_date) if collection.submission_period_end_date else "Dates to be confirmed"},
+          {"text": format_collection_submission_deadline_short(collection)},
           {"html": submission_status_html},
           {"html": collection_action_html}
         ])
@@ -133,7 +133,7 @@
       {%
         do rows.append([
           {"text": collection_name},
-          {"text": format_date_short(collection.submission_period_end_date) if collection.submission_period_end_date else "Dates to be confirmed"}, {"html": submission_status_html},
+          {"text": format_collection_submission_deadline_short(collection)}, {"html": submission_status_html},
           {"html": collection_action_html}
         ])
       %}

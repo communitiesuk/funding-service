@@ -215,10 +215,11 @@ class TestNotificationService:
         [(GrantRecipientModeEnum.LIVE, "no"), (GrantRecipientModeEnum.TEST, "yes")],
     )
     @pytest.mark.parametrize(
-        "submission_period_end_date, expected_submission_deadline",
+        "submission_period_end_date, allow_edits_after_submission_deadline, expected_submission_deadline",
         [
-            (datetime.date(2025, 12, 31), "Wednesday 31 December 2025"),
-            (None, "(Dates to be confirmed)"),
+            (datetime.date(2025, 12, 31), True, "Wednesday 31 December 2025"),
+            (datetime.date(2025, 12, 31), False, "Wednesday 31 December 2025 at 2pm"),
+            (None, True, "(Dates to be confirmed)"),
         ],
     )
     @responses.activate
@@ -229,6 +230,7 @@ class TestNotificationService:
         grant_recipient_mode,
         expected_is_test_data,
         submission_period_end_date,
+        allow_edits_after_submission_deadline,
         expected_submission_deadline,
     ):
         grant_recipient = factories.grant_recipient.build(
@@ -240,6 +242,7 @@ class TestNotificationService:
             name="Test collection",
             grant=grant_recipient.grant,
             submission_period_end_date=submission_period_end_date,
+            allow_edits_after_submission_deadline=allow_edits_after_submission_deadline,
         )
         email_address = "test@hastings.gov.uk"
         request_matcher = responses.post(
