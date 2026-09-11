@@ -16,6 +16,7 @@ from app.common.data.types import (
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     QuestionPresentationOptions,
     RoleEnum,
     SubmissionEventType,
@@ -203,6 +204,26 @@ class TestGrantModel:
         assert public_sign_up_form_started.id in result_ids
         assert regular_form.id in result_ids
         assert public_sign_up_form_not_started.id not in result_ids
+
+    def test_get_access_reports_for_user_only_shows_to_awarded_or_allocated_grant_recipients(self, factories):
+        grant = factories.grant.create()
+        report = factories.collection.create(
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        applying_grant_recipient = factories.grant_recipient.create(
+            grant=grant, status=GrantRecipientStatusEnum.APPLYING
+        )
+        allocated_grant_recipient = factories.grant_recipient.create(
+            grant=grant, status=GrantRecipientStatusEnum.ALLOCATED
+        )
+        awarded_grant_recipient = factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.AWARDED)
+
+        assert grant.get_access_reports_for_user(grant_recipient=applying_grant_recipient) == []
+        assert grant.get_access_reports_for_user(grant_recipient=allocated_grant_recipient) == [report]
+        assert grant.get_access_reports_for_user(grant_recipient=awarded_grant_recipient) == [report]
 
 
 class TestComponentModel:
