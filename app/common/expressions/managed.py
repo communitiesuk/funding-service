@@ -32,14 +32,27 @@ from app.common.data.types import ManagedExpressionsEnum, QuestionDataType
 from app.common.expressions import EvaluatableExpression
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.expressions.registry import lookup_managed_expression, register_managed_expression
-from app.common.filters import format_date_approximate, format_date_short
+from app.common.filters import format_date_approximate, format_date_short, format_thousands
 from app.common.forms.fields import DecimalWithCommasField, MHCLGApproximateDateInput
+from app.common.utils import comma_join_items
 from app.deliver_grant_funding.session_models import AddContextToExpressionsModel
 from app.types import TRadioItem
 
 if TYPE_CHECKING:
     from app.common.data.models import Expression, Question
     from app.common.expressions.forms import _ManagedExpressionForm
+
+
+def _quoted(value: object) -> str:
+    return f"“{value}”"
+
+
+def _condition_date(subject_reference: ExpressionReference, value: datetime.date) -> str:
+    return (
+        format_date_approximate(value)
+        if subject_reference.presentation_options.approximate_date
+        else format_date_short(value)
+    )
 
 
 class ManagedExpression(EvaluatableExpression):
@@ -54,6 +67,11 @@ class ManagedExpression(EvaluatableExpression):
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
     _key: ManagedExpressionsEnum
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        raise NotImplementedError(
+            f"{type(self).__name__} cannot be used as a condition, so it has no condition description"
+        )
 
     @property
     def required_functions(self) -> dict[str, Callable[[Any], Any] | type]:
@@ -247,6 +265,16 @@ class GreaterThan(ManagedExpression):
             + f"{self.minimum_expression.wrapped if self.minimum_expression else self.minimum_value}"
         )
 
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        minimum = _quoted(
+            self.minimum_expression.wrapped
+            if self.minimum_expression
+            else format_thousands(cast(int | Decimal, self.minimum_value))
+        )
+        return InterpolationStatement(
+            f"{subject} is {minimum} or more" if self.inclusive else f"{subject} is more than {minimum}"
+        )
+
     @property
     def statement(self) -> EvaluationStatement:
         min_value_for_stmt = f"Decimal('{self.minimum_value}')"
@@ -353,6 +381,16 @@ class LessThan(ManagedExpression):
         return InterpolationStatement(
             f"The answer must be less than {'or equal to ' if self.inclusive else ''}"
             + f"{self.maximum_expression.wrapped if self.maximum_expression else self.maximum_value}"
+        )
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        maximum = _quoted(
+            self.maximum_expression.wrapped
+            if self.maximum_expression
+            else format_thousands(cast(int | Decimal, self.maximum_value))
+        )
+        return InterpolationStatement(
+            f"{subject} is {maximum} or less" if self.inclusive else f"{subject} is less than {maximum}"
         )
 
     @property
@@ -464,6 +502,19 @@ class Between(ManagedExpression):
             + f"{self.maximum_expression.wrapped if self.maximum_expression else self.maximum_value}"
             + f"{' (inclusive)' if self.maximum_inclusive else ' (exclusive)'}"
         )
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        minimum = _quoted(
+            self.minimum_expression.wrapped
+            if self.minimum_expression
+            else format_thousands(cast(int | Decimal, self.minimum_value))
+        )
+        maximum = _quoted(
+            self.maximum_expression.wrapped
+            if self.maximum_expression
+            else format_thousands(cast(int | Decimal, self.maximum_value))
+        )
+        return InterpolationStatement(f"{subject} is between {minimum} and {maximum}")
 
     @property
     def statement(self) -> EvaluationStatement:
@@ -625,6 +676,10 @@ class AnyOf(BaseDataSourceManagedExpression):
 
         return InterpolationStatement(f"The answer is one of “{'”, “'.join(c['label'] for c in self.items)}”")
 
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        answer = comma_join_items([_quoted(item["label"]) for item in self.items], join_word="or")
+        return InterpolationStatement(f"{answer} to {subject}")
+
     @property
     def statement(self) -> EvaluationStatement:
         item_keys = {str(item["key"]) for item in self.items}
@@ -691,6 +746,9 @@ class IsYes(ManagedExpression):
     def message(self) -> InterpolationStatement:
         return InterpolationStatement("The answer is “yes”")
 
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        return InterpolationStatement(f"{_quoted('yes')} to {subject}")
+
     @property
     def statement(self) -> EvaluationStatement:
         return EvaluationStatement(f"{self.subject_reference.unwrapped} is True")
@@ -726,6 +784,9 @@ class IsNo(ManagedExpression):
     @property
     def message(self) -> InterpolationStatement:
         return InterpolationStatement("The answer is “no”")
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        return InterpolationStatement(f"{_quoted('no')} to {subject}")
 
     @property
     def statement(self) -> EvaluationStatement:
@@ -764,6 +825,9 @@ class Specifically(BaseDataSourceManagedExpression):
     @property
     def message(self) -> InterpolationStatement:
         return InterpolationStatement(f"The answer is “{self.item['label']}”")
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        return InterpolationStatement(f"{_quoted(self.item['label'])} to {subject}")
 
     @property
     def statement(self) -> EvaluationStatement:
@@ -839,6 +903,16 @@ class IsBefore(ManagedExpression):
         return InterpolationStatement(
             f"The answer must be {'on or ' if self.inclusive else ''}before "
             + (self.latest_expression.wrapped if self.latest_expression else formatted_latest_value)
+        )
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        latest = _quoted(
+            self.latest_expression.wrapped
+            if self.latest_expression
+            else _condition_date(self.subject_reference, cast(datetime.date, self.latest_value))
+        )
+        return InterpolationStatement(
+            f"{subject} is {latest} or earlier" if self.inclusive else f"{subject} is before {latest}"
         )
 
     @property
@@ -966,6 +1040,16 @@ class IsAfter(ManagedExpression):
         return InterpolationStatement(
             f"The answer must be {'on or ' if self.inclusive else ''}after "
             + (self.earliest_expression.wrapped if self.earliest_expression else formatted_earliest_value)
+        )
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        earliest = _quoted(
+            self.earliest_expression.wrapped
+            if self.earliest_expression
+            else _condition_date(self.subject_reference, cast(datetime.date, self.earliest_value))
+        )
+        return InterpolationStatement(
+            f"{subject} is {earliest} or later" if self.inclusive else f"{subject} is after {earliest}"
         )
 
     @property
@@ -1104,6 +1188,19 @@ class BetweenDates(ManagedExpression):
             + (self.latest_expression.wrapped if self.latest_expression else formatted_latest_value)
             + f"{' (inclusive)' if self.latest_inclusive else ' (exclusive)'}"
         )
+
+    def condition_description(self, subject: str) -> InterpolationStatement:
+        earliest = _quoted(
+            self.earliest_expression.wrapped
+            if self.earliest_expression
+            else _condition_date(self.subject_reference, cast(datetime.date, self.earliest_value))
+        )
+        latest = _quoted(
+            self.latest_expression.wrapped
+            if self.latest_expression
+            else _condition_date(self.subject_reference, cast(datetime.date, self.latest_value))
+        )
+        return InterpolationStatement(f"{subject} is between {earliest} and {latest}")
 
     @property
     def statement(self) -> EvaluationStatement:

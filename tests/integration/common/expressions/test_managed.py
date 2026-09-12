@@ -12,6 +12,7 @@ from app.common.data.types import (
     NumberTypeEnum,
     QuestionDataOptions,
     QuestionDataType,
+    QuestionPresentationOptions,
 )
 from app.common.expressions import ExpressionContext, evaluate
 from app.common.expressions.custom import CustomExpression
@@ -977,3 +978,117 @@ class TestCustomExpression:
         assert result.subject_reference is None
         assert result.custom_expression == "some expression"
         assert result.custom_message == "a message"
+
+
+SUMMARY_DATE = datetime.date(2025, 1, 1)
+SUBJECT = "3 (Funding amount)"
+
+
+class TestConditionDescription:
+    @pytest.mark.parametrize(
+        "expression_factory, expected",
+        (
+            (lambda ref: IsYes(subject_reference=ref), "“yes” to 3 (Funding amount)"),
+            (lambda ref: IsNo(subject_reference=ref), "“no” to 3 (Funding amount)"),
+            (
+                lambda ref: AnyOf(subject_reference=ref, items=[{"key": "red", "label": "Red"}]),
+                "“Red” to 3 (Funding amount)",
+            ),
+            (
+                lambda ref: AnyOf(
+                    subject_reference=ref,
+                    items=[{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                ),
+                "“Red” or “Blue” to 3 (Funding amount)",
+            ),
+            (
+                lambda ref: AnyOf(
+                    subject_reference=ref,
+                    items=[
+                        {"key": "red", "label": "Red"},
+                        {"key": "blue", "label": "Blue"},
+                        {"key": "green", "label": "Green"},
+                    ],
+                ),
+                "“Red”, “Blue” or “Green” to 3 (Funding amount)",
+            ),
+            (
+                lambda ref: Specifically(subject_reference=ref, item={"key": "red", "label": "Red"}),
+                "“Red” to 3 (Funding amount)",
+            ),
+            (
+                lambda ref: GreaterThan(subject_reference=ref, minimum_value=100),
+                "3 (Funding amount) is more than “100”",
+            ),
+            (
+                lambda ref: GreaterThan(subject_reference=ref, minimum_value=100, inclusive=True),
+                "3 (Funding amount) is “100” or more",
+            ),
+            (lambda ref: LessThan(subject_reference=ref, maximum_value=100), "3 (Funding amount) is less than “100”"),
+            (
+                lambda ref: LessThan(subject_reference=ref, maximum_value=100, inclusive=True),
+                "3 (Funding amount) is “100” or less",
+            ),
+            (
+                lambda ref: Between(subject_reference=ref, minimum_value=1, maximum_value=10),
+                "3 (Funding amount) is between “1” and “10”",
+            ),
+            (
+                lambda ref: GreaterThan(subject_reference=ref, minimum_value=10000),
+                "3 (Funding amount) is more than “10,000”",
+            ),
+            (
+                lambda ref: IsBefore(subject_reference=ref, latest_value=SUMMARY_DATE),
+                "3 (Funding amount) is before “1 January 2025”",
+            ),
+            (
+                lambda ref: IsBefore(subject_reference=ref, latest_value=SUMMARY_DATE, inclusive=True),
+                "3 (Funding amount) is “1 January 2025” or earlier",
+            ),
+            (
+                lambda ref: IsAfter(subject_reference=ref, earliest_value=SUMMARY_DATE),
+                "3 (Funding amount) is after “1 January 2025”",
+            ),
+            (
+                lambda ref: IsAfter(subject_reference=ref, earliest_value=SUMMARY_DATE, inclusive=True),
+                "3 (Funding amount) is “1 January 2025” or later",
+            ),
+            (
+                lambda ref: BetweenDates(
+                    subject_reference=ref,
+                    earliest_value=SUMMARY_DATE,
+                    latest_value=datetime.date(2025, 3, 31),
+                ),
+                "3 (Funding amount) is between “1 January 2025” and “31 March 2025”",
+            ),
+        ),
+    )
+    def test_condition_description(self, expression_factory, expected, factories):
+        reference = ExpressionReference.from_question(factories.question.create())
+
+        assert expression_factory(reference).condition_description(SUBJECT) == expected
+
+    def test_references_to_other_questions_are_quoted_like_literal_values(self, factories):
+        reference = ExpressionReference.from_question(factories.question.create())
+        other = ExpressionReference.from_question(factories.question.create())
+
+        expression = GreaterThan(subject_reference=reference, minimum_value=None, minimum_expression=other)
+
+        assert expression.condition_description(SUBJECT) == f"{SUBJECT} is more than “{other.wrapped}”"
+
+    def test_approximate_dates_are_described_without_a_day(self, factories):
+        question = factories.question.create(
+            data_type=QuestionDataType.DATE,
+            presentation_options=QuestionPresentationOptions(approximate_date=True),
+        )
+        reference = ExpressionReference.from_question(question)
+
+        assert IsBefore(subject_reference=reference, latest_value=SUMMARY_DATE).condition_description(SUBJECT) == (
+            f"{SUBJECT} is before “January 2025”"
+        )
+
+    def test_validation_only_expressions_have_no_condition_description(self, factories):
+        expression = UKPostcode(subject_reference=ExpressionReference.from_question(factories.question.create()))
+
+        with pytest.raises(NotImplementedError, match="UKPostcode cannot be used as a condition"):
+            expression.condition_description(SUBJECT)

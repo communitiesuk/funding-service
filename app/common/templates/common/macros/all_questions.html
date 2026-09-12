@@ -1,0 +1,71 @@
+{% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+
+{# relies on top level template having `interpolate` #}
+
+{% macro _component_conditions(component) %}
+  {% for summary in component.condition_summaries %}
+    <p class="govuk-!-margin-top-1 govuk-!-margin-bottom-1">{{ govukTag({"html": interpolate(summary), "classes": "govuk-tag--red app-full-tag"}) }}</p>
+  {% endfor %}
+{% endmacro %}
+
+{% macro _component_hint(component) %}
+  {% if component.hint %}
+    <p class="govuk-hint govuk-!-margin-top-1 govuk-!-margin-bottom-0">{{ interpolate(component.hint) }}</p>
+  {% endif %}
+{% endmacro %}
+
+{% macro _component_guidance(component) %}
+  {% if component.guidance_body %}
+    {# guidance markdown can contain its own headings so separate it from the page structure #}
+    <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
+    <div>{{ interpolate(component.guidance_body | govuk_markdown) }}</div>
+    <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
+  {% endif %}
+{% endmacro %}
+
+{% macro _render_items(components) %}
+  {% for component in components %}
+    <li class="govuk-!-margin-bottom-4 app-dont-page-break">
+      {% if component.is_group %}
+        <strong>{{ component.name }}</strong>
+        {% if component.add_another %}
+          {{ govukTag({"text": "Can be added more than once", "classes": "govuk-tag--grey app-full-tag govuk-!-margin-left-1"}) }}
+        {% endif %}
+        {{ _component_hint(component) }}
+        {{ _component_guidance(component) }}
+        {{ _component_conditions(component) }}
+        <ul class="govuk-list govuk-list--bullet">
+          {{ _render_items(component.components) }}
+        </ul>
+      {% else %}
+        {{ interpolate(component.text) -}}
+        {%- if component.settings_summary %}{{ " (" ~ component.settings_summary ~ ")" }}{% endif %}
+        {{ _component_hint(component) }}
+        {{ _component_conditions(component) }}
+        {% if component.data_type in [enum.question_type.RADIOS, enum.question_type.CHECKBOXES] and component.data_source %}
+          <ul class="govuk-list govuk-hint app-list-square-bullet govuk-!-margin-top-1 govuk-!-margin-bottom-0">
+            {% for item in component.data_source.items %}
+              <li>{{ item.label }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {{ _component_guidance(component) }}
+      {% endif %}
+    </li>
+  {% endfor %}
+{% endmacro %}
+
+{% macro render_all_questions(collection) %}
+  <div class="app-all-questions">
+    {% for section in collection.forms %}
+      <h2 class="govuk-heading-m govuk-!-margin-top-6">{{ section.title }}</h2>
+      {% if section.components %}
+        <ol class="govuk-list govuk-list--number" start="{{ section.first_display_number }}">
+          {{ _render_items(section.components) }}
+        </ol>
+      {% else %}
+        <p class="govuk-body">This section has no questions.</p>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endmacro %}

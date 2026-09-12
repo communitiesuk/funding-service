@@ -1,10 +1,11 @@
 import datetime
+import io
 import uuid
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
 import markupsafe
-from flask import current_app, flash, g, redirect, request, url_for
+from flask import current_app, flash, g, redirect, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 from flask_admin import expose
 from flask_admin.actions import action
@@ -17,6 +18,7 @@ from pydantic import ValidationError
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
+from werkzeug.utils import secure_filename
 from werkzeug.wrappers import Response
 from wtforms import Form
 from wtforms.validators import Email
@@ -30,7 +32,11 @@ from app.common.audit import (
 )
 from app.common.data.base import BaseModel
 from app.common.data.interfaces.audit import track_audit_event
-from app.common.data.interfaces.collections import delete_all_collection_preview_submissions, delete_collection
+from app.common.data.interfaces.collections import (
+    delete_all_collection_preview_submissions,
+    delete_collection,
+    get_collection,
+)
 from app.common.data.interfaces.grant_recipients import delete_grant_recipients
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import (
@@ -54,6 +60,7 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.pdf import render_pdf
 from app.common.security.utils import sanitise_redirect_url
 from app.deliver_grant_funding.admin.audit_rendering import AuditEventDetailsRenderer, render_json_pre
 from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipientStatusForm
@@ -230,6 +237,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
 
     can_edit = True
 
+    edit_template = "deliver_grant_funding/admin/collection-edit.html"
+
     column_list = ["name", "type", "status", "grant.name"]
     column_filters = ["name", "type", "status"]
 
@@ -311,6 +320,31 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
                 count=count,
             ),
             "success",
+        )
+
+    @expose("/all-questions/<uuid:collection_id>")
+    def all_questions(self, collection_id: uuid.UUID) -> ResponseReturnValue:
+        collection = get_collection(collection_id, with_full_schema=True)
+        return self.render(
+            "deliver_grant_funding/admin/collection-all-questions.html",
+            collection=collection,
+            interpolate=SubmissionHelper.get_print_interpolator(collection),
+        )
+
+    @expose("/all-questions/<uuid:collection_id>/pdf")
+    def all_questions_pdf(self, collection_id: uuid.UUID) -> ResponseReturnValue:
+        collection = get_collection(collection_id, with_full_schema=True)
+        html_content = self.render(
+            "common/all_questions_print_baseline.html",
+            collection=collection,
+            interpolate=SubmissionHelper.get_print_interpolator(collection),
+        )
+        return send_file(
+            io.BytesIO(render_pdf(html_content)),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=secure_filename(f"{collection.grant.name} - {collection.name} - all questions.pdf"),
+            max_age=0,
         )
 
 

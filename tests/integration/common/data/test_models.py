@@ -9,6 +9,7 @@ from app import QuestionDataType
 from app.common.collections.types import (
     TextSingleLineAnswer,
 )
+from app.common.data.interfaces.collections import add_component_condition
 from app.common.data.models import ComponentReference, DataSource, Expression, Group, Submission
 from app.common.data.types import (
     DataSourceType,
@@ -20,7 +21,8 @@ from app.common.data.types import (
     SubmissionModeEnum,
     SubmissionStatusEnum,
 )
-from app.common.expressions.managed import GreaterThan, Specifically
+from app.common.expressions.custom import CustomExpression
+from app.common.expressions.managed import GreaterThan, IsYes, LessThan, Specifically
 from app.common.expressions.references import (
     EvaluationStatement,
     ExpressionReference,
@@ -236,8 +238,122 @@ class TestComponentModel:
         assert not other_form_question.is_descendant_of(child_group)
         assert not other_form_question.is_descendant_of(child_question)
 
+    def test_display_number_runs_continuously_across_sections(self, factories):
+        collection = factories.collection.create()
+        section_one = factories.form.create(collection=collection, order=0)
+        section_two = factories.form.create(collection=collection, order=1)
+
+        first_question = factories.question.create(form=section_one, order=0)
+        group = factories.group.create(form=section_one, order=1)
+        nested_question = factories.question.create(form_id=section_one.id, parent=group, order=0)
+        nested_group = factories.group.create(form_id=section_one.id, parent=group, order=1)
+        deeply_nested_question = factories.question.create(form_id=section_one.id, parent=nested_group, order=0)
+        next_section_question = factories.question.create(form=section_two, order=0)
+
+        assert first_question.display_number == 1
+        assert group.display_number == 2
+
+        assert nested_question.display_number == 2
+        assert nested_group.display_number == 2
+        assert deeply_nested_question.display_number == 2
+
+        assert next_section_question.display_number == 3
+
+    def test_condition_summaries_name_the_answer_number_and_question(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        section_one = factories.form.create(collection=collection, order=0)
+        section_two = factories.form.create(collection=collection, order=1)
+
+        factories.question.create(form=section_one, order=0)
+        favourite_colour = factories.question.create(
+            form=section_one,
+            order=1,
+            data_type=QuestionDataType.YES_NO,
+            name="Favourite colour",
+            text="Do you have a favourite colour?",
+        )
+        question = factories.question.create(form=section_two, order=0)
+        add_component_condition(
+            component=question,
+            user=user,
+            evaluatable_expression=IsYes(subject_reference=ExpressionReference.from_question(favourite_colour)),
+        )
+
+        assert question.condition_summaries == ["Shown if “yes” to 2 (Favourite colour)"]
+
+    def test_condition_summaries_read_comparisons_as_a_sentence_about_the_question(self, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        funding = factories.question.create(
+            form=form, order=0, data_type=QuestionDataType.NUMBER, name="Funding amount"
+        )
+        question = factories.question.create(form=form, order=1)
+        add_component_condition(
+            component=question,
+            user=user,
+            evaluatable_expression=LessThan(
+                subject_reference=ExpressionReference.from_question(funding), maximum_value=5
+            ),
+        )
+
+        assert question.condition_summaries == ["Shown if 1 (Funding amount) is less than “5”"]
+
+    def test_condition_summaries_use_the_number_of_a_nested_subjects_group(self, factories):
+        user = factories.user.create()
+        form = factories.form.create()
+        group = factories.group.create(form=form, order=0)
+        favourite_colour = factories.question.create(
+            form_id=form.id,
+            parent=group,
+            order=0,
+            data_type=QuestionDataType.YES_NO,
+            name="Favourite colour",
+        )
+        question = factories.question.create(form=form, order=1)
+        add_component_condition(
+            component=question,
+            user=user,
+            evaluatable_expression=IsYes(subject_reference=ExpressionReference.from_question(favourite_colour)),
+        )
+
+        assert question.condition_summaries == ["Shown if “yes” to 1 (Favourite colour)"]
+
+    def test_condition_summaries_for_custom_conditions_use_their_own_message(self, factories):
+        user = factories.user.create()
+        question = factories.question.create()
+        add_component_condition(
+            component=question,
+            user=user,
+            evaluatable_expression=CustomExpression(
+                custom_expression=EvaluationStatement("1 == 1"),
+                custom_message=InterpolationStatement("the total is over budget"),
+            ),
+        )
+
+        assert question.condition_summaries == ["Shown if the total is over budget"]
+
+    def test_condition_summaries_is_empty_without_conditions(self, factories):
+        assert factories.question.create().condition_summaries == []
+
 
 class TestQuestionModel:
+    @pytest.mark.parametrize(
+        "data_type, presentation_options, expected",
+        (
+            (QuestionDataType.TEXT_MULTI_LINE, QuestionPresentationOptions(word_limit=200), "200 words"),
+            (QuestionDataType.TEXT_MULTI_LINE, QuestionPresentationOptions(), None),
+            (QuestionDataType.YES_NO, QuestionPresentationOptions(), "Yes or no"),
+            (QuestionDataType.TEXT_SINGLE_LINE, QuestionPresentationOptions(), None),
+            (QuestionDataType.NUMBER, QuestionPresentationOptions(prefix="£"), None),
+            (QuestionDataType.DATE, QuestionPresentationOptions(), None),
+        ),
+    )
+    def test_settings_summary(self, data_type, presentation_options, expected, factories):
+        question = factories.question.create(data_type=data_type, presentation_options=presentation_options)
+
+        assert question.settings_summary == expected
+
     def test_question_property_selects_expressions(self, factories):
         question = factories.question.create()
         condition_expression = factories.expression.create(
@@ -329,6 +445,21 @@ class TestFormModel:
 
         assert form_b.earlier_forms == [form_a]
         assert eligibility_form not in form_b.earlier_forms
+
+    def test_first_display_number_continues_from_earlier_sections(self, factories):
+        collection = factories.collection.create()
+        section_one = factories.form.create(collection=collection, order=0)
+        section_two = factories.form.create(collection=collection, order=1)
+        section_three = factories.form.create(collection=collection, order=2)
+
+        factories.question.create(form=section_one, order=0)
+        group = factories.group.create(form=section_one, order=1)
+        factories.question.create(form_id=section_one.id, parent=group, order=0)
+        factories.question.create(form=section_two, order=0)
+
+        assert section_one.first_display_number == 1
+        assert section_two.first_display_number == 3
+        assert section_three.first_display_number == 4
 
     def test_questions_property_filters_nested_questions(self, factories):
         form = factories.form.create()

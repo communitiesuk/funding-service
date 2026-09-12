@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 from uuid import UUID
 
 from flask import current_app, url_for
+from markupsafe import Markup
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy import text
 from werkzeug.datastructures import FileStorage
@@ -78,6 +79,7 @@ from app.common.expressions import (
     evaluate,
     interpolate,
 )
+from app.common.expressions.references import InterpolationStatement
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.common.helpers.timeline import TimelineEvent, build_timeline_events
 from app.extensions import db, notification_service, s3_service
@@ -206,6 +208,25 @@ class SubmissionHelper:
                 data_manager=submission_helper.submission.data_manager if submission_helper else None,
             ),
         )
+
+    @staticmethod
+    def get_print_interpolator(collection: Collection) -> Callable[[InterpolationStatement | str | None], Markup]:
+        context = ExpressionContext(
+            submission_data={
+                question.safe_qid: Markup("<u>{}</u>").format(question.name)
+                for form in collection.forms
+                for question in form.cached_questions
+            },
+            data_source_context={
+                data_source.safe_did: {
+                    column_name: Markup("<u>{}</u>").format(data_source.column_reference_label(column_schema))
+                    for column_name, column_schema in data_source.schema.ordered_items()
+                }
+                for data_source in collection.data_sources
+                if data_source.schema and data_source.schema.root
+            },
+        )
+        return lambda text: Markup(interpolate(text, context))
 
     @cached_property
     def cached_evaluation_context(self) -> ExpressionContext:

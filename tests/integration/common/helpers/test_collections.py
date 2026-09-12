@@ -9,6 +9,7 @@ from io import StringIO
 from unittest import mock
 
 import pytest
+from markupsafe import Markup
 from sqlalchemy import select
 
 from app.common.collections.forms import build_question_form
@@ -3135,6 +3136,24 @@ class TestSubmissionHelper:
             submission = factories.submission.create(collection=collection, grant_recipient=grant_recipient)
 
             assert SubmissionHelper(submission).has_missing_referenced_data_for_grant_recipient() is False
+
+    class TestGetPrintInterpolator:
+        def test_references_are_underlined_names(self, factories):
+            question = factories.question.create(name="Project name")
+            interpolate = SubmissionHelper.get_print_interpolator(question.form.collection)
+
+            result = interpolate(f"Describe {ExpressionReference.from_question(question).wrapped}")
+
+            assert result == "Describe <u>Project name</u>"
+            assert isinstance(result, Markup)
+
+        def test_reference_names_are_escaped(self, factories):
+            question = factories.question.create(name="<script>alert(1)</script>")
+            interpolate = SubmissionHelper.get_print_interpolator(question.form.collection)
+
+            result = interpolate(ExpressionReference.from_question(question).wrapped)
+
+            assert result == "<u>&lt;script&gt;alert(1)&lt;/script&gt;</u>"
 
     class TestEligibilityAnswersCurrentlyPass:
         def test_true_when_no_eligibility_form(self, factories):
