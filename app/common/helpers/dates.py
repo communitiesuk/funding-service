@@ -1,5 +1,6 @@
 import datetime
 import json
+import urllib.error
 import urllib.request
 
 from cachetools.func import ttl_cache
@@ -13,7 +14,9 @@ def get_bank_holidays() -> frozenset[datetime.date]:
         with urllib.request.urlopen(current_app.config["GOVUK_BANK_HOLIDAYS_API"], timeout=5) as resp:
             data = json.loads(resp.read())
         return frozenset(datetime.date.fromisoformat(event["date"]) for event in data["england-and-wales"]["events"])
-    except OSError, KeyError, ValueError:
+    except (OSError, KeyError, ValueError) as e:
+        if isinstance(e, urllib.error.HTTPError):
+            e.close()
         current_app.logger.exception("Failed to fetch GOV.UK Bank Holidays data")
         return frozenset()
 

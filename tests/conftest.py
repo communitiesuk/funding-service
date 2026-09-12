@@ -2,7 +2,7 @@ import typing as t
 import uuid
 from collections import namedtuple
 from typing import Any, Generator
-from unittest.mock import _Call
+from unittest.mock import _Call, patch
 
 import html5lib
 import pytest
@@ -141,6 +141,13 @@ class FundingServiceTestClient(FlaskClient):
                 raise ParseError(f"\n\n{line_with_context}\n{' ' * (character_number - 1)}^ {error}")
 
         return response
+
+
+@pytest.fixture(scope="function", autouse=True)
+def _mock_bank_holidays_api() -> Generator[None, None, None]:
+    # avoid outbound network requests while running tests
+    with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset()):
+        yield
 
 
 @pytest.fixture(scope="session")
