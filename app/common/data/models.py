@@ -895,6 +895,11 @@ class Form(BaseModel):
     def earlier_forms(self) -> list[Form]:
         return [f for f in self.collection.tasklist_forms if f.order < self.order]
 
+    @property
+    def display_section_index(self) -> int:
+        forms = self.collection.forms
+        return 1 + sum(len(form.components) for form in forms[: forms.index(self)])
+
 
 def get_ordered_nested_components(components: list[Component]) -> list[Component]:
     """Recursively collects all components from a list of components, including nested components."""
@@ -1137,6 +1142,14 @@ class Component(BaseModel):
     def data_reference_label(self) -> str:
         return f"{self.form.collection.name} → {self.form.title} → {self.name}"
 
+    @property
+    def display_number(self) -> int:
+        # numbering runs across the whole collection, nested components take the number of their top level group
+        top_level = self
+        while top_level.parent:
+            top_level = top_level.parent
+        return top_level.form.display_section_index + top_level.form.components.index(top_level)
+
     def is_descendant_of(self, component: Component) -> bool:
         # NOTE: This might want to live on something like a CollectionDependencyGraph in the near future
         #       eg in 577a7f75c049e9e3795111b34bd4350609d3f4b7
@@ -1266,6 +1279,16 @@ class Question(Component, SafeQidMixin):
         )
 
     # END: Helper properties for populating `QuestionForm` instances
+
+    @property
+    def settings_summary(self) -> str | None:
+        if self.word_limit:
+            return f"{self.word_limit} words"
+
+        if self.data_type == QuestionDataType.YES_NO:
+            return QuestionDataType.YES_NO.value
+
+        return None
 
 
 class Group(Component):
@@ -1439,6 +1462,10 @@ class Expression(BaseModel):
         if self.is_custom:
             return get_custom_expression(self)
         raise ValueError("This expression is not a custom expression and does not have a custom definition")
+
+    @property
+    def condition_summary(self) -> InterpolationStatement:
+        return InterpolationStatement(f"Shown if {self.evaluatable_expression.condition_summary}")
 
     @property
     def evaluatable_expression(self) -> EvaluatableExpression:

@@ -143,6 +143,10 @@ class EvaluatableExpression(BaseModel):
     def message(self) -> InterpolationStatement | None: ...
 
     @property
+    @abc.abstractmethod
+    def condition_summary(self) -> InterpolationStatement: ...
+
+    @property
     def reference_aware_fields(self) -> set[str]:
         """
         Returns a set of field names in the expression that can contain reference data.

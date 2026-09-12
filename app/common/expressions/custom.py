@@ -37,6 +37,10 @@ class CustomExpression(EvaluatableExpression):
         return self.expression_name or "Custom expression"
 
     @property
+    def condition_summary(self) -> InterpolationStatement:
+        return self.custom_message or InterpolationStatement(self.description)
+
+    @property
     def reference_aware_fields(self) -> set[str]:
         return {"custom_expression", "custom_message"}
 
