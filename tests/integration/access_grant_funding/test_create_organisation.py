@@ -210,7 +210,13 @@ class TestCreateOrganisationType:
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.OTHER),
+            _create_organisation_session(
+                sign_up_collection.id,
+                organisation_type=SignUpOrganisationType.COMPANY,
+                name="Test Company",
+                external_id="000111222",
+                allow_team_members=False,
+            ),
         )
 
         cya_url = url_for(
@@ -539,6 +545,7 @@ class TestCreateOrganisationName:
                 organisation_type=SignUpOrganisationType.OTHER,
                 name="Acme Ltd",
                 external_id="000111222",
+                allow_team_members=False,
             ),
         )
 
@@ -750,7 +757,7 @@ class TestCreateOrganisationAllowTeamMembers:
         assert soup.select_one("a.govuk-back-link")["href"] == self._name_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@gmail.com")
-    def test_get_with_a_shared_email_domain_skips_to_the_full_name_step(
+    def test_get_with_both_optional_steps_inapplicable_skips_to_check_your_answers(
         self, authenticated_no_role_client, sign_up_collection
     ):
         _seed_session(
@@ -762,7 +769,7 @@ class TestCreateOrganisationAllowTeamMembers:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == self._user_name_url(sign_up_collection)
+        assert response.location == self._cya_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -790,7 +797,11 @@ class TestCreateOrganisationAllowTeamMembers:
     def test_post_stores_the_answer_and_continues_to_the_full_name_step(
         self, authenticated_no_role_client, sign_up_collection
     ):
-        _seed_session(authenticated_no_role_client, sign_up_collection, self._org_session(sign_up_collection))
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._org_session(sign_up_collection, needs_user_name=True),
+        )
 
         response = authenticated_no_role_client.post(
             self._url(sign_up_collection), data={"allow_team_members": True, "submit": "y"}
@@ -832,6 +843,7 @@ class TestCreateOrganisationUserName:
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
+            allow_team_members=False,
             **kwargs,
         )
 

@@ -1,17 +1,32 @@
 import enum
+from collections.abc import Mapping
 from typing import Any, Self
 from uuid import UUID
 
-from flask import session
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from flask import session, url_for
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, model_validator
 
 from app.common.data.models_user import User
+from app.common.exceptions import SessionJourneyRecoveryRedirect
 from app.constants import (
+    CHECK_YOUR_ANSWERS,
     SESSION_CREATE_ORGANISATION,
     SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS,
     SESSION_MATCHED_ORGANISATION,
     SESSION_SIGNING_UP_FOR_COLLECTION_ID,
 )
+
+
+class CreateOrganisationPage(enum.StrEnum):
+    TYPE = "create_organisation_type"
+    LOCAL_AUTHORITY = "create_organisation_local_authority"
+    NAME = "create_organisation_name"
+    ALREADY_EXISTS = "create_organisation_already_exists"
+    TEAM_MEMBERS = "create_organisation_allow_team_members"
+    USER_NAME = "create_organisation_user_name"
+    CHECK_YOUR_ANSWERS = "create_organisation_check_your_answers"
+    ELIGIBLE_TO_APPLY = "eligible_to_apply"
+    SIGN_UP_ROUTER = "public_sign_up_router"
 
 
 class SignUpOrganisationType(enum.StrEnum):
@@ -81,6 +96,151 @@ class CreateOrganisationSession(SignUpSession):
     # optional as only asked of users whose email domain isn't a shared provider
     allow_team_members: bool | None = None
 
+    _page: CreateOrganisationPage = PrivateAttr()
+    _grant_slug: str = PrivateAttr()
+    _collection_slug: str = PrivateAttr()
+    _from_check_your_answers: bool = PrivateAttr(default=False)
+
+    @property
+    def first_incomplete_page(self) -> CreateOrganisationPage:
+        if self.organisation_type is None:
+            return CreateOrganisationPage.TYPE
+        if self.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY:
+            return CreateOrganisationPage.LOCAL_AUTHORITY
+        if (
+            NamedCreateOrganisationSession.from_session(
+                collection_id=self.collection_id, session_data=self.to_session_dict()
+            )
+            is None
+        ):
+            return CreateOrganisationPage.NAME
+        if self.can_share_email_domain and self.allow_team_members is None:
+            return CreateOrganisationPage.TEAM_MEMBERS
+        if self.needs_user_name and not (self.user_name and self.user_name.strip()):
+            return CreateOrganisationPage.USER_NAME
+        return CreateOrganisationPage.CHECK_YOUR_ANSWERS
+
+    @property
+    def _pages(self) -> list[CreateOrganisationPage]:
+        pages = [CreateOrganisationPage.TYPE, CreateOrganisationPage.NAME]
+        if self.can_share_email_domain:
+            pages.append(CreateOrganisationPage.TEAM_MEMBERS)
+        if self.needs_user_name:
+            pages.append(CreateOrganisationPage.USER_NAME)
+        return [*pages, CreateOrganisationPage.CHECK_YOUR_ANSWERS]
+
+    @property
+    def _next_step(self) -> CreateOrganisationPage:
+        match self._page:
+            case CreateOrganisationPage.TYPE:
+                return (
+                    CreateOrganisationPage.LOCAL_AUTHORITY
+                    if self.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY
+                    else CreateOrganisationPage.NAME
+                )
+            case CreateOrganisationPage.NAME:
+                if self.can_share_email_domain:
+                    return CreateOrganisationPage.TEAM_MEMBERS
+                return (
+                    CreateOrganisationPage.USER_NAME
+                    if self.needs_user_name
+                    else CreateOrganisationPage.CHECK_YOUR_ANSWERS
+                )
+            case CreateOrganisationPage.TEAM_MEMBERS:
+                return (
+                    CreateOrganisationPage.USER_NAME
+                    if self.needs_user_name
+                    else CreateOrganisationPage.CHECK_YOUR_ANSWERS
+                )
+            case CreateOrganisationPage.USER_NAME:
+                return CreateOrganisationPage.CHECK_YOUR_ANSWERS
+            case _:
+                raise ValueError(f"{self._page} has no next input page")
+
+    def page_url(self, page: CreateOrganisationPage, *, from_check_your_answers: bool | None = None) -> str:
+        from_check_your_answers = (
+            self._from_check_your_answers if from_check_your_answers is None else from_check_your_answers
+        )
+        return url_for(
+            f"access_grant_funding.{page}",
+            grant_slug=self._grant_slug,
+            collection_slug=self._collection_slug,
+            source=CHECK_YOUR_ANSWERS
+            if from_check_your_answers
+            and page
+            not in (
+                CreateOrganisationPage.CHECK_YOUR_ANSWERS,
+                CreateOrganisationPage.ELIGIBLE_TO_APPLY,
+                CreateOrganisationPage.SIGN_UP_ROUTER,
+            )
+            else None,
+        )
+
+    @property
+    def next_page(self) -> str:
+        """Next destination after a valid input submission; completion stays with its handler."""
+        next_step = self._next_step
+        if self._from_check_your_answers:
+            next_step = self.first_incomplete_page
+        return self.page_url(next_step)
+
+    @property
+    def previous_page(self) -> str:
+        if self._page == CreateOrganisationPage.ALREADY_EXISTS:
+            return self.page_url(CreateOrganisationPage.NAME)
+        if (
+            self._from_check_your_answers
+            and self._page != CreateOrganisationPage.CHECK_YOUR_ANSWERS
+            and self.first_incomplete_page == CreateOrganisationPage.CHECK_YOUR_ANSWERS
+        ):
+            return self.page_url(CreateOrganisationPage.CHECK_YOUR_ANSWERS)
+        if self._page == CreateOrganisationPage.TYPE:
+            return self.page_url(CreateOrganisationPage.ELIGIBLE_TO_APPLY)
+        if self._page == CreateOrganisationPage.LOCAL_AUTHORITY:
+            return self.page_url(CreateOrganisationPage.TYPE)
+        return self.page_url(self._pages[self._pages.index(self._page) - 1])
+
+    def validate_for_page(
+        self,
+        page: CreateOrganisationPage,
+        *,
+        grant_slug: str,
+        collection_slug: str,
+        request_args: Mapping[str, str],
+    ) -> None:
+        """Bind this request's page and raise a recovery redirect if it cannot be visited."""
+        self._page = page
+        self._grant_slug = grant_slug
+        self._collection_slug = collection_slug
+        self._from_check_your_answers = request_args.get("source") == CHECK_YOUR_ANSWERS
+
+        if self.organisation_type is None or not (
+            self.name and self.name.strip() and self.external_id and self.external_id.strip()
+        ):
+            self.name = None
+            self.external_id = None
+
+        if page == CreateOrganisationPage.TYPE:
+            return
+        if page == CreateOrganisationPage.LOCAL_AUTHORITY:
+            if self.organisation_type != SignUpOrganisationType.LOCAL_AUTHORITY:
+                raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.TYPE))
+            return
+
+        pages = self._pages
+        incomplete_page = self.first_incomplete_page
+        answered_pages = pages.index(incomplete_page) if incomplete_page in pages else 0
+        if page == CreateOrganisationPage.ALREADY_EXISTS:
+            if answered_pages <= pages.index(CreateOrganisationPage.NAME):
+                raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
+            return
+
+        next_step = page if page in pages else self._next_step
+        if answered_pages < pages.index(next_step):
+            raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
+        if page not in pages:
+            raise SessionJourneyRecoveryRedirect(self.page_url(next_step))
+
     @classmethod
     def start(cls, *, collection_id: UUID, user: User) -> Self:
         return cls(
@@ -99,11 +259,8 @@ class NamedCreateOrganisationSession(CreateOrganisationSession):
 class CompleteCreateOrganisationSession(NamedCreateOrganisationSession):
     @model_validator(mode="after")
     def check_properties_that_can_be_skipped(self) -> Self:
-        if self.needs_user_name and not self.user_name:
-            raise ValueError("Users full name required")
-        if self.can_share_email_domain and self.allow_team_members is None:
-            raise ValueError("Must specify if team members allowed through email domain")
-
+        if self.first_incomplete_page != CreateOrganisationPage.CHECK_YOUR_ANSWERS:
+            raise ValueError("All applicable organisation sign-up questions must be answered")
         return self
 
 
