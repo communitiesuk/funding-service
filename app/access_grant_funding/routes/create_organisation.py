@@ -1,4 +1,4 @@
-from flask import current_app, redirect, render_template, request, session, url_for
+from flask import current_app, redirect, render_template, session
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
@@ -17,6 +17,7 @@ from app.access_grant_funding.helpers import (
 from app.access_grant_funding.routes import access_grant_funding_blueprint
 from app.access_grant_funding.session_models import (
     CompleteCreateOrganisationSession,
+    CreateOrganisationPage,
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
     SignUpOrganisationType,
@@ -30,7 +31,7 @@ from app.common.data.interfaces.organisations import create_organisation, organi
 from app.common.data.types import OrganisationType, SubmissionModeEnum
 from app.common.data.utils import generate_organisation_custom_code
 from app.common.forms import GenericSubmitForm
-from app.constants import CHECK_YOUR_ANSWERS, SESSION_CREATE_ORGANISATION
+from app.constants import SESSION_CREATE_ORGANISATION
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricAttributeName, MetricEventName
 
@@ -39,57 +40,26 @@ from app.metrics import MetricAttributeName, MetricEventName
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-type", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-@requires_create_organisation_session()
+@requires_create_organisation_session(page=CreateOrganisationPage.TYPE)
 def create_organisation_type(
     grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
-    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
-    check_your_answers_url = url_for(
-        "access_grant_funding.create_organisation_check_your_answers",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-    )
-
     form = CreateOrganisationTypeForm(obj=org_session)
     if form.validate_on_submit():
         org_session.organisation_type = SignUpOrganisationType(form.organisation_type.data)
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
 
-        # user wasn't matched correctly, steers to support at the moment
-        # but will link in with the request access journey to more specific
-        if org_session.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY:
-            return redirect(
-                url_for(
-                    "access_grant_funding.create_organisation_local_authority",
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                    source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
-                )
-            )
-        if from_check_your_answers:
-            return redirect(check_your_answers_url)
-        return redirect(
-            url_for(
-                "access_grant_funding.create_organisation_name",
-                grant_slug=grant_slug,
-                collection_slug=collection_slug,
-            )
-        )
+        return redirect(org_session.next_page)
 
-    back_link_href = (
-        check_your_answers_url
-        if from_check_your_answers
-        else url_for("access_grant_funding.eligible_to_apply", grant_slug=grant_slug, collection_slug=collection_slug)
-    )
     return render_template(
         "access_grant_funding/create_organisation/organisation_type.html",
         form=form,
         grant=grant,
         collection=collection,
-        back_link_href=back_link_href,
+        back_link_href=org_session.previous_page,
     )
 
 
@@ -97,26 +67,12 @@ def create_organisation_type(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/local-authority", methods=["GET"]
 )
 @requires_passed_eligibility
-@requires_create_organisation_session()
+@requires_create_organisation_session(page=CreateOrganisationPage.LOCAL_AUTHORITY)
 def create_organisation_local_authority(
     grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
-    organisation_type_url = url_for(
-        "access_grant_funding.create_organisation_type",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-        source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
-    )
-
-    # double checks the current session type is in this state before presenting it
-    # going back and forward will change the state but this screen will be stored in
-    # the browser history
-    if org_session.organisation_type != SignUpOrganisationType.LOCAL_AUTHORITY:
-        return redirect(organisation_type_url)
 
     modes = get_sign_up_modes(interfaces.user.get_current_user())
     if modes.submission == SubmissionModeEnum.LIVE:
@@ -130,7 +86,7 @@ def create_organisation_local_authority(
         "access_grant_funding/create_organisation/local_authority.html",
         grant=grant,
         collection=collection,
-        back_link_href=organisation_type_url,
+        back_link_href=org_session.previous_page,
     )
 
 
@@ -138,19 +94,12 @@ def create_organisation_local_authority(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-name", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-@requires_create_organisation_session()
+@requires_create_organisation_session(page=CreateOrganisationPage.NAME)
 def create_organisation_name(
     grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
-    check_your_answers_url = url_for(
-        "access_grant_funding.create_organisation_check_your_answers",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-    )
 
     form = CreateOrganisationNameForm(obj=org_session)
     if form.validate_on_submit():
@@ -164,39 +113,15 @@ def create_organisation_name(
 
         modes = get_sign_up_modes(interfaces.user.get_current_user())
         if organisation_name_exists(org_session.name, mode=modes.organisation):
-            return redirect(
-                url_for(
-                    "access_grant_funding.create_organisation_already_exists",
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                    source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
-                )
-            )
-        if from_check_your_answers:
-            return redirect(check_your_answers_url)
-        return redirect(
-            url_for(
-                "access_grant_funding.create_organisation_allow_team_members",
-                grant_slug=grant_slug,
-                collection_slug=collection_slug,
-            )
-        )
+            return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS))
+        return redirect(org_session.next_page)
 
-    back_link_href = (
-        check_your_answers_url
-        if from_check_your_answers
-        else url_for(
-            "access_grant_funding.create_organisation_type",
-            grant_slug=grant_slug,
-            collection_slug=collection_slug,
-        )
-    )
     return render_template(
         "access_grant_funding/create_organisation/organisation_name.html",
         form=form,
         grant=grant,
         collection=collection,
-        back_link_href=back_link_href,
+        back_link_href=org_session.previous_page,
     )
 
 
@@ -205,20 +130,12 @@ def create_organisation_name(
     methods=["GET"],
 )
 @requires_passed_eligibility
-@requires_create_organisation_session(NamedCreateOrganisationSession)
+@requires_create_organisation_session(page=CreateOrganisationPage.ALREADY_EXISTS)
 def create_organisation_already_exists(
     grant_slug: str, collection_slug: str, org_session: NamedCreateOrganisationSession
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
-    organisation_name_url = url_for(
-        "access_grant_funding.create_organisation_name",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-        source=CHECK_YOUR_ANSWERS if from_check_your_answers else None,
-    )
 
     modes = get_sign_up_modes(interfaces.user.get_current_user())
 
@@ -226,14 +143,14 @@ def create_organisation_already_exists(
     # going back and forward will change the state but this screen will be stored in
     # the browser history
     if not organisation_name_exists(org_session.name, mode=modes.organisation):
-        return redirect(organisation_name_url)
+        return redirect(org_session.previous_page)
 
     return render_template(
         "access_grant_funding/create_organisation/organisation_already_exists.html",
         grant=grant,
         collection=collection,
         organisation_name=org_session.name,
-        back_link_href=organisation_name_url,
+        back_link_href=org_session.previous_page,
     )
 
 
@@ -242,7 +159,7 @@ def create_organisation_already_exists(
     methods=["GET", "POST"],
 )
 @requires_passed_eligibility
-@requires_create_organisation_session(NamedCreateOrganisationSession)
+@requires_create_organisation_session(page=CreateOrganisationPage.TEAM_MEMBERS)
 def create_organisation_allow_team_members(
     grant_slug: str, collection_slug: str, org_session: NamedCreateOrganisationSession
 ) -> ResponseReturnValue:
@@ -250,40 +167,12 @@ def create_organisation_allow_team_members(
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     user = interfaces.user.get_current_user()
-    user_name_url = url_for(
-        "access_grant_funding.create_organisation_user_name",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-    )
-
-    # this page isn't needed for shared emails
-    if not org_session.can_share_email_domain:
-        return redirect(user_name_url)
-
-    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
-    check_your_answers_url = url_for(
-        "access_grant_funding.create_organisation_check_your_answers",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-    )
-
     form = CreateOrganisationAllowTeamMembersForm(obj=org_session, organisation_name=org_session.name)
     if form.validate_on_submit():
         org_session.allow_team_members = form.allow_team_members.data == "True"
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
-        if from_check_your_answers:
-            return redirect(check_your_answers_url)
-        return redirect(user_name_url)
+        return redirect(org_session.next_page)
 
-    back_link_href = (
-        check_your_answers_url
-        if from_check_your_answers
-        else url_for(
-            "access_grant_funding.create_organisation_name",
-            grant_slug=grant_slug,
-            collection_slug=collection_slug,
-        )
-    )
     return render_template(
         "access_grant_funding/create_organisation/allow_team_members.html",
         form=form,
@@ -291,7 +180,7 @@ def create_organisation_allow_team_members(
         collection=collection,
         organisation_name=org_session.name,
         email_domain=user.email_domain,
-        back_link_href=back_link_href,
+        back_link_href=org_session.previous_page,
     )
 
 
@@ -299,50 +188,27 @@ def create_organisation_allow_team_members(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/your-full-name", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-@requires_create_organisation_session()
+@requires_create_organisation_session(page=CreateOrganisationPage.USER_NAME)
 def create_organisation_user_name(
-    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+    grant_slug: str, collection_slug: str, org_session: NamedCreateOrganisationSession
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
-
-    check_your_answers_url = url_for(
-        "access_grant_funding.create_organisation_check_your_answers",
-        grant_slug=grant_slug,
-        collection_slug=collection_slug,
-    )
-
-    # we already hold a name for this user, so there is nothing to ask them and this step drops out of the journey
-    if not org_session.needs_user_name:
-        return redirect(check_your_answers_url)
-
-    from_check_your_answers = request.args.get("source") == CHECK_YOUR_ANSWERS
 
     form = UserNameForm(obj=org_session)
     if form.validate_on_submit():
         assert form.user_name.data is not None
         org_session.user_name = form.user_name.data
         session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
-        return redirect(check_your_answers_url)
+        return redirect(org_session.next_page)
 
-    back_link_href = (
-        check_your_answers_url
-        if from_check_your_answers
-        else url_for(
-            "access_grant_funding.create_organisation_allow_team_members"
-            if org_session.can_share_email_domain
-            else "access_grant_funding.create_organisation_name",
-            grant_slug=grant_slug,
-            collection_slug=collection_slug,
-        )
-    )
     return render_template(
         "access_grant_funding/user_name.html",
         form=form,
         grant=grant,
         collection=collection,
         is_setting_up_organisation=True,
-        back_link_href=back_link_href,
+        back_link_href=org_session.previous_page,
     )
 
 
@@ -352,7 +218,7 @@ def create_organisation_user_name(
 )
 @requires_passed_eligibility
 @auto_commit_after_request
-@requires_create_organisation_session(CompleteCreateOrganisationSession)
+@requires_create_organisation_session(page=CreateOrganisationPage.CHECK_YOUR_ANSWERS)
 def create_organisation_check_your_answers(
     grant_slug: str, collection_slug: str, org_session: CompleteCreateOrganisationSession
 ) -> ResponseReturnValue:
@@ -379,14 +245,7 @@ def create_organisation_check_your_answers(
                 dict(organisation_id=organisation.external_id, organisation_type=org_session.organisation_type.value),
             )
         except DuplicateValueError:
-            return redirect(
-                url_for(
-                    "access_grant_funding.create_organisation_already_exists",
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                    source=CHECK_YOUR_ANSWERS,
-                )
-            )
+            return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS, from_check_your_answers=True))
 
         if org_session.needs_user_name:
             interfaces.user.set_user_name(user, org_session.user_name)
@@ -421,15 +280,6 @@ def create_organisation_check_your_answers(
         grant=grant,
         collection=collection,
         org_session=org_session,
-        # avoids optionally skipped steps based on
-        # how we've arrived here
-        back_link_href=url_for(
-            "access_grant_funding.create_organisation_user_name"
-            if org_session.needs_user_name
-            else "access_grant_funding.create_organisation_allow_team_members"
-            if org_session.can_share_email_domain
-            else "access_grant_funding.create_organisation_name",
-            grant_slug=grant_slug,
-            collection_slug=collection_slug,
-        ),
+        pages=CreateOrganisationPage,
+        back_link_href=org_session.previous_page,
     )
