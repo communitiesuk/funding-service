@@ -3392,6 +3392,45 @@ class TestPublicSignUpEligibilityQuestion:
         soup = BeautifulSoup(response.data, "html.parser")
         assert "How many years experience do you have?" in soup.text
 
+    def test_get_redirects_when_question_no_longer_visible(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        trigger_question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+        conditional_question = factories.question.create(form=eligibility_form)
+        add_component_condition(
+            conditional_question,
+            authenticated_no_role_client.user,
+            IsYes(subject_reference=ExpressionReference.from_question(trigger_question)),
+        )
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=authenticated_no_role_client.user,
+            grant_recipient=None,
+            answers=[FactoryAnswer(trigger_question, YesNoAnswer(False))],
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=conditional_question.id,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug
+        )
+
     def test_get_renders_question_with_reference_to_previous_answer(
         self, authenticated_no_role_client, factories, db_session
     ):
