@@ -10,6 +10,7 @@ from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExten
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from app.extensions.psycopg_citext import PsycopgCitextExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
+from app.services.companies_house import CompaniesHouseService
 from app.services.notify import NotificationService
 from app.services.s3 import S3Service
 
@@ -17,6 +18,7 @@ db = SQLAlchemy(engine_options={"echo": False, "connect_args": {"prepare_thresho
 auto_commit_after_request = AutoCommitAfterRequestExtension(db=db)
 migrate = Migrate()
 notification_service = NotificationService()
+companies_house_service = CompaniesHouseService()
 s3_service = S3Service()
 talisman = Talisman()
 flask_assets_vite = FlaskAssetsViteExtension()
@@ -48,6 +50,7 @@ __all__ = [
     "migrate",
     "toolbar",
     "notification_service",
+    "companies_house_service",
     "s3_service",
     "talisman",
     "flask_assets_vite",

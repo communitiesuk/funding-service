@@ -344,6 +344,14 @@ class _SharedConfig(_BaseConfig):
 
     # External registries
     COMPANIES_HOUSE_URL: str = "https://find-and-update.company-information.service.gov.uk"
+    COMPANIES_HOUSE_API_URL: str = "https://api.company-information.service.gov.uk"
+    COMPANIES_HOUSE_API_KEY: str = ""
+    COMPANIES_HOUSE_DISABLE: bool = False  # Disable CH API lookups; manual entry only
+    COMPANIES_HOUSE_MIN_QUERY_LENGTH: int = 3
+    COMPANIES_HOUSE_MAX_QUERY_LENGTH: int = 160  # maximum company name length for Companies House
+    COMPANIES_HOUSE_SEARCH_ITEMS_PER_PAGE: int = 20
+    COMPANIES_HOUSE_MAX_SEARCH_RESULTS: int = 1000  # Companies House returns 416 status code beyond this
+    COMPANIES_HOUSE_REQUEST_TIMEOUT: tuple[float, float] = (5, 5)  # (connect + read timeout in seconds)
 
     PLATFORM_DEPARTMENT_ORGANISATION_CONFIG: dict[str, str] = {
         "name": "Ministry of Housing, Communities and Local Government",
@@ -440,6 +448,8 @@ class UnitTestConfig(LocalConfig):
 
     # GOV.UK Notify
     GOVUK_NOTIFY_DISABLE: bool = False  # We want to test the real code paths
+
+    COMPANIES_HOUSE_API_KEY: str = "test-companies-house-key"
 
     SEED_SYSTEM_DATA: bool = False
 
