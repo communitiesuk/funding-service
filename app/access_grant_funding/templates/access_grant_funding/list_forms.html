@@ -12,8 +12,13 @@
       {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.PUBLIC_SIGN_UP_SUCCESS]) %}
         {% if flashes %}
           {% set added_to_organisation_html %}
-            <h3 class="govuk-notification-banner__heading">Added to organisation</h3>
-            <p class="govuk-body">You've been added to {{ flashes[0]["organisation_name"] }}. You can now apply for {{ flashes[0]["grant_name"] }}.</p>
+            {% if flashes[0]["organisation_created"] %}
+              <h3 class="govuk-notification-banner__heading">Organisation created</h3>
+              <p class="govuk-body">{{ flashes[0]["organisation_name"] }} has been created successfully. You can now start applying for {{ flashes[0]["grant_name"] }}.</p>
+            {% else %}
+              <h3 class="govuk-notification-banner__heading">Added to organisation</h3>
+              <p class="govuk-body">You've been added to {{ flashes[0]["organisation_name"] }}. You can now apply for {{ flashes[0]["grant_name"] }}.</p>
+            {% endif %}
           {% endset %}
           {{ govukNotificationBanner({"html": added_to_organisation_html, "type": "success"}) }}
         {% endif %}

@@ -1968,7 +1968,7 @@ class TestEligibleToApplyPage:
         assert response.status_code == 200
         assert b"Org A" in response.data
         assert b"Org B" in response.data
-        assert b"Sign up a new organisation to apply" in response.data
+        assert b"Apply on behalf of another organisation" in response.data
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_get_with_known_grant_and_collection(self, authenticated_no_role_client, factories):

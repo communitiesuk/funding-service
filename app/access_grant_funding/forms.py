@@ -62,7 +62,7 @@ class EligibleOrganisationSelectionForm(FlaskForm):
 
         # Add the Sign up a new organisaion option at the end
         self.organisation.choices = [(str(org.id), org.name) for org in [*role_matched_orgs, *domain_matched_orgs]] + [
-            (self.SIGN_UP_NEW_ORGANISATION_VALUE, "Sign up a new organisation to apply")
+            (self.SIGN_UP_NEW_ORGANISATION_VALUE, "Apply on behalf of another organisation")
         ]
 
         item_hints: list[dict] = []

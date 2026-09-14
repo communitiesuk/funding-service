@@ -82,7 +82,7 @@ class TestCreateOrganisationType:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "What is your organisation type?" in get_h1_text(soup)
-        assert "Create organisation" in soup.text
+        assert "Create an organisation" in soup.text
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -277,7 +277,7 @@ class TestCreateOrganisationLocalAuthority:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Contact our support desk" in get_h1_text(soup)
-        assert "Create organisation" in soup.text
+        assert "Create an organisation" in soup.text
         assert soup.select_one("a.govuk-back-link")["href"] == self._organisation_type_url(sign_up_collection)
 
         support_desk_link = soup.find("a", string="support desk (opens in new tab)")
@@ -741,7 +741,7 @@ class TestCreateOrganisationAllowTeamMembers:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Do you want to allow team members to apply as Acme Ltd in the future?" in get_h1_text(soup)
-        assert "Create organisation" in soup.text
+        assert "Create an organisation" in soup.text
         assert (
             "Anyone with a @no-org.com email will be able to apply for future grants on behalf of Acme Ltd" in soup.text
         )
@@ -861,7 +861,7 @@ class TestCreateOrganisationUserName:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "What is your full name?" in get_h1_text(soup)
-        assert "Create organisation" in soup.text
+        assert "Create an organisation" in soup.text
         assert soup.select_one("a.govuk-back-link")["href"] == url_for(
             "access_grant_funding.create_organisation_allow_team_members",
             grant_slug=sign_up_collection.grant.slug,
@@ -1159,9 +1159,10 @@ class TestCreateOrganisationCheckYourAnswers:
 
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
         assert followed_response.status_code == 200
-        assert (
-            "You've been added to Acme Ltd. You can now apply for Test grant name."
-            in BeautifulSoup(followed_response.data, "html.parser").text
+        followed_text = BeautifulSoup(followed_response.data, "html.parser").text
+        assert "Organisation created" in followed_text
+        assert "Acme Ltd has been created successfully. You can now start applying for Test grant name." in (
+            followed_text
         )
 
     def test_post_creates_a_test_organisation_for_a_deliver_user_testing_access(
