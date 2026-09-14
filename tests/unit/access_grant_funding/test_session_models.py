@@ -58,6 +58,18 @@ class TestCreateOrganisationSession:
         assert session.name == "Acme Ltd"
         assert session.external_id
 
+    def test_answering_a_company_from_the_register_takes_its_number_as_the_identifier(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.COMPANY,
+            identified_by=OrganisationIdentification.COMPANIES_HOUSE,
+        )
+
+        session.answer_company("TEST COMPANY LIMITED", "00000001")
+
+        assert session.name == "TEST COMPANY LIMITED"
+        assert session.external_id == "00000001"
+
     def test_to_session_dict_round_trips_through_json(self):
         collection_id = uuid.uuid4()
         session = _session(

@@ -83,6 +83,15 @@ def organisation_name_exists(name: str, mode: OrganisationModeEnum = Organisatio
     return db.session.scalar(statement) is not None
 
 
+def organisation_companies_house_number_exists(
+    companies_house_number: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> bool:
+    statement = select(Organisation).where(
+        Organisation.companies_house_number == companies_house_number, Organisation.mode == mode
+    )
+    return db.session.scalar(statement) is not None
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def create_organisation(
     *,

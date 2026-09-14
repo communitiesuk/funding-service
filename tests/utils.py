@@ -184,6 +184,12 @@ def page_has_h2(soup: BeautifulSoup, h2_text: str) -> Tag | None:
     return None
 
 
+def get_input_value(soup: BeautifulSoup, input_name: str) -> str | None:
+    field = soup.find("input", attrs={"name": input_name})
+    value = field.get("value") if isinstance(field, Tag) else None
+    return value if isinstance(value, str) else None
+
+
 def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
     buttons = soup.select("button")
 

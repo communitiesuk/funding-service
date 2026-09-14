@@ -8,6 +8,7 @@ from app.common.data.interfaces.organisations import (
     get_matched_organisations,
     get_organisation_count,
     get_organisations,
+    organisation_companies_house_number_exists,
     organisation_name_exists,
     upsert_organisations,
 )
@@ -280,6 +281,21 @@ class TestOrganisationNameExists:
 
         assert organisation_name_exists("Mirrored Organisation") is False
         assert organisation_name_exists("Mirrored Organisation (test)") is True
+
+
+class TestOrganisationCompaniesHouseNumberExists:
+    def test_true_for_a_registered_company(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
+
+        assert organisation_companies_house_number_exists("00000001") is True
+
+    def test_false_for_an_unknown_company(self, factories, db_session):
+        assert organisation_companies_house_number_exists("00000001") is False
+
+    def test_is_scoped_to_mode(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
+
+        assert organisation_companies_house_number_exists("00000001", mode=OrganisationModeEnum.TEST) is False
 
 
 class TestCreateOrganisation:

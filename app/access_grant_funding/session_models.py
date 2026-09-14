@@ -106,7 +106,7 @@ class CreateOrganisationSession(SignUpSession):
     identified_by: OrganisationIdentification = OrganisationIdentification.MANUAL
 
     name: str | None = None
-    external_id: str | None = None
+    external_id: str | None = None  # Bit of a misnomer: this is really equivalent to Organisation.typed_id
 
     # optional as only needed for users we don't have a name for on the model
     user_name: str | None = None
@@ -118,6 +118,7 @@ class CreateOrganisationSession(SignUpSession):
     _grant_slug: str = PrivateAttr()
     _collection_slug: str = PrivateAttr()
     _from_check_your_answers: bool = PrivateAttr(default=False)
+    _showing_search_results: bool = PrivateAttr(default=False)
 
     @property
     def first_incomplete_page(self) -> CreateOrganisationPage:
@@ -193,17 +194,20 @@ class CreateOrganisationSession(SignUpSession):
             raise ValueError(f"{self._page} has no next input page")
         return next_step
 
-    def page_url(self, page: CreateOrganisationPage, *, from_check_your_answers: bool | None = None) -> str:
+    def page_url(
+        self, destination: CreateOrganisationPage, *, from_check_your_answers: bool | None = None, **params: Any
+    ) -> str:
         from_check_your_answers = (
             self._from_check_your_answers if from_check_your_answers is None else from_check_your_answers
         )
         return url_for(
-            f"access_grant_funding.{page}",
+            f"access_grant_funding.{destination}",
             grant_slug=self._grant_slug,
             collection_slug=self._collection_slug,
+            **params,
             source=CHECK_YOUR_ANSWERS
             if from_check_your_answers
-            and page
+            and destination
             not in (
                 CreateOrganisationPage.CHECK_YOUR_ANSWERS,
                 CreateOrganisationPage.ELIGIBLE_TO_APPLY,
@@ -222,8 +226,11 @@ class CreateOrganisationSession(SignUpSession):
 
     @property
     def previous_page(self) -> str:
+        if self._showing_search_results:
+            return self.page_url(CreateOrganisationPage.COMPANY_SEARCH)
+
         if self._page == CreateOrganisationPage.ALREADY_EXISTS:
-            return self.page_url(CreateOrganisationPage.NAME)
+            return self.page_url(self.name_page)
 
         if (
             self._from_check_your_answers
@@ -250,6 +257,7 @@ class CreateOrganisationSession(SignUpSession):
         self._grant_slug = grant_slug
         self._collection_slug = collection_slug
         self._from_check_your_answers = request_args.get("source") == CHECK_YOUR_ANSWERS
+        self._showing_search_results = page == CreateOrganisationPage.COMPANY_SEARCH and bool(request_args.get("q"))
 
         if page == CreateOrganisationPage.TYPE:
             return
@@ -258,7 +266,7 @@ class CreateOrganisationSession(SignUpSession):
         answered_pages = pages.index(self.first_incomplete_page)
         if page == CreateOrganisationPage.ALREADY_EXISTS:
             # an interstitial off the name page, so only reachable once a name has been entered there
-            if CreateOrganisationPage.NAME not in pages or answered_pages <= pages.index(CreateOrganisationPage.NAME):
+            if self.name_page not in pages or answered_pages <= pages.index(self.name_page):
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
             return
 
@@ -317,6 +325,10 @@ class CreateOrganisationSession(SignUpSession):
         # we'll generate their identifier, other ways of looking up organisations will have their own
         # methods for finding the name and external ID
         self.external_id = generate_organisation_custom_code()
+
+    def answer_company(self, name: str, company_number: str) -> None:
+        self.name = name
+        self.external_id = company_number
 
     def answer_allow_team_members(self, allow_team_members: bool) -> None:
         self.allow_team_members = allow_team_members
