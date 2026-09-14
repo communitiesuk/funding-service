@@ -230,6 +230,29 @@ class TestCollectionRequestALinkToPublicSignUpView:
         assert "Enter your work email address" in get_h1_text(soup)
         assert "Test grant name" in soup.text
 
+    def test_post_mhclg_email_redirects_to_sso(self, app, anonymous_client, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+        )
+
+        with patch("app.common.auth.build_auth_code_flow") as mock_build_auth_code_flow:
+            mock_build_auth_code_flow.return_value = {"auth_uri": "http://auth.example.com/auth-uri"}
+            response = anonymous_client.post(
+                url_for(
+                    "auth.collection_request_a_link_to_public_sign_up",
+                    grant_slug=grant.slug,
+                    collection_slug=collection.slug,
+                ),
+                data={"email_address": "test@communities.gov.uk"},
+                follow_redirects=False,
+            )
+            assert response.status_code == 302
+            assert response.location == "http://auth.example.com/auth-uri"
+
     def test_post_allows_unknown_email(self, anonymous_client, factories, mock_notification_service_calls, db_session):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(

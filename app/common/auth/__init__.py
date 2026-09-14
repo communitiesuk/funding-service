@@ -40,6 +40,23 @@ def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
 
+        internal_domains = current_app.config["INTERNAL_DOMAINS"]
+        if email.endswith(internal_domains):
+            # upgrade authorisation requests for internal users to make sure they
+            # still have valid access to their admin account
+            session["next"] = sanitise_redirect_url(
+                session.get(
+                    "next",
+                    url_for(
+                        "access_grant_funding.public_sign_up_router",
+                        grant_slug=grant_slug,
+                        collection_slug=collection_slug,
+                    ),
+                )
+            )
+            session["flow"] = build_auth_code_flow(scopes=current_app.config["MS_GRAPH_PERMISSIONS_SCOPE"])
+            return redirect(session["flow"]["auth_uri"]), 302
+
         user = interfaces.user.get_user_by_email(email_address=email)
 
         magic_link = interfaces.magic_link.create_magic_link(
