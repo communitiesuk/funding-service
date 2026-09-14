@@ -22,7 +22,7 @@ class TestMagicLinkSignInView:
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
         assert "Access grant funding" in get_h1_text(soup)
-        assert "A service for grant recipients of central government funding" in soup.text
+        assert "A service for organisations to complete and submit forms for central government grants" in soup.text
 
     def test_post_invalid_email(self, anonymous_client):
         response = anonymous_client.post(
