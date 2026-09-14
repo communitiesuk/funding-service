@@ -2333,8 +2333,13 @@ class TestCreateOrganisationCheckYourAnswers:
         )
 
     @patch("app.access_grant_funding.helpers.emit_metric_count")
-    def test_post_as_deliver_user_testing_access_does_not_emit_metric(
-        self, mock_count, authenticated_platform_admin_client, sign_up_collection, mock_notification_service_calls
+    def test_post_as_deliver_user_testing_access_emits_metric_tagged_as_test_mode(
+        self,
+        mock_count,
+        authenticated_platform_admin_client,
+        sign_up_collection,
+        db_session,
+        mock_notification_service_calls,
     ):
         _seed_session(
             authenticated_platform_admin_client, sign_up_collection, self._complete_session(sign_up_collection)
@@ -2343,7 +2348,19 @@ class TestCreateOrganisationCheckYourAnswers:
         response = authenticated_platform_admin_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         assert response.status_code == 302
-        mock_count.assert_not_called()
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(GrantRecipient.grant_id == sign_up_collection.grant.id)
+        ).one()
+        mock_count.assert_called_once_with(
+            MetricEventName.PUBLIC_SIGN_UP_ORGANISATION_CREATED,
+            grant_recipient=grant_recipient,
+            collection=sign_up_collection,
+            custom_attributes={
+                MetricAttributeName.ORGANISATION_TYPE: "OTHER",
+                MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.TEST),
+                MetricAttributeName.ORGANISATION_IDENTIFIED_BY: "MANUAL",
+            },
+        )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_claims_the_eligibility_submission(
