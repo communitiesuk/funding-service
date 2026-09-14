@@ -515,6 +515,17 @@ def public_sign_up_eligibility_question(
     submission_helper = get_or_create_unclaimed_submission(user, collection, submission_mode)
     question = submission_helper.get_question(question_id)
 
+    if not submission_helper.is_component_visible(question, submission_helper.cached_evaluation_context):
+        # If question is not visible, e.g. after changing the answer to an earlier
+        # conditional question. Redirect the user away.
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+            )
+        )
+
     form_cls = build_question_form(
         [question], submission_helper.cached_evaluation_context, submission_helper.cached_interpolation_context
     )
