@@ -246,20 +246,21 @@ def all_questions_pdf(
 ) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
-    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
-    collection = submission.collection
+    helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
 
     html_content = render_template(
         "common/all_questions_print_baseline.html",
-        collection=collection,
-        interpolate=SubmissionHelper.get_print_interpolator(collection),
+        collection=helper.collection,
+        interpolate=SubmissionHelper.get_print_interpolator(helper.collection),
     )
+
+    emit_metric_count(MetricEventName.ACCESS_ALL_QUESTIONS_PDF_DOWNLOADED, submission=helper.submission)
 
     return send_file(
         io.BytesIO(render_pdf(html_content)),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=secure_filename(f"{collection.grant.name} - {collection.name} - all questions.pdf"),
+        download_name=secure_filename(f"{helper.collection.grant.name} - {helper.collection.name} - all questions.pdf"),
         max_age=0,
     )
 
