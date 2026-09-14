@@ -197,6 +197,17 @@ class TestGrantModel:
         assert set(grant.grant_recipients) == {grant_recipient_1, grant_recipient_2}
         assert other_grant_recipient not in grant.grant_recipients
 
+    def test_grant_team_invitations_relationship(self, factories):
+        grant = factories.grant.create()
+        grant_team_invitation = factories.invitation.create(grant=grant, organisation=grant.organisation)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+        grant_recipient_invitation = factories.invitation.create(grant=grant, organisation=grant_recipient.organisation)
+        other_grant_invitation = factories.invitation.create(has_grant=True, organisation=grant.organisation)
+
+        assert grant.grant_team_invitations == [grant_team_invitation]
+        assert grant_recipient_invitation not in grant.grant_team_invitations
+        assert other_grant_invitation not in grant.grant_team_invitations
+
 
 class TestComponentModel:
     def test_interpolation_fields_round_trip_as_interpolation_statements(self, db_session, factories):
