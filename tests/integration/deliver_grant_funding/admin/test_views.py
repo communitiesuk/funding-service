@@ -16,6 +16,7 @@ from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation
 from app.common.data.types import (
     AuditEventType,
+    AuthMethodEnum,
     CollectionStatusEnum,
     CollectionType,
     DataSourceType,
@@ -112,6 +113,15 @@ class TestFlaskAdminAccess:
         client = request.getfixturevalue(client_fixture)
         response = client.get("/deliver/admin/invitation/")
         assert response.status_code == expected_code
+
+    def test_admin_index_denied_for_platform_admin_authenticated_via_magic_link(
+        self, authenticated_platform_admin_client
+    ):
+        with authenticated_platform_admin_client.session_transaction() as session:
+            session["auth"] = AuthMethodEnum.MAGIC_LINK
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/", follow_redirects=False)
+        assert response.status_code == 403
 
 
 class TestCollectionLifecycleSelectGrant:
