@@ -20,6 +20,7 @@ from app.constants import (
 class CreateOrganisationPage(enum.StrEnum):
     TYPE = "create_organisation_type"
     LOCAL_AUTHORITY = "create_organisation_local_authority"
+    COMPANY_SEARCH = "create_organisation_company_search"
     NAME = "create_organisation_name"
     ALREADY_EXISTS = "create_organisation_already_exists"
     TEAM_MEMBERS = "create_organisation_allow_team_members"
@@ -80,6 +81,13 @@ class MatchedOrganisationSession(SignUpSession):
     organisation_id: UUID
 
 
+class OrganisationIdentification(enum.StrEnum):
+    """How an organisation's name and identifier are found."""
+
+    COMPANIES_HOUSE = "COMPANIES_HOUSE"
+    MANUAL = "MANUAL"
+
+
 class CreateOrganisationSession(SignUpSession):
     """A create organisation journey in progress, with nothing answered yet."""
 
@@ -87,12 +95,20 @@ class CreateOrganisationSession(SignUpSession):
     # the screens along it don't each have to work it out from the user again
     needs_user_name: bool
     can_share_email_domain: bool
+    # defaults to off so that sessions started before the flag existed still load
+    companies_house_lookup: bool = False
 
     organisation_type: SignUpOrganisationType | None = None
+
+    # Records how organisation info was provided; lookups can fall back to manual if unavailable
+    identified_by: OrganisationIdentification = OrganisationIdentification.MANUAL
+
     name: str | None = None
     external_id: str | None = None
+
     # optional as only needed for users we don't have a name for on the model
     user_name: str | None = None
+
     # optional as only asked of users whose email domain isn't a shared provider
     allow_team_members: bool | None = None
 
@@ -116,7 +132,7 @@ class CreateOrganisationSession(SignUpSession):
             case CreateOrganisationPage.TYPE:
                 return self.organisation_type is not None
 
-            case CreateOrganisationPage.NAME:
+            case CreateOrganisationPage.COMPANY_SEARCH | CreateOrganisationPage.NAME:
                 return bool(self.name and self.external_id)
 
             case CreateOrganisationPage.TEAM_MEMBERS:
@@ -129,15 +145,33 @@ class CreateOrganisationSession(SignUpSession):
                 return False
 
     @property
+    def name_page(self) -> CreateOrganisationPage:
+        """Which page captures the company name"""
+        return (
+            CreateOrganisationPage.COMPANY_SEARCH
+            if self.identified_by == OrganisationIdentification.COMPANIES_HOUSE
+            else CreateOrganisationPage.NAME
+        )
+
+    @property
     def _pages(self) -> list[CreateOrganisationPage]:
+        """The pages this journey visits, in order; navigation, completeness and access are all derived from it."""
         """Work out the set of pages that should be visited by this session.
 
         This may change dynamically as the session develops.
         """
-        if self.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY:
-            return [CreateOrganisationPage.TYPE, CreateOrganisationPage.LOCAL_AUTHORITY]
+        pages = [CreateOrganisationPage.TYPE]
 
-        pages = [CreateOrganisationPage.TYPE, CreateOrganisationPage.NAME]
+        match self.organisation_type, self.identified_by:
+            case SignUpOrganisationType.LOCAL_AUTHORITY, _:
+                pages.append(CreateOrganisationPage.LOCAL_AUTHORITY)
+                return pages
+
+            case SignUpOrganisationType.COMPANY, OrganisationIdentification.COMPANIES_HOUSE:
+                pages.append(CreateOrganisationPage.COMPANY_SEARCH)
+
+            case _:
+                pages.append(CreateOrganisationPage.NAME)
 
         if self.can_share_email_domain:
             pages.append(CreateOrganisationPage.TEAM_MEMBERS)
@@ -232,28 +266,49 @@ class CreateOrganisationSession(SignUpSession):
             return
 
         if page not in pages:
+            if self.organisation_type == SignUpOrganisationType.COMPANY and page in (
+                CreateOrganisationPage.COMPANY_SEARCH,
+                CreateOrganisationPage.NAME,
+            ):
+                # a company's name is answered on whichever of these fits how it is being found
+                raise SessionJourneyRecoveryRedirect(self.page_url(self.name_page))
+
             if page not in (CreateOrganisationPage.TEAM_MEMBERS, CreateOrganisationPage.USER_NAME):
                 # a page for another type of organisation: choosing the type again leads to the right pages
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.TYPE))
+
             # a step this user isn't asked: carry on to the next page that does apply, if this type has one
             next_step = self._page_after(page)
             if next_step is None or answered_pages < pages.index(next_step):
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
+
             raise SessionJourneyRecoveryRedirect(self.page_url(next_step))
 
         if answered_pages < pages.index(page):
             raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
 
     @classmethod
-    def start(cls, *, collection_id: UUID, user: User) -> Self:
+    def start(cls, *, collection_id: UUID, user: User, companies_house_lookup: bool) -> Self:
         return cls(
             collection_id=collection_id,
             needs_user_name=not user.name,
             can_share_email_domain=user.can_share_email_domain,
+            companies_house_lookup=companies_house_lookup,
         )
 
     def answer_organisation_type(self, organisation_type: SignUpOrganisationType) -> None:
+        identified_by = self.identified_by
         self.organisation_type = organisation_type
+        self.identified_by = (
+            OrganisationIdentification.COMPANIES_HOUSE
+            if organisation_type == SignUpOrganisationType.COMPANY and self.companies_house_lookup
+            else OrganisationIdentification.MANUAL
+        )
+
+        # a name and identifier found one way don't carry over to being found another
+        if self.identified_by != identified_by:
+            self.name = None
+            self.external_id = None
 
     def answer_name(self, name: str) -> None:
         # imported here as the data utils pull in the models, which are still loading when this module is imported

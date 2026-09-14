@@ -3,6 +3,7 @@ from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
 from app.access_grant_funding.forms import (
+    CompaniesHouseSearchForm,
     CreateOrganisationAllowTeamMembersForm,
     CreateOrganisationNameForm,
     CreateOrganisationTypeForm,
@@ -22,7 +23,7 @@ from app.access_grant_funding.session_models import (
     NamedCreateOrganisationSession,
     SignUpOrganisationType,
 )
-from app.common.auth.decorators import requires_passed_eligibility
+from app.common.auth.decorators import has_feature_flag_enabled, requires_passed_eligibility
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -30,6 +31,7 @@ from app.common.data.interfaces.grants import get_grant_by_slug
 from app.common.data.interfaces.organisations import create_organisation, organisation_name_exists
 from app.common.data.types import OrganisationType, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
+from app.common.helpers.feature_flags import FeatureFlags
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricAttributeName, MetricEventName
 
@@ -80,6 +82,31 @@ def create_organisation_local_authority(
 
     return render_template(
         "access_grant_funding/create_organisation/local_authority.html",
+        grant=grant,
+        collection=collection,
+        back_link_href=org_session.previous_page,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search", methods=["GET", "POST"]
+)
+@requires_passed_eligibility
+@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
+@requires_create_organisation_session(page=CreateOrganisationPage.COMPANY_SEARCH)
+def create_organisation_company_search(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    form = CompaniesHouseSearchForm()
+    # TODO: implement search results and selection
+    form.validate_on_submit()
+
+    return render_template(
+        "access_grant_funding/create_organisation/company_search.html",
+        form=form,
         grant=grant,
         collection=collection,
         back_link_href=org_session.previous_page,
