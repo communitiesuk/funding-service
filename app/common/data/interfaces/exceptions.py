@@ -173,3 +173,7 @@ class GrantRecipientUsersRequiredError(Exception):
 
 class GrantMustBeLiveError(Exception):
     pass
+
+
+class GrantCannotBeUpdatedWhenLiveError(Exception):
+    pass

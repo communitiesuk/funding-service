@@ -1,8 +1,9 @@
+import pytest
 from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data.models import Grant
-from app.common.data.types import GrantRecipientStatusEnum, RoleEnum
+from app.common.data.types import GrantRecipientStatusEnum, GrantStatusEnum, RoleEnum
 from app.deliver_grant_funding.forms import GrantContactForm, GrantDescriptionForm, GrantGGISForm, GrantNameForm
 from tests.utils import get_form_data, get_h1_text, get_h2_text
 
@@ -56,6 +57,16 @@ class TestViewGrantDetails:
 
         change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
         assert {link.get_text().strip() for link in change_links} == set()
+
+    def test_hides_change_name_when_live(self, authenticated_grant_admin_client, factories, templates_rendered):
+        grant = authenticated_grant_admin_client.grant
+        grant.status = GrantStatusEnum.LIVE
+        result = authenticated_grant_admin_client.get(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))
+        assert result.status_code == 200
+        soup = BeautifulSoup(result.data, "html.parser")
+
+        change_links = [link for link in soup.select("a") if "Change" in link.get_text()]
+        assert "Change grant name" not in {link.get_text().strip() for link in change_links}
 
     def test_displays_recipients_with_data_providers_and_certifiers(
         self, authenticated_platform_admin_client, factories, db_session
@@ -322,6 +333,23 @@ class TestChangeGrantName:
         assert get_h2_text(soup) == "There is a problem"
         assert len(soup.find_all("a", href="#name")) == 1
         assert soup.find_all("a", href="#name")[0].text.strip() == "Grant name already in use"
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    def test_grant_change_name_post_get_when_live(self, authenticated_platform_admin_client, factories, method):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        form = GrantNameForm(data={"name": "changed"})
+        result = (
+            authenticated_platform_admin_client.post(
+                url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id),
+                data=get_form_data(form),
+                follow_redirects=False,
+            )
+            if method == "POST"
+            else authenticated_platform_admin_client.get(
+                url_for("deliver_grant_funding.grant_change_name", grant_id=grant.id)
+            )
+        )
+        assert result.status_code == 403
 
 
 class TestChangeGrantDescription:

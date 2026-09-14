@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
+    GrantCannotBeUpdatedWhenLiveError,
     StateTransitionError,
     flush_and_rollback_on_exceptions,
 )
@@ -148,6 +149,8 @@ def update_grant(  # noqa: C901
     if ggis_number is not NOT_PROVIDED:
         grant.ggis_number = ggis_number
     if name is not NOT_PROVIDED:
+        if grant.status == GrantStatusEnum.LIVE:
+            raise GrantCannotBeUpdatedWhenLiveError("Cannot update grant name and slug when the grant is live")
         grant.name = name
         grant.slug = slugify(name)
 

@@ -4,7 +4,7 @@ import pytest
 from _pytest._code import ExceptionInfo
 from sqlalchemy.exc import NoResultFound
 
-from app.common.data.interfaces.exceptions import StateTransitionError
+from app.common.data.interfaces.exceptions import GrantCannotBeUpdatedWhenLiveError, StateTransitionError
 from app.common.data.interfaces.grants import (
     DuplicateValueError,
     create_grant,
@@ -190,6 +190,11 @@ class TestUpdateGrant:
         factories.grant.create(name="test_grant_2")
         with pytest.raises(DuplicateValueError):
             update_grant(grant=grant_1, name="test_grant_2")
+
+    def test_update_grant_slug_when_live_throws_error(self, factories):
+        grant_1 = factories.grant.create(name="test_grant", status=GrantStatusEnum.LIVE)
+        with pytest.raises(GrantCannotBeUpdatedWhenLiveError):
+            update_grant(grant=grant_1, name="new name")
 
     def test_updated_grant_nothing_provided(self, factories) -> None:
         grant = factories.grant.create(
