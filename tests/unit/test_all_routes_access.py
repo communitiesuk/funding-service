@@ -211,6 +211,8 @@ routes_with_expected_access_grant_funding_has_member_role_access = [
     "access_grant_funding.list_grant_team",
     "access_grant_funding.view_locked_submission",
     "access_grant_funding.export_submission_pdf",
+    "access_grant_funding.all_questions",
+    "access_grant_funding.all_questions_pdf",
     "access_grant_funding.submitted_confirmation",
     "access_grant_funding.download_file",
     "access_grant_funding.collection_unavailable",

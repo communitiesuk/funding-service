@@ -217,6 +217,54 @@ def export_submission_pdf(
 
 
 @access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/all-questions",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def all_questions(
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
+) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+
+    return render_template(
+        "access_grant_funding/collections/all_questions.html",
+        grant_recipient=grant_recipient,
+        submission=submission,
+        interpolate=SubmissionHelper.get_print_interpolator(submission.collection),
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/all-questions/pdf",
+    methods=["GET"],
+)
+@has_access_grant_role(RoleEnum.MEMBER)
+def all_questions_pdf(
+    organisation_id: UUID, grant_id: UUID, collection_type: CollectionType, submission_id: UUID
+) -> ResponseReturnValue:
+    grant_recipient = get_grant_recipient(grant_id, organisation_id)
+
+    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    collection = submission.collection
+
+    html_content = render_template(
+        "common/all_questions_print_baseline.html",
+        collection=collection,
+        interpolate=SubmissionHelper.get_print_interpolator(collection),
+    )
+
+    return send_file(
+        io.BytesIO(render_pdf(html_content)),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=secure_filename(f"{collection.grant.name} - {collection.name} - all questions.pdf"),
+        max_age=0,
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/organisation/<uuid:organisation_id>/grants/<uuid:grant_id>/<collection_type:collection_type>/<uuid:submission_id>/decline",
     methods=["GET", "POST"],
 )
