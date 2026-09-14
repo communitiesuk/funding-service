@@ -12,8 +12,8 @@
     <div class="govuk-grid-column-full">
       {{ layout.messages() }}
 
-      <span class="govuk-caption-l">View all questions</span>
-      <h1 class="govuk-heading-l">{{ collection.name }}</h1>
+      <span class="govuk-caption-l">{{ collection.name }}</span>
+      <h1 class="govuk-heading-l">All questions</h1>
 
       <a href="{{ url_for('collection.all_questions_pdf', collection_id=collection.id) }}" class="govuk-button govuk-button--secondary" download>Download as PDF</a>
 
