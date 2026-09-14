@@ -33,6 +33,7 @@ from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_grant_recipient_or_none
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_matched_organisations, get_organisation
+from app.common.data.interfaces.user import upsert_user_by_email
 from app.common.data.types import RoleEnum, SubmissionModeEnum
 from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
@@ -160,6 +161,10 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
             return redirect(
                 url_for("access_grant_funding.list_grant_team", organisation_id=organisation.id, grant_id=grant_id)
             )
+
+        else:
+            if not user_to_add.name:
+                upsert_user_by_email(form.email_address.data, name=form.full_name.data)
 
         if AuthorisationHelper.is_access_grant_member(grant_recipient, user_to_add):
             form.email_address.errors.append(  # ty: ignore[unresolved-attribute]
