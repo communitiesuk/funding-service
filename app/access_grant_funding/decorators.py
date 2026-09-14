@@ -13,6 +13,7 @@ from app.access_grant_funding.session_models import (
 )
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grants import get_grant_by_slug
+from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import SESSION_CREATE_ORGANISATION
 
 
@@ -57,6 +58,7 @@ def requires_create_organisation_session(
                     grant_slug=grant_slug,
                     collection_slug=collection_slug,
                     request_args=request.args,
+                    companies_house_lookup=FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP.is_enabled,
                 )
                 response = func(*args, org_session=org_session, **kwargs)
             finally:

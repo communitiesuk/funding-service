@@ -24,8 +24,17 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import get_or_create_unclaimed_submission
+from app.common.helpers.feature_flags import FeatureFlags
 from app.metrics import MetricAttributeName, MetricEventName
-from tests.utils import AnyStringMatching, get_h1_text, get_summary_list_value_by_key
+from tests.utils import (
+    AnyStringMatching,
+    enable_session_feature_flag,
+    get_h1_text,
+    get_summary_list_value_by_key,
+    page_has_button,
+    page_has_error,
+    page_has_link,
+)
 
 
 @pytest.fixture()
@@ -145,6 +154,38 @@ class TestCreateOrganisationType:
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_registered_company_with_the_lookup_enabled_goes_to_the_company_search_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        enable_session_feature_flag(
+            authenticated_no_role_client, FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP
+        )
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            _create_organisation_session(sign_up_collection.id),
+        )
+
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.create_organisation_type",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            ),
+            data={"organisation_type": SignUpOrganisationType.COMPANY.value, "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_company_search",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.COMPANY.value
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_local_authority_goes_to_the_support_desk_page(self, authenticated_no_role_client, sign_up_collection):
@@ -336,6 +377,102 @@ class TestCreateOrganisationLocalAuthority:
             collection=sign_up_collection,
             custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE)},
         )
+
+
+class TestCreateOrganisationCompanySearch:
+    def _url(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_company_search",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    def _organisation_type_url(self, collection) -> str:
+        return url_for(
+            "access_grant_funding.create_organisation_type",
+            grant_slug=collection.grant.slug,
+            collection_slug=collection.slug,
+        )
+
+    def _seed_company_session(self, client, collection, organisation_type=SignUpOrganisationType.COMPANY) -> None:
+        enable_session_feature_flag(client, FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
+        _seed_session(
+            client, collection, _create_organisation_session(collection.id, organisation_type=organisation_type)
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_the_feature_flag_is_not_found(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.COMPANY),
+        )
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 404
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_renders_the_search_form(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "Search Companies House register"
+
+        link = page_has_link(soup, "Back")
+        assert page_has_button(soup, "Search")
+        assert link
+        assert link.attrs["href"] == self._organisation_type_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        enable_session_feature_flag(
+            authenticated_no_role_client, FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP
+        )
+        _seed_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_company_session(
+            authenticated_no_role_client, sign_up_collection, organisation_type=SignUpOrganisationType.CHARITY
+        )
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == self._organisation_type_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_without_a_search_term_shows_an_error(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(self._url(sign_up_collection), data={"query": "", "submit": "y"})
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter a company name or number")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_search_term_shorter_than_three_characters_shows_an_error(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(self._url(sign_up_collection), data={"query": "ab", "submit": "y"})
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Company name or number must be 3 characters or more")
 
 
 class TestCreateOrganisationName:

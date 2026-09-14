@@ -20,6 +20,7 @@ from app.constants import (
 class CreateOrganisationPage(enum.StrEnum):
     TYPE = "create_organisation_type"
     LOCAL_AUTHORITY = "create_organisation_local_authority"
+    COMPANY_SEARCH = "create_organisation_company_search"
     NAME = "create_organisation_name"
     ALREADY_EXISTS = "create_organisation_already_exists"
     TEAM_MEMBERS = "create_organisation_allow_team_members"
@@ -100,6 +101,7 @@ class CreateOrganisationSession(SignUpSession):
     _grant_slug: str = PrivateAttr()
     _collection_slug: str = PrivateAttr()
     _from_check_your_answers: bool = PrivateAttr(default=False)
+    _companies_house_lookup: bool = PrivateAttr(default=False)
 
     @property
     def first_incomplete_page(self) -> CreateOrganisationPage:
@@ -133,11 +135,11 @@ class CreateOrganisationSession(SignUpSession):
     def _next_step(self) -> CreateOrganisationPage:
         match self._page:
             case CreateOrganisationPage.TYPE:
-                return (
-                    CreateOrganisationPage.LOCAL_AUTHORITY
-                    if self.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY
-                    else CreateOrganisationPage.NAME
-                )
+                if self.organisation_type == SignUpOrganisationType.LOCAL_AUTHORITY:
+                    return CreateOrganisationPage.LOCAL_AUTHORITY
+                if self.organisation_type == SignUpOrganisationType.COMPANY and self._companies_house_lookup:
+                    return CreateOrganisationPage.COMPANY_SEARCH
+                return CreateOrganisationPage.NAME
             case CreateOrganisationPage.NAME:
                 if self.can_share_email_domain:
                     return CreateOrganisationPage.TEAM_MEMBERS
@@ -196,7 +198,7 @@ class CreateOrganisationSession(SignUpSession):
             return self.page_url(CreateOrganisationPage.CHECK_YOUR_ANSWERS)
         if self._page == CreateOrganisationPage.TYPE:
             return self.page_url(CreateOrganisationPage.ELIGIBLE_TO_APPLY)
-        if self._page == CreateOrganisationPage.LOCAL_AUTHORITY:
+        if self._page in (CreateOrganisationPage.LOCAL_AUTHORITY, CreateOrganisationPage.COMPANY_SEARCH):
             return self.page_url(CreateOrganisationPage.TYPE)
         return self.page_url(self._pages[self._pages.index(self._page) - 1])
 
@@ -207,12 +209,14 @@ class CreateOrganisationSession(SignUpSession):
         grant_slug: str,
         collection_slug: str,
         request_args: Mapping[str, str],
+        companies_house_lookup: bool = False,
     ) -> None:
         """Bind this request's page and raise a recovery redirect if it cannot be visited."""
         self._page = page
         self._grant_slug = grant_slug
         self._collection_slug = collection_slug
         self._from_check_your_answers = request_args.get("source") == CHECK_YOUR_ANSWERS
+        self._companies_house_lookup = companies_house_lookup
 
         if self.organisation_type is None or not (
             self.name and self.name.strip() and self.external_id and self.external_id.strip()
@@ -224,6 +228,10 @@ class CreateOrganisationSession(SignUpSession):
             return
         if page == CreateOrganisationPage.LOCAL_AUTHORITY:
             if self.organisation_type != SignUpOrganisationType.LOCAL_AUTHORITY:
+                raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.TYPE))
+            return
+        if page == CreateOrganisationPage.COMPANY_SEARCH:
+            if self.organisation_type != SignUpOrganisationType.COMPANY:
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.TYPE))
             return
 
