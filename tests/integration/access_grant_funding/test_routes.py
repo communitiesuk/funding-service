@@ -2234,7 +2234,7 @@ class TestEligibleToApplyPage:
         notification_call = mock_notification_service_calls[0]
         assert notification_call.args == (
             authenticated_no_role_client.user.email,
-            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+            "bede86cd-b956-4dad-8f28-17a797788811",
         )
         assert notification_call.kwargs["personalisation"]["submission_name"] == collection.name
         assert notification_call.kwargs["personalisation"]["organisation_name"] == "Test Organisation"
@@ -2696,7 +2696,7 @@ class TestEligibleToApplyPage:
         notification_call = mock_notification_service_calls[0]
         assert notification_call.args == (
             authenticated_grant_member_client.user.email,
-            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+            "bede86cd-b956-4dad-8f28-17a797788811",
         )
 
         # Submission page now loads successfully, with the "added to organisation" banner shown
@@ -2999,7 +2999,7 @@ class TestEligibleToApplyUserNamePage:
         notification_call = mock_notification_service_calls[0]
         assert notification_call.args == (
             authenticated_no_role_client.user.email,
-            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+            "bede86cd-b956-4dad-8f28-17a797788811",
         )
 
         # We clear the public sign-up session state

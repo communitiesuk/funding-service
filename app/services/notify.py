@@ -207,6 +207,7 @@ class NotificationService:
                 "submission_name": collection.name,
                 "organisation_name": grant_recipient.organisation.name,
                 "grant_name": grant_recipient.grant.name,
+                "collection_type_noun": collection.type.constants.singular,
                 "submission_deadline": format_collection_submission_deadline(
                     collection, missing_text="(Dates to be confirmed)"
                 ),
