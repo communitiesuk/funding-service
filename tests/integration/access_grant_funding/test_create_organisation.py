@@ -1151,7 +1151,7 @@ class TestCreateOrganisationCheckYourAnswers:
         notification_call = mock_notification_service_calls[0]
         assert notification_call.args == (
             authenticated_no_role_client.user.email,
-            "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+            "bede86cd-b956-4dad-8f28-17a797788811",
         )
         assert notification_call.kwargs["personalisation"]["submission_name"] == sign_up_collection.name
         assert notification_call.kwargs["personalisation"]["organisation_name"] == "Acme Ltd"
@@ -1196,7 +1196,7 @@ class TestCreateOrganisationCheckYourAnswers:
 
         assert len(mock_notification_service_calls) == 1
         notification_call = mock_notification_service_calls[0]
-        assert notification_call.args == (user.email, "2f2a5a36-b40b-45a5-9595-ae086eafacdd")
+        assert notification_call.args == (user.email, "bede86cd-b956-4dad-8f28-17a797788811")
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     @patch("app.access_grant_funding.helpers.emit_metric_count")

@@ -5,7 +5,7 @@ import pytest
 import responses
 from responses import matchers
 
-from app.common.data.types import GrantRecipientModeEnum, SubmissionEventType
+from app.common.data.types import CollectionType, GrantRecipientModeEnum, SubmissionEventType
 from app.common.filters import format_datetime
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
@@ -243,6 +243,7 @@ class TestNotificationService:
             grant=grant_recipient.grant,
             submission_period_end_date=submission_period_end_date,
             allow_edits_after_submission_deadline=allow_edits_after_submission_deadline,
+            type=CollectionType.APPLICATION,
         )
         email_address = "test@hastings.gov.uk"
         request_matcher = responses.post(
@@ -252,11 +253,12 @@ class TestNotificationService:
                 matchers.json_params_matcher(
                     {
                         "email_address": email_address,
-                        "template_id": "2f2a5a36-b40b-45a5-9595-ae086eafacdd",
+                        "template_id": "bede86cd-b956-4dad-8f28-17a797788811",
                         "personalisation": {
                             "submission_name": "Test collection",
                             "organisation_name": "Test organisation",
                             "grant_name": "Test grant",
+                            "collection_type_noun": "form",
                             "submission_deadline": expected_submission_deadline,
                             "is_test_data": expected_is_test_data,
                         },
