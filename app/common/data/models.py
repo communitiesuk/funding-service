@@ -202,6 +202,8 @@ class Grant(BaseModel):
         user_organisation: Organisation | None = None,
         grant_recipient: GrantRecipient | None = None,
     ) -> list[Collection]:
+        """Applies extra permission/visibility rules on top of `pre_award_forms`, filtering out forms
+        the given user or grant recipient should not see."""
         from app.common.auth.authorisation_helper import AuthorisationHelper
         from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
 
