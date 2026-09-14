@@ -56,6 +56,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
     TasklistSectionStatusEnum,
 )
 from app.common.expressions import (
@@ -10806,25 +10807,25 @@ class TestViewSubmission:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status, can_access",
+        "submission_visibility, collection_status, can_access",
         (
-            (True, CollectionStatusEnum.OPEN, False),
-            (True, CollectionStatusEnum.CLOSED, True),
-            (False, CollectionStatusEnum.OPEN, True),
-            (False, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.OPEN, False),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.OPEN, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.CLOSED, True),
         ),
     )
     def test_access_control_by_submission_visibility(
         self,
         authenticated_grant_member_client,
-        allow_public_sign_up: bool,
+        submission_visibility: SubmissionVisibilityEnum,
         collection_status: CollectionStatusEnum,
         can_access: bool,
         factories,
         submission_submitted,
         db_session,
     ):
-        submission_submitted.collection.allow_public_sign_up = allow_public_sign_up
+        submission_submitted.collection.submission_visibility = submission_visibility
         submission_submitted.collection.status = collection_status
         db_session.commit()
         response = authenticated_grant_member_client.get(
@@ -11446,25 +11447,25 @@ class TestViewSubmission:
 
 class TestExportSubmissionPDF:
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status, can_access",
+        "submission_visibility, collection_status, can_access",
         (
-            (True, CollectionStatusEnum.OPEN, False),
-            (True, CollectionStatusEnum.CLOSED, True),
-            (False, CollectionStatusEnum.OPEN, True),
-            (False, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.OPEN, False),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.OPEN, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.CLOSED, True),
         ),
     )
     def test_access_control_by_submission_visibility(
         self,
         authenticated_grant_member_client,
-        allow_public_sign_up: bool,
+        submission_visibility: SubmissionVisibilityEnum,
         collection_status: CollectionStatusEnum,
         can_access: bool,
         factories,
         submission_submitted,
         db_session,
     ):
-        submission_submitted.collection.allow_public_sign_up = allow_public_sign_up
+        submission_submitted.collection.submission_visibility = submission_visibility
         submission_submitted.collection.status = collection_status
         db_session.commit()
         response = authenticated_grant_member_client.get(
@@ -11565,25 +11566,25 @@ class TestReopenSubmission:
             assert page_has_button(soup, "Reopen submission")
 
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status, can_access",
+        "submission_visibility, collection_status, can_access",
         (
-            (True, CollectionStatusEnum.OPEN, False),
-            (True, CollectionStatusEnum.CLOSED, True),
-            (False, CollectionStatusEnum.OPEN, True),
-            (False, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.OPEN, False),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.OPEN, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.CLOSED, True),
         ),
     )
     def test_access_control_by_submission_visibility(
         self,
         authenticated_grant_member_client,
-        allow_public_sign_up: bool,
+        submission_visibility: SubmissionVisibilityEnum,
         collection_status: CollectionStatusEnum,
         can_access: bool,
         factories,
         submission_submitted,
         db_session,
     ):
-        submission_submitted.collection.allow_public_sign_up = allow_public_sign_up
+        submission_submitted.collection.submission_visibility = submission_visibility
         submission_submitted.collection.status = collection_status
         db_session.commit()
         response = authenticated_grant_member_client.get(
@@ -11660,25 +11661,25 @@ class TestRequestOrAllowChanges:
         assert "Are you requesting changes to" in soup.text
 
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status, can_access",
+        "submission_visibility, collection_status, can_access",
         (
-            (True, CollectionStatusEnum.OPEN, False),
-            (True, CollectionStatusEnum.CLOSED, True),
-            (False, CollectionStatusEnum.OPEN, True),
-            (False, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.OPEN, False),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.OPEN, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.CLOSED, True),
         ),
     )
     def test_access_control_by_submission_visibility(
         self,
         authenticated_grant_member_client,
-        allow_public_sign_up: bool,
+        submission_visibility: SubmissionVisibilityEnum,
         collection_status: CollectionStatusEnum,
         can_access: bool,
         factories,
         submission_submitted,
         db_session,
     ):
-        submission_submitted.collection.allow_public_sign_up = allow_public_sign_up
+        submission_submitted.collection.submission_visibility = submission_visibility
         submission_submitted.collection.status = collection_status
         db_session.commit()
         response = authenticated_grant_member_client.get(
@@ -11739,25 +11740,25 @@ class TestRequestOrAllowChanges:
 
 class TestRequestChangesSubmission:
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status, can_access",
+        "submission_visibility, collection_status, can_access",
         (
-            (True, CollectionStatusEnum.OPEN, False),
-            (True, CollectionStatusEnum.CLOSED, True),
-            (False, CollectionStatusEnum.OPEN, True),
-            (False, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.OPEN, False),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.OPEN, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.CLOSED, True),
         ),
     )
     def test_access_control_by_submission_visibility(
         self,
         authenticated_grant_member_client,
-        allow_public_sign_up: bool,
+        submission_visibility: SubmissionVisibilityEnum,
         collection_status: CollectionStatusEnum,
         can_access: bool,
         factories,
         submission_submitted,
         db_session,
     ):
-        submission_submitted.collection.allow_public_sign_up = allow_public_sign_up
+        submission_submitted.collection.submission_visibility = submission_visibility
         submission_submitted.collection.status = collection_status
         db_session.commit()
         response = authenticated_grant_member_client.get(
@@ -11934,25 +11935,25 @@ class TestApproveOrRejectSubmission:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "allow_public_sign_up, collection_status, can_access",
+        "submission_visibility, collection_status, can_access",
         (
-            (True, CollectionStatusEnum.OPEN, False),
-            (True, CollectionStatusEnum.CLOSED, True),
-            (False, CollectionStatusEnum.OPEN, True),
-            (False, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.OPEN, False),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, CollectionStatusEnum.CLOSED, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.OPEN, True),
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, CollectionStatusEnum.CLOSED, True),
         ),
     )
     def test_access_control_by_submission_visibility(
         self,
         authenticated_grant_member_client,
-        allow_public_sign_up: bool,
+        submission_visibility: SubmissionVisibilityEnum,
         collection_status: CollectionStatusEnum,
         can_access: bool,
         factories,
         submission_submitted,
         db_session,
     ):
-        submission_submitted.collection.allow_public_sign_up = allow_public_sign_up
+        submission_submitted.collection.submission_visibility = submission_visibility
         submission_submitted.collection.status = collection_status
         db_session.commit()
         response = authenticated_grant_member_client.get(
