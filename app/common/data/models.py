@@ -440,6 +440,11 @@ class Collection(BaseModel):
     data_sources: Mapped[list[DataSource]] = relationship("DataSource", back_populates="collection")
     magic_links: Mapped[list[MagicLink]] = relationship("MagicLink", back_populates="collection")
 
+    submission_visibility: Mapped[SubmissionVisibilityEnum] = mapped_column(
+        SqlEnum(SubmissionVisibilityEnum, name="submission_visibility", validate_strings=True),
+        default=SubmissionVisibilityEnum.ALWAYS_VISIBLE,
+    )
+
     def s3_key_prefix(self, submission_mode: SubmissionModeEnum) -> str:
         return f"{current_app.config['SUBMISSION_FILES_PREFIX']}/{submission_mode}/{self.id}"
 
@@ -594,14 +599,6 @@ class Collection(BaseModel):
 
     def get_section_names_from_ids(self, form_ids: list[str]) -> list[str]:
         return [form.title for form in self.forms if str(form.id) in form_ids]
-
-    @property
-    def submission_visibility(self) -> SubmissionVisibilityEnum:
-        return (
-            SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
-            if self.allow_public_sign_up
-            else SubmissionVisibilityEnum.ALWAYS_VISIBLE
-        )
 
 
 class Submission(BaseModel):
