@@ -294,11 +294,10 @@ class SubmissionHelper:
     def get_count_for_add_another(self, add_another_container: Component) -> int:
         return self.submission.data_manager.get_count_for_add_another(add_another_container)
 
-    @property
-    def all_visible_questions(self) -> dict[UUID, Question]:
+    def all_visible_questions(self, include_eligibility_forms: bool = False) -> dict[UUID, Question]:
         return {
             question.id: question
-            for form in self.get_ordered_visible_forms()
+            for form in self.get_ordered_visible_forms(include_eligibility_forms=include_eligibility_forms)
             for question in self.cached_get_ordered_visible_questions(form)
         }
 
@@ -1966,7 +1965,7 @@ class AllSubmissionsHelper:
             if self.collection.allow_multiple_submissions:
                 submission_csv_data["Submission name"] = submission.submission_name
 
-            visible_questions = submission.all_visible_questions
+            visible_questions = submission.all_visible_questions(include_eligibility_forms=True)
             cached_contexts: dict[str, ExpressionContext] = {}
             for question, header_string, index in question_headers:
                 if not question.add_another_container:

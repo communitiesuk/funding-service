@@ -108,7 +108,7 @@ class TestSubmissionHelper:
             assert eligibility_form not in forms
 
     class TestAllVisibleQuestions:
-        def test_excludes_eligibility_form_questions(self, factories):
+        def test_excludes_eligibility_form_questions_by_default(self, factories):
             collection = factories.collection.create()
             form_a = factories.form.create(collection=collection)
             question_a = factories.question.create(form=form_a)
@@ -118,7 +118,34 @@ class TestSubmissionHelper:
 
             helper = SubmissionHelper(submission)
 
-            assert list(helper.all_visible_questions.keys()) == [question_a.id]
+            assert list(helper.all_visible_questions().keys()) == [question_a.id]
+
+        def test_excludes_eligibility_form_questions_when_not_requested(self, factories):
+            collection = factories.collection.create()
+            form_a = factories.form.create(collection=collection)
+            question_a = factories.question.create(form=form_a)
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(collection=collection)
+
+            helper = SubmissionHelper(submission)
+
+            assert list(helper.all_visible_questions(include_eligibility_forms=False).keys()) == [question_a.id]
+
+        def test_includes_eligibility_form_questions_when_requested(self, factories):
+            collection = factories.collection.create()
+            form_a = factories.form.create(collection=collection)
+            question_a = factories.question.create(form=form_a)
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            eligibility_question = factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(collection=collection)
+
+            helper = SubmissionHelper(submission)
+
+            assert list(helper.all_visible_questions(include_eligibility_forms=True).keys()) == [
+                question_a.id,
+                eligibility_question.id,
+            ]
 
     class TestGetAndSubmitAnswerForQuestion:
         def test_submit_valid_data(self, db_session, factories):
@@ -3703,7 +3730,7 @@ class TestSubmissionsHelper:
                 f"[{question.form.title}] {question.name}": submission.submission.data_manager.get(
                     question
                 ).get_value_for_text_export()
-                for _, question in submission.all_visible_questions.items()
+                for _, question in submission.all_visible_questions(include_eligibility_forms=True).items()
             }
         rows = list(reader)
         for line in rows:
