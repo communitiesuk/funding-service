@@ -126,7 +126,9 @@ class TestGrantTeamAddUser:
             follow_redirects=True,
         )
         invitations = (
-            templates_rendered.get("deliver_grant_funding.list_users_for_grant").context.get("grant").invitations
+            templates_rendered.get("deliver_grant_funding.list_users_for_grant")
+            .context.get("grant")
+            .grant_team_invitations
         )
         assert invitations
         assert len(invitations) == 1

@@ -120,9 +120,13 @@ class Grant(BaseModel):
 
     allow_pre_award: Mapped[bool] = mapped_column(default=False)
 
-    invitations: Mapped[list[Invitation]] = relationship(
+    # Invitations to join this grant's team, ie those scoped to this grant *and* the grant's own organisation. Grant
+    # recipient invitations also target the grant, but are scoped to the recipient organisation instead.
+    grant_team_invitations: Mapped[list[Invitation]] = relationship(
         "Invitation",
-        back_populates="grant",
+        primaryjoin=(
+            "and_(foreign(Invitation.grant_id)==Grant.id, foreign(Invitation.organisation_id)==Grant.organisation_id)"
+        ),
         viewonly=True,
     )
 

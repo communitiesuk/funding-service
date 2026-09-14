@@ -20,7 +20,9 @@ def list_users_for_grant(grant_id: UUID) -> ResponseReturnValue:
     except NoResultFound:
         return abort(404)
 
-    invited_emails = sorted(list({invite.email for invite in grant.invitations if invite.is_usable}), key=str.lower)
+    invited_emails = sorted(
+        list({invite.email for invite in grant.grant_team_invitations if invite.is_usable}), key=str.lower
+    )
     return render_template(
         "deliver_grant_funding/grant_team/grant_user_list.html",
         grant=grant,

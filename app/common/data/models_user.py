@@ -269,7 +269,7 @@ class Invitation(BaseModel):
 
     user: Mapped[User] = relationship("User", back_populates="invitations", foreign_keys=[user_id])
     organisation: Mapped[Organisation] = relationship("Organisation")
-    grant: Mapped[Grant] = relationship("Grant", back_populates="invitations")
+    grant: Mapped[Grant] = relationship("Grant")
     created_by: Mapped[User] = relationship("User", foreign_keys=[created_by_id])
 
     expires_at_utc: Mapped[datetime] = mapped_column(nullable=False)
