@@ -294,11 +294,10 @@ class SubmissionHelper:
     def get_count_for_add_another(self, add_another_container: Component) -> int:
         return self.submission.data_manager.get_count_for_add_another(add_another_container)
 
-    @property
-    def all_visible_questions(self) -> dict[UUID, Question]:
+    def all_visible_questions(self, include_eligibility_forms: bool = False) -> dict[UUID, Question]:
         return {
             question.id: question
-            for form in self.get_ordered_visible_forms()
+            for form in self.get_ordered_visible_forms(include_eligibility_forms=include_eligibility_forms)
             for question in self.cached_get_ordered_visible_questions(form)
         }
 
@@ -793,9 +792,10 @@ class SubmissionHelper:
         else:
             return TasklistSectionStatusEnum.NOT_STARTED
 
-    def get_ordered_visible_forms(self) -> list[Form]:
+    def get_ordered_visible_forms(self, include_eligibility_forms: bool = False) -> list[Form]:
         """Returns the visible, ordered forms based upon the current state of this collection."""
-        return sorted(self.collection.tasklist_forms, key=lambda f: f.order)
+        forms = self.collection.forms if include_eligibility_forms else self.collection.tasklist_forms
+        return sorted(forms, key=lambda f: f.order)
 
     def is_component_visible(
         self, component: Component, context: ExpressionContext, add_another_index: int | None = None
@@ -1847,7 +1847,11 @@ class AllSubmissionsHelper:
             gr.id: None for gr in self.grant_recipients
         }
         self.grant_recipients_submission_helpers.update(
-            {helper.grant_recipient.id: helper for helper in self.submission_helpers.values()}
+            {
+                helper.submission.grant_recipient.id: helper
+                for helper in self.submission_helpers.values()
+                if helper.submission.grant_recipient is not None
+            }
         )
 
     @property
@@ -1870,7 +1874,7 @@ class AllSubmissionsHelper:
         """
         return [
             question
-            for form in sorted(self.collection.tasklist_forms, key=lambda f: f.order)
+            for form in sorted(self.collection.forms, key=lambda f: f.order)
             for question in form.cached_questions
         ]
 
@@ -1961,7 +1965,7 @@ class AllSubmissionsHelper:
             if self.collection.allow_multiple_submissions:
                 submission_csv_data["Submission name"] = submission.submission_name
 
-            visible_questions = submission.all_visible_questions
+            visible_questions = submission.all_visible_questions(include_eligibility_forms=True)
             cached_contexts: dict[str, ExpressionContext] = {}
             for question, header_string, index in question_headers:
                 if not question.add_another_container:
@@ -2036,7 +2040,7 @@ class AllSubmissionsHelper:
 
             submission_data["sections"] = []
 
-            for form in submission.get_ordered_visible_forms():
+            for form in submission.get_ordered_visible_forms(include_eligibility_forms=True):
                 task_data: dict[str, Any] = {"name": form.title, "answers": {}}
 
                 add_another_contexts = []
