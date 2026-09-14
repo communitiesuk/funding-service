@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from app.common.data.models_user import User
 from app.constants import (
     SESSION_CREATE_ORGANISATION,
+    SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS,
     SESSION_MATCHED_ORGANISATION,
     SESSION_SIGNING_UP_FOR_COLLECTION_ID,
 )
@@ -107,7 +108,13 @@ class CompleteCreateOrganisationSession(NamedCreateOrganisationSession):
 
 
 def start_public_sign_up(collection_id: UUID) -> None:
-    """Begin (or restart) a public sign up, discarding any in-progress organisation set up."""
+    """Begin (or restart) a public sign up, discarding any in-progress organisation set up.
+
+    Only resets which metrics have already been emitted if this is a different collection to the one already in
+    progress. Re-entering the same journey (eg. going back a page) shouldn't re-emit metrics it already has.
+    """
+    if session.get(SESSION_SIGNING_UP_FOR_COLLECTION_ID) != collection_id:
+        session.pop(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, None)
     session.pop(SESSION_CREATE_ORGANISATION, None)
     session.pop(SESSION_MATCHED_ORGANISATION, None)
     session[SESSION_SIGNING_UP_FOR_COLLECTION_ID] = collection_id
@@ -116,4 +123,5 @@ def start_public_sign_up(collection_id: UUID) -> None:
 def clear_public_sign_up_session() -> UUID | None:
     session.pop(SESSION_CREATE_ORGANISATION, None)
     session.pop(SESSION_MATCHED_ORGANISATION, None)
+    session.pop(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, None)
     return session.pop(SESSION_SIGNING_UP_FOR_COLLECTION_ID, None)

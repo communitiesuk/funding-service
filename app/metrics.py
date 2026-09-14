@@ -38,6 +38,8 @@ class MetricAttributeName(StrEnum):
     CALCULATION_INVALID_REASON = "calculation-invalid-reason"
     CALCULATION_INVALID_FIELD = "calculation-invalid-field"
 
+    ORGANISATION_TYPE = "organisation-type"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
@@ -75,6 +77,20 @@ class MetricEventName(StrEnum):
     VALIDATION_CREATED_MANAGED = "validation-created-managed"
 
     CALCULATION_FIELD_INVALID = "calculation-field-invalid"
+
+    PUBLIC_SIGN_UP_STARTED = "public-sign-up-started"
+    PUBLIC_SIGN_UP_ELIGIBLE = "public-sign-up-eligible"
+    PUBLIC_SIGN_UP_INELIGIBLE = "public-sign-up-ineligible"
+    PUBLIC_SIGN_UP_ORGANISATION_CREATED = "public-sign-up-organisation-created"
+    # These three metrics are emitted once matched organisations are shown as options to choose from, not once one is
+    # picked. They measure what was available so we can get an idea of how frequently the matching logic is working.
+    PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE = "public-sign-up-matched-existing-organisation-available"
+    PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE = "public-sign-up-matched-by-email-domain-available"
+    PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE = "public-sign-up-matched-by-organisation-role-available"
+    PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING = "public-sign-up-matched-organisation-already-applying"
+    PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED = "public-sign-up-matched-organisation-application-created"
+    PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public-sign-up-already-has-access"
+    PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN = "public-sign-up-local-authority-support-shown"
 
 
 def _get_event_attributes(
