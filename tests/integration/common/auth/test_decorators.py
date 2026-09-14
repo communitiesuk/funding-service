@@ -1,13 +1,15 @@
 import uuid
+from unittest.mock import PropertyMock
 from uuid import UUID
 
+import factory
 import pytest
 from flask import session, url_for
 from flask_login import login_user
 from sqlalchemy.exc import NoResultFound
 from werkzeug.exceptions import Forbidden, InternalServerError, NotFound
 
-from app import GrantStatusEnum
+from app import GrantStatusEnum, SubmissionStatusEnum
 from app.common.auth.decorators import (
     access_grant_funding_login_required,
     collection_is_editable,
@@ -28,12 +30,21 @@ from app.common.auth.decorators import (
     submission_is_visible,
 )
 from app.common.collections.forms import build_question_form
+from app.common.collections.types import TextSingleLineAnswer
 from app.common.data import interfaces
-from app.common.data.types import AuthMethodEnum, CollectionStatusEnum, CollectionType, RoleEnum, SubmissionModeEnum
+from app.common.data.types import (
+    AuthMethodEnum,
+    CollectionStatusEnum,
+    CollectionType,
+    RoleEnum,
+    SubmissionEventType,
+    SubmissionModeEnum,
+    SubmissionVisibilityEnum,
+)
 from app.common.expressions import ExpressionContext
 from app.common.helpers.collections import get_or_create_unclaimed_submission
 from app.common.helpers.feature_flags import StaticFeatureFlag
-from tests.models import _get_grant_managing_organisation
+from tests.models import FactoryAnswer, _get_grant_managing_organisation
 
 
 class TestDeliverGrantFundingLoginRequired:
@@ -1089,7 +1100,7 @@ class TestSubmissionIsVisible:
         assert exp_error in str(e.value)
 
     @pytest.mark.parametrize("submission_mode", [SubmissionModeEnum.LIVE, SubmissionModeEnum.TEST])
-    def test_no_public_sign_up(self, factories, submission_mode):
+    def test_no_public_sign_up_collection(self, factories, submission_mode):
         user = factories.user.create(email="test.norole@communities.gov.uk")
         collection = factories.collection.create(allow_public_sign_up=False)
 
@@ -1103,9 +1114,56 @@ class TestSubmissionIsVisible:
 
         assert response == "OK"
 
-    def test_public_sign_up_test_submissions(self, factories):
+    @pytest.mark.parametrize(
+        "submission_mode,collection_status",
+        [
+            (SubmissionModeEnum.LIVE, CollectionStatusEnum.OPEN),
+            (SubmissionModeEnum.TEST, CollectionStatusEnum.OPEN),
+            (SubmissionModeEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (SubmissionModeEnum.TEST, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    def test_no_public_sign_up_submission(self, factories, submission_mode, collection_status):
         user = factories.user.create(email="test.norole@communities.gov.uk")
-        collection = factories.collection.create(allow_public_sign_up=True)
+        collection = factories.collection.create(allow_public_sign_up=False, status=collection_status)
+        question = factories.question.create(form__collection=collection)
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=submission_mode,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
+        )
+
+        factories.submission_event.create_batch(
+            2,
+            submission=submission1,
+            related_entity_id=collection.forms[0].id,
+            event_type=factory.Iterator(
+                [SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, SubmissionEventType.SUBMISSION_SUBMITTED]
+            ),
+        )
+        submission1.status = SubmissionStatusEnum.SUBMITTED
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func_with_submission_id(
+            grant_id=collection.grant.id,
+            submission_id=submission1.id,
+        )
+        assert response == "OK"
+
+        response = self._view_func_with_submission_id(
+            grant_id=collection.grant.id,
+            submission_id=submission2.id,
+        )
+        assert response == "OK"
+
+    @pytest.mark.parametrize("collection_status", [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED])
+    def test_public_sign_up_test_submissions_collection(self, factories, collection_status):
+        user = factories.user.create(
+            email="test.norole@communities.gov.uk",
+        )
+        collection = factories.collection.create(allow_public_sign_up=True, status=collection_status)
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
@@ -1117,30 +1175,219 @@ class TestSubmissionIsVisible:
 
         assert response == "OK"
 
-    def test_public_sign_up_live_submissions_before_deadline(self, factories):
+    @pytest.mark.parametrize(
+        "collection_status,submission_visibility,in_progress_ok",
+        [
+            (CollectionStatusEnum.OPEN, SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS, False),
+            (CollectionStatusEnum.OPEN, SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, False),
+            (CollectionStatusEnum.CLOSED, SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS, False),
+            (CollectionStatusEnum.CLOSED, SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, False),
+        ],
+    )
+    def test_public_sign_up_test_submissions_submission(
+        self, factories, mocker, collection_status, submission_visibility, in_progress_ok
+    ):
         user = factories.user.create(email="test.norole@communities.gov.uk")
-        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.OPEN)
+        collection = factories.collection.create(allow_public_sign_up=True, status=collection_status)
+        mocker.patch(
+            "app.common.data.models.Collection.submission_visibility",
+            new_callable=PropertyMock,
+            return_value=submission_visibility,
+        )
+        question = factories.question.create(form__collection=collection)
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=SubmissionModeEnum.TEST,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
+        )
+
+        factories.submission_event.create_batch(
+            2,
+            submission=submission1,
+            related_entity_id=collection.forms[0].id,
+            event_type=factory.Iterator(
+                [SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, SubmissionEventType.SUBMISSION_SUBMITTED]
+            ),
+        )
+        submission1.status = SubmissionStatusEnum.SUBMITTED
 
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func_with_submission_id(
+            grant_id=collection.grant.id,
+            submission_id=submission1.id,
+        )
+        assert response == "OK"
+        if in_progress_ok:
+            self._view_func_with_submission_id(
+                grant_id=collection.grant.id,
+                submission_id=submission2.id,
+            )
+            assert response == "OK"
+        else:
+            with pytest.raises(Forbidden):
+                self._view_func_with_submission_id(
+                    grant_id=collection.grant.id,
+                    submission_id=submission2.id,
+                )
 
-        with pytest.raises(Forbidden):
-            self._view_func_with_collection_id(
+    @pytest.mark.parametrize(
+        "submission_visibility,can_load",
+        [
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, False),
+            (SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS, True),
+        ],
+    )
+    def test_public_sign_up_live_submissions_before_deadline_collection(
+        self, mocker, factories, submission_visibility, can_load
+    ):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.OPEN)
+        mocker.patch(
+            "app.common.data.models.Collection.submission_visibility",
+            new_callable=PropertyMock,
+            return_value=submission_visibility,
+        )
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        if can_load:
+            response = self._view_func_with_collection_id(
                 grant_id=collection.grant.id,
                 collection_id=collection.id,
                 submission_mode=SubmissionModeEnum.LIVE,
             )
+            assert response == "OK"
 
-    def test_public_sign_up_live_submissions_after_deadline(self, factories):
+        else:
+            with pytest.raises(Forbidden):
+                self._view_func_with_collection_id(
+                    grant_id=collection.grant.id,
+                    collection_id=collection.id,
+                    submission_mode=SubmissionModeEnum.LIVE,
+                )
+
+    @pytest.mark.parametrize(
+        "submission_visibility,can_load",
+        [
+            (SubmissionVisibilityEnum.ALWAYS_VISIBLE, True),
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION, False),
+            (SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS, True),
+        ],
+    )
+    def test_public_sign_up_live_submissions_before_deadline_submissions(
+        self, factories, mocker, can_load, submission_visibility
+    ):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.OPEN)
+        mocker.patch(
+            "app.common.data.models.Collection.submission_visibility",
+            new_callable=PropertyMock,
+            return_value=submission_visibility,
+        )
+        question = factories.question.create(form__collection=collection)
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
+        )
+
+        factories.submission_event.create_batch(
+            2,
+            submission=submission1,
+            related_entity_id=collection.forms[0].id,
+            event_type=factory.Iterator(
+                [SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, SubmissionEventType.SUBMISSION_SUBMITTED]
+            ),
+        )
+        submission1.status = SubmissionStatusEnum.SUBMITTED
+
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+
+        if can_load:
+            response = self._view_func_with_submission_id(
+                grant_id=collection.grant.id,
+                submission_id=submission1.id,
+            )
+            assert response == "OK"
+        else:
+            with pytest.raises(Forbidden):
+                self._view_func_with_submission_id(
+                    grant_id=collection.grant.id,
+                    submission_id=submission1.id,
+                )
+            with pytest.raises(Forbidden):
+                self._view_func_with_submission_id(
+                    grant_id=collection.grant.id,
+                    submission_id=submission2.id,
+                )
+
+    @pytest.mark.parametrize(
+        "submission_visibility",
+        [
+            SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION,
+            SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS,
+        ],
+    )
+    def test_public_sign_up_live_submissions_after_deadline_submission(self, factories, submission_visibility, mocker):
         user = factories.user.create(email="test.norole@communities.gov.uk")
         collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.CLOSED)
+        mocker.patch(
+            "app.common.data.models.Collection.submission_visibility",
+            new_callable=PropertyMock,
+            return_value=submission_visibility,
+        )
+        question = factories.question.create(form__collection=collection)
+        submission1, submission2 = factories.submission.create_batch(
+            2,
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            answers=[FactoryAnswer(question, TextSingleLineAnswer("Blue"))],
+            created_by=user,
+        )
 
+        factories.submission_event.create_batch(
+            2,
+            submission=submission1,
+            related_entity_id=collection.forms[0].id,
+            event_type=factory.Iterator(
+                [SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, SubmissionEventType.SUBMISSION_SUBMITTED]
+            ),
+        )
+        submission1.status = SubmissionStatusEnum.SUBMITTED
+        login_user(user)
+        session["auth"] = AuthMethodEnum.SSO
+        response = self._view_func_with_submission_id(grant_id=collection.grant.id, submission_id=submission1.id)
+        assert response == "OK"
+        with pytest.raises(Forbidden):
+            response = self._view_func_with_submission_id(grant_id=collection.grant.id, submission_id=submission2.id)
+
+    @pytest.mark.parametrize(
+        "submission_visibility",
+        [
+            SubmissionVisibilityEnum.ALWAYS_VISIBLE,
+            SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION,
+            SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS,
+        ],
+    )
+    def test_public_sign_up_live_submissions_after_deadline_collection(self, factories, mocker, submission_visibility):
+        user = factories.user.create(email="test.norole@communities.gov.uk")
+        collection = factories.collection.create(allow_public_sign_up=True, status=CollectionStatusEnum.CLOSED)
+        mocker.patch(
+            "app.common.data.models.Collection.submission_visibility",
+            new_callable=PropertyMock,
+            return_value=submission_visibility,
+        )
         login_user(user)
         session["auth"] = AuthMethodEnum.SSO
         response = self._view_func_with_collection_id(
             grant_id=collection.grant.id,
             collection_id=collection.id,
-            submission_mode=SubmissionModeEnum.TEST,
+            submission_mode=SubmissionModeEnum.LIVE,
         )
         assert response == "OK"
 
