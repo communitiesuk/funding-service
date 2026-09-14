@@ -1,3 +1,4 @@
+import logging
 import uuid
 from unittest.mock import patch
 
@@ -24,7 +25,7 @@ from app.common.data.types import (
 )
 from app.common.helpers.collections import get_or_create_unclaimed_submission
 from app.metrics import MetricAttributeName, MetricEventName
-from tests.utils import get_h1_text, get_summary_list_value_by_key
+from tests.utils import AnyStringMatching, get_h1_text, get_summary_list_value_by_key
 
 
 @pytest.fixture()
@@ -1083,10 +1084,12 @@ class TestCreateOrganisationCheckYourAnswers:
         assert response.status_code == 302
         assert response.location == _sign_up_router_url(sign_up_collection)
 
-    def _complete_session(self, collection, *, allow_team_members=False, **kwargs) -> CreateOrganisationSession:
+    def _complete_session(
+        self, collection, *, allow_team_members=False, organisation_type=SignUpOrganisationType.OTHER, **kwargs
+    ) -> CreateOrganisationSession:
         return _create_organisation_session(
             collection.id,
-            organisation_type=SignUpOrganisationType.OTHER,
+            organisation_type=organisation_type,
             name="Acme Ltd",
             external_id="000111222",
             allow_team_members=allow_team_members,
@@ -1102,13 +1105,25 @@ class TestCreateOrganisationCheckYourAnswers:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_creates_the_organisation_grant_recipient_and_data_provider_role(
-        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls, caplog
     ):
-        _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            self._complete_session(sign_up_collection, organisation_type=SignUpOrganisationType.COMPANY),
+        )
 
-        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+        with caplog.at_level(logging.INFO):
+            response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
 
         organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        assert any(
+            message
+            == AnyStringMatching(
+                rf"^Organisation {organisation.external_id} created\. Organisation type was ignored: COMPANY$"
+            )
+            for message in caplog.messages
+        )
         assert organisation.name == "Acme Ltd"
         assert organisation.type == OrganisationType.OTHER
         assert organisation.custom_code == "000111222"

@@ -1,4 +1,4 @@
-from flask import redirect, render_template, request, session, url_for
+from flask import current_app, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
@@ -373,6 +373,10 @@ def create_organisation_check_your_answers(
                 typed_id=org_session.external_id,
                 mode=modes.organisation,
                 domains=[user.email_domain] if org_session.allow_team_members else None,
+            )
+            current_app.logger.info(
+                "Organisation %(organisation_id)s created. Organisation type was ignored: %(organisation_type)s",
+                dict(organisation_id=organisation.external_id, organisation_type=org_session.organisation_type.value),
             )
         except DuplicateValueError:
             return redirect(
