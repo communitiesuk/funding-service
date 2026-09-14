@@ -71,7 +71,13 @@ def get_sign_up_modes(user: User) -> SignUpModes:
 
 
 def sign_up_as_grant_recipient(
-    *, user: User, grant: Grant, collection: Collection, organisation: Organisation, mode: GrantRecipientModeEnum
+    *,
+    user: User,
+    grant: Grant,
+    collection: Collection,
+    organisation: Organisation,
+    mode: GrantRecipientModeEnum,
+    organisation_created: bool,
 ) -> GrantRecipient:
     grant_recipient = create_grant_recipient(
         grant=grant,
@@ -94,7 +100,11 @@ def sign_up_as_grant_recipient(
         user.email, collection=collection, grant_recipient=grant_recipient
     )
     flash(
-        {"organisation_name": organisation.name, "grant_name": grant.name},  # ty: ignore[invalid-argument-type]
+        {  # ty: ignore[invalid-argument-type]
+            "organisation_name": organisation.name,
+            "grant_name": grant.name,
+            "organisation_created": organisation_created,
+        },
         FlashMessageType.PUBLIC_SIGN_UP_SUCCESS,
     )
     return grant_recipient
@@ -125,7 +135,12 @@ def sign_up_with_matched_organisation(
             )
 
         grant_recipient = sign_up_as_grant_recipient(
-            user=user, grant=grant, collection=collection, organisation=organisation, mode=modes.grant_recipient
+            user=user,
+            grant=grant,
+            collection=collection,
+            organisation=organisation,
+            mode=modes.grant_recipient,
+            organisation_created=False,
         )
         if modes.submission == SubmissionModeEnum.LIVE:
             emit_public_sign_up_metric_once(

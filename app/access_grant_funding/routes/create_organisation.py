@@ -388,7 +388,12 @@ def create_organisation_check_your_answers(
             interfaces.user.set_user_name(user, org_session.user_name)
 
         grant_recipient = sign_up_as_grant_recipient(
-            user=user, grant=grant, collection=collection, organisation=organisation, mode=modes.grant_recipient
+            user=user,
+            grant=grant,
+            collection=collection,
+            organisation=organisation,
+            mode=modes.grant_recipient,
+            organisation_created=True,
         )
 
         if modes.submission == SubmissionModeEnum.LIVE:

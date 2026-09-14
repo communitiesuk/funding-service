@@ -1159,9 +1159,10 @@ class TestCreateOrganisationCheckYourAnswers:
 
         followed_response = authenticated_no_role_client.get(response.location, follow_redirects=True)
         assert followed_response.status_code == 200
-        assert (
-            "You've been added to Acme Ltd. You can now apply for Test grant name."
-            in BeautifulSoup(followed_response.data, "html.parser").text
+        followed_text = BeautifulSoup(followed_response.data, "html.parser").text
+        assert "Organisation created" in followed_text
+        assert "Acme Ltd has been created successfully. You can now start applying for Test grant name." in (
+            followed_text
         )
 
     def test_post_creates_a_test_organisation_for_a_deliver_user_testing_access(
