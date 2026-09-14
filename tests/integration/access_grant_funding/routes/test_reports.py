@@ -575,7 +575,8 @@ class TestAllQuestions:
             submission_id=submission.id,
         )
 
-    def test_all_questions_pdf(self, authenticated_grant_recipient_member_client, factories, mocker):
+    @patch("app.access_grant_funding.routes.collections.emit_metric_count")
+    def test_all_questions_pdf(self, mock_count, authenticated_grant_recipient_member_client, factories, mocker):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
         question = factories.question.create(
             form__collection__grant=grant_recipient.grant, text="What is your favourite colour?"
@@ -596,6 +597,8 @@ class TestAllQuestions:
                 submission_id=submission.id,
             )
         )
+
+        mock_count.assert_called_once_with(MetricEventName.ACCESS_ALL_QUESTIONS_PDF_DOWNLOADED, submission=submission)
 
         assert response.status_code == 200
         assert response.mimetype == "application/pdf"
