@@ -492,6 +492,38 @@ class TestAddGrantTeamMember:
         assert "Local user can now edit and submit" in banner.get_text()
         assert "Local user updated" not in banner.get_text()
 
+    @pytest.mark.parametrize("existing_name", [None, ""])
+    def test_post_sets_the_name_of_an_existing_user_with_no_name(
+        self,
+        authenticated_grant_recipient_data_provider_client,
+        factories,
+        db_session,
+        mock_notification_service_calls,
+        existing_name,
+    ):
+        client = authenticated_grant_recipient_data_provider_client
+        existing_user = factories.user.create(name=existing_name, email="user@local.gov.uk")
+
+        response = client.post(
+            url_for(
+                "access_grant_funding.add_grant_team_member",
+                organisation_id=client.organisation.id,
+                grant_id=client.grant.id,
+            ),
+            data={"full_name": "Local user", "email_address": "user@local.gov.uk"},
+        )
+        assert response.status_code == 302
+
+        db_session.refresh(existing_user)
+        assert existing_user.name == "Local user"
+
+        user_role = db_session.scalar(select(UserRole).where(UserRole.user_id == existing_user.id))
+        assert RoleEnum.DATA_PROVIDER in user_role.permissions
+
+        team_page = client.get(response.location)
+        banner = BeautifulSoup(team_page.data, "html.parser").find(class_="govuk-notification-banner")
+        assert f"Local user can now edit and submit for {client.grant.name}." in banner.get_text()
+
     def test_post_shows_error_when_person_is_already_a_team_member(
         self, authenticated_grant_recipient_data_provider_client, db_session
     ):
