@@ -412,19 +412,26 @@ def create_invitation(
 
 @flush_and_rollback_on_exceptions
 def cancel_invitation(invitation: Invitation, *, by_user: User) -> None:
-    db.session.execute(update(Invitation).where(Invitation.id == invitation.id).values(expires_at_utc=func.now()))
+    was_usable = invitation.is_usable
 
-    track_audit_event(
-        UserInvitationCancelled(
-            user_id=by_user.id,
-            invitation_id=invitation.id,
-            organisation_id=invitation.organisation_id,
-            grant_id=invitation.grant_id,
-            grant_recipient_id=_get_access_grant_recipient_id(invitation.organisation, invitation.grant),
-            permissions=list(invitation.permissions),
-        ),
-        by_user,
+    db.session.execute(
+        update(Invitation)
+        .where(Invitation.id == invitation.id, Invitation.is_usable.is_(True))
+        .values(expires_at_utc=func.now())
     )
+
+    if was_usable:
+        track_audit_event(
+            UserInvitationCancelled(
+                user_id=by_user.id,
+                invitation_id=invitation.id,
+                organisation_id=invitation.organisation_id,
+                grant_id=invitation.grant_id,
+                grant_recipient_id=_get_access_grant_recipient_id(invitation.organisation, invitation.grant),
+                permissions=list(invitation.permissions),
+            ),
+            by_user,
+        )
 
 
 @flush_and_rollback_on_exceptions
@@ -435,8 +442,8 @@ def remove_all_roles_from_user(user: User) -> None:
     db.session.expire(user)
 
 
-def get_invitation(invitation_id: uuid.UUID) -> Invitation | None:
-    return db.session.get(Invitation, invitation_id)
+def get_invitation(invitation_id: uuid.UUID, for_update: bool = False) -> Invitation | None:
+    return db.session.get(Invitation, invitation_id, with_for_update=for_update)
 
 
 def get_invitations_by_email(email: str, is_usable: bool | None = None) -> Sequence[Invitation]:
