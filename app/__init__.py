@@ -73,6 +73,7 @@ from app.constants import (
 )
 from app.extensions import (
     auto_commit_after_request,
+    companies_house_service,
     db,
     flask_assets_vite,
     govuk_markdown,
@@ -250,6 +251,7 @@ def create_app() -> Flask:  # noqa: C901
     if toolbar:
         toolbar.init_app(app)
     notification_service.init_app(app)
+    companies_house_service.init_app(app)
     s3_service.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
