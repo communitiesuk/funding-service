@@ -197,10 +197,7 @@ class Grant(BaseModel):
             if report.status not in [CollectionStatusEnum.OPEN, CollectionStatusEnum.CLOSED]:
                 continue
             # Reports are only shown to grant recipients who have been awarded or allocated funding
-            if grant_recipient and grant_recipient.status not in [
-                GrantRecipientStatusEnum.AWARDED,
-                GrantRecipientStatusEnum.ALLOCATED,
-            ]:
+            if grant_recipient and grant_recipient.is_applicant:
                 continue
             access_reports.append(report)
 
@@ -2001,6 +1998,15 @@ class GrantRecipient(BaseModel):
     @property
     def submission_mode(self) -> SubmissionModeEnum:
         return SubmissionModeEnum(self.mode.value)
+
+    @hybrid_property
+    def is_applicant(self) -> bool:
+        return self.status == GrantRecipientStatusEnum.APPLYING
+
+    @is_applicant.inplace.expression
+    @classmethod
+    def _is_applicant_expression(cls) -> ColumnElement[bool]:
+        return cls.status == GrantRecipientStatusEnum.APPLYING
 
 
 class ReleaseNote(BaseModel):
