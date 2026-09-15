@@ -23,6 +23,7 @@ class CreateOrganisationPage(enum.StrEnum):
     TYPE = "create_organisation_type"
     LOCAL_AUTHORITY = "create_organisation_local_authority"
     COMPANY_SEARCH = "create_organisation_company_search"
+    COMPANY_SEARCH_UNAVAILABLE = "create_organisation_company_search_unavailable"
     NAME = "create_organisation_name"
     ALREADY_EXISTS = "create_organisation_already_exists"
     TEAM_MEMBERS = "create_organisation_allow_team_members"
@@ -105,6 +106,8 @@ class CreateOrganisationSession(SignUpSession):
     # Records how organisation info was provided; lookups can fall back to manual if unavailable
     identified_by: OrganisationIdentification = OrganisationIdentification.MANUAL
 
+    # set when Companies House failed during this sign-up, so the rest of the journey is manual
+    companies_house_unavailable: bool = False
     name: str | None = None
     external_id: str | None = None  # Bit of a misnomer: this is really equivalent to Organisation.typed_id
 
@@ -229,7 +232,7 @@ class CreateOrganisationSession(SignUpSession):
         if self._showing_search_results:
             return self.page_url(CreateOrganisationPage.COMPANY_SEARCH)
 
-        if self._page == CreateOrganisationPage.ALREADY_EXISTS:
+        if self._page in (CreateOrganisationPage.ALREADY_EXISTS, CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE):
             return self.page_url(self.name_page)
 
         if (
@@ -270,6 +273,18 @@ class CreateOrganisationSession(SignUpSession):
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
             return
 
+        if page == CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE:
+            # an interstitial off the search page, so only for a company still being found through the register
+            if CreateOrganisationPage.COMPANY_SEARCH not in pages:
+                raise SessionJourneyRecoveryRedirect(
+                    self.page_url(
+                        self.name_page
+                        if self.organisation_type == SignUpOrganisationType.COMPANY
+                        else CreateOrganisationPage.TYPE
+                    )
+                )
+            return
+
         if page not in pages:
             if self.organisation_type == SignUpOrganisationType.COMPANY and page in (
                 CreateOrganisationPage.COMPANY_SEARCH,
@@ -306,7 +321,9 @@ class CreateOrganisationSession(SignUpSession):
         self.organisation_type = organisation_type
         self.identified_by = (
             OrganisationIdentification.COMPANIES_HOUSE
-            if organisation_type == SignUpOrganisationType.COMPANY and self.companies_house_lookup
+            if organisation_type == SignUpOrganisationType.COMPANY
+            and self.companies_house_lookup
+            and not self.companies_house_unavailable
             else OrganisationIdentification.MANUAL
         )
 
@@ -329,6 +346,13 @@ class CreateOrganisationSession(SignUpSession):
     def answer_company(self, name: str, company_number: str) -> None:
         self.name = name
         self.external_id = company_number
+
+    def fall_back_to_manual_entry(self) -> None:
+        """Name the company by hand from here on, as the register could not be reached."""
+        self.companies_house_unavailable = True
+        self.identified_by = OrganisationIdentification.MANUAL
+        self.name = None
+        self.external_id = None
 
     def answer_allow_team_members(self, allow_team_members: bool) -> None:
         self.allow_team_members = allow_team_members

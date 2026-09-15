@@ -147,6 +147,16 @@ class CompaniesHouseSelectForm(FlaskForm):
     company_number = StringField(validators=[DataRequired()])
 
 
+class CompaniesHouseUnavailableForm(FlaskForm):
+    add_manually = RadioField(
+        "Do you want to add your organisation manually?",
+        choices=[(True, "Yes"), (False, "No, I'll try again later")],
+        validators=[DataRequired("Select yes if you want to add your organisation manually")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
 class CreateOrganisationAllowTeamMembersForm(FlaskForm):
     allow_team_members = RadioField(
         choices=[(True, "Yes"), (False, "No")],
