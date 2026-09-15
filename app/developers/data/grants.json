@@ -21,6 +21,7 @@
           "status": "Open",
           "submission_period_end_date": "Wed, 31 Dec 2025 00:00:00 GMT",
           "submission_period_start_date": "Mon, 01 Dec 2025 00:00:00 GMT",
+          "submission_visibility": "Always visible",
           "type": "monitoring report"
         },
         {
@@ -40,6 +41,7 @@
           "status": "Draft",
           "submission_guidance": "You can populate me by running:\r\n\r\nuv run flask developers create-multi-submissions --collection_id 12aec68d-f89c-430e-ba66-9e2f43459fc0 --mode test --file app/developers/data/multi-submission-cheeseboards.csv --service_user_email_address john.cheese@communities.gov.uk --commit",
           "submission_name_question_id": "80d29ce3-9ad0-4ef5-bd6d-09609ef4fcc3",
+          "submission_visibility": "Always visible",
           "type": "monitoring report"
         },
         {
@@ -59,6 +61,7 @@
           "status": "Draft",
           "submission_period_end_date": "Sun, 31 May 2026 00:00:00 GMT",
           "submission_period_start_date": "Fri, 01 May 2026 00:00:00 GMT",
+          "submission_visibility": "Always visible",
           "type": "application"
         },
         {
@@ -76,6 +79,7 @@
           "requires_certification": true,
           "slug": "q3-2025",
           "status": "Draft",
+          "submission_visibility": "Always visible",
           "type": "monitoring report"
         },
         {
@@ -93,6 +97,7 @@
           "requires_certification": true,
           "slug": "calculations",
           "status": "Draft",
+          "submission_visibility": "Always visible",
           "type": "monitoring report"
         },
         {
@@ -114,6 +119,7 @@
           "status": "Closed",
           "submission_period_end_date": "Mon, 30 Jun 2025 00:00:00 GMT",
           "submission_period_start_date": "Tue, 01 Apr 2025 00:00:00 GMT",
+          "submission_visibility": "Always visible",
           "type": "monitoring report"
         },
         {
@@ -135,6 +141,7 @@
           "status": "Open",
           "submission_period_end_date": "Wed, 30 Jun 2027 00:00:00 GMT",
           "submission_period_start_date": "Tue, 01 Jul 2025 00:00:00 GMT",
+          "submission_visibility": "Always visible",
           "type": "monitoring report"
         }
       ],

@@ -116,6 +116,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
     SubmissionStatusEnum,
+    SubmissionVisibilityEnum,
 )
 from app.common.expressions import EvaluationStatement, ExpressionContext
 from app.common.expressions.custom import CustomExpression
@@ -678,24 +679,45 @@ class TestUpdateCollection:
             )
 
     def test_update_collection_enable_public_sign_Up(self, factories):
-        collection = factories.collection.create(type=CollectionType.APPLICATION)
+        collection = factories.collection.create(
+            type=CollectionType.APPLICATION, submission_visibility=SubmissionVisibilityEnum.ALWAYS_VISIBLE
+        )
 
         updated = update_collection(collection, allow_public_sign_up=True)
 
         assert updated.allow_public_sign_up is True
+        assert updated.submission_visibility == SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
 
     def test_update_collection_disable_public_sign_up(self, factories):
-        collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=True)
+        collection = factories.collection.create(
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+            submission_visibility=SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION,
+        )
 
         updated = update_collection(collection, allow_public_sign_up=False)
 
         assert updated.allow_public_sign_up is False
+        assert updated.submission_visibility == SubmissionVisibilityEnum.ALWAYS_VISIBLE
 
     def test_update_collection_set_public_sign_up_raises_for_non_pre_award_collection(self, factories):
         collection = factories.collection.create(type=CollectionType.MONITORING_REPORT, allow_public_sign_up=False)
 
         with pytest.raises(ValueError, match="allow_public_sign_up can only be set on collections of type APPLICATION"):
             update_collection(collection, allow_public_sign_up=True)
+
+    def test_update_collection_set_submission_visibility(self, factories):
+        collection = factories.collection.create(
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+            submission_visibility=SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION,
+        )
+
+        updated = update_collection(
+            collection, submission_visibility=SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
+        )
+
+        assert updated.submission_visibility == SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
 
     def test_update_collection_set_prospectus_url(self, factories):
         collection = factories.collection.create(type=CollectionType.APPLICATION, prospectus_url=None)

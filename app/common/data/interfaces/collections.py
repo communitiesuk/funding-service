@@ -386,6 +386,7 @@ def update_collection(  # noqa: C901
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
     allow_edits_after_submission_deadline: bool | TNotProvided = NOT_PROVIDED,
+    submission_visibility: SubmissionVisibilityEnum | TNotProvided = NOT_PROVIDED,
 ) -> Collection:
     """Update the various attributes of a collection.
 
@@ -519,13 +520,18 @@ def update_collection(  # noqa: C901
         if allow_public_sign_up:
             if eligibility_form is None:
                 create_form(title="Eligibility questions", collection=collection, is_eligibility_section=True)
+            collection.submission_visibility = SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
         else:
             if eligibility_form is not None:
                 # won't raise_if_component_or_section_has_any_dependencies as eligibility forms
                 # shouldn't have external dependencies
                 delete_form(eligibility_form)
+            collection.submission_visibility = SubmissionVisibilityEnum.ALWAYS_VISIBLE
 
         collection.allow_public_sign_up = allow_public_sign_up
+
+    if submission_visibility is not NOT_PROVIDED:
+        collection.submission_visibility = submission_visibility
 
     if prospectus_url is not NOT_PROVIDED:
         if collection.type != CollectionType.APPLICATION:

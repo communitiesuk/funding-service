@@ -75,6 +75,7 @@ from app.common.data.types import (
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
+    SubmissionVisibilityEnum,
 )
 from app.common.data.utils import generate_submission_reference
 from app.common.expressions import ExpressionContext
@@ -321,12 +322,21 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     requires_certification = True  # note: this'll need to change when we have more than just monitoring reports
     allow_submission_reopening = True
     allow_edits_after_submission_deadline = True
+    allow_public_sign_up = False
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
 
     grant_id = factory.LazyAttribute(lambda o: o.grant.id)
     grant = factory.SubFactory(_GrantFactory)
+
+    submission_visibility = factory.LazyAttribute(
+        lambda o: (
+            SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
+            if o.allow_public_sign_up
+            else SubmissionVisibilityEnum.ALWAYS_VISIBLE
+        )
+    )
 
     @factory.post_generation
     def create_completed_submissions_conditional_question(
