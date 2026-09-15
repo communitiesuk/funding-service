@@ -455,13 +455,19 @@ class ExpressionContext(ChainMap[str, Any]):
         mode: Literal["evaluation", "interpolation"],
         submission_helper: SubmissionHelper | None = None,
     ) -> dict[str, Any]:
-        # TODO: FSPT-1181: Fix when fixing Preview submissions with data source references
         if not submission_helper or not submission_helper.data_sources:
             return {}
 
         data_source_context: dict[str, Any] = {}
 
         for data_source in submission_helper.data_sources:
+            # An unreferenced data source in the collection doesn't need to be resolved down to a specific
+            # grant recipient's data, so we skip it entirely here. This means a collection can have data sources
+            # uploaded to it that are never referenced by any question/group/expression without needing a grant
+            # recipient to be known yet (eg previews, or submissions still going through the eligibility section).
+            if not data_source.get_referenced_column_names():
+                continue
+
             # In reality this shouldn't happen, it's more a type guard as data_source.schema is nullable ie. when CUSTOM
             if not data_source.schema:
                 continue
@@ -469,8 +475,16 @@ class ExpressionContext(ChainMap[str, Any]):
             if not data_source.schema.root:
                 raise ValueError(f"Data source {data_source.name} {data_source.id} has no schema or schema items")
 
-            org_item = data_source.get_filtered_organisation_item(
-                submission_helper.grant_recipient.organisation.external_id
+            # TODO: FSPT-1501 / FSPT-1615: Setting the org item to `None` when there's no grant recipient avoids an ugly
+            # init but delays a possible error until evaluation or non-user friendly interpolated strings when there's
+            # no grant recipient (eg previews, or submissions still in the eligibility section). Fix this when fixing
+            # Preview submissions with data source references and inserting user-input placeholder values, and block
+            # data sets from being used with pre-award public sign-up collections with eligibility sections.
+            grant_recipient = submission_helper.submission.grant_recipient
+            org_item = (
+                data_source.get_filtered_organisation_item(grant_recipient.organisation.external_id)
+                if grant_recipient is not None
+                else None
             )
 
             # TODO: Do we want to set this to None or do we want to raise here when a data source exists for this
