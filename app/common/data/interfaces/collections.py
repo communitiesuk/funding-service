@@ -790,19 +790,28 @@ def get_submission_list_for_collection(
 
 
     Selects only the columns needed to render the list, deriving the submission name in SQL (via the
-    Submission hybrid property) rather than loading the full `data` blob into Python. The last-updated
-    timestamp is derived by left-joining a single pre-aggregated max of event dates per submission,
-    rather than the per-row correlated subquery the `last_updated_at_utc` hybrid would emit. This is a further
-    optimisation for performance, as the correlated subquery can be expensive for large datasets.
+    Submission hybrid property) rather than loading the full `data` blob into Python. The last-updated and
+    last-submitted timestamps are derived by joining a single pre-aggregated set of max event dates per submission,
+    rather than the per-row correlated subqueries the `last_updated_at_utc` and `last_submitted_at_utc` hybrids
+    would emit. This is a further optimisation for performance, as the correlated subqueries can be expensive for
+    large datasets.
 
-    Rows are ordered by organisation name, then by submission name for multiple-submission collections.
+    When grant recipients are known up front (not submitted only), rows are ordered by organisation name, then
+    by submission name for multiple-submission collections.
+
+    When submitted only is true the name of submissions becomes unstable and we order by submitted date with a
+    fallback on created date (although no submission should be selected without a valid submitted date).
     """
-    # An optimisation to avoid the `Submission.last_updated_at_utc` subquery; here we instead join the max event date
-    # directly to squeak out a bit more performance/efficiency
+
+    # An optimisation to avoid the `Submission.last_updated_at_utc` and `Submission.last_submitted_at_utc` subqueries;
+    # here we instead join the max event dates directly to squeak out a bit more performance/efficiency
     latest_event = (
         select(
             SubmissionEvent.submission_id.label("submission_id"),
             func.max(SubmissionEvent.created_at_utc).label("max_created_at_utc"),
+            func.max(SubmissionEvent.created_at_utc)
+            .filter(SubmissionEvent.event_type == SubmissionEventType.SUBMISSION_SUBMITTED)
+            .label("max_submitted_at_utc"),
         )
         .join(Submission, Submission.id == SubmissionEvent.submission_id)
         .where(Submission.collection_id == collection.id, Submission.mode == submission_mode)
@@ -817,9 +826,7 @@ def get_submission_list_for_collection(
 
     grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
     name_column = Submission.name.label("name") if collection.allow_multiple_submissions else null().label("name")
-    order_by: List[Any] = [Organisation.name]
-    if collection.allow_multiple_submissions:
-        order_by.append(name_column)
+    order_by: List[Any] = []
 
     stmt = select(
         Organisation.name.label("organisation_name"),
@@ -832,6 +839,7 @@ def get_submission_list_for_collection(
         Submission.is_assessed.label("is_assessed"),
     )
     if submitted_only:
+        order_by.extend([latest_event.c.max_submitted_at_utc.desc(), Submission.created_at_utc.desc()])
         stmt = (
             stmt.select_from(Submission)
             .join(
@@ -852,6 +860,9 @@ def get_submission_list_for_collection(
             )
         )
     else:
+        order_by.append(Organisation.name)
+        if collection.allow_multiple_submissions:
+            order_by.append(name_column)
         stmt = (
             stmt.select_from(GrantRecipient)
             .join(Organisation, GrantRecipient.organisation_id == Organisation.id)
