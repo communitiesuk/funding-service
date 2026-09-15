@@ -719,6 +719,23 @@ class TestUpdateCollection:
 
         assert updated.submission_visibility == SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
 
+    def test_update_collection_set_submission_visibility_takes_precedent(self, factories):
+        collection = factories.collection.create(
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+            submission_visibility=SubmissionVisibilityEnum.ALWAYS_VISIBLE,
+        )
+
+        # switching on public sign up moves wants to move visibility to "REQUIRES_CLOSED_COLLECTION"
+        # but will respect the explicit value provided
+        updated = update_collection(
+            collection,
+            allow_public_sign_up=True,
+            submission_visibility=SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS,
+        )
+
+        assert updated.submission_visibility == SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
+
     def test_update_collection_set_prospectus_url(self, factories):
         collection = factories.collection.create(type=CollectionType.APPLICATION, prospectus_url=None)
 
