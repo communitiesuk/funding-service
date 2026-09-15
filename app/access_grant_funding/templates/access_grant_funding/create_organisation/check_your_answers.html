@@ -24,7 +24,7 @@
             "key": {"text": "Full name"},
             "value": {"text": org_session.user_name or current_user.name},
             "actions": {"items": [{
-              "href": url_for("access_grant_funding.create_organisation_user_name", grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
+              "href": org_session.page_url(pages.USER_NAME, from_check_your_answers=True),
               "classes": "govuk-link--no-visited-state",
               "text": "Change",
               "visuallyHiddenText": "full name"
@@ -34,7 +34,7 @@
             "key": {"text": "Organisation type"},
             "value": {"text": org_session.organisation_type.label},
             "actions": {"items": [{
-              "href": url_for("access_grant_funding.create_organisation_type", grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
+              "href": org_session.page_url(pages.TYPE, from_check_your_answers=True),
               "classes": "govuk-link--no-visited-state",
               "text": "Change",
               "visuallyHiddenText": "organisation type"
@@ -44,7 +44,7 @@
             "key": {"text": "Organisation name"},
             "value": {"text": org_session.name},
             "actions": {"items": [{
-              "href": url_for("access_grant_funding.create_organisation_name", grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
+              "href": org_session.page_url(pages.NAME, from_check_your_answers=True),
               "classes": "govuk-link--no-visited-state",
               "text": "Change",
               "visuallyHiddenText": "organisation name"
@@ -59,7 +59,7 @@
               "key": {"text": "Allow team members to apply as " ~ org_session.name},
               "value": {"text": "Yes" if org_session.allow_team_members else "No"},
               "actions": {"items": [{
-                "href": url_for("access_grant_funding.create_organisation_allow_team_members", grant_slug=grant.slug, collection_slug=collection.slug, source=constants.check_your_answers),
+                "href": org_session.page_url(pages.TEAM_MEMBERS, from_check_your_answers=True),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
                 "visuallyHiddenText": "whether team members can apply as " ~ org_session.name

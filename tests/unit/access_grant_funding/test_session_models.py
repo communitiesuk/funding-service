@@ -42,6 +42,14 @@ class TestCreateOrganisationSession:
         assert session.needs_user_name is False
         assert session.can_share_email_domain is False
 
+    def test_answering_the_name_generates_the_organisation_identifier(self):
+        session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.OTHER)
+
+        session.answer_name("Acme Ltd")
+
+        assert session.name == "Acme Ltd"
+        assert session.external_id
+
     def test_to_session_dict_round_trips_through_json(self):
         collection_id = uuid.uuid4()
         session = _session(

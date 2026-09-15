@@ -10,6 +10,10 @@ class RedirectException(Exception):
         self.url = url
 
 
+class SessionJourneyRecoveryRedirect(RedirectException):
+    """Return to a suitable journey page when the session cannot support the requested page."""
+
+
 class ValidationError(NamedTuple):
     question_id: UUID
     question_name: str
