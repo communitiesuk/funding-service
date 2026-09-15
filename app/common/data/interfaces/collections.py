@@ -795,8 +795,13 @@ def get_submission_list_for_collection(
     rather than the per-row correlated subquery the `last_updated_at_utc` hybrid would emit. This is a further
     optimisation for performance, as the correlated subquery can be expensive for large datasets.
 
-    Rows are ordered by organisation name, then by submission name for multiple-submission collections.
+    When grant recipients are known up front (not submitted only), rows are ordered by organisation name, then
+    by submission name for multiple-submission collections.
+
+    When submitted only is true the name of submissions becomes unstable and we order by submitted date with a
+    fallback on created date (although no submission should be selected without a valid submitted date).
     """
+
     # An optimisation to avoid the `Submission.last_updated_at_utc` subquery; here we instead join the max event date
     # directly to squeak out a bit more performance/efficiency
     latest_event = (
@@ -817,9 +822,7 @@ def get_submission_list_for_collection(
 
     grant_recipient_mode = GrantRecipientModeEnum.from_similar(submission_mode)
     name_column = Submission.name.label("name") if collection.allow_multiple_submissions else null().label("name")
-    order_by: List[Any] = [Organisation.name]
-    if collection.allow_multiple_submissions:
-        order_by.append(name_column)
+    order_by: List[Any] = []
 
     stmt = select(
         Organisation.name.label("organisation_name"),
@@ -832,6 +835,7 @@ def get_submission_list_for_collection(
         Submission.is_assessed.label("is_assessed"),
     )
     if submitted_only:
+        order_by.extend([Submission.last_submitted_at_utc.desc(), Submission.created_at_utc.desc()])
         stmt = (
             stmt.select_from(Submission)
             .join(
@@ -852,6 +856,9 @@ def get_submission_list_for_collection(
             )
         )
     else:
+        order_by.append(Organisation.name)
+        if collection.allow_multiple_submissions:
+            order_by.append(name_column)
         stmt = (
             stmt.select_from(GrantRecipient)
             .join(Organisation, GrantRecipient.organisation_id == Organisation.id)

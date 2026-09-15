@@ -6231,6 +6231,39 @@ class TestGetSubmissionListForCollection:
             ("Beta Ltd", "Project Z"),
         ]
 
+    def test_submitted_only_collection_orders_rows_by_last_submitted_at_utc(self, db_session, factories):
+        collection = factories.collection.create(allow_public_sign_up=True)
+        for organisation_name, created_at_utc, submitted_at_utc in [
+            ("Acme Corp", datetime.datetime(2026, 1, 3, 12, 0, 0), datetime.datetime(2026, 2, 3, 12, 0, 0)),
+            ("Beta Ltd", datetime.datetime(2026, 1, 2, 12, 0, 0), datetime.datetime(2026, 2, 1, 12, 0, 0)),
+            ("Charlie Ltd", datetime.datetime(2026, 1, 1, 12, 0, 0), datetime.datetime(2026, 2, 3, 12, 0, 0)),
+        ]:
+            grant_recipient = factories.grant_recipient.create(
+                grant=collection.grant, organisation__name=organisation_name
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                mode=SubmissionModeEnum.LIVE,
+                grant_recipient=grant_recipient,
+                created_at_utc=created_at_utc,
+            )
+            submission.status = SubmissionStatusEnum.SUBMITTED
+            factories.submission_event.create(
+                submission=submission,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                created_at_utc=submitted_at_utc,
+            )
+            # a later event of another type is ignored
+            factories.submission_event.create(
+                submission=submission,
+                event_type=SubmissionEventType.FORM_RUNNER_FORM_COMPLETED,
+                created_at_utc=datetime.datetime(2026, 3, 1, 12, 0, 0),
+            )
+
+        rows = get_submission_list_for_collection(collection=collection, submission_mode=SubmissionModeEnum.LIVE)
+
+        assert [row.organisation_name for row in rows] == ["Acme Corp", "Charlie Ltd", "Beta Ltd"]
+
     def test_uses_submission_name_question_answer_for_name(self, db_session, factories):
         question = factories.question.create(
             form__collection__allow_multiple_submissions=True,
