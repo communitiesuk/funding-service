@@ -70,6 +70,7 @@ from app.common.data.interfaces.data_sets import (
 )
 from app.common.data.interfaces.exceptions import (
     DuplicateValueError,
+    EligibilitySectionCannotBeMovedError,
     InvalidReferenceInExpression,
 )
 from app.common.data.interfaces.grant_recipients import get_grant_recipients_for_collection_with_locked_submissions
@@ -866,6 +867,8 @@ def move_section(grant_id: UUID, form_id: UUID, direction: str) -> ResponseRetur
                 return abort(400)
     except SectionDependencyOrderException as e:
         flash(e.as_flash_context(), FlashMessageType.SECTION_DEPENDENCY_ORDER_ERROR.value)  # ty: ignore[invalid-argument-type]
+    except EligibilitySectionCannotBeMovedError:
+        return abort(400)
 
     return redirect(
         url_for(
