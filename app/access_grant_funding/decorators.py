@@ -54,18 +54,19 @@ def requires_create_organisation_session(
                     )
                 )
 
-            try:
-                org_session.validate_for_page(
-                    page,
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                    request_args=request.args,
-                )
-            finally:
-                if org_session.to_session_dict() != session_data:
-                    session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+            org_session.validate_for_page(
+                page,
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                request_args=request.args,
+            )
+            response = func(*args, org_session=org_session, **kwargs)
 
-            return func(*args, org_session=org_session, **kwargs)
+            # a view that completes the journey clears the session, which must not be undone here
+            if SESSION_CREATE_ORGANISATION in session and org_session.to_session_dict() != session_data:
+                session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+
+            return response
 
         return wrapper
 

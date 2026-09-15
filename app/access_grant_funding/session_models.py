@@ -117,12 +117,16 @@ class CreateOrganisationSession(SignUpSession):
         match page:
             case CreateOrganisationPage.TYPE:
                 return self.organisation_type is not None
+
             case CreateOrganisationPage.NAME:
                 return bool(self.name and self.external_id)
+
             case CreateOrganisationPage.TEAM_MEMBERS:
                 return self.allow_team_members is not None
+
             case CreateOrganisationPage.USER_NAME:
                 return bool(self.user_name)
+
             case _:
                 return False
 
@@ -187,12 +191,14 @@ class CreateOrganisationSession(SignUpSession):
     def previous_page(self) -> str:
         if self._page == CreateOrganisationPage.ALREADY_EXISTS:
             return self.page_url(CreateOrganisationPage.NAME)
+
         if (
             self._from_check_your_answers
             and self._page != CreateOrganisationPage.CHECK_YOUR_ANSWERS
             and self.first_incomplete_page == CreateOrganisationPage.CHECK_YOUR_ANSWERS
         ):
             return self.page_url(CreateOrganisationPage.CHECK_YOUR_ANSWERS)
+
         if self._page == CreateOrganisationPage.TYPE:
             return self.page_url(CreateOrganisationPage.ELIGIBLE_TO_APPLY)
 
@@ -222,6 +228,7 @@ class CreateOrganisationSession(SignUpSession):
             if CreateOrganisationPage.NAME not in pages or answered_pages <= pages.index(CreateOrganisationPage.NAME):
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
             return
+
         if page not in pages:
             if page not in (CreateOrganisationPage.TEAM_MEMBERS, CreateOrganisationPage.USER_NAME):
                 # a page for another type of organisation: choosing the type again leads to the right pages
@@ -242,6 +249,26 @@ class CreateOrganisationSession(SignUpSession):
             needs_user_name=not user.name,
             can_share_email_domain=user.can_share_email_domain,
         )
+
+    def answer_organisation_type(self, organisation_type: SignUpOrganisationType) -> None:
+        self.organisation_type = organisation_type
+
+    def answer_name(self, name: str) -> None:
+        # imported here as the data utils pull in the models, which are still loading when this module is imported
+        from app.common.data.utils import generate_organisation_custom_code
+
+        self.name = name
+
+        # for now all organisations are going to be considered to have type "OTHER" which means that
+        # we'll generate their identifier, other ways of looking up organisations will have their own
+        # methods for finding the name and external ID
+        self.external_id = generate_organisation_custom_code()
+
+    def answer_allow_team_members(self, allow_team_members: bool) -> None:
+        self.allow_team_members = allow_team_members
+
+    def answer_user_name(self, user_name: str) -> None:
+        self.user_name = user_name
 
 
 class NamedCreateOrganisationSession(CreateOrganisationSession):
