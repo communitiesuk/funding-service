@@ -39,7 +39,7 @@ def list_collections(organisation_id: UUID, grant_id: UUID) -> ResponseReturnVal
     collection_helpers = []
 
     monitoring_reports = grant_recipient.grant.get_access_reports_for_user(
-        user, user_organisation=grant_recipient.organisation
+        user, user_organisation=grant_recipient.organisation, grant_recipient=grant_recipient
     )
     pre_award_forms = grant_recipient.grant.get_access_pre_award_forms_for_user(
         user, user_organisation=grant_recipient.organisation, grant_recipient=grant_recipient
