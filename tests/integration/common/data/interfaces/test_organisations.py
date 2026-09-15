@@ -204,6 +204,18 @@ class TestGetMatchedOrganisations:
 
         assert result.all() == []
 
+    def test_does_not_domain_match_a_managed_organisation(self, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        user = factories.user.create(email="test@example-org.com")
+        managed_org = _get_grant_managing_organisation()
+        managed_org.domains = ["example-org.com"]
+        db_session.commit()
+
+        result = get_matched_organisations(user, "example-org.com")
+
+        assert result.all() == []
+
 
 class TestGetOrganisationCount:
     def test_returns_count_of_non_grant_managing_organisations(self, factories, db_session):

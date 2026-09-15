@@ -1177,6 +1177,17 @@ class TestGetOrganisations:
         assert len(result) == 1
         assert result[0].id == org.id
 
+    def test_excludes_managed_organisations(self, factories):
+        from tests.models import _get_grant_managing_organisation
+
+        user = factories.user.create()
+        managed_org = _get_grant_managing_organisation()
+        interfaces.user.add_permissions_to_user(
+            user, permissions=[RoleEnum.MEMBER], organisation=managed_org, by_user=user
+        )
+
+        assert user.get_organisations() == []
+
 
 class TestGetUsersWithPermission:
     def test_returns_users_with_specific_permission(self, factories, db_session):
