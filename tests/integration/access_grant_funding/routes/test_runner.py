@@ -629,6 +629,8 @@ class TestTasklist:
                     f"/reports/{submission.id}/check-your-answers/{question.form.id}?source=tasklist"
                 )
 
+            assert page_has_link(soup, "view all questions")
+
     def test_get_tasklist_excludes_eligibility_form(
         self, authenticated_grant_recipient_data_provider_client, factories
     ):
