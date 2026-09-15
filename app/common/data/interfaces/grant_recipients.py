@@ -29,9 +29,7 @@ def get_grant_recipients(
     stmt = select(GrantRecipient).where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
 
     if exclude_applicants:
-        stmt = stmt.filter(
-            GrantRecipient.status.in_([GrantRecipientStatusEnum.AWARDED, GrantRecipientStatusEnum.ALLOCATED])
-        )
+        stmt = stmt.filter(~GrantRecipient.is_applicant)
 
     if with_data_providers:
         stmt = stmt.options(joinedload(GrantRecipient.data_providers))
@@ -145,7 +143,7 @@ def get_grant_recipients_count(grant: Grant, mode: GrantRecipientModeEnum = Gran
     statement = (
         select(func.count())
         .select_from(GrantRecipient)
-        .where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode)
+        .where(GrantRecipient.grant_id == grant.id, GrantRecipient.mode == mode, ~GrantRecipient.is_applicant)
     )
     return db.session.scalar(statement) or 0
 
@@ -209,7 +207,7 @@ def get_grant_recipient_data_providers_count(
     data_providers = set()
     recipients_missing_data_providers = []
 
-    for grant_recipient in get_grant_recipients(grant, mode=mode, with_data_providers=True):
+    for grant_recipient in get_grant_recipients(grant, mode=mode, with_data_providers=True, exclude_applicants=True):
         if not grant_recipient.data_providers:
             recipients_missing_data_providers.append(grant_recipient.organisation.name)
         else:
