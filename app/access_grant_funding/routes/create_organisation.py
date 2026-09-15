@@ -1,4 +1,4 @@
-from flask import current_app, redirect, render_template, session
+from flask import current_app, redirect, render_template
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
@@ -29,9 +29,7 @@ from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant_by_slug
 from app.common.data.interfaces.organisations import create_organisation, organisation_name_exists
 from app.common.data.types import OrganisationType, SubmissionModeEnum
-from app.common.data.utils import generate_organisation_custom_code
 from app.common.forms import GenericSubmitForm
-from app.constants import SESSION_CREATE_ORGANISATION
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricAttributeName, MetricEventName
 
@@ -49,9 +47,7 @@ def create_organisation_type(
 
     form = CreateOrganisationTypeForm(obj=org_session)
     if form.validate_on_submit():
-        org_session.organisation_type = SignUpOrganisationType(form.organisation_type.data)
-        session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
-
+        org_session.answer_organisation_type(SignUpOrganisationType(form.organisation_type.data))
         return redirect(org_session.next_page)
 
     return render_template(
@@ -104,15 +100,10 @@ def create_organisation_name(
     form = CreateOrganisationNameForm(obj=org_session)
     if form.validate_on_submit():
         assert form.name.data is not None
-        org_session.name = form.name.data
-        # for now all organisations are going to be considered to have type "OTHER" which means that
-        # we'll generate their identifier, other ways of looking up organisations will have their own
-        # methods for finding the name and external ID
-        org_session.external_id = generate_organisation_custom_code()
-        session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+        org_session.answer_name(form.name.data)
 
         modes = get_sign_up_modes(interfaces.user.get_current_user())
-        if organisation_name_exists(org_session.name, mode=modes.organisation):
+        if organisation_name_exists(form.name.data, mode=modes.organisation):
             return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS))
         return redirect(org_session.next_page)
 
@@ -169,8 +160,7 @@ def create_organisation_allow_team_members(
     user = interfaces.user.get_current_user()
     form = CreateOrganisationAllowTeamMembersForm(obj=org_session, organisation_name=org_session.name)
     if form.validate_on_submit():
-        org_session.allow_team_members = form.allow_team_members.data == "True"
-        session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+        org_session.answer_allow_team_members(form.allow_team_members.data == "True")
         return redirect(org_session.next_page)
 
     return render_template(
@@ -198,8 +188,7 @@ def create_organisation_user_name(
     form = UserNameForm(obj=org_session)
     if form.validate_on_submit():
         assert form.user_name.data is not None
-        org_session.user_name = form.user_name.data
-        session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
+        org_session.answer_user_name(form.user_name.data)
         return redirect(org_session.next_page)
 
     return render_template(

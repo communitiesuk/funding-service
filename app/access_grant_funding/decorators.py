@@ -58,11 +58,13 @@ def requires_create_organisation_session(
                     collection_slug=collection_slug,
                     request_args=request.args,
                 )
+                response = func(*args, org_session=org_session, **kwargs)
             finally:
-                if org_session.to_session_dict() != session_data:
+                # a view that completes the journey clears the session, which must not be undone here
+                if SESSION_CREATE_ORGANISATION in session and org_session.to_session_dict() != session_data:
                     session[SESSION_CREATE_ORGANISATION] = org_session.to_session_dict()
 
-            return func(*args, org_session=org_session, **kwargs)
+            return response
 
         return wrapper
 
