@@ -249,6 +249,25 @@ class CreateOrganisationSession(SignUpSession):
             can_share_email_domain=user.can_share_email_domain,
         )
 
+    def answer_organisation_type(self, organisation_type: SignUpOrganisationType) -> None:
+        self.organisation_type = organisation_type
+
+    def answer_name(self, name: str) -> None:
+        # imported here as the data utils pull in the models, which are still loading when this module is imported
+        from app.common.data.utils import generate_organisation_custom_code
+
+        self.name = name
+        # for now all organisations are going to be considered to have type "OTHER" which means that
+        # we'll generate their identifier, other ways of looking up organisations will have their own
+        # methods for finding the name and external ID
+        self.external_id = generate_organisation_custom_code()
+
+    def answer_allow_team_members(self, allow_team_members: bool) -> None:
+        self.allow_team_members = allow_team_members
+
+    def answer_user_name(self, user_name: str) -> None:
+        self.user_name = user_name
+
 
 class NamedCreateOrganisationSession(CreateOrganisationSession):
     organisation_type: SignUpOrganisationType
