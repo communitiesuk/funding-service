@@ -1,0 +1,13 @@
+{% extends 'admin/model/edit.html' %}
+{% from 'govuk_frontend_jinja/components/button/macro.html' import govukButton %}
+
+{% block edit_form %}
+  {{ super() }}
+  {{
+    govukButton({
+      "text": "View all questions",
+      "href": url_for('collection.all_questions', collection_id=model.id),
+      "classes": "govuk-button--secondary"
+    })
+  }}
+{% endblock %}
