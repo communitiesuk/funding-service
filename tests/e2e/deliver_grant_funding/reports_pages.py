@@ -320,7 +320,7 @@ class GrantReportsPage(ReportsBasePage):
             self.page.get_by_role("button", name="Create another report")
         )
         self.summary_row_test_submissions = page.locator("div.govuk-summary-list__row").filter(
-            has=page.get_by_text("Test Submissions")
+            has=page.get_by_text("Test submissions")
         )
 
     def navigate(self, grant_id: str) -> None:
@@ -389,7 +389,7 @@ class GrantPreAwardFormsPage(ReportsBasePage):
             has=page.get_by_text("Submissions")
         )
         self.summary_row_test_submissions = page.locator("div.govuk-summary-list__row").filter(
-            has=page.get_by_text("Test Submissions")
+            has=page.get_by_text("Test submissions")
         )
 
     def navigate(self, grant_id: str) -> None:
