@@ -1,4 +1,4 @@
-"""add unique constraint for unclaimed submissions
+"""add unique constraint for unclaimed/previewed submissions
 
 Revision ID: 090_add_unclaimed_sub_constraint
 Revises: 089_collection_email_settings

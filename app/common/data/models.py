@@ -641,7 +641,7 @@ class Submission(BaseModel):
     collection: Mapped[Collection] = relationship("Collection")
 
     __table_args__ = (
-        # A user can only have one unclaimed (grant_recipient_id IS NULL) submission per collection/mode
+        # A user can only have one unclaimed or previewed (grant_recipient_id IS NULL) submission per collection/mode
         Index(
             "uq_submission_unclaimed_created_by_collection_mode",
             "created_by_id",
