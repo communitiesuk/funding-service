@@ -4764,7 +4764,7 @@ class TestDeleteQuestion:
 
 
 class TestDeleteCollectionSubmissions:
-    def test_delete_preview_collection_submissions_created_by_user(self, db_session, factories):
+    def test_delete_preview_collection_submission_created_by_user(self, db_session, factories):
         collection = factories.collection.create(
             create_completed_submissions_each_question_type__preview=3,
             create_completed_submissions_each_question_type__live=3,
@@ -4779,9 +4779,6 @@ class TestDeleteCollectionSubmissions:
         collection.live_submissions[0].created_by = user
         collection.live_submissions[0].events[0].created_by = user
 
-        collection.preview_submissions[1].created_by = user
-        collection.preview_submissions[1].events[0].created_by = user
-
         factories.submission_event.create(submission=collection.preview_submissions[0], created_by=user)
 
         preview_submissions_from_db = (
@@ -4793,7 +4790,7 @@ class TestDeleteCollectionSubmissions:
 
         assert len(preview_submissions_from_db) == 3
         assert len(live_submissions_from_db) == 3
-        assert len(users_submissions_from_db) == 3
+        assert len(users_submissions_from_db) == 2
         assert len(submission_events_from_db) == 7
 
         delete_collection_preview_submissions_created_by_user(collection=collection, created_by_user=user)
@@ -4805,12 +4802,12 @@ class TestDeleteCollectionSubmissions:
         users_submissions_from_db = db_session.query(Submission).where(Submission.created_by == user).all()
         submission_events_from_db = db_session.query(SubmissionEvent).all()
 
-        # Check that only the specified user's two test submissions & associated SubmissionEvents for that user were
+        # Check that only the specified user's preview submission & its associated SubmissionEvents were
         # deleted, and no live submission was deleted
-        assert len(preview_submissions_from_db) == 1
+        assert len(preview_submissions_from_db) == 2
         assert len(live_submissions_from_db) == 3
         assert len(users_submissions_from_db) == 1
-        assert len(submission_events_from_db) == 4
+        assert len(submission_events_from_db) == 5
 
         for submission in preview_submissions_from_db:
             assert submission.created_by is not user
