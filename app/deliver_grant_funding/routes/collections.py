@@ -124,7 +124,6 @@ from app.common.helpers.collections import (
     SubmissionIsAlreadyAssessedError,
     SubmissionIsNotSubmittedError,
 )
-from app.common.helpers.feature_flags import FeatureFlags
 from app.common.helpers.pdf import render_pdf
 from app.common.utils import slugify
 from app.constants import (
@@ -3756,11 +3755,7 @@ def view_submission(grant_id: UUID, submission_id: UUID) -> ResponseReturnValue:
         timeline_event_types.append(SubmissionEventType.SUBMISSION_SUBMITTED)
 
     return render_template(
-        (
-            "deliver_grant_funding/collections/view_submission.html"
-            if not FeatureFlags.PRE_AWARD.is_enabled
-            else "deliver_grant_funding/collections/ff_view_submission.html"
-        ),
+        "deliver_grant_funding/collections/view_submission.html",
         grant=helper.grant,
         helper=helper,
         interpolate=SubmissionHelper.get_interpolator(collection=helper.collection, submission_helper=helper),
