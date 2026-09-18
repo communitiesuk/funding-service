@@ -42,6 +42,7 @@ from app.common.helpers.collections import (
     get_or_create_unclaimed_submission,
     get_unclaimed_submission_for_user,
 )
+from app.common.helpers.feature_flags import FeatureFlags
 from app.common.markdown import convert_text_to_govuk_markup
 from app.constants import SESSION_CREATE_ORGANISATION, SESSION_MATCHED_ORGANISATION
 from app.extensions import auto_commit_after_request, notification_service
@@ -422,7 +423,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         form = GenericSubmitForm()
         if form.validate_on_submit():
             session[SESSION_CREATE_ORGANISATION] = CreateOrganisationSession.start(
-                collection_id=collection.id, user=user
+                collection_id=collection.id,
+                user=user,
+                companies_house_lookup=FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP.is_enabled,
             ).to_session_dict()
             return redirect(
                 url_for(
@@ -450,7 +453,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         # If user selected to set up a new organisation
         if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
             session[SESSION_CREATE_ORGANISATION] = CreateOrganisationSession.start(
-                collection_id=collection.id, user=user
+                collection_id=collection.id,
+                user=user,
+                companies_house_lookup=FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP.is_enabled,
             ).to_session_dict()
             return redirect(
                 url_for(

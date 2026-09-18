@@ -3,12 +3,13 @@ from typing import Any
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms import RadioField, StringField, SubmitField
-from wtforms.validators import DataRequired, Email
+from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.access_grant_funding.session_models import SignUpOrganisationType
 from app.common.data.models import Organisation
 from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.filters import strip_string_if_not_empty
+from app.extensions import companies_house_service
 
 
 class DeclineSignOffForm(FlaskForm):
@@ -120,6 +121,25 @@ class CreateOrganisationNameForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CompaniesHouseSearchForm(FlaskForm):
+    query = StringField(
+        "Search Companies House register",
+        description="Search by company name or number",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter a company name or number")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Search", widget=GovSubmitInput())
+
+    def validate_query(self, field: StringField) -> None:
+        min_length = companies_house_service.min_query_length
+        max_length = companies_house_service.max_query_length
+        if field.data and len(field.data) < min_length:
+            raise ValidationError(f"Company name or number must be {min_length} characters or more")
+        if field.data and len(field.data) > max_length:
+            raise ValidationError(f"Company name or number must be {max_length} characters or fewer")
 
 
 class CreateOrganisationAllowTeamMembersForm(FlaskForm):
