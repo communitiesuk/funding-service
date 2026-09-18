@@ -530,6 +530,7 @@ class TestCollectionLifecycleTasklist:
         grant = factories.grant.create(
             name="Test Grant",
             privacy_policy_markdown="hello",
+            allow_pre_award=True,
         )
         collection = factories.collection.create(grant=grant, name="Q1 Report", type=CollectionType.APPLICATION)
         org_1 = factories.organisation.create(name="Org 1", can_manage_grants=False)

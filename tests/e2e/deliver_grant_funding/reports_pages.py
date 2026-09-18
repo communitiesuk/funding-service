@@ -2215,6 +2215,7 @@ class PreAwardSubmissionsListPage(ReportsBasePage):
 class ViewSubmissionPage(ReportsBasePage):
     report_name: str
     request_or_allow_changes_button: Locator
+    reopen_submission_button: Locator
     approve_or_reject_button: Locator
     status_tags: Locator
 
@@ -2227,6 +2228,7 @@ class ViewSubmissionPage(ReportsBasePage):
         )
         self.report_name = report_name
         self.request_or_allow_changes_button = page.get_by_role("button", name="Request or allow changes")
+        self.reopen_submission_button = page.get_by_role("button", name="Reopen submission")
         self.approve_or_reject_button = page.get_by_role("button", name="Approve or reject submission")
         self.status_tags = page.locator(".govuk-tag")
 

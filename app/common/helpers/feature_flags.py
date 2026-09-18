@@ -26,10 +26,11 @@ Usage in templates:
 
 from abc import ABC, abstractmethod
 
-from flask import session
+from flask import request, session
 from flask.sessions import SessionMixin
 
 from app.common.auth.authorisation_helper import AuthorisationHelper
+from app.common.data.interfaces.grants import get_grant
 from app.common.data.interfaces.user import get_current_user
 
 
@@ -95,6 +96,19 @@ class SessionFeatureFlag(FeatureFlagBase):
         session[self.name] = "on"
 
 
+class PreAwardGrantFeatureFlag(StaticFeatureFlag):
+    description = "Show pre-award features like applications for grants that have this enabled."
+    resolver_description = "Based on the 'allow pre-award' setting on each grant."
+    uses_request_context = True
+
+    @classmethod
+    def resolve(cls) -> bool:
+        grant_id = request.view_args.get("grant_id") if request.view_args else None
+        if not grant_id:
+            return False
+        return get_grant(grant_id).allow_pre_award
+
+
 class NewContextSourcesFeatureFlag(StaticFeatureFlag):
     description = "Show new context sources for referencing data in collections."
     resolver_description = "On for users with platform admin access."
@@ -111,6 +125,7 @@ class AccessGrantFundingCompaniesHouseLookupFeatureFlag(SessionFeatureFlag):
 
 
 class FeatureFlags:
+    PRE_AWARD = PreAwardGrantFeatureFlag()
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
     ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP = AccessGrantFundingCompaniesHouseLookupFeatureFlag()
 

@@ -5,6 +5,7 @@ from flask import Flask
 from app.common.data.types import RoleEnum
 from app.common.helpers.feature_flags import (
     NewContextSourcesFeatureFlag,
+    PreAwardGrantFeatureFlag,
     StaticFeatureFlag,
 )
 
@@ -53,6 +54,30 @@ class TestFeatureFlag:
 
         assert bool(AlwaysOn()) is True
         assert bool(AlwaysOff()) is False
+
+
+class TestPreAwardGrantFeatureFlag:
+    flag = PreAwardGrantFeatureFlag()
+
+    def test_enabled(self, app: Flask, factories) -> None:
+        grant = factories.grant.build(allow_pre_award=True)
+
+        with app.test_request_context(f"/deliver/grant/{grant.id}/reports"):
+            with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
+                assert self.flag.is_enabled is True
+
+    def test_disabled(self, app: Flask, factories) -> None:
+        grant = factories.grant.build(allow_pre_award=False)
+
+        with app.test_request_context(f"/deliver/grant/{grant.id}/reports"):
+            with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
+                assert self.flag.is_enabled is False
+
+    def test_disabled_without_grant_id(self, app: Flask, factories) -> None:
+        grant = factories.grant.build(allow_pre_award=True)
+        with app.test_request_context("/"):
+            with patch("app.common.helpers.feature_flags.get_grant", return_value=grant):
+                assert self.flag.is_enabled is False
 
 
 class TestNewContextSourcesFeatureFlag:
