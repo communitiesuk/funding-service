@@ -11,16 +11,14 @@
       "current": active_item_identifier == "details"
   })
 %}
-{% if feature_flags.PRE_AWARD.is_enabled %}
-  {%
-    do nav_items.append({
-        "text": "Pre-award",
-        "key": "pre_award",
-        "href": url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id),
-        "current": active_item_identifier == "pre_award"
-    })
-  %}
-{% endif %}
+{%
+  do nav_items.append({
+      "text": "Pre-award",
+      "key": "pre_award",
+      "href": url_for("deliver_grant_funding.list_pre_award_forms", grant_id=grant.id),
+      "current": active_item_identifier == "pre_award"
+  })
+%}
 {%
   do nav_items.extend([
       {

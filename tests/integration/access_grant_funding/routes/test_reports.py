@@ -668,7 +668,7 @@ class TestExportReportPDFLock:
         assert not pdf_module._pdf_export_lock.locked()
 
 
-class TestListReports:
+class TestListForms:
     def test_get_list_reports(self, authenticated_grant_recipient_member_client, factories):
         organisation = authenticated_grant_recipient_member_client.organisation or factories.organisation.create(
             can_manage_grants=False,
@@ -691,7 +691,7 @@ class TestListReports:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Reports"
+        assert get_h1_text(soup) == "Forms"
         table_elem = soup.find("table", class_="govuk-table")
         assert table_elem is not None
         assert len(table_elem.find_all("tr")) == 3
@@ -702,7 +702,6 @@ class TestListReports:
         )
         grant = authenticated_grant_recipient_member_client.grant
         grant.status = GrantStatusEnum.LIVE
-        grant.allow_pre_award = True
 
         _ = factories.collection.create_batch(
             3,

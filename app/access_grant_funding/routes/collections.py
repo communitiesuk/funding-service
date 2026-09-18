@@ -16,7 +16,6 @@ from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
-from app.common.helpers.feature_flags import FeatureFlags
 from app.common.helpers.pdf import render_pdf
 from app.extensions import auto_commit_after_request
 from app.metrics import MetricEventName, emit_metric_count
@@ -57,13 +56,8 @@ def list_collections(organisation_id: UUID, grant_id: UUID) -> ResponseReturnVal
             ]
         )
 
-    template = (
-        "access_grant_funding/list_forms.html"
-        if FeatureFlags.PRE_AWARD.is_enabled
-        else "access_grant_funding/collection_list.html"
-    )
     return render_template(
-        template,
+        "access_grant_funding/list_forms.html",
         monitoring_reports=monitoring_reports,
         pre_award_forms=pre_award_forms,
         organisation_id=organisation_id,
