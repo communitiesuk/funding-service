@@ -238,6 +238,7 @@ class TestSetUpCollection:
         self, authenticated_grant_admin_client, factories, collection_type: CollectionType, copy: bool
     ):
         client = authenticated_grant_admin_client
+        client.grant.allow_pre_award = True
         url = url_for(
             "deliver_grant_funding.set_up_collection", grant_id=client.grant.id, collection_type=collection_type
         )
@@ -10930,8 +10931,10 @@ class TestViewSubmission:
         assert "Export test form" in soup.text
         assert "What is your name?" in soup.text
 
-    def test_metadata_and_tab_panels_are_displayed(self, authenticated_grant_member_client, submission_submitted):
+    # TODO: combine into above test when feature flag removed
+    def test_ff_metadata_and_tab_panels_are_displayed(self, authenticated_grant_member_client, submission_submitted):
         grant = authenticated_grant_member_client.grant
+        grant.allow_pre_award = True
 
         response = authenticated_grant_member_client.get(
             url_for(
@@ -10962,10 +10965,11 @@ class TestViewSubmission:
         timeline_panel = soup.select_one("#timeline")
         assert timeline_panel.find("h2", class_="govuk-heading-m").text.strip() == "Timeline"
 
-    def test_eligibility_form_included_in_submitted_submission_responses(
+    def test_ff_eligibility_form_included_in_submission_responses(
         self, authenticated_grant_member_client, factories, submission_submitted
     ):
         grant = authenticated_grant_member_client.grant
+        grant.allow_pre_award = True
 
         eligibility_form = factories.form.create(
             collection=submission_submitted.collection, title="Eligibility questions", is_eligibility_section=True
@@ -11006,6 +11010,7 @@ class TestViewSubmission:
         client = request.getfixturevalue(client_fixture)
         submission = request.getfixturevalue(submission_fixture)
         grant = grant_recipient.grant
+        grant.allow_pre_award = True
 
         response = client.get(
             url_for(
@@ -11033,6 +11038,7 @@ class TestViewSubmission:
     ):
         client = authenticated_grant_member_client
         grant = grant_recipient.grant
+        grant.allow_pre_award = True
 
         SubmissionHelper(submission_with_allow_validation).validate_submission(user=client.user, is_approved=True)
         db_session.commit()
@@ -11050,11 +11056,12 @@ class TestViewSubmission:
         assert page_has_link(soup, "Request or allow changes") is None
         assert page_has_link(soup, "Approve or reject submission") is None
 
-    def test_approve_or_reject_button_hidden_when_validation_is_disabled(
+    def test_action_buttons_hidden_when_allow_pre_award_is_disabled(
         self, authenticated_grant_member_client, grant_recipient, submission_submitted
     ):
         client = authenticated_grant_member_client
         grant = grant_recipient.grant
+        grant.allow_pre_award = True
 
         # Setting collection.allow_validation to be False explicitly
         submission_submitted.collection.allow_validation = False
@@ -11076,6 +11083,7 @@ class TestViewSubmission:
     ):
         client = authenticated_grant_member_client
         grant = grant_recipient.grant
+        grant.allow_pre_award = True
 
         response = client.get(
             url_for(
@@ -11265,6 +11273,36 @@ class TestViewSubmission:
             assert reset_link is None, (
                 f"Reset this submission link should NOT be present for {submission_mode.value} mode"
             )
+
+    @pytest.mark.parametrize(
+        "client_fixture, submission_fixture, can_see_reopen_button",
+        [
+            ("authenticated_org_member_client", "submission_submitted", True),
+            ("authenticated_grant_member_client", "submission_in_progress", False),
+            ("authenticated_grant_member_client", "submission_submitted", True),
+        ],
+    )
+    def test_can_see_reopen_submission_button(
+        self, request, client_fixture, grant_recipient, submission_fixture, can_see_reopen_button, factories
+    ):
+
+        client = request.getfixturevalue(client_fixture)
+        submission = request.getfixturevalue(submission_fixture)
+        response = client.get(
+            url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=grant_recipient.grant.id,
+                submission_id=submission.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        reopen_button = page_has_link(soup, "Reopen submission")
+        if can_see_reopen_button:
+            assert reopen_button is not None
+        else:
+            assert reopen_button is None
 
     def test_shows_changed_tag_and_original_response_for_resubmitted_answers(
         self, authenticated_grant_admin_client, factories, db_session
@@ -11781,6 +11819,7 @@ class TestRequestChangesSubmission:
     ):
         client = authenticated_grant_member_client
         grant = client.grant
+        grant.allow_pre_award = True
 
         submission_events_changes_requests_before = (
             db_session.query(SubmissionEvent)
@@ -11834,6 +11873,7 @@ class TestRequestChangesSubmission:
     ):
         client = authenticated_grant_member_client
         grant = client.grant
+        grant.allow_pre_award = True
 
         submission_events_changes_requests_before = (
             db_session.query(SubmissionEvent)
@@ -12003,6 +12043,7 @@ class TestApproveOrRejectSubmission:
     @pytest.mark.parametrize("approved_reason", [None, "Looks good, thanks"])
     def test_post_approve(self, authenticated_grant_member_client, submission_with_allow_validation, approved_reason):
         client = authenticated_grant_member_client
+        client.grant.allow_pre_award = True
 
         form = ApproveOrRejectSubmissionForm(data={"is_approved": "yes", "approved_reason": approved_reason})
 
@@ -12035,6 +12076,7 @@ class TestApproveOrRejectSubmission:
 
     def test_post_reject(self, authenticated_grant_member_client, submission_with_allow_validation):
         client = authenticated_grant_member_client
+        client.grant.allow_pre_award = True
 
         form = ApproveOrRejectSubmissionForm(
             data={"is_approved": "no", "rejected_reason": "Missing supporting evidence"}
