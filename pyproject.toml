@@ -78,6 +78,10 @@ required-version = ">=0.11.11"
 add-bounds = "exact"
 exclude-newer = "7 days"  # In line with our renovate spec minimumReleaseAge
 
+[tool.uv.sources]
+# Temporarily point at a fork of flask-admin which patches Unique validator DB session leaks until https://github.com/pallets-eco/flask-admin/pull/2953 is merged
+flask-admin = { git = "https://github.com/samuelhwilliams/flask-admin", branch = "lazy-unique-session" }
+
 [tool.ty.terminal]
 error-on-warning = true
 
