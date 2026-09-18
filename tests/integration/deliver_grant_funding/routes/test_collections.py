@@ -2523,6 +2523,27 @@ class TestMoveSection:
         "direction",
         ["up", "down"],
     )
+    def test_400_when_moving_eligibility_section(
+        self, authenticated_grant_admin_client, factories, db_session, direction
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        factories.form.create(collection=collection)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.move_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=eligibility_form.id,
+                direction=direction,
+            )
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.parametrize(
+        "direction",
+        ["up", "down"],
+    )
     def test_move(self, authenticated_grant_admin_client, factories, db_session, direction):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         factories.form.reset_sequence()
