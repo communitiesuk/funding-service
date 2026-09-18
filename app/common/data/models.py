@@ -648,6 +648,18 @@ class Submission(BaseModel):
     collection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("collection.id"))
     collection: Mapped[Collection] = relationship("Collection")
 
+    __table_args__ = (
+        # A user can only have one unclaimed (grant_recipient_id IS NULL) submission per collection/mode
+        Index(
+            "uq_submission_unclaimed_created_by_collection_mode",
+            "created_by_id",
+            "collection_id",
+            "mode",
+            unique=True,
+            postgresql_where=grant_recipient_id.is_(None),
+        ),
+    )
+
     events: Mapped[list[SubmissionEvent]] = relationship(
         "SubmissionEvent",
         back_populates="submission",
