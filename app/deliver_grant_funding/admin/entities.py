@@ -389,7 +389,6 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
     column_labels = {
         "ggis_number": "GGIS number",
         "organisation.name": "Organisation name",
-        "allow_pre_award": "Allow pre-award features",
     }
 
     form_columns = [
@@ -400,7 +399,6 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
         "ggis_number",
         "status",
         "privacy_policy_markdown",
-        "allow_pre_award",
     ]
 
     form_args = {

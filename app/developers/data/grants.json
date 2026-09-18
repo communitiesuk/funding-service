@@ -1569,7 +1569,7 @@
         }
       ],
       "grant": {
-        "allow_pre_award": true,
+        "allow_pre_award": false,
         "code": "CIP",
         "description": "Funding to help local cheesemongers provide samples to park visitors, with the intention to increase the local community's satisfaction with the variety and quality of local cheeses.",
         "ggis_number": "GGIS-000000",

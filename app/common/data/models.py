@@ -117,7 +117,6 @@ class Grant(BaseModel):
     organisation: Mapped[Organisation] = relationship("Organisation", back_populates="grants")
     grant_recipients: Mapped[list[GrantRecipient]] = relationship("GrantRecipient", back_populates="grant")
     privacy_policy_markdown: Mapped[str | None]
-
     allow_pre_award: Mapped[bool] = mapped_column(default=False)
 
     # Invitations to join this grant's team, ie those scoped to this grant *and* the grant's own organisation. Grant
