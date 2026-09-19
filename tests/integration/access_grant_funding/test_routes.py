@@ -1825,7 +1825,7 @@ class TestEligibleToApplyPage:
             authenticated_no_role_client.user,
             GreaterThan(minimum_value=3, subject_reference=ExpressionReference.from_question(question)),
         )
-        factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        factories.organisation.create(name="Test Organisation", domains=["example-org.com"], can_manage_grants=False)
         db_session.commit()
 
         with authenticated_no_role_client.session_transaction() as flask_session:
@@ -2008,7 +2008,7 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        factories.organisation.create(name="Test Organisation", domains=["example-org.com"], can_manage_grants=False)
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
@@ -2213,6 +2213,72 @@ class TestEligibleToApplyPage:
         mock_count.assert_not_called()
 
     @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_excludes_role_matched_managed_organisation(self, authenticated_no_role_client, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        managed_org = _get_grant_managing_organisation()
+        managed_org.name = "Should Not Be Matched Organisation"
+        db_session.commit()
+        factories.user_role.create(
+            user=authenticated_no_role_client.user,
+            organisation=managed_org,
+            grant=None,
+            permissions=[RoleEnum.MEMBER],
+        )
+        factories.organisation.create(
+            name="Test Organisation",
+            domains=["example-org.com"],
+            can_manage_grants=False,
+            mode=OrganisationModeEnum.TEST,
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Test Organisation" in soup.text
+        assert managed_org.name not in soup.text
+        assert soup.find("input", attrs={"value": str(managed_org.id)}) is None
+
+    @pytest.mark.authenticate_as("test@example-org.com")
+    def test_get_excludes_domain_matched_managed_organisation(
+        self, authenticated_no_role_client, factories, db_session
+    ):
+        from tests.models import _get_grant_managing_organisation
+
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        managed_org = _get_grant_managing_organisation()
+        managed_org.name = "Should Not Be Matched Organisation"
+        managed_org.domains = ["example-org.com"]
+        db_session.commit()
+        factories.organisation.create(name="Test Organisation", domains=["example-org.com"], can_manage_grants=False)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Test Organisation" in soup.text
+        assert managed_org.name not in soup.text
+        assert soup.find("input", attrs={"value": str(managed_org.id)}) is None
+
+    @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_creates_grant_recipient_and_grants_data_provider_role(
         self, authenticated_no_role_client, factories, db_session, mock_notification_service_calls
     ):
@@ -2415,7 +2481,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
         existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
         factories.user_role.create(
             user=authenticated_no_role_client.user,
@@ -2501,7 +2569,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
         # A colleague from the same email domain has already applied, but this user has no role on it yet
         factories.grant_recipient.create(grant=grant, organisation=organisation)
 
@@ -2584,7 +2654,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
 
         with authenticated_no_role_client.session_transaction() as flask_session:
             flask_session["signing_up_for_collection_id"] = collection.id
@@ -2622,7 +2694,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
 
         # A colleague from the same email domain has already applied, but this user has no role on it yet
         factories.grant_recipient.create(grant=grant, organisation=organisation)
@@ -2790,7 +2864,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
 
         unclaimed_submission = get_or_create_unclaimed_submission(
             authenticated_no_role_client.user, collection, SubmissionModeEnum.LIVE
@@ -2824,7 +2900,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
         existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
         factories.user_role.create(
             user=authenticated_no_role_client.user,
@@ -2859,7 +2937,9 @@ class TestEligibleToApplyPage:
         collection = factories.collection.create(
             grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
         )
-        organisation = factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        organisation = factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
         existing_grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation)
         # Creates submission for existing user+collection+gr
         factories.submission.create(
@@ -2900,7 +2980,9 @@ class TestEligibleToApplyUserNamePage:
 
     @pytest.fixture()
     def matched_organisation(self, factories):
-        return factories.organisation.create(name="Test Organisation", domains=["example-org.com"])
+        return factories.organisation.create(
+            name="Test Organisation", domains=["example-org.com"], can_manage_grants=False
+        )
 
     def _seed_session(self, client, collection, organisation=None, collection_id=None):
         with client.session_transaction() as flask_session:

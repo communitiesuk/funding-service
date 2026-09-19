@@ -106,24 +106,22 @@ class User(BaseModel):
         order_by="Organisation.name",
     )
 
-    # Organisations the user has a role for, either directly on the organisation or via a grant on it
-    _organisations: Mapped[list[Organisation]] = relationship(
+    # Organisations the user has a role for, either directly on the organisation or via a grant on it.
+    # Filtered to non-managed orgs, as we don't allow acting on behalf of managed orgs on Access.
+    _access_organisations: Mapped[list[Organisation]] = relationship(
         "Organisation",
         secondary="join(UserRole, Organisation, UserRole.organisation_id == Organisation.id)",
         primaryjoin="User.id == UserRole.user_id",
-        secondaryjoin="Organisation.id == UserRole.organisation_id",
+        secondaryjoin="""and_(
+            Organisation.id == UserRole.organisation_id,
+            Organisation.can_manage_grants == False
+        )""",
         viewonly=True,
         order_by="Organisation.name",
     )
 
     def get_organisations(self, *, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE) -> list[Organisation]:
-        seen_ids = set()
-        organisations = []
-        for organisation in self._organisations:
-            if organisation.mode == mode and organisation.id not in seen_ids:
-                seen_ids.add(organisation.id)
-                organisations.append(organisation)
-        return organisations
+        return [organisation for organisation in self._access_organisations if organisation.mode == mode]
 
     def get_grant_recipients(
         self, *, limit_to_organisation_id: uuid.UUID | None = None, limit_to_grant_id: uuid.UUID | None = None

@@ -53,7 +53,7 @@ def get_matched_organisations(
     user: User, email_domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> MatchedOrganisations:
     role_matched_orgs = user.get_organisations(mode=mode)
-    domain_matched_orgs = list(get_organisations(domain=email_domain, mode=mode))
+    domain_matched_orgs = list(get_organisations(can_manage_grants=False, domain=email_domain, mode=mode))
 
     return MatchedOrganisations(role_matched_orgs=role_matched_orgs, domain_matched_orgs=domain_matched_orgs)
 
