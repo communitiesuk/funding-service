@@ -6,6 +6,7 @@ from app.access_grant_funding.decorators import requires_create_organisation_ses
 from app.access_grant_funding.forms import (
     CompaniesHouseSearchForm,
     CompaniesHouseSelectForm,
+    CompaniesHouseSwitchToManualForm,
     CompaniesHouseUnavailableForm,
     CreateOrganisationAllowTeamMembersForm,
     CreateOrganisationNameForm,
@@ -138,6 +139,10 @@ def create_organisation_company_search(
 
     # selecting a result posts back to this page, with the search still in the URL so a failed post re-renders it
     select_form = CompaniesHouseSelectForm()
+    manual_form = CompaniesHouseSwitchToManualForm()
+    form = CompaniesHouseSearchForm(request.args, meta={"csrf": False})
+
+    # 1) POST Company route: selecting a result from the Companies House search
     if select_form.validate_on_submit():
         assert select_form.company_number.data is not None
         try:
@@ -153,10 +158,13 @@ def create_organisation_company_search(
 
         return redirect(org_session.next_page)
 
-    # CSRF disabled as this form is used for GET searching only; not POSTing persistent data
-    form = CompaniesHouseSearchForm(request.args, meta={"csrf": False})
-    query = form.q.data
+    # 2) POST Manual route: user can't find their company and will enter details manually
+    if manual_form.validate_on_submit() and manual_form.mode.data == "manual":
+        org_session.switch_to_manual_entry()
+        return redirect(org_session.next_page)
 
+    # 3) GET Search route: user is searching to find their company in Companies House
+    query = form.q.data
     results = None
     pagination = None
 
@@ -191,6 +199,7 @@ def create_organisation_company_search(
         result_count=min(results.total_results, companies_house_service.max_search_results) if results else 0,
         pagination=pagination,
         select_form=select_form,
+        manual_form=manual_form,
         back_link_href=org_session.previous_page,
     )
 

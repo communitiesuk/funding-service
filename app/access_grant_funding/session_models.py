@@ -350,6 +350,10 @@ class CreateOrganisationSession(SignUpSession):
     def fall_back_to_manual_entry(self) -> None:
         """Name the company by hand from here on, as the register could not be reached."""
         self.companies_house_unavailable = True
+        self.switch_to_manual_entry()
+
+    def switch_to_manual_entry(self) -> None:
+        """The user is choosing to switch to manual mode, even if a register search is available."""
         self.identified_by = OrganisationIdentification.MANUAL
         self.name = None
         self.external_id = None

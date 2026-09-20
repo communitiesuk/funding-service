@@ -99,6 +99,34 @@ class TestCreateOrganisationSession:
         assert restored is not None
         assert restored.companies_house_unavailable is True
 
+    def test_choosing_manual_entry_names_the_company_by_hand_without_recording_a_failure(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.COMPANY,
+            identified_by=OrganisationIdentification.COMPANIES_HOUSE,
+            companies_house_lookup=True,
+            name="TEST COMPANY LIMITED",
+            external_id="00000001",
+        )
+
+        session.switch_to_manual_entry()
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.name_page is CreateOrganisationPage.NAME
+        assert session.name is None
+        assert session.external_id is None
+        assert session.companies_house_unavailable is False
+
+    def test_choosing_the_register_again_after_manual_entry_returns_to_the_search(self):
+        session = _session(uuid.uuid4(), companies_house_lookup=True)
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+        session.switch_to_manual_entry()
+
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+
+        assert session.identified_by is OrganisationIdentification.COMPANIES_HOUSE
+        assert session.name_page is CreateOrganisationPage.COMPANY_SEARCH
+
     def test_to_session_dict_round_trips_through_json(self):
         collection_id = uuid.uuid4()
         session = _session(

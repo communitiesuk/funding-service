@@ -2,7 +2,7 @@ from typing import Any
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
-from wtforms import RadioField, StringField, SubmitField
+from wtforms import HiddenField, RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.access_grant_funding.session_models import SignUpOrganisationType
@@ -155,6 +155,11 @@ class CompaniesHouseUnavailableForm(FlaskForm):
         widget=GovRadioInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CompaniesHouseSwitchToManualForm(FlaskForm):
+    mode = HiddenField("", validators=[DataRequired()])
+    submit = SubmitField("add your organisation manually")
 
 
 class CreateOrganisationAllowTeamMembersForm(FlaskForm):
