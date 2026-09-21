@@ -2955,6 +2955,13 @@ class TestSetupGrantRecipients:
         assert "Org 2" in option_texts
         assert "Org 3" in option_texts
 
+        applying_radio = soup.find("input", {"name": "status", "value": "applying"})
+        assert applying_radio.has_attr("disabled")
+        applying_hint = soup.find(id=applying_radio["aria-describedby"])
+        assert applying_hint.find("a", string="set up a local authority applicant").get("href") == (
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-local-authority-applicant"
+        )
+
     def test_get_excludes_grant_managing_organisations(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -3387,10 +3394,6 @@ class TestAddIndividualDataProviders:
 
 
 class TestSetUpLocalAuthorityApplicant:
-    @staticmethod
-    def _url(grant, collection):
-        return
-
     @pytest.fixture
     def open_public_collection(self, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)

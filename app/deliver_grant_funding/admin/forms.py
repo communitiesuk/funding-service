@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import email_validator
-from flask import current_app, flash
+from flask import current_app, flash, url_for
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
@@ -25,7 +25,6 @@ from xgovuk_flask_admin import GovSelectWithSearch
 from app.common.data.types import (
     MONITORING_COLLECTIONS,
     PRE_AWARD_COLLECTIONS,
-    CollectionType,
     GrantRecipientStatusEnum,
     OrganisationData,
     OrganisationType,
@@ -249,7 +248,7 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
         self,
         organisations: Sequence[Organisation],
         existing_grant_recipients: Sequence[GrantRecipient],
-        collection_type: CollectionType,
+        collection: Collection,
     ) -> None:
         super().__init__()
         existing_grant_recipient_org_ids = {gr.organisation.id for gr in existing_grant_recipients}
@@ -262,13 +261,23 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
             item: dict = {}
             if s == GrantRecipientStatusEnum.APPLYING:
                 item["disabled"] = True
-                item["hint"] = {"text": "More work is needed in Deliver to support applying recipients"}
+                set_up_applicant_url = url_for(
+                    "collection_lifecycle.set_up_local_authority_applicant",
+                    grant_id=collection.grant_id,
+                    collection_id=collection.id,
+                )
+                item["hint"] = {
+                    "html": Markup(
+                        "To manually set up an applicant who has not been allocated, "
+                        f'<a class="govuk-link" href="{set_up_applicant_url}">set up a local authority applicant</a>'
+                    )
+                }
             elif s == GrantRecipientStatusEnum.AWARDED:
-                if collection_type in PRE_AWARD_COLLECTIONS:
+                if collection.type in PRE_AWARD_COLLECTIONS:
                     item["disabled"] = True
                     item["hint"] = {"text": "Only available for monitoring report collections"}
             elif s == GrantRecipientStatusEnum.ALLOCATED:
-                if collection_type in MONITORING_COLLECTIONS:
+                if collection.type in MONITORING_COLLECTIONS:
                     item["disabled"] = True
                     item["hint"] = {"text": "Only available for pre-award collections"}
             else:
