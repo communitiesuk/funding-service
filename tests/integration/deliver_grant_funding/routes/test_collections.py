@@ -3687,6 +3687,26 @@ class TestListSectionQuestions:
             )
             assert delete_section_link.get("href") == AnyStringMatching(r"\?delete")
 
+    def test_add_question_group_link_hidden_for_eligibility_section(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Eligibility", is_eligibility_section=True)
+        factories.question.create(form=form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Add another question") is not None
+        assert page_has_link(soup, "Add a question group") is None
+
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=collection, title="Organisation information")
@@ -4396,6 +4416,45 @@ class TestAddQuestionGroup:
                 grant_id=authenticated_grant_admin_client.grant.id,
                 form_id=form.id,
                 parent_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_name",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_404_for_eligibility_section_display_options(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_404_for_eligibility_section_add_another_option(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_add_another_option",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
             )
         )
         assert response.status_code == 404
