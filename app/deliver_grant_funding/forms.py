@@ -1415,6 +1415,9 @@ class UploadDataSetForm(FlaskForm):
         return list(errors_to_show)
 
     def validate_file(self, field: Field) -> None:
+        if self.collection.allow_public_sign_up:
+            raise ValidationError("You cannot add a data set to a form that has public sign up switched on")
+
         if not field.data or not hasattr(field.data, "stream"):
             return
 
