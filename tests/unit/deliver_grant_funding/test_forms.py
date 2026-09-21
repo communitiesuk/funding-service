@@ -9,6 +9,7 @@ from werkzeug.datastructures import FileStorage, MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
+    CollectionType,
     DataSourceType,
     MaximumFileSize,
     NumberTypeEnum,
@@ -24,6 +25,7 @@ from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantGGISForm,
     GrantNameForm,
+    PublicSignUpSettingsForm,
     QuestionForm,
     UploadDataSetForm,
     _validate_no_blank_lines,
@@ -946,6 +948,30 @@ class TestUploadDataSetForm:
             f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
             f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in form.file.errors[0]
+
+
+class TestPublicSignUpSettingsForm:
+    def test_blocked_when_collection_has_data_set(self):
+        form = PublicSignUpSettingsForm(
+            data={"allow_public_sign_up": "True"},
+            collection_type=CollectionType.APPLICATION,
+            has_data_source=True,
+        )
+
+        assert form.validate() is False
+        assert (
+            "You cannot allow public sign up because this form already has a data set"
+            in form.allow_public_sign_up.errors[0]
+        )
+
+    def test_allowed_when_collection_has_no_data_set(self):
+        form = PublicSignUpSettingsForm(
+            data={"allow_public_sign_up": "True"},
+            collection_type=CollectionType.APPLICATION,
+            has_data_source=False,
+        )
+
+        assert form.validate() is True
 
 
 class TestApproveOrRejectSubmissionForm:

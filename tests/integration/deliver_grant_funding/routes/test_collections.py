@@ -2492,6 +2492,34 @@ class TestConfigurePublicSignUp:
         )
         assert collection.allow_public_sign_up is not allow_public_sign_up
 
+    def test_post_blocked_when_collection_has_data_set(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": True, "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "You cannot allow public sign up because this form already has a data set")
+        assert collection.allow_public_sign_up is False
+
 
 class TestMoveSection:
     def test_404(self, authenticated_grant_admin_client):

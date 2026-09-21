@@ -800,7 +800,9 @@ def collection_configure_public_sign_up(
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     form = PublicSignUpSettingsForm(
-        obj=collection if request.method == "GET" else None, collection_type=collection_type
+        obj=collection if request.method == "GET" else None,
+        collection_type=collection_type,
+        has_data_source=bool(collection.data_sources),
     )
 
     if form.validate_on_submit():
