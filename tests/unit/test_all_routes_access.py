@@ -361,6 +361,7 @@ routes_with_access_controlled_by_flask_admin = [
     "collection_lifecycle.revoke_global_certifiers",
     "collection_lifecycle.set_up_grant_recipients",
     "collection_lifecycle.add_individual_data_providers",
+    "collection_lifecycle.set_up_local_authority_applicant",
     "collection_lifecycle.add_bulk_data_providers",
     "collection_lifecycle.revoke_grant_recipient_data_providers",
     "collection_lifecycle.override_grant_certifiers",

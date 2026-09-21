@@ -390,6 +390,37 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
         )
 
 
+class PlatformAdminSetUpLocalAuthorityApplicantForm(FlaskForm):
+    organisation = SelectField(
+        "Local authority",
+        choices=[],
+        validators=[DataRequired("Select a local authority")],
+        widget=GovSelectWithSearch(),
+    )
+    full_name = StringField(
+        "Full name",
+        validators=[DataRequired("Enter the applicant's full name")],
+        widget=GovTextInput(),
+    )
+    email_address = StringField(
+        "Email address",
+        validators=[DataRequired("Enter the applicant's email address"), Email()],
+        widget=GovTextInput(),
+    )
+    send_notification_email = BooleanField(
+        "Send 'Application created on Access grant funding' email",
+        widget=GovCheckboxInput(),
+    )
+    submit = SubmitField("Set up applicant", widget=GovSubmitInput())
+
+    def __init__(self, local_authorities: Sequence[Organisation], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.organisation.choices = [("", "")] + [(str(org.id), org.name) for org in local_authorities]
+        self.send_notification_email.description = (
+            "Send the email applicants receive when they sign up, confirming the application has been created."
+        )
+
+
 class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):
     grant_recipient = SelectField(
         "Test grant recipient",
