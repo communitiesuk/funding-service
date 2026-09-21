@@ -23,6 +23,7 @@ class MetricAttributeName(StrEnum):
     COLLECTION = "collection"
     COLLECTION_ID = "collection-id"
     COLLECTION_TYPE = "collection-type"
+    COLLECTION_PUBLIC_SIGN_UP = "collection-public-sign-up"
     SUBMISSION = "submission"
     SUBMISSION_ID = "submission-id"
     SUBMISSION_MODE = "submission-mode"
@@ -119,6 +120,7 @@ def _get_event_attributes(
         attributes[str(MetricAttributeName.COLLECTION)] = collection.name
         attributes[str(MetricAttributeName.COLLECTION_ID)] = str(collection.id)
         attributes[str(MetricAttributeName.COLLECTION_TYPE)] = str(collection.type)
+        attributes[str(MetricAttributeName.COLLECTION_PUBLIC_SIGN_UP)] = str(collection.allow_public_sign_up)
 
         if not grant:
             grant = collection.grant
