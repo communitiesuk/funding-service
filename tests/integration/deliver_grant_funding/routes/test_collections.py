@@ -4671,6 +4671,38 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
         assert "This question" not in soup.text
 
+    def test_get_hides_reference_data_options_for_eligibility_section(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "A previous question in this section" in soup.text
+        assert "A question in a previous section" not in soup.text
+        assert "A question in a previous collection" not in soup.text
+        assert "An uploaded data set" not in soup.text
+
     def test_get_shows_this_question_for_custom_validation_expression(
         self, authenticated_grant_admin_client, factories
     ):
@@ -4864,6 +4896,19 @@ class TestSelectContextSourceCollection:
 
 
 class TestSelectContextSourceSection:
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
     def test_get_lists_sections(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=collection, title="Section 1")
@@ -5422,6 +5467,19 @@ class TestSelectContextSourceQuestion:
 
 
 class TestSelectContextSourceDataSet:
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
     @pytest.mark.parametrize(
         "client_fixture, can_access",
         (
@@ -5747,6 +5805,25 @@ class TestSelectContextSourceDataSet:
 
 
 class TestSelectContextSourceDataSetColumn:
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 404
+
     @pytest.mark.parametrize(
         "client_fixture, can_access",
         (

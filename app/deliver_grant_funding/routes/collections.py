@@ -1920,6 +1920,8 @@ def select_context_source_collection(grant_id: UUID, form_id: UUID) -> ResponseR
 @collection_is_editable()
 def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    if db_form.is_eligibility_section:
+        return abort(404)
 
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
@@ -1955,6 +1957,8 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 @collection_is_editable()
 def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    if db_form.is_eligibility_section:
+        return abort(404)
 
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
@@ -1995,6 +1999,9 @@ def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseRet
 @collection_is_editable()
 def select_context_source_data_set_column(grant_id: UUID, form_id: UUID, data_set_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    if db_form.is_eligibility_section:
+        return abort(404)
+
     data_set = get_data_source(data_set_id)
 
     if data_set.collection_id != db_form.collection_id:

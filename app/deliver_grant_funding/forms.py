@@ -636,6 +636,18 @@ class AddContextSelectSourceForm(FlaskForm):
                 ),
             ]
 
+        if form.is_eligibility_section:
+            # Reference data isn't supported in the eligibility section for previous sections, previous
+            # collections, or uploaded data sets.
+            excluded_sources = {
+                ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
+                ExpressionContext.ContextSources.PREVIOUS_COLLECTION.name,
+                ExpressionContext.ContextSources.DATASET.name,
+            }
+            self.data_source.choices = [
+                choice for choice in self.data_source.choices if choice[0] not in excluded_sources
+            ]
+
         if include_this_component and current_component and current_component.is_question:
             self.data_source.choices.insert(
                 0,
