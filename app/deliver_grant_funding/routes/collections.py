@@ -4000,14 +4000,19 @@ def list_collection_data_sets(
         if SESSION_DATA_SET_UPLOAD in session:
             del session[SESSION_DATA_SET_UPLOAD]
 
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if collection.allow_public_sign_up:
+            form.submit.errors.append(  # ty: ignore[unresolved-attribute]
+                "You cannot add a data set to a form that has public sign up switched on"
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     return render_template(
         "deliver_grant_funding/collections/list_data_sets.html",
@@ -4153,6 +4158,8 @@ def _build_upload_data_set_preview_data(data_columns: list[str], rows: list[dict
 @has_deliver_grant_role(RoleEnum.ADMIN)
 def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    if collection.allow_public_sign_up:
+        abort(404)
 
     data_set_data = _extract_data_set_data_from_session(None)
 

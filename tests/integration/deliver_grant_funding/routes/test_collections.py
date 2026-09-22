@@ -12470,6 +12470,26 @@ class TestListCollectionDataSets:
         with authenticated_grant_admin_client.session_transaction() as session:
             assert session.get(SESSION_DATA_SET_UPLOAD) is None
 
+    def test_post_shows_error_when_collection_allows_public_sign_up(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=True)
+        preview_form = GenericSubmitForm()
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data=preview_form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "You cannot add a data set to a form that has public sign up switched on")
+
 
 class TestDownloadGrantRecipientDataSetTemplate:
     def test_404(self, authenticated_grant_member_client):
@@ -12596,6 +12616,22 @@ class TestUploadDataSet:
                 collection_id=uuid.uuid4(),
             )
         )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize("method", ("get", "post"))
+    def test_404_when_collection_allows_public_sign_up(self, authenticated_grant_admin_client, factories, method):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=True)
+
+        response = getattr(authenticated_grant_admin_client, method)(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
         assert response.status_code == 404
 
     @pytest.mark.parametrize(

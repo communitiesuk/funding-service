@@ -1684,6 +1684,15 @@ def test_get_group(db_session, factories):
 
 
 class TestCreateGroup:
+    def test_raises_for_eligibility_section(self, db_session, factories):
+        form = factories.form.create(is_eligibility_section=True)
+
+        with pytest.raises(ValueError, match="Cannot create a question group in the eligibility section"):
+            create_group(
+                form=form,
+                text=InterpolationStatement("Test Group"),
+            )
+
     def test_create_group(self, db_session, factories):
         form = factories.form.create()
         group = create_group(
