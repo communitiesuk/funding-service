@@ -10,8 +10,10 @@ from app.common.collections.types import FileUploadAnswer, IntegerAnswer, TextSi
 from app.common.data.models import Submission
 from app.common.data.types import (
     CollectionStatusEnum,
+    CollectionType,
     DataSourceType,
     ExpressionType,
+    GrantRecipientStatusEnum,
     ManagedExpressionsEnum,
     QuestionDataType,
     QuestionPresentationOptions,
@@ -62,6 +64,24 @@ class TestRouteToSubmission:
                 f"/reports/{submission.id}/tasklist"
             )
             assert response.location == expected_location
+
+    def test_route_to_submission_404_for_applying_grant_recipient(
+        self, factories, authenticated_grant_recipient_member_client
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient.status = GrantRecipientStatusEnum.APPLYING
+        collection = factories.collection.create(grant=grant_recipient.grant, type=CollectionType.MONITORING_REPORT)
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.route_to_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
 
     def test_route_to_submission_creates_submission_if_missing(
         self, db_session, factories, authenticated_grant_recipient_member_client
@@ -280,6 +300,22 @@ class TestStartNewMultipleSubmission:
             assert response.status_code == 200
             soup = BeautifulSoup(response.data, "html.parser")
             assert "What is the project name?" in soup.text
+
+    def test_404_for_applying_grant_recipient(self, authenticated_grant_recipient_data_provider_client, factories):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        grant_recipient.status = GrantRecipientStatusEnum.APPLYING
+        collection, _ = self._create_multi_submission_collection(factories, grant_recipient.grant)
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.start_new_multiple_submission",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
 
     def test_get_renders_question_form(self, authenticated_grant_recipient_data_provider_client, factories):
         grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
