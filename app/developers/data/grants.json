@@ -85,6 +85,24 @@
         {
           "allow_edits_after_submission_deadline": true,
           "allow_multiple_submissions": false,
+          "allow_public_sign_up": true,
+          "allow_submission_reopening": true,
+          "allow_validation": false,
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "5ef46178-d257-4e12-9f78-627b8f288a2e",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "Application",
+          "reminder_email_business_days_before_closing": 5,
+          "requires_certification": false,
+          "slug": "application",
+          "status": "Draft",
+          "submission_visibility": "Requires closed collection",
+          "type": "application"
+        },
+        {
+          "allow_edits_after_submission_deadline": true,
+          "allow_multiple_submissions": false,
           "allow_public_sign_up": false,
           "allow_submission_reopening": true,
           "allow_validation": false,
@@ -703,6 +721,13 @@
           "order": 4
         },
         {
+          "data_source_id": "5fd2e49f-d9dd-408e-91aa-e6769bd9ff4f",
+          "id": "80f6ab37-db09-4ca6-b724-ab5b8294fc1a",
+          "key": "i-agree-to-this-declaration",
+          "label": "I agree to this declaration",
+          "order": 0
+        },
+        {
           "data_source_id": "078503ab-e87d-4dac-9533-1491943ab9c1",
           "id": "815448da-c774-47d4-b45a-64589a2d0b3c",
           "key": "red-leicester",
@@ -1106,6 +1131,10 @@
           "type": "Custom"
         },
         {
+          "id": "5fd2e49f-d9dd-408e-91aa-e6769bd9ff4f",
+          "type": "Custom"
+        },
+        {
           "id": "69f62c94-17bb-45b8-956e-74035af56d50",
           "type": "Custom"
         },
@@ -1424,6 +1453,17 @@
         },
         {
           "context": {
+            "subject_reference": "q_97e35ffc0f1446f981f848c07c4ca527"
+          },
+          "created_by_id": "838de5cd-2874-4612-85de-43f7a485b3ff",
+          "id": "dec8b640-b2c1-4989-aa67-85ace23acbbc",
+          "managed_name": "Yes",
+          "question_id": "97e35ffc-0f14-46f9-81f8-48c07c4ca527",
+          "statement": "q_97e35ffc0f1446f981f848c07c4ca527 is True",
+          "type_": "ELIGIBILITY"
+        },
+        {
+          "context": {
             "custom_expression": "((q_8d6ff2ae04764294b41f681e59142a69)) >= ((q_bc31c9aa7c5745c5a56fa3820c0f4972)) + ((q_190f1e66c06446c6874e20ffd02c3eec)) + ((q_4580488e8b3e494fba279233bbe193ec)) + ((q_62b4a7ca868f49cc9c45eb04dbfd10b0))",
             "custom_message": "Your total project spend cannot exceed the maximum project budget of ((q_8d6ff2ae04764294b41f681e59142a69))",
             "expression_name": null
@@ -1456,6 +1496,14 @@
           "title": "Outputs and outcomes"
         },
         {
+          "collection_id": "5ef46178-d257-4e12-9f78-627b8f288a2e",
+          "id": "254ea93c-9ec3-4599-9504-2eaf53bf2066",
+          "is_eligibility_section": true,
+          "order": 0,
+          "slug": "eligibility-questions",
+          "title": "Eligibility questions"
+        },
+        {
           "collection_id": "12aec68d-f89c-430e-ba66-9e2f43459fc0",
           "id": "2a11349b-5bab-4704-a763-5d6a3bbb0c2b",
           "is_eligibility_section": false,
@@ -1478,6 +1526,14 @@
           "order": 0,
           "slug": "numbers",
           "title": "Numbers"
+        },
+        {
+          "collection_id": "5ef46178-d257-4e12-9f78-627b8f288a2e",
+          "id": "601f1a6f-c984-4180-92bc-f4e0861a6541",
+          "is_eligibility_section": false,
+          "order": 1,
+          "slug": "declaration",
+          "title": "Declaration"
         },
         {
           "collection_id": "4e8f04f8-57c2-0399-464b-e62ff96b684a",
@@ -1593,6 +1649,13 @@
           "mode": "live",
           "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
           "status": "awarded"
+        },
+        {
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "7e80aa77-910e-457c-954d-17c9561c510c",
+          "mode": "test",
+          "organisation_id": "325939be-05ed-4d6d-a0a3-2eb22d7eb89f",
+          "status": "applying"
         }
       ],
       "questions": [
@@ -2400,6 +2463,21 @@
           "add_another": false,
           "conditions_operator": "ALL",
           "data_options": {},
+          "data_type": "Yes or no",
+          "form_id": "254ea93c-9ec3-4599-9504-2eaf53bf2066",
+          "hint": "",
+          "id": "97e35ffc-0f14-46f9-81f8-48c07c4ca527",
+          "name": "agreement to report on funding",
+          "order": 0,
+          "presentation_options": {},
+          "slug": "do-you-agree-to-provide-regular-and-timely-monitoring-updates-on-how-your-awarded-funding-is-being-spent",
+          "text": "Do you agree to provide regular and timely monitoring updates on how your awarded funding is being spent?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
           "data_type": "Multiple lines of text",
           "form_id": "9cf64797-461d-467c-8834-470051899da7",
           "hint": "",
@@ -2462,6 +2540,26 @@
           },
           "slug": "when-did-the-last-reporting-period-start",
           "text": "When did the last reporting period start?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_source_id": "5fd2e49f-d9dd-408e-91aa-e6769bd9ff4f",
+          "data_type": "Select one or more from a list (checkboxes)",
+          "form_id": "601f1a6f-c984-4180-92bc-f4e0861a6541",
+          "guidance_body": "* I confirm that the information provided in this application is true, complete and accurate to the best of my knowledge. I understand that providing false or misleading information may result in rejection of this application, recovery of funds and/or further action.",
+          "guidance_heading": "Declaration",
+          "hint": "",
+          "id": "a7aa8112-cc4f-47d8-b63d-ec81660382ff",
+          "name": "declaration",
+          "order": 0,
+          "presentation_options": {
+            "last_data_source_item_is_distinct_from_others": false
+          },
+          "slug": "declaration",
+          "text": "Declaration",
           "type": "QUESTION"
         },
         {
@@ -2850,6 +2948,17 @@
     },
     {
       "can_manage_grants": false,
+      "companies_house_number": "15424886",
+      "domains": [],
+      "external_id": "CH-15424886",
+      "id": "325939be-05ed-4d6d-a0a3-2eb22d7eb89f",
+      "mode": "test",
+      "name": "DEVELOPMENT ON DEMAND LTD (test)",
+      "status": "active",
+      "type": "Company"
+    },
+    {
+      "can_manage_grants": false,
       "domains": [],
       "external_id": "T0001",
       "id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
@@ -2916,6 +3025,16 @@
         "certifier",
         "member",
         "data-provider"
+      ],
+      "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "7028da52-5ae8-4620-adeb-51ec4c936aea",
+      "organisation_id": "325939be-05ed-4d6d-a0a3-2eb22d7eb89f",
+      "permissions": [
+        "data-provider",
+        "member"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },
