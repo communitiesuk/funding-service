@@ -17,6 +17,7 @@ from app.common.data.types import (
     CollectionType,
     DataSourceType,
     ExpressionType,
+    GrantRecipientStatusEnum,
     ManagedExpressionsEnum,
     QuestionDataType,
     RoleEnum,
@@ -854,6 +855,27 @@ class TestListForms:
 
 
 class TestListCollectionSubmissions:
+    def test_404_for_applying_grant_recipient(self, authenticated_grant_recipient_member_client, factories):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient.status = GrantRecipientStatusEnum.APPLYING
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            type=CollectionType.MONITORING_REPORT,
+            allow_multiple_submissions=True,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
+
     def test_lists_submissions_for_collection(self, authenticated_grant_recipient_member_client, factories):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
         question = factories.question.create(
