@@ -1266,6 +1266,27 @@ class TestUpdateCollection:
         from_db = db_session.get(Collection, collection.id)
         assert from_db.reminder_email_business_days_before_closing == 7
 
+    def test_update_email_settings(self, db_session, factories):
+        collection = factories.collection.create(send_deadline_reminder_emails=True, send_overdue_emails=True)
+
+        updated = update_collection(collection, send_deadline_reminder_emails=False, send_overdue_emails=False)
+
+        assert updated.send_deadline_reminder_emails is False
+        assert updated.send_overdue_emails is False
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.send_deadline_reminder_emails is False
+        assert from_db.send_overdue_emails is False
+
+    def test_update_email_settings_not_provided_leaves_unchanged(self, db_session, factories):
+        collection = factories.collection.create(send_deadline_reminder_emails=False, send_overdue_emails=False)
+
+        update_collection(collection, name="New Name")
+
+        from_db = db_session.get(Collection, collection.id)
+        assert from_db.send_deadline_reminder_emails is False
+        assert from_db.send_overdue_emails is False
+
     def test_enabling_public_sign_up_creates_eligibility_form(self, db_session, factories):
         collection = factories.collection.create(type=CollectionType.APPLICATION, allow_public_sign_up=False)
 

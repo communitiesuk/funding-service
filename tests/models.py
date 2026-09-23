@@ -323,6 +323,8 @@ class _CollectionFactory(SQLAlchemyModelFactory):
     allow_submission_reopening = True
     allow_edits_after_submission_deadline = True
     allow_public_sign_up = False
+    send_deadline_reminder_emails = True
+    send_overdue_emails = True
 
     created_by_id = factory.LazyAttribute(lambda o: o.created_by.id)
     created_by = factory.SubFactory(_UserFactory)
