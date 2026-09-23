@@ -738,7 +738,7 @@ def sync_test_grant_recipients(commit: bool) -> None:
     for grant in grants:
         click.echo(f"\nProcessing {grant.name} ({grant.id})")
 
-        live_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.LIVE)
+        live_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.LIVE, include_applicants=True)
 
         for live_grant_recipient in live_grant_recipients:
             matching_test_organisation = live_grant_recipient.organisation.matching_test_organisation
@@ -845,7 +845,9 @@ def create_multi_submissions(  # noqa: C901
         return
 
     # Get grant recipients for this collection's grant
-    grant_recipients = get_grant_recipients(collection.grant, mode=mode, with_organisations=True)
+    grant_recipients = get_grant_recipients(
+        collection.grant, mode=mode, with_organisations=True, include_applicants=True
+    )
     gr_by_org_ext_id = {gr.organisation.external_id: gr for gr in grant_recipients}
 
     # Validate CSV against grant recipients

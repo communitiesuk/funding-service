@@ -17,6 +17,7 @@ from app.common.data.types import (
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     QuestionDataType,
     SubmissionModeEnum,
 )
@@ -509,6 +510,19 @@ class TestCopyCollectionDataSourceOrganisationItems:
         assert len(target_external_ids) == 2
         assert copied_external_ids == target_external_ids
         assert all(item._data == {} for item in copied_gr_ds.organisation_items)
+
+    def test_does_not_create_rows_for_applicants(
+        self, db_session, factories, source_collection, copy_user, target_grant
+    ):
+        applicant = factories.grant_recipient.create(grant=target_grant, status=GrantRecipientStatusEnum.APPLYING)
+
+        with patch("app.deliver_grant_funding.data_sets.s3_service"):
+            copied = copy_collection(source_collection, name="Copied Collection", user=copy_user, grant=target_grant)
+            db.session.flush()
+
+        copied_gr_ds = next(ds for ds in copied.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
+        assert len(copied_gr_ds.organisation_items) == 2
+        assert applicant.organisation.external_id not in {item.external_id for item in copied_gr_ds.organisation_items}
 
     def test_does_not_copy_source_organisation_items(self, db_session, source_collection, copied):
         source_gr_ds = next(ds for ds in source_collection.data_sources if ds.type == DataSourceType.GRANT_RECIPIENT)
