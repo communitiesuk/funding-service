@@ -31,7 +31,7 @@ def route_to_submission(organisation_id: UUID, grant_id: UUID, collection_id: UU
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
     collection = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
-    if collection.type == CollectionType.MONITORING_REPORT and grant_recipient.is_applicant:
+    if not CollectionHelper(collection).is_visible_to_grant_recipient(grant_recipient):
         abort(404)
     if collection.allow_multiple_submissions:
         return redirect(
@@ -96,7 +96,7 @@ def start_new_multiple_submission(organisation_id: UUID, grant_id: UUID, collect
     grant_recipient = interfaces.grant_recipients.get_grant_recipient(grant_id, organisation_id)
 
     collection = get_collection(collection_id, grant_id=grant_id, with_full_schema=True)
-    if collection.type == CollectionType.MONITORING_REPORT and grant_recipient.is_applicant:
+    if not CollectionHelper(collection).is_visible_to_grant_recipient(grant_recipient):
         abort(404)
     question = collection.submission_name_question
     if not collection.allow_multiple_submissions or collection.multiple_submissions_are_managed_by_service:

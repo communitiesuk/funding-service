@@ -78,7 +78,7 @@ def list_collection_submissions(organisation_id: UUID, grant_id: UUID, collectio
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
     user = get_current_user()
     collection = get_collection(collection_id, grant_id=grant_id)
-    if collection.type == CollectionType.MONITORING_REPORT and grant_recipient.is_applicant:
+    if not CollectionHelper(collection).is_visible_to_grant_recipient(grant_recipient):
         abort(404)
     if not collection.allow_multiple_submissions:
         abort(404)
