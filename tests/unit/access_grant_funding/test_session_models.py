@@ -8,6 +8,7 @@ from app.access_grant_funding.session_models import (
     CreateOrganisationPage,
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
+    OrganisationIdentification,
     SignUpOrganisationType,
     start_public_sign_up,
 )
@@ -28,20 +29,26 @@ class TestCreateOrganisationSession:
         collection_id = uuid.uuid4()
 
         session = CreateOrganisationSession.start(
-            collection_id=collection_id, user=factories.user.build(email="someone@no-org.com", name=None)
+            collection_id=collection_id,
+            user=factories.user.build(email="someone@no-org.com", name=None),
+            companies_house_lookup=True,
         )
 
         assert session.collection_id == collection_id
         assert session.needs_user_name is True
         assert session.can_share_email_domain is True
+        assert session.companies_house_lookup is True
 
     def test_start_skips_the_steps_that_do_not_apply_to_this_user(self, factories):
         session = CreateOrganisationSession.start(
-            collection_id=uuid.uuid4(), user=factories.user.build(email="someone@gmail.com", name="Test applicant")
+            collection_id=uuid.uuid4(),
+            user=factories.user.build(email="someone@gmail.com", name="Test applicant"),
+            companies_house_lookup=False,
         )
 
         assert session.needs_user_name is False
         assert session.can_share_email_domain is False
+        assert session.companies_house_lookup is False
 
     def test_answering_the_name_generates_the_organisation_identifier(self):
         session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.OTHER)
@@ -89,6 +96,16 @@ class TestCreateOrganisationSession:
         restored = CreateOrganisationSession.from_session(collection_id=collection_id, session_data=session_dict)
         assert restored.allow_team_members is False
 
+    def test_from_session_loads_a_session_started_before_the_lookup_flag_existed(self):
+        collection_id = uuid.uuid4()
+        session_dict = _session(collection_id).to_session_dict()
+        del session_dict["companies_house_lookup"]
+
+        restored = CreateOrganisationSession.from_session(collection_id=collection_id, session_data=session_dict)
+
+        assert restored is not None
+        assert restored.companies_house_lookup is False
+
     def test_from_session_requires_matching_collection_id(self):
         session = _session(
             uuid.uuid4(),
@@ -111,14 +128,13 @@ class TestCreateOrganisationSession:
 
 
 class TestCreateOrganisationNavigation:
-    def _named_session(self, **answers):
-        return _session(
-            uuid.uuid4(),
-            organisation_type=SignUpOrganisationType.OTHER,
-            name="Acme Ltd",
-            external_id="000123456",
-            **answers,
-        )
+    def _named_session(self, **overrides):
+        answers = {
+            "organisation_type": SignUpOrganisationType.OTHER,
+            "name": "Acme Ltd",
+            "external_id": "000123456",
+        } | overrides
+        return _session(uuid.uuid4(), **answers)
 
     def test_the_pages_cover_every_step_this_user_is_asked(self):
         session = _session(uuid.uuid4(), needs_user_name=True, can_share_email_domain=True)
@@ -145,6 +161,54 @@ class TestCreateOrganisationNavigation:
 
         assert session.pages == [CreateOrganisationPage.TYPE, CreateOrganisationPage.LOCAL_AUTHORITY]
         assert session.first_incomplete_page is CreateOrganisationPage.LOCAL_AUTHORITY
+
+    def test_a_registered_company_is_found_through_the_lookup_when_it_is_on(self):
+        session = _session(uuid.uuid4(), companies_house_lookup=True)
+
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+
+        assert session.identified_by is OrganisationIdentification.COMPANIES_HOUSE
+        assert session.name_page is CreateOrganisationPage.COMPANY_SEARCH
+        assert session.pages[:2] == [CreateOrganisationPage.TYPE, CreateOrganisationPage.COMPANY_SEARCH]
+        assert session.first_incomplete_page is CreateOrganisationPage.COMPANY_SEARCH
+
+    @pytest.mark.parametrize(
+        "organisation_type, companies_house_lookup",
+        [(SignUpOrganisationType.COMPANY, False), (SignUpOrganisationType.CHARITY, True)],
+    )
+    def test_other_organisations_are_named_by_hand(self, organisation_type, companies_house_lookup):
+        session = _session(uuid.uuid4(), companies_house_lookup=companies_house_lookup)
+
+        session.answer_organisation_type(organisation_type)
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.name_page is CreateOrganisationPage.NAME
+        assert session.first_incomplete_page is CreateOrganisationPage.NAME
+
+    @pytest.mark.parametrize("identified_by", list(OrganisationIdentification))
+    def test_a_company_is_complete_however_it_was_found(self, identified_by):
+        session = self._named_session(
+            organisation_type=SignUpOrganisationType.COMPANY, identified_by=identified_by, allow_team_members=True
+        )
+
+        assert session.first_incomplete_page is CreateOrganisationPage.CHECK_YOUR_ANSWERS
+
+    def test_changing_to_a_type_found_another_way_forgets_the_name_and_identifier(self):
+        session = self._named_session(companies_house_lookup=True, allow_team_members=True)
+
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+
+        assert session.name is None
+        assert session.external_id is None
+        assert session.allow_team_members is True
+
+    def test_changing_to_a_type_found_the_same_way_keeps_the_name_and_identifier(self):
+        session = self._named_session(companies_house_lookup=True)
+
+        session.answer_organisation_type(SignUpOrganisationType.CHARITY)
+
+        assert session.name == "Acme Ltd"
+        assert session.external_id == "000123456"
 
     def test_first_incomplete_page_starts_with_the_organisation_type(self):
         assert _session(uuid.uuid4()).first_incomplete_page is CreateOrganisationPage.TYPE

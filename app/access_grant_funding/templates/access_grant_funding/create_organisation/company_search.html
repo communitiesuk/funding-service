@@ -1,0 +1,24 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+
+{% set page_title = form.q.label.text %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Create an organisation</span>
+      <form method="get" novalidate>
+        {{ form.csrf_token }}
+        {{ form.q(params={"label": {"isPageHeading": true, "classes": "govuk-label--l"} }) }}
+
+        {# Manually insert a button since we don't want it as a form field that adds `submit=y` to the URL #}
+        {{ govukButton({"text": "Search"}) }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}
