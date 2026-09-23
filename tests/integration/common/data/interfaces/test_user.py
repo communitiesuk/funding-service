@@ -8,7 +8,13 @@ from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import InvalidUserRoleError
 from app.common.data.models_audit import AuditEvent as AuditEventModel
 from app.common.data.models_user import Invitation, User, UserRole
-from app.common.data.types import AuditEventType, GrantRecipientModeEnum, OrganisationModeEnum, RoleEnum
+from app.common.data.types import (
+    AuditEventType,
+    GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
+    OrganisationModeEnum,
+    RoleEnum,
+)
 from tests.integration.utils import TimeFreezer
 
 freeze_time_format = TimeFreezer.time_format
@@ -485,6 +491,9 @@ class TestInvitations:
         test_grant_recipient = factories.grant_recipient.create(
             grant=grant, organisation=test_recipient_org, mode=GrantRecipientModeEnum.TEST
         )
+        applying_test_grant_recipient = factories.grant_recipient.create(
+            grant=grant, mode=GrantRecipientModeEnum.TEST, status=GrantRecipientStatusEnum.APPLYING
+        )
 
         user = factories.user.create(email="new_user@email.com")
         invitation = factories.invitation.create(
@@ -497,6 +506,7 @@ class TestInvitations:
         assert test_recipient_role is not None
         assert RoleEnum.DATA_PROVIDER in test_recipient_role.permissions
         assert RoleEnum.CERTIFIER in test_recipient_role.permissions
+        assert interfaces.user.get_user_role(user, applying_test_grant_recipient.organisation_id, grant.id) is None
 
         audit_event = db_session.scalars(select(AuditEventModel)).one()
         assert audit_event.data["invitation_id"] == str(invitation.id)
@@ -766,6 +776,9 @@ class TestInvitations:
         test_grant_recipient = factories.grant_recipient.create(
             grant=grant, organisation=test_recipient_org, mode=GrantRecipientModeEnum.TEST
         )
+        applying_test_grant_recipient = factories.grant_recipient.create(
+            grant=grant, mode=GrantRecipientModeEnum.TEST, status=GrantRecipientStatusEnum.APPLYING
+        )
 
         user = factories.user.create(email="test@communities.gov.uk")
         interfaces.user.add_grant_member_role_or_create_invitation(
@@ -780,6 +793,7 @@ class TestInvitations:
         assert test_recipient_role is not None
         assert RoleEnum.DATA_PROVIDER in test_recipient_role.permissions
         assert RoleEnum.CERTIFIER in test_recipient_role.permissions
+        assert interfaces.user.get_user_role(user, applying_test_grant_recipient.organisation_id, grant.id) is None
 
     def test_grant_member_add_role_or_create_invitation_skips_test_roles_when_no_test_recipients(
         self, db_session, factories

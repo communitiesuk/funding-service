@@ -473,10 +473,11 @@ def claim_invitation(invitation: Invitation, user: User) -> Invitation:
     if not user.name and invitation.name:
         user.name = invitation.name
 
-    # Set new grant team members up as test users for each of the grant's grant recipients
+    # Set new grant team members up as test users for each of the grant's grant recipients, excluding applicants
+    # which are signed up by individual grant team members testing a pre-award form
     if invitation.organisation and invitation.organisation.can_manage_grants and invitation.grant is not None:
-        if invitation.grant.test_grant_recipients:
-            for test_grant_recipient in invitation.grant.test_grant_recipients:
+        for test_grant_recipient in invitation.grant.test_grant_recipients:
+            if not test_grant_recipient.is_applicant:
                 add_permissions_to_user(
                     user=user,
                     permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
@@ -555,8 +556,8 @@ def add_grant_member_role_or_create_invitation(email_address: str, grant: Grant,
             by_user=by_user,
         )
 
-        if grant.test_grant_recipients:
-            for test_grant_recipient in grant.test_grant_recipients:
+        for test_grant_recipient in grant.test_grant_recipients:
+            if not test_grant_recipient.is_applicant:
                 add_permissions_to_user(
                     user=existing_user,
                     permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
