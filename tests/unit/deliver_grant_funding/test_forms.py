@@ -9,6 +9,7 @@ from werkzeug.datastructures import FileStorage, MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
+    CollectionType,
     DataSourceType,
     MaximumFileSize,
     NumberTypeEnum,
@@ -24,6 +25,7 @@ from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantGGISForm,
     GrantNameForm,
+    PublicSignUpSettingsForm,
     QuestionForm,
     UploadDataSetForm,
     _validate_no_blank_lines,
@@ -521,6 +523,29 @@ class TestUploadDataSetForm:
         assert form.validate() is False
         assert "A data set with this name already exists for this monitoring report" in form.name.errors[0]
 
+    def test_blocked_when_collection_allows_public_sign_up(self, factories):
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(
+            existing_data_source_names=[],
+            collection=factories.collection.build(allow_public_sign_up=True),
+        )
+        form.process(data)
+
+        assert form.validate() is False
+        assert "You cannot add a data set to a form that has public sign up switched on" in form.file.errors[0]
+
     @pytest.mark.parametrize("is_existing", (True, False))
     def test_missing_file_raises_error(self, factories, is_existing):
         data = MultiDict(
@@ -923,6 +948,30 @@ class TestUploadDataSetForm:
             f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
             f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in form.file.errors[0]
+
+
+class TestPublicSignUpSettingsForm:
+    def test_blocked_when_collection_has_data_set(self):
+        form = PublicSignUpSettingsForm(
+            data={"allow_public_sign_up": "True"},
+            collection_type=CollectionType.APPLICATION,
+            has_data_source=True,
+        )
+
+        assert form.validate() is False
+        assert (
+            "You cannot allow public sign up because this form already has a data set"
+            in form.allow_public_sign_up.errors[0]
+        )
+
+    def test_allowed_when_collection_has_no_data_set(self):
+        form = PublicSignUpSettingsForm(
+            data={"allow_public_sign_up": "True"},
+            collection_type=CollectionType.APPLICATION,
+            has_data_source=False,
+        )
+
+        assert form.validate() is True
 
 
 class TestApproveOrRejectSubmissionForm:

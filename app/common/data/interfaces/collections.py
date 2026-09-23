@@ -1281,6 +1281,10 @@ def create_group(
     presentation_options: QuestionPresentationOptions | None = None,
     add_another: bool = False,
 ) -> Group:
+    # This is a safety check as we don't allow users to create question groups in the eligibility section
+    if form.is_eligibility_section:
+        raise ValueError("Cannot create a question group in the eligibility section")
+
     # If this group is nested, ensure it meets rules for nesting groups
     # This is a safety check as we don't allow users to create nested groups when these rules aren't met
     raise_if_nested_group_creation_not_valid_here(parent=parent)

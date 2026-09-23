@@ -636,6 +636,18 @@ class AddContextSelectSourceForm(FlaskForm):
                 ),
             ]
 
+        if form.is_eligibility_section:
+            # Reference data isn't supported in the eligibility section for previous sections, previous
+            # collections, or uploaded data sets.
+            excluded_sources = {
+                ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
+                ExpressionContext.ContextSources.PREVIOUS_COLLECTION.name,
+                ExpressionContext.ContextSources.DATASET.name,
+            }
+            self.data_source.choices = [
+                choice for choice in self.data_source.choices if choice[0] not in excluded_sources
+            ]
+
         if include_this_component and current_component and current_component.is_question:
             self.data_source.choices.insert(
                 0,
@@ -1003,17 +1015,26 @@ class PublicSignUpSettingsForm(FlaskForm):
     )
     submit = SubmitField("Save setting", widget=GovSubmitInput())
 
-    def __init__(self, *args: Any, collection_type: CollectionType, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, collection_type: CollectionType, has_data_source: bool = False, **kwargs: Any
+    ) -> None:
         super().__init__(*args, **kwargs)
-        singular = collection_type.constants.singular
-        self.allow_public_sign_up.label.text = f"Can any organisation sign up and access this {singular}?"
+        self.has_data_source = has_data_source
+        self.singular = collection_type.constants.singular
+        self.allow_public_sign_up.label.text = f"Can any organisation sign up and access this {self.singular}?"
         self.allow_public_sign_up.choices = [
-            (True, f"Yes, any organisation can sign up and access the {singular}"),
-            (False, f"No, only specific organisations can access the {singular}"),
+            (True, f"Yes, any organisation can sign up and access the {self.singular}"),
+            (False, f"No, only specific organisations can access the {self.singular}"),
         ]
         self.allow_public_sign_up.validators = [
-            DataRequired(f"Select whether any organisation can sign up and access this {singular}")
+            DataRequired(f"Select whether any organisation can sign up and access this {self.singular}")
         ]
+
+    def validate_allow_public_sign_up(self, field: RadioField) -> None:
+        if field.data == "True" and self.has_data_source:
+            raise ValidationError(
+                f"You cannot allow public sign up because this {self.singular} already has a data set"
+            )
 
 
 class MultipleSubmissionsForm(FlaskForm):
@@ -1403,6 +1424,9 @@ class UploadDataSetForm(FlaskForm):
         return list(errors_to_show)
 
     def validate_file(self, field: Field) -> None:
+        if self.collection.allow_public_sign_up:
+            raise ValidationError("You cannot add a data set to a form that has public sign up switched on")
+
         if not field.data or not hasattr(field.data, "stream"):
             return
 

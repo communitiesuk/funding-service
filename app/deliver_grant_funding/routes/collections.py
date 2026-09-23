@@ -800,7 +800,9 @@ def collection_configure_public_sign_up(
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
 
     form = PublicSignUpSettingsForm(
-        obj=collection if request.method == "GET" else None, collection_type=collection_type
+        obj=collection if request.method == "GET" else None,
+        collection_type=collection_type,
+        has_data_source=bool(collection.data_sources),
     )
 
     if form.validate_on_submit():
@@ -1350,6 +1352,9 @@ class AddQuestionGroup(BaseModel):
 @auto_commit_after_request
 def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    if form.is_eligibility_section:
+        return abort(404)
+
     group_name = request.args.get("name", None)
 
     parent_id = request.args.get("parent_id", None)
@@ -1396,6 +1401,8 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 @auto_commit_after_request
 def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    if form.is_eligibility_section:
+        return abort(404)
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
@@ -1458,6 +1465,8 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
 @auto_commit_after_request
 def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
+    if form.is_eligibility_section:
+        return abort(404)
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
@@ -1913,6 +1922,8 @@ def select_context_source_collection(grant_id: UUID, form_id: UUID) -> ResponseR
 @collection_is_editable()
 def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    if db_form.is_eligibility_section:
+        return abort(404)
 
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
@@ -1948,6 +1959,8 @@ def select_context_source_section(grant_id: UUID, form_id: UUID) -> ResponseRetu
 @collection_is_editable()
 def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    if db_form.is_eligibility_section:
+        return abort(404)
 
     add_context_data = _extract_add_context_data_from_session()
     if not add_context_data:
@@ -1988,6 +2001,9 @@ def select_context_source_data_set(grant_id: UUID, form_id: UUID) -> ResponseRet
 @collection_is_editable()
 def select_context_source_data_set_column(grant_id: UUID, form_id: UUID, data_set_id: UUID) -> ResponseReturnValue:
     db_form = get_form_by_id(form_id)
+    if db_form.is_eligibility_section:
+        return abort(404)
+
     data_set = get_data_source(data_set_id)
 
     if data_set.collection_id != db_form.collection_id:
@@ -3984,14 +4000,19 @@ def list_collection_data_sets(
         if SESSION_DATA_SET_UPLOAD in session:
             del session[SESSION_DATA_SET_UPLOAD]
 
-        return redirect(
-            url_for(
-                "deliver_grant_funding.upload_data_set",
-                grant_id=grant_id,
-                collection_type=collection_type,
-                collection_id=collection_id,
+        if collection.allow_public_sign_up:
+            form.submit.errors.append(  # ty: ignore[unresolved-attribute]
+                "You cannot add a data set to a form that has public sign up switched on"
             )
-        )
+        else:
+            return redirect(
+                url_for(
+                    "deliver_grant_funding.upload_data_set",
+                    grant_id=grant_id,
+                    collection_type=collection_type,
+                    collection_id=collection_id,
+                )
+            )
 
     return render_template(
         "deliver_grant_funding/collections/list_data_sets.html",
@@ -4137,6 +4158,8 @@ def _build_upload_data_set_preview_data(data_columns: list[str], rows: list[dict
 @has_deliver_grant_role(RoleEnum.ADMIN)
 def upload_data_set(grant_id: UUID, collection_type: CollectionType, collection_id: UUID) -> ResponseReturnValue:
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type)
+    if collection.allow_public_sign_up:
+        abort(404)
 
     data_set_data = _extract_data_set_data_from_session(None)
 

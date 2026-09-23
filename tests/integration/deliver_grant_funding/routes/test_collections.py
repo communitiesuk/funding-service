@@ -2492,6 +2492,34 @@ class TestConfigurePublicSignUp:
         )
         assert collection.allow_public_sign_up is not allow_public_sign_up
 
+    def test_post_blocked_when_collection_has_data_set(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.collection_configure_public_sign_up",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            ),
+            data={"allow_public_sign_up": True, "submit": "y"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "You cannot allow public sign up because this form already has a data set")
+        assert collection.allow_public_sign_up is False
+
 
 class TestMoveSection:
     def test_404(self, authenticated_grant_admin_client):
@@ -3687,6 +3715,26 @@ class TestListSectionQuestions:
             )
             assert delete_section_link.get("href") == AnyStringMatching(r"\?delete")
 
+    def test_add_question_group_link_hidden_for_eligibility_section(
+        self, authenticated_grant_admin_client, factories, db_session
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        form = factories.form.create(collection=collection, title="Eligibility", is_eligibility_section=True)
+        factories.question.create(form=form)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.list_section_questions",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Add another question") is not None
+        assert page_has_link(soup, "Add a question group") is None
+
     def test_delete_confirmation_banner(self, authenticated_grant_admin_client, factories, db_session):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
         form = factories.form.create(collection=collection, title="Organisation information")
@@ -4400,6 +4448,45 @@ class TestAddQuestionGroup:
         )
         assert response.status_code == 404
 
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_name",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_404_for_eligibility_section_display_options(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_display_options",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
+    def test_404_for_eligibility_section_add_another_option(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.add_question_group_add_another_option",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
     def test_missing_name(self, authenticated_grant_admin_client, factories, db_session):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
@@ -4612,6 +4699,38 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
         assert "This question" not in soup.text
 
+    def test_get_hides_reference_data_options_for_eligibility_section(
+        self, authenticated_grant_admin_client, factories
+    ):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        with authenticated_grant_admin_client.session_transaction() as sess:
+            sess["question"] = AddContextToComponentSessionModel(
+                data_type=QuestionDataType.TEXT_SINGLE_LINE,
+                component_form_data={
+                    "text": "Test question text",
+                    "name": "Test question name",
+                    "hint": "Test question hint",
+                    "add_context": "text",
+                },
+            ).model_dump(mode="json")
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "A previous question in this section" in soup.text
+        assert "A question in a previous section" not in soup.text
+        assert "A question in a previous collection" not in soup.text
+        assert "An uploaded data set" not in soup.text
+
     def test_get_shows_this_question_for_custom_validation_expression(
         self, authenticated_grant_admin_client, factories
     ):
@@ -4805,6 +4924,19 @@ class TestSelectContextSourceCollection:
 
 
 class TestSelectContextSourceSection:
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_section",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
     def test_get_lists_sections(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=collection, title="Section 1")
@@ -5363,6 +5495,19 @@ class TestSelectContextSourceQuestion:
 
 
 class TestSelectContextSourceDataSet:
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+            )
+        )
+        assert response.status_code == 404
+
     @pytest.mark.parametrize(
         "client_fixture, can_access",
         (
@@ -5688,6 +5833,25 @@ class TestSelectContextSourceDataSet:
 
 
 class TestSelectContextSourceDataSetColumn:
+    def test_404_for_eligibility_section(self, authenticated_grant_admin_client, factories):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
+        form = factories.form.create(collection=collection, is_eligibility_section=True)
+        data_set = factories.data_source.create(
+            grant=authenticated_grant_admin_client.grant,
+            collection=collection,
+            type=DataSourceType.GRANT_RECIPIENT,
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.select_context_source_data_set_column",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                form_id=form.id,
+                data_set_id=data_set.id,
+            )
+        )
+        assert response.status_code == 404
+
     @pytest.mark.parametrize(
         "client_fixture, can_access",
         (
@@ -12306,6 +12470,26 @@ class TestListCollectionDataSets:
         with authenticated_grant_admin_client.session_transaction() as session:
             assert session.get(SESSION_DATA_SET_UPLOAD) is None
 
+    def test_post_shows_error_when_collection_allows_public_sign_up(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=True)
+        preview_form = GenericSubmitForm()
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.list_collection_data_sets",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            ),
+            data=preview_form.data,
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "You cannot add a data set to a form that has public sign up switched on")
+
 
 class TestDownloadGrantRecipientDataSetTemplate:
     def test_404(self, authenticated_grant_member_client):
@@ -12432,6 +12616,22 @@ class TestUploadDataSet:
                 collection_id=uuid.uuid4(),
             )
         )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize("method", ("get", "post"))
+    def test_404_when_collection_allows_public_sign_up(self, authenticated_grant_admin_client, factories, method):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=True)
+
+        response = getattr(authenticated_grant_admin_client, method)(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+            )
+        )
+
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
