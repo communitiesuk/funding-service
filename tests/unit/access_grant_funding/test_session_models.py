@@ -1,16 +1,17 @@
 import uuid
 
 import pytest
-from flask import Flask, session
+from flask import Flask, session, url_for
 
 from app.access_grant_funding.session_models import (
     CompleteCreateOrganisationSession,
+    CreateOrganisationPage,
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
     SignUpOrganisationType,
     start_public_sign_up,
 )
-from app.constants import SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS
+from app.constants import CHECK_YOUR_ANSWERS, SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS
 
 
 def _session(collection_id, *, needs_user_name=False, can_share_email_domain=True, **answers):
@@ -41,6 +42,14 @@ class TestCreateOrganisationSession:
 
         assert session.needs_user_name is False
         assert session.can_share_email_domain is False
+
+    def test_answering_the_name_generates_the_organisation_identifier(self):
+        session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.OTHER)
+
+        session.answer_name("Acme Ltd")
+
+        assert session.name == "Acme Ltd"
+        assert session.external_id
 
     def test_to_session_dict_round_trips_through_json(self):
         collection_id = uuid.uuid4()
@@ -99,6 +108,141 @@ class TestCreateOrganisationSession:
         del session_dict[unanswered]
 
         assert CreateOrganisationSession.from_session(collection_id=collection_id, session_data=session_dict) is None
+
+
+class TestCreateOrganisationNavigation:
+    def _named_session(self, **answers):
+        return _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.OTHER,
+            name="Acme Ltd",
+            external_id="000123456",
+            **answers,
+        )
+
+    def test_the_pages_cover_every_step_this_user_is_asked(self):
+        session = _session(uuid.uuid4(), needs_user_name=True, can_share_email_domain=True)
+
+        assert session.pages == [
+            CreateOrganisationPage.TYPE,
+            CreateOrganisationPage.NAME,
+            CreateOrganisationPage.TEAM_MEMBERS,
+            CreateOrganisationPage.USER_NAME,
+            CreateOrganisationPage.CHECK_YOUR_ANSWERS,
+        ]
+
+    def test_the_pages_leave_out_the_steps_that_do_not_apply(self):
+        session = _session(uuid.uuid4(), needs_user_name=False, can_share_email_domain=False)
+
+        assert session.pages == [
+            CreateOrganisationPage.TYPE,
+            CreateOrganisationPage.NAME,
+            CreateOrganisationPage.CHECK_YOUR_ANSWERS,
+        ]
+
+    def test_a_local_authority_journey_ends_at_the_support_page(self):
+        session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.LOCAL_AUTHORITY)
+
+        assert session.pages == [CreateOrganisationPage.TYPE, CreateOrganisationPage.LOCAL_AUTHORITY]
+        assert session.first_incomplete_page is CreateOrganisationPage.LOCAL_AUTHORITY
+
+    def test_first_incomplete_page_starts_with_the_organisation_type(self):
+        assert _session(uuid.uuid4()).first_incomplete_page is CreateOrganisationPage.TYPE
+
+    def test_first_incomplete_page_needs_a_name_and_identifier(self):
+        session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.OTHER, name="Acme Ltd")
+
+        assert session.first_incomplete_page is CreateOrganisationPage.NAME
+
+    def test_first_incomplete_page_asks_for_team_members_when_the_domain_can_be_shared(self):
+        assert self._named_session().first_incomplete_page is CreateOrganisationPage.TEAM_MEMBERS
+
+    def test_first_incomplete_page_asks_for_the_users_name_when_we_do_not_hold_one(self):
+        session = self._named_session(needs_user_name=True, allow_team_members=False, user_name="")
+
+        assert session.first_incomplete_page is CreateOrganisationPage.USER_NAME
+
+    def test_first_incomplete_page_is_check_your_answers_once_everything_applicable_is_answered(self):
+        session = self._named_session(can_share_email_domain=False, needs_user_name=True, user_name="Test")
+
+        assert session.first_incomplete_page is CreateOrganisationPage.CHECK_YOUR_ANSWERS
+
+    @pytest.mark.parametrize("organisation_type", list(SignUpOrganisationType))
+    def test_the_pages_follow_the_order_the_enum_declares(self, organisation_type):
+        session = _session(
+            uuid.uuid4(), needs_user_name=True, can_share_email_domain=True, organisation_type=organisation_type
+        )
+        journey_order = list(CreateOrganisationPage)
+
+        assert session.pages == sorted(session.pages, key=journey_order.index)
+
+
+class TestCreateOrganisationNavigationUrls:
+    def _bind(self, session, page, *, from_check_your_answers=False):
+        request_args = {"source": CHECK_YOUR_ANSWERS} if from_check_your_answers else {}
+        session.validate_for_page(
+            page, grant_slug="test-grant", collection_slug="test-collection", request_args=request_args
+        )
+        return session
+
+    def _url(self, page, **params):
+        return url_for(
+            f"access_grant_funding.{page}", grant_slug="test-grant", collection_slug="test-collection", **params
+        )
+
+    def _named_session(self, **overrides):
+        answers = {"organisation_type": SignUpOrganisationType.OTHER, "name": "Acme Ltd", "external_id": "000123456"}
+        return _session(uuid.uuid4(), **(answers | overrides))
+
+    def test_next_page_is_the_next_applicable_page(self):
+        session = self._bind(self._named_session(), CreateOrganisationPage.NAME)
+
+        assert session.next_page == self._url(CreateOrganisationPage.TEAM_MEMBERS)
+
+    def test_next_page_skips_the_steps_that_do_not_apply(self):
+        session = self._named_session(can_share_email_domain=False, needs_user_name=True)
+        self._bind(session, CreateOrganisationPage.NAME)
+
+        assert session.next_page == self._url(CreateOrganisationPage.USER_NAME)
+
+    def test_next_page_from_check_your_answers_returns_there_once_everything_is_answered(self):
+        session = self._named_session(allow_team_members=False)
+        self._bind(session, CreateOrganisationPage.NAME, from_check_your_answers=True)
+
+        assert session.next_page == self._url(CreateOrganisationPage.CHECK_YOUR_ANSWERS)
+
+    def test_next_page_from_check_your_answers_goes_to_the_first_unanswered_page(self):
+        session = self._bind(self._named_session(), CreateOrganisationPage.TYPE, from_check_your_answers=True)
+
+        assert session.next_page == self._url(CreateOrganisationPage.TEAM_MEMBERS, source=CHECK_YOUR_ANSWERS)
+
+    def test_previous_page_from_the_first_page_leaves_the_journey(self):
+        session = self._bind(_session(uuid.uuid4()), CreateOrganisationPage.TYPE)
+
+        assert session.previous_page == self._url(CreateOrganisationPage.ELIGIBLE_TO_APPLY)
+
+    def test_previous_page_skips_the_steps_that_do_not_apply(self):
+        session = self._named_session(can_share_email_domain=False, needs_user_name=True)
+        self._bind(session, CreateOrganisationPage.USER_NAME)
+
+        assert session.previous_page == self._url(CreateOrganisationPage.NAME)
+
+    def test_previous_page_from_check_your_answers_returns_there_once_everything_is_answered(self):
+        session = self._named_session(allow_team_members=False)
+        self._bind(session, CreateOrganisationPage.NAME, from_check_your_answers=True)
+
+        assert session.previous_page == self._url(CreateOrganisationPage.CHECK_YOUR_ANSWERS)
+
+    def test_previous_page_from_check_your_answers_steps_back_while_answers_are_missing(self):
+        session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.OTHER)
+        self._bind(session, CreateOrganisationPage.NAME, from_check_your_answers=True)
+
+        assert session.previous_page == self._url(CreateOrganisationPage.TYPE, source=CHECK_YOUR_ANSWERS)
+
+    def test_previous_page_from_already_exists_is_the_name_page(self):
+        session = self._bind(self._named_session(), CreateOrganisationPage.ALREADY_EXISTS)
+
+        assert session.previous_page == self._url(CreateOrganisationPage.NAME)
 
 
 class TestNamedCreateOrganisationSession:
