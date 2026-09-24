@@ -108,6 +108,8 @@ def handle_permanent_email_failure(
     user = get_user_by_email(recipient_email)
     if user is None:
         if invitation is not None:
+            # The permanent failure was for an invitation sent to a new, unregistered user.
+            # The invitation has already been cancelled above, so no further action is needed.
             current_app.logger.info(
                 "GOV.UK Notify permanent failure for invitation to unregistered user: %(recipient_email)s. "
                 "Invitation has already been cancelled — no further action required.",
