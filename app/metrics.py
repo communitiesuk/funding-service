@@ -74,6 +74,8 @@ class MetricEventName(StrEnum):
     SUBMISSIONS_EXPORTED = "submissions-exported"
     SUBMISSION_PDF_DOWNLOADED = "submission-pdf-downloaded"
 
+    ACCESS_ALL_QUESTIONS_PDF_DOWNLOADED = "access-all-questions-pdf-downloaded"
+
     VALIDATION_CREATED_CUSTOM = "validation-created-custom"
     VALIDATION_CREATED_MANAGED = "validation-created-managed"
 
