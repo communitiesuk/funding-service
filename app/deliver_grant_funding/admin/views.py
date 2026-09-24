@@ -31,9 +31,11 @@ from app.common.data.interfaces.exceptions import (
     StateTransitionError,
 )
 from app.common.data.interfaces.grant_recipients import (
+    create_grant_recipient,
     create_grant_recipients,
     get_grant_recipient_data_providers,
     get_grant_recipient_data_providers_count,
+    get_grant_recipient_or_none,
     get_grant_recipients,
     get_grant_recipients_count,
     get_grant_recipients_with_outstanding_submissions_for_collection,
@@ -52,12 +54,15 @@ from app.common.data.interfaces.user import (
     upsert_user_by_email,
 )
 from app.common.data.types import (
+    LOCAL_AUTHORITY_TYPES,
     PRE_AWARD_COLLECTIONS,
     CollectionAdminEmailTypeEnum,
     CollectionStatusEnum,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
+    OrganisationStatus,
     RoleEnum,
     SubmissionEventType,
     SubmissionModeEnum,
@@ -96,6 +101,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetCollectionSubmissionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
     PlatformAdminSetReminderDaysForm,
+    PlatformAdminSetUpLocalAuthorityApplicantForm,
     PlatformAdminToggleFeatureFlagForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
@@ -551,7 +557,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = PlatformAdminBulkCreateGrantRecipientsForm(
             organisations=organisations,
             existing_grant_recipients=existing_grant_recipients,
-            collection_type=collection.type,
+            collection=collection,
         )
 
         if form.validate_on_submit():
@@ -647,6 +653,66 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             grant=grant,
             collection=collection,
             data_providers_by_grant_recipient=data_providers_by_grant_recipient,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-local-authority-applicant", methods=["GET", "POST"])
+    @auto_commit_after_request
+    def set_up_local_authority_applicant(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+
+        if not (collection.allow_public_sign_up and grant.status == GrantStatusEnum.LIVE and collection.is_open):
+            flash(
+                "Local authority applicants can only be set up when the grant is live and the "
+                f"{collection.type.constants.singular} is open with public sign up allowed."
+            )
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
+
+        local_authorities = get_organisations(
+            can_manage_grants=False, types=LOCAL_AUTHORITY_TYPES, status=OrganisationStatus.ACTIVE
+        )
+        form = PlatformAdminSetUpLocalAuthorityApplicantForm(local_authorities=local_authorities)
+        if form.validate_on_submit():
+            organisation = next(org for org in local_authorities if str(org.id) == form.organisation.data)
+
+            if get_grant_recipient_or_none(grant.id, organisation.id):
+                form.organisation.errors.append(  # ty: ignore[unresolved-attribute]
+                    f"{organisation.name} is already a grant recipient, add a grant recipient data provider instead"
+                )
+            else:
+                grant_recipient = create_grant_recipient(
+                    grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
+                )
+                user = upsert_user_by_email(email_address=form.email_address.data, name=form.full_name.data)
+                add_permissions_to_user(
+                    user,
+                    permissions=[RoleEnum.DATA_PROVIDER],
+                    organisation=organisation,
+                    grant=grant,
+                    by_user=get_current_user(),
+                )
+
+                if form.send_notification_email.data:
+                    notification_service.send_access_confirm_public_sign_up(
+                        user.email, collection=collection, grant_recipient=grant_recipient
+                    )
+                    flash(
+                        f"Successfully set up {user.name} as an applicant for {organisation.name} and sent "
+                        "notification email.",
+                        "success",
+                    )
+                else:
+                    flash(f"Successfully set up {user.name} as an applicant for {organisation.name}.", "success")
+                return redirect(
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
+                )
+
+        return self.render(
+            "deliver_grant_funding/admin/set-up-local-authority-applicant.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+            local_authorities=local_authorities,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/add-bulk-data-providers", methods=["GET", "POST"])

@@ -158,6 +158,20 @@ class TestGetOrganisations:
         assert len(result) == 2
         assert result == [org1, org2]
 
+    def test_filters_by_types_and_status(self, factories, db_session):
+        london_borough = factories.organisation.create(name="Org 1", type=OrganisationType.LONDON_BOROUGH)
+        shire_county = factories.organisation.create(name="Org 2", type=OrganisationType.SHIRE_COUNTY)
+        factories.organisation.create(
+            name="Org 3", type=OrganisationType.SHIRE_COUNTY, status=OrganisationStatus.RETIRED
+        )
+        factories.organisation.create(name="Org 4", type=OrganisationType.COMPANY)
+
+        result = get_organisations(
+            types=[OrganisationType.LONDON_BOROUGH, OrganisationType.SHIRE_COUNTY], status=OrganisationStatus.ACTIVE
+        )
+
+        assert result == [london_borough, shire_county]
+
 
 class TestGetMatchedOrganisations:
     def test_returns_domain_matched_organisation(self, factories):

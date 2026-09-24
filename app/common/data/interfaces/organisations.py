@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from uuid import UUID
 
 from flask import current_app
@@ -26,6 +26,8 @@ def get_organisations(
     with_ids: list[UUID] | None = None,
     with_external_ids: list[str] | None = None,
     domain: str | None = None,
+    types: Collection[OrganisationType] | None = None,
+    status: OrganisationStatus | None = None,
 ) -> Sequence[Organisation]:
     if with_ids is not None and with_external_ids is not None:
         raise ValueError("Cannot specify both with_ids and with_external_ids")
@@ -43,6 +45,12 @@ def get_organisations(
 
     if domain is not None:
         statement = statement.where(Organisation.domains.contains([domain]))
+
+    if types is not None:
+        statement = statement.where(Organisation.type.in_(types))
+
+    if status is not None:
+        statement = statement.where(Organisation.status == status)
 
     statement = statement.order_by(Organisation.name)
 
