@@ -107,10 +107,17 @@ def handle_permanent_email_failure(
 
     user = get_user_by_email(recipient_email)
     if user is None:
-        current_app.logger.error(
-            "GOV.UK Notify permanent failure for unknown user: %(recipient_email)s",
-            dict(recipient_email=recipient_email),
-        )
+        if invitation is not None:
+            current_app.logger.info(
+                "GOV.UK Notify permanent failure for invitation to unregistered user: %(recipient_email)s. "
+                "Invitation has already been cancelled — no further action required.",
+                dict(recipient_email=recipient_email),
+            )
+        else:
+            current_app.logger.error(
+                "GOV.UK Notify permanent failure for unknown user: %(recipient_email)s",
+                dict(recipient_email=recipient_email),
+            )
         return
 
     if AuthorisationHelper.is_deliver_grant_funding_user(user):
