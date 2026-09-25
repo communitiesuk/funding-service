@@ -1,9 +1,10 @@
-from flask import current_app, redirect, render_template, request
+from flask import abort, current_app, redirect, render_template, request
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
 from app.access_grant_funding.forms import (
     CompaniesHouseSearchForm,
+    CompaniesHouseSelectForm,
     CreateOrganisationAllowTeamMembersForm,
     CreateOrganisationNameForm,
     CreateOrganisationTypeForm,
@@ -21,6 +22,7 @@ from app.access_grant_funding.session_models import (
     CreateOrganisationPage,
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
+    OrganisationIdentification,
     SignUpOrganisationType,
 )
 from app.common.auth.decorators import has_feature_flag_enabled, requires_passed_eligibility
@@ -28,12 +30,18 @@ from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.exceptions import DuplicateValueError
 from app.common.data.interfaces.grants import get_grant_by_slug
-from app.common.data.interfaces.organisations import create_organisation, organisation_name_exists
-from app.common.data.types import OrganisationType, SubmissionModeEnum
+from app.common.data.interfaces.organisations import (
+    create_organisation,
+    organisation_companies_house_number_exists,
+    organisation_name_exists,
+)
+from app.common.data.types import OrganisationModeEnum, OrganisationType, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.feature_flags import FeatureFlags
-from app.extensions import auto_commit_after_request
+from app.common.helpers.pagination import Pagination
+from app.extensions import auto_commit_after_request, companies_house_service
 from app.metrics import MetricAttributeName, MetricEventName
+from app.services.companies_house import CompaniesHouseNotFoundError
 
 
 @access_grant_funding_blueprint.route(
@@ -88,8 +96,22 @@ def create_organisation_local_authority(
     )
 
 
+def _organisation_already_registered(org_session: CreateOrganisationSession, *, mode: OrganisationModeEnum) -> bool:
+    assert org_session.name is not None
+
+    if organisation_name_exists(org_session.name, mode=mode):
+        return True
+
+    if org_session.identified_by != OrganisationIdentification.COMPANIES_HOUSE:
+        return False
+
+    assert org_session.external_id is not None
+
+    return organisation_companies_house_number_exists(org_session.external_id, mode=mode)
+
+
 @access_grant_funding_blueprint.route(
-    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search", methods=["GET"]
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
 @has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
@@ -100,16 +122,57 @@ def create_organisation_company_search(
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
+    # selecting a result posts back to this page, with the search still in the URL so a failed post re-renders it
+    select_form = CompaniesHouseSelectForm()
+    if select_form.validate_on_submit():
+        assert select_form.company_number.data is not None
+        try:
+            company = companies_house_service.get_company(select_form.company_number.data)
+        except ValueError, CompaniesHouseNotFoundError:
+            # TODO: fall back to manual entry
+            abort(404)
+
+        org_session.answer_company(company.company_name, company.company_number)
+
+        modes = get_sign_up_modes(interfaces.user.get_current_user())
+        if _organisation_already_registered(org_session, mode=modes.organisation):
+            return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS))
+
+        return redirect(org_session.next_page)
+
     form = CompaniesHouseSearchForm(request.args, meta={"csrf": False})
-    if "q" in request.args:
-        # TODO: implement search results and selection
-        form.validate()
+    query = form.q.data
+
+    results = None
+    pagination = None
+
+    if "q" in request.args and form.validate() and query:
+        page = request.args.get("page", 1, type=int)
+        try:
+            results = companies_house_service.search_companies(query, page=page)
+        except CompaniesHouseNotFoundError:
+            # the register has no page that far in, so start the results again
+            if page == 1:
+                raise
+            return redirect(org_session.page_url(CreateOrganisationPage.COMPANY_SEARCH, q=query))
+        if results.page > results.total_pages:
+            return redirect(
+                org_session.page_url(CreateOrganisationPage.COMPANY_SEARCH, q=query, page=results.total_pages)
+            )
+        pagination = Pagination(page=results.page, total_pages=results.total_pages).to_govuk_pagination(
+            lambda page: org_session.page_url(CreateOrganisationPage.COMPANY_SEARCH, q=query, page=page)
+        )
 
     return render_template(
         "access_grant_funding/create_organisation/company_search.html",
         form=form,
         grant=grant,
         collection=collection,
+        org_session=org_session,
+        results=results,
+        result_count=min(results.total_results, companies_house_service.max_search_results) if results else 0,
+        pagination=pagination,
+        select_form=select_form,
         back_link_href=org_session.previous_page,
     )
 
@@ -161,7 +224,7 @@ def create_organisation_already_exists(
     # double checks the current session name is in this state before presenting it
     # going back and forward will change the state but this screen will be stored in
     # the browser history
-    if not organisation_name_exists(org_session.name, mode=modes.organisation):
+    if not _organisation_already_registered(org_session, mode=modes.organisation):
         return redirect(org_session.previous_page)
 
     return render_template(
@@ -249,10 +312,10 @@ def create_organisation_check_your_answers(
         try:
             organisation = create_organisation(
                 name=org_session.name,
-                # TODO: for now all organisations are considered OTHER but when the different
-                #       mechanisms for fetching the required identifiers for companies and charities
-                #       are implemented this should match their appropriate type
-                type_=OrganisationType.OTHER,
+                # TODO: charities are still considered OTHER until their register lookup is built
+                type_=OrganisationType.COMPANY
+                if org_session.identified_by == OrganisationIdentification.COMPANIES_HOUSE
+                else OrganisationType.OTHER,
                 typed_id=org_session.external_id,
                 mode=modes.organisation,
                 domains=[user.email_domain] if org_session.allow_team_members else None,

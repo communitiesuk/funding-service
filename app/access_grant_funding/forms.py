@@ -142,6 +142,11 @@ class CompaniesHouseSearchForm(FlaskForm):
             raise ValidationError(f"Company name or number must be {max_length} characters or fewer")
 
 
+class CompaniesHouseSelectForm(FlaskForm):
+    # not rendered as an input: each result row's Select button submits its company number as this field's value
+    company_number = StringField(validators=[DataRequired()])
+
+
 class CreateOrganisationAllowTeamMembersForm(FlaskForm):
     allow_team_members = RadioField(
         choices=[(True, "Yes"), (False, "No")],

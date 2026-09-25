@@ -1,8 +1,15 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "govuk_frontend_jinja/components/button/macro.html" import govukButton %}
+{% from "govuk_frontend_jinja/components/pagination/macro.html" import govukPagination %}
+{% from "govuk_frontend_jinja/components/table/macro.html" import govukTable %}
+{% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
 
-{% set page_title = form.q.label.text %}
+{% set page_title = "Search results" if results is not none else form.q.label.text %}
+
+{% block errorSummary %}
+  {{ standardErrorSummary(select_form if select_form.errors else form) }}
+{% endblock errorSummary %}
 
 {% block beforeContent %}
   {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
@@ -12,13 +19,62 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <span class="govuk-caption-l">Create an organisation</span>
+      {% if results is not none %}
+        <h1 class="govuk-heading-l">Search results</h1>
+        {% set query_label = {"classes": "govuk-visually-hidden"} %}
+      {% else %}
+        {% set query_label = {"isPageHeading": true, "classes": "govuk-label--l"} %}
+      {% endif %}
       <form method="get" novalidate>
-        {{ form.csrf_token }}
-        {{ form.q(params={"label": {"isPageHeading": true, "classes": "govuk-label--l"} }) }}
+        {{ form.q(params={"label": query_label}) }}
 
         {# Manually insert a button since we don't want it as a form field that adds `submit=y` to the URL #}
         {{ govukButton({"text": "Search"}) }}
       </form>
     </div>
   </div>
+  {% if results is not none %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-full">
+        <p class="govuk-body">{{ "{:,}".format(result_count) }} search result{{ "" if result_count == 1 else "s" }}</p>
+        {% if results.is_truncated %}
+          <p class="govuk-body">Only the first {{ "{:,}".format(result_count) }} results can be shown. Add more of the name or search by company number to narrow the results.</p>
+        {% endif %}
+        {% if results.items %}
+          {% set rows = [] %}
+          {% for company in results.items %}
+            {% set select %}
+              <button type="submit" class="app-link-button" name="company_number" value="{{ company.company_number }}">Select<span class="govuk-visually-hidden"> {{ company.title }}</span></button>
+            {% endset %}
+            {%
+              do rows.append([
+                {"text": company.title},
+                {"text": company.company_number},
+                {"text": company.address_snippet or ""},
+                {"html": select},
+              ])
+            %}
+          {% endfor %}
+          {# posts back to this URL, search included, so the results can be shown again if selecting fails #}
+          <form method="post">
+            {{ select_form.csrf_token }}
+            {{
+              govukTable({
+                "head": [
+                  {"text": "Company name"},
+                  {"text": "Company number"},
+                  {"text": "Registered address"},
+                  {"html": '<span class="govuk-visually-hidden">Action</span>'},
+                ],
+                "rows": rows,
+              })
+            }}
+          </form>
+          {% if pagination %}
+            {{ govukPagination(pagination) }}
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
 {% endblock content %}
