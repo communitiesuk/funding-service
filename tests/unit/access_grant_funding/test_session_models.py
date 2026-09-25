@@ -70,6 +70,35 @@ class TestCreateOrganisationSession:
         assert session.name == "TEST COMPANY LIMITED"
         assert session.external_id == "00000001"
 
+    def test_falling_back_to_manual_entry_names_the_company_by_hand_for_the_rest_of_the_sign_up(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.COMPANY,
+            identified_by=OrganisationIdentification.COMPANIES_HOUSE,
+            companies_house_lookup=True,
+        )
+
+        session.fall_back_to_manual_entry()
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.name_page is CreateOrganisationPage.NAME
+
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+
+    def test_falling_back_to_manual_entry_is_kept_in_the_session(self):
+        collection_id = uuid.uuid4()
+        session = _session(collection_id, organisation_type=SignUpOrganisationType.COMPANY)
+        session.fall_back_to_manual_entry()
+
+        restored = CreateOrganisationSession.from_session(
+            collection_id=collection_id, session_data=session.to_session_dict()
+        )
+
+        assert restored is not None
+        assert restored.companies_house_unavailable is True
+
     def test_to_session_dict_round_trips_through_json(self):
         collection_id = uuid.uuid4()
         session = _session(
@@ -319,6 +348,42 @@ class TestCreateOrganisationNavigationUrls:
         session = self._bind(self._named_session(), CreateOrganisationPage.ALREADY_EXISTS)
 
         assert session.previous_page == self._url(CreateOrganisationPage.NAME)
+
+    def _register_session(self):
+        return _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.COMPANY,
+            identified_by=OrganisationIdentification.COMPANIES_HOUSE,
+            companies_house_lookup=True,
+        )
+
+    def test_previous_page_from_the_unavailable_page_is_the_search(self):
+        session = self._bind(self._register_session(), CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE)
+
+        assert session.previous_page == self._url(CreateOrganisationPage.COMPANY_SEARCH)
+
+    def test_previous_page_from_the_unavailable_page_keeps_the_way_back_to_check_your_answers(self):
+        session = self._bind(
+            self._register_session(), CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE, from_check_your_answers=True
+        )
+
+        assert session.previous_page == self._url(CreateOrganisationPage.COMPANY_SEARCH, source=CHECK_YOUR_ANSWERS)
+
+    def test_next_page_after_falling_back_to_manual_entry_is_the_name_page(self):
+        session = self._bind(self._register_session(), CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE)
+
+        session.fall_back_to_manual_entry()
+
+        assert session.next_page == self._url(CreateOrganisationPage.NAME)
+
+    def test_next_page_after_falling_back_from_check_your_answers_asks_for_the_name_first(self):
+        session = self._bind(
+            self._register_session(), CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE, from_check_your_answers=True
+        )
+
+        session.fall_back_to_manual_entry()
+
+        assert session.next_page == self._url(CreateOrganisationPage.NAME, source=CHECK_YOUR_ANSWERS)
 
 
 class TestNamedCreateOrganisationSession:

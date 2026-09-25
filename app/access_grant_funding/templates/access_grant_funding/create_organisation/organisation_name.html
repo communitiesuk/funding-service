@@ -12,8 +12,9 @@
     <div class="govuk-grid-column-two-thirds">
       {% set label_html %}
         <span class="govuk-caption-l">Create an organisation</span>
-        What is the name of your organisation?
+        {{ form.name.label.text }}
       {% endset %}
+
       <form method="post" novalidate>
         {{ form.csrf_token }}
         {{

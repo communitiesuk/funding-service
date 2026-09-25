@@ -1,10 +1,12 @@
-from flask import abort, current_app, redirect, render_template, request
+import sentry_sdk
+from flask import current_app, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.decorators import requires_create_organisation_session
 from app.access_grant_funding.forms import (
     CompaniesHouseSearchForm,
     CompaniesHouseSelectForm,
+    CompaniesHouseUnavailableForm,
     CreateOrganisationAllowTeamMembersForm,
     CreateOrganisationNameForm,
     CreateOrganisationTypeForm,
@@ -41,7 +43,7 @@ from app.common.helpers.feature_flags import FeatureFlags
 from app.common.helpers.pagination import Pagination
 from app.extensions import auto_commit_after_request, companies_house_service
 from app.metrics import MetricAttributeName, MetricEventName
-from app.services.companies_house import CompaniesHouseNotFoundError
+from app.services.companies_house import CompaniesHouseError, CompaniesHouseNotFoundError
 
 
 @access_grant_funding_blueprint.route(
@@ -110,6 +112,18 @@ def _organisation_already_registered(org_session: CreateOrganisationSession, *, 
     return organisation_companies_house_number_exists(org_session.external_id, mode=mode)
 
 
+def _companies_house_unavailable(
+    org_session: CreateOrganisationSession, error: CompaniesHouseError | ValueError
+) -> ResponseReturnValue:
+    """Companies House API call has failed; ask the user if they want to continue with manual entry"""
+    current_app.logger.warning(
+        "Companies House unavailable (%(reason)s)",
+        dict(reason=error.reason if hasattr(error, "reason") else str(error)),
+    )
+    sentry_sdk.capture_exception(error)
+    return redirect(org_session.page_url(CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE))
+
+
 @access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search", methods=["GET", "POST"]
 )
@@ -128,9 +142,8 @@ def create_organisation_company_search(
         assert select_form.company_number.data is not None
         try:
             company = companies_house_service.get_company(select_form.company_number.data)
-        except ValueError, CompaniesHouseNotFoundError:
-            # TODO: fall back to manual entry
-            abort(404)
+        except (ValueError, CompaniesHouseError) as e:
+            return _companies_house_unavailable(org_session, error=e)
 
         org_session.answer_company(company.company_name, company.company_number)
 
@@ -140,6 +153,7 @@ def create_organisation_company_search(
 
         return redirect(org_session.next_page)
 
+    # CSRF disabled as this form is used for GET searching only; not POSTing persistent data
     form = CompaniesHouseSearchForm(request.args, meta={"csrf": False})
     query = form.q.data
 
@@ -155,6 +169,10 @@ def create_organisation_company_search(
             if page == 1:
                 raise
             return redirect(org_session.page_url(CreateOrganisationPage.COMPANY_SEARCH, q=query))
+
+        except CompaniesHouseError as error:
+            return _companies_house_unavailable(org_session, error)
+
         if results.page > results.total_pages:
             return redirect(
                 org_session.page_url(CreateOrganisationPage.COMPANY_SEARCH, q=query, page=results.total_pages)
@@ -173,6 +191,41 @@ def create_organisation_company_search(
         result_count=min(results.total_results, companies_house_service.max_search_results) if results else 0,
         pagination=pagination,
         select_form=select_form,
+        back_link_href=org_session.previous_page,
+    )
+
+
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search-unavailable",
+    methods=["GET", "POST"],
+)
+@requires_passed_eligibility
+@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
+@requires_create_organisation_session(page=CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE)
+def create_organisation_company_search_unavailable(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    form = CompaniesHouseUnavailableForm()
+    if form.validate_on_submit():
+        if form.add_manually.data == "True":
+            org_session.fall_back_to_manual_entry()
+            return redirect(org_session.next_page)
+
+        # they would rather try the register again later, so the sign-up is left as it is
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_start_page", grant_slug=grant_slug, collection_slug=collection_slug
+            )
+        )
+
+    return render_template(
+        "access_grant_funding/create_organisation/company_search_unavailable.html",
+        form=form,
+        grant=grant,
+        collection=collection,
         back_link_href=org_session.previous_page,
     )
 
@@ -203,6 +256,8 @@ def create_organisation_name(
         form=form,
         grant=grant,
         collection=collection,
+        org_session=org_session,
+        organisation_types=SignUpOrganisationType,
         back_link_href=org_session.previous_page,
     )
 

@@ -1,0 +1,41 @@
+{% extends "access_grant_funding/base.html" %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+
+{% set page_title = "Companies House register search not available" %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
+{% endblock beforeContent %}
+
+{% block content %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <span class="govuk-caption-l">Create an organisation</span>
+      <h1 class="govuk-heading-l">Companies House register search not available</h1>
+
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+        {# the widget only fills the legend in from the label when no fieldset params are given #}
+        {{
+          form.add_manually(params={
+            "fieldset": {
+              "legend": {
+                "text": form.add_manually.label.text,
+                "classes": "govuk-fieldset__legend--m",
+              },
+            },
+            "items": [
+              {
+                "hint": {
+                  "text": "We'll ask for the name of your organisation",
+                },
+              },
+              {},
+            ],
+          })
+        }}
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock content %}
