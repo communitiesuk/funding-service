@@ -2367,6 +2367,7 @@ class TestCreateOrganisationCheckYourAnswers:
             custom_attributes={
                 MetricAttributeName.ORGANISATION_TYPE: "CHARITY",
                 MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.LIVE),
+                MetricAttributeName.ORGANISATION_IDENTIFIED_BY: "MANUAL",
             },
         )
 

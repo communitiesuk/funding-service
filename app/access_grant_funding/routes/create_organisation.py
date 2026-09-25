@@ -411,6 +411,7 @@ def create_organisation_check_your_answers(
                 custom_attributes={
                     MetricAttributeName.ORGANISATION_TYPE: str(org_session.organisation_type),
                     MetricAttributeName.SUBMISSION_MODE: str(modes.submission),
+                    MetricAttributeName.ORGANISATION_IDENTIFIED_BY: org_session.identified_by,
                 },
             )
 
