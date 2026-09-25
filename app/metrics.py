@@ -41,6 +41,8 @@ class MetricAttributeName(StrEnum):
 
     ORGANISATION_TYPE = "organisation-type"
 
+    ORGANISATION_IDENTIFIED_BY = "organisation-identified-by"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
