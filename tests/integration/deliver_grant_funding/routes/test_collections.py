@@ -11471,6 +11471,10 @@ class TestViewSubmission:
                 "section_ids": [],
             },
         )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+        )
         submission.data_manager.set(question, TextSingleLineAnswer("updated answer"))
         submission.status = SubmissionStatusEnum.SUBMITTED
         db_session.commit()

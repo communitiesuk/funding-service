@@ -487,14 +487,13 @@ class NotificationService:
 
         submitter_name = "(Submitter not known)"
         certifier_name = "(Certifier not known)"
+        if submission_helper.submitted_by:
+            submitter_name = submission_helper.submitted_by.name
+
         if submission_helper.collection.requires_certification:
-            if submission_helper.sent_for_certification_by:
-                submitter_name = submission_helper.sent_for_certification_by.name
             if submission_helper.certified_by:
                 certifier_name = submission_helper.certified_by.name
         else:
-            if submission_helper.submitted_by:
-                submitter_name = submission_helper.submitted_by.name
             certifier_name = ""
 
         personalisation = {
