@@ -6,11 +6,13 @@
 {% set page_title = "All questions - " ~ submission.long_collection_name %}
 {% set active_item_identifier = collection.type.constants.active_nav %}
 
+{% set back_link = url_for("access_grant_funding.tasklist", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_type=collection.type, submission_id=submission.id) %}
+
 {% block beforeContent %}
   {{ super() }}
   {{
     govukBackLink({
-      "href": url_for("access_grant_funding.tasklist", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_type=collection.type, submission_id=submission.id),
+      "href": back_link,
       "text": "Back"
     })
   }}
@@ -30,6 +32,10 @@
       </a>
 
       {{ render_all_questions(collection) }}
+
+      <p class="govuk-body govuk-!-margin-top-6">
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ back_link }}">Back to {{ collection.type.constants.singular }}</a>
+      </p>
     </div>
   </div>
 {% endblock content %}
