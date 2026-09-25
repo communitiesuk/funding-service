@@ -536,7 +536,10 @@ class TestAllQuestions:
             ("authenticated_grant_recipient_data_provider_client", True),
         ),
     )
-    def test_get_all_questions(self, request: FixtureRequest, client_fixture: str, can_access: bool, factories) -> None:
+    @patch("app.access_grant_funding.routes.collections.emit_metric_count")
+    def test_get_all_questions(
+        self, mock_count, request: FixtureRequest, client_fixture: str, can_access: bool, factories
+    ) -> None:
         client = request.getfixturevalue(client_fixture)
         grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
         question = factories.question.create(
@@ -575,6 +578,7 @@ class TestAllQuestions:
             collection_type=collection.type,
             submission_id=submission.id,
         )
+        mock_count.assert_called_once_with(MetricEventName.ACCESS_ALL_QUESTIONS_PAGE_ACCESSED, submission=submission)
 
     @patch("app.access_grant_funding.routes.collections.emit_metric_count")
     def test_all_questions_pdf(self, mock_count, authenticated_grant_recipient_member_client, factories, mocker):

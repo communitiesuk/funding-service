@@ -222,13 +222,15 @@ def all_questions(
 ) -> ResponseReturnValue:
     grant_recipient = get_grant_recipient(grant_id, organisation_id)
 
-    submission = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+    helper = SubmissionHelper.load(submission_id=submission_id, grant_recipient_id=grant_recipient.id)
+
+    emit_metric_count(MetricEventName.ACCESS_ALL_QUESTIONS_PAGE_ACCESSED, submission=helper.submission)
 
     return render_template(
         "access_grant_funding/collections/all_questions.html",
         grant_recipient=grant_recipient,
-        submission=submission,
-        interpolate=SubmissionHelper.get_print_interpolator(submission.collection),
+        submission=helper,
+        interpolate=SubmissionHelper.get_print_interpolator(helper.collection),
     )
 
 
