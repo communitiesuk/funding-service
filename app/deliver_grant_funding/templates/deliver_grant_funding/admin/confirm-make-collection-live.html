@@ -63,7 +63,9 @@
         {% if 'confirm_reporting_and_submission_overlap' in form %}
           {{ form.confirm_reporting_and_submission_overlap }}
         {% endif %}
-        {{ form.confirm_reminder_days }}
+        {% if 'confirm_reminder_days' in form %}
+          {{ form.confirm_reminder_days }}
+        {% endif %}
         {{ form.confirm_multiple_submissions }}
         {% if 'confirm_managed_by_service' in form %}
           {{ form.confirm_managed_by_service }}

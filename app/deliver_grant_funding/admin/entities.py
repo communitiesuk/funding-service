@@ -254,6 +254,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "allow_submission_reopening": "Allow reopening submissions",
         "allow_public_sign_up": "Allow public sign up",
         "allow_validation": "Allow validation",
+        "send_deadline_reminder_emails": "Send deadline reminder emails",
+        "send_overdue_emails": "Send overdue emails",
     }
 
     form_columns = [
@@ -274,6 +276,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "allow_submission_reopening",
         "allow_public_sign_up",
         "allow_validation",
+        "send_deadline_reminder_emails",
+        "send_overdue_emails",
     ]
 
     form_args = {

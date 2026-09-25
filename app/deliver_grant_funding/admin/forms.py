@@ -743,19 +743,22 @@ class PlatformAdminMakeCollectionLiveForm(FlaskForm):
         else:
             del self.confirm_reporting_and_submission_overlap
 
-        days = collection.reminder_email_business_days_before_closing
-        reminder_date = collection.date_to_send_reminder_emails
-        if reminder_date:
-            self.confirm_reminder_days.label.text = Markup(
-                f"Reminder emails should be sent <strong {bold}>{days} "
-                f"business day{'s' if days != 1 else ''}</strong> before closing "
-                f"(on <strong {bold}>{format_date_short(reminder_date)}</strong>)"
-            )
+        if collection.send_deadline_reminder_emails:
+            days = collection.reminder_email_business_days_before_closing
+            reminder_date = collection.date_to_send_reminder_emails
+            if reminder_date:
+                self.confirm_reminder_days.label.text = Markup(
+                    f"Reminder emails should be sent <strong {bold}>{days} "
+                    f"business day{'s' if days != 1 else ''}</strong> before closing "
+                    f"(on <strong {bold}>{format_date_short(reminder_date)}</strong>)"
+                )
+            else:
+                self.confirm_reminder_days.label.text = Markup(
+                    f"Reminder emails should be sent <strong {bold}>{days} "
+                    f"business day{'s' if days != 1 else ''}</strong> before closing"
+                )
         else:
-            self.confirm_reminder_days.label.text = Markup(
-                f"Reminder emails should be sent <strong {bold}>{days} "
-                f"business day{'s' if days != 1 else ''}</strong> before closing"
-            )
+            del self.confirm_reminder_days
         multiple_status = "enabled" if collection.allow_multiple_submissions else "disabled"
         self.confirm_multiple_submissions.label.text = Markup(
             f"It is correct that multiple submissions are <strong {bold}>{multiple_status}</strong>"

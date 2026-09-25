@@ -1432,7 +1432,7 @@ class TestSendEmailsToRecipients:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type}"
         )
         assert response.status_code == 200
 
@@ -7586,3 +7586,150 @@ class TestAdminDashboard:
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert "16 June 2026soonSend reminder emailsNeeds Reminder" in soup.get_text(strip=True)
+
+    @pytest.mark.freeze_time("2026-06-15 12:00:00")
+    def test_dashboard_hides_send_reminder_emails_when_disabled(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="No Reminder",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date(2026, 6, 1),
+            submission_period_end_date=datetime.date(2026, 6, 23),
+            send_deadline_reminder_emails=False,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        page_text = soup.get_text(strip=True)
+        assert "Send reminder emailsNo Reminder" not in page_text
+
+    @pytest.mark.freeze_time("2026-06-15 12:00:00")
+    def test_dashboard_shows_moving_to_overdue_when_overdue_emails_disabled(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        factories.collection.create(
+            name="No Overdue Email",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date(2026, 6, 1),
+            submission_period_end_date=datetime.date(2026, 6, 18),
+            send_overdue_emails=False,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        page_text = " ".join(soup.get_text(" ").split())
+        assert "18 June 2026 soon Collection moving to overdue No Overdue Email" in page_text
+        assert "19 June 2026 soon Send overdue emails No Overdue Email" not in page_text
+
+    def test_lifecycle_hides_reminder_and_overdue_tasks_when_disabled(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date(2026, 6, 1),
+            submission_period_end_date=datetime.date(2026, 6, 23),
+            send_deadline_reminder_emails=False,
+            send_overdue_emails=False,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        task_titles = [
+            item.find("div", {"class": "govuk-task-list__name-and-hint"}).get_text(strip=True)
+            for item in soup.select("#report-tasks li.govuk-task-list__item")
+        ]
+
+        assert "Set reminder email timing" not in task_titles
+        assert "Send deadline reminder emails" not in task_titles
+        assert "Send report overdue emails" not in task_titles
+        assert "Send emails to data providers" in task_titles
+        assert "Send report closed emails" in task_titles
+
+    def test_make_live_does_not_ask_to_confirm_reminder_timing_when_disabled(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2026, 6, 1),
+            submission_period_end_date=datetime.date(2026, 6, 23),
+            allow_public_sign_up=True,
+            send_deadline_reminder_emails=False,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/make-collection-live"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Reminder emails should be sent" not in soup.get_text()
+
+    @pytest.mark.parametrize(
+        "email_type",
+        [CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE],
+    )
+    def test_send_email_pages_block_disabled_email_types(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, email_type
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date(2019, 12, 1),
+            submission_period_end_date=datetime.date(2020, 1, 1),
+            send_deadline_reminder_emails=email_type != CollectionAdminEmailTypeEnum.DEADLINE_REMINDER,
+            send_overdue_emails=email_type != CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "email_type",
+        [CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE],
+    )
+    def test_email_csv_routes_block_disabled_email_types(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, email_type
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=datetime.date(2019, 12, 1),
+            submission_period_end_date=datetime.date(2020, 1, 1),
+            send_deadline_reminder_emails=email_type != CollectionAdminEmailTypeEnum.DEADLINE_REMINDER,
+            send_overdue_emails=email_type != CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE,
+        )
+        db_session.commit()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/"
+            f"send-emails-to-data-providers/download-csv/{email_type.value}"
+        )
+
+        assert response.status_code == 404

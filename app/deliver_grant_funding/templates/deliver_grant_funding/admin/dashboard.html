@@ -66,6 +66,8 @@
                     Collection must be moved to Closed
                   {% elif event.type == "closing" %}
                     Send overdue emails
+                  {% elif event.type == "moving_to_overdue" %}
+                    Collection moving to overdue
                   {% elif event.type == "reminder" %}
                     Send reminder emails
                   {% endif %}

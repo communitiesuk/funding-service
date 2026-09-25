@@ -384,6 +384,8 @@ def update_collection(  # noqa: C901
     allow_public_sign_up: bool | TNotProvided = NOT_PROVIDED,
     prospectus_url: str | None | TNotProvided = NOT_PROVIDED,
     reminder_email_business_days_before_closing: int | TNotProvided = NOT_PROVIDED,
+    send_deadline_reminder_emails: bool | TNotProvided = NOT_PROVIDED,
+    send_overdue_emails: bool | TNotProvided = NOT_PROVIDED,
     requires_certification: bool | TNotProvided = NOT_PROVIDED,
     allow_submission_reopening: bool | TNotProvided = NOT_PROVIDED,
     allow_edits_after_submission_deadline: bool | TNotProvided = NOT_PROVIDED,
@@ -541,6 +543,12 @@ def update_collection(  # noqa: C901
 
     if reminder_email_business_days_before_closing is not NOT_PROVIDED:
         collection.reminder_email_business_days_before_closing = reminder_email_business_days_before_closing
+
+    if send_deadline_reminder_emails is not NOT_PROVIDED:
+        collection.send_deadline_reminder_emails = send_deadline_reminder_emails
+
+    if send_overdue_emails is not NOT_PROVIDED:
+        collection.send_overdue_emails = send_overdue_emails
 
     if requires_certification is not NOT_PROVIDED:
         collection.requires_certification = requires_certification
