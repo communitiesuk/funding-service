@@ -584,7 +584,10 @@ class SubmissionHelper:
 
     @property
     def submitted_by(self) -> User | None:
-        return self.events.submission_state.submitted_by
+        if self.collection.requires_certification:
+            return self.events.submission_state.sent_for_certification_by
+        else:
+            return self.events.submission_state.submitted_by
 
     @property
     def certified_by(self) -> User | None:
