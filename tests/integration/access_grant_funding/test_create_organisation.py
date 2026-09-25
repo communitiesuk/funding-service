@@ -121,11 +121,12 @@ def companies_house(mocker):
     return search, get_company
 
 
-def _name_url(collection):
+def _name_url(collection, **params):
     return url_for(
         "access_grant_funding.create_organisation_name",
         grant_slug=collection.grant.slug,
         collection_slug=collection.slug,
+        **params,
     )
 
 
@@ -1044,6 +1045,78 @@ class TestCreateOrganisationCompanySearch:
             collection_slug=sign_up_collection.slug,
         )
         companies_house[1].assert_not_called()
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_results_offer_to_add_the_organisation_manually(
+        self, app, authenticated_no_role_client, sign_up_collection, companies_house
+    ):
+        _seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection, q="Test Company"))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Organisation not listed" in soup.text
+        assert get_input_value(soup, "submit") == "add your organisation manually"
+        support_desk = page_has_link(soup, "support desk (opens in new tab)")
+        assert support_desk is not None
+        assert support_desk.attrs["href"] == app.config["ACCESS_SERVICE_DESK_URL"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_the_search_form_does_not_offer_manual_entry_before_searching(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(self._url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Organisation not listed" not in soup.text
+        assert get_input_value(soup, "submit") is None
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_to_add_the_organisation_manually_continues_to_the_name_page(
+        self, authenticated_no_role_client, sign_up_collection, companies_house
+    ):
+        _seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            self._url(sign_up_collection, q="Test Company"),
+            data={"mode": "manual", "submit": "add your organisation manually"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+        companies_house[1].assert_not_called()
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["identified_by"] == OrganisationIdentification.MANUAL.value
+            assert flask_session["create_organisation"]["companies_house_unavailable"] is False
+            assert "name" not in flask_session["create_organisation"]
+            assert "external_id" not in flask_session["create_organisation"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_to_add_the_organisation_manually_from_check_your_answers_asks_for_the_name_on_the_way_back(
+        self, authenticated_no_role_client, sign_up_collection, companies_house
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            name="TEST COMPANY LIMITED",
+            external_id="00000001",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(
+            self._url(sign_up_collection, q="Test Company", source="check-your-answers"),
+            data={"mode": "manual", "submit": "add your organisation manually"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection, source="check-your-answers")
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert "name" not in flask_session["create_organisation"]
+            assert "external_id" not in flask_session["create_organisation"]
 
 
 class TestCreateOrganisationCompanySearchUnavailable:
