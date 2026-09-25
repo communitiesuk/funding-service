@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from psycopg.errors import ForeignKeyViolation
@@ -189,6 +189,64 @@ class TestSubmissionModel:
 
         assert locked_submission in result
         assert unlocked_submission not in result
+
+    def test_last_submitted_at_utc_returns_latest_submitted_event_utc(self, factories):
+        submission = factories.submission.create()
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+            created_at_utc=datetime(2026, 4, 12, 0, 0, 0),
+        )
+
+        assert submission.last_submitted_at_utc is None
+
+        submitted_at = datetime(2026, 4, 13, 0, 0, 0)
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            created_at_utc=submitted_at,
+        )
+
+        assert submission.last_submitted_at_utc == submitted_at
+
+        resubmitted_at = datetime(2026, 4, 14, 0, 0, 0)
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            created_at_utc=resubmitted_at,
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_CHANGES_REQUESTED,
+            created_at_utc=datetime(2026, 4, 15, 0, 0, 0),
+        )
+
+        assert submission.last_submitted_at_utc == resubmitted_at
+
+    def test_last_submitted_at_utc_is_none_when_no_submitted_events(self, factories):
+        submission = factories.submission.create()
+        factories.submission_event.create(submission=submission)
+
+        assert submission.last_submitted_at_utc is None
+
+    def test_last_submitted_at_utc_can_be_queried(self, factories, db_session):
+        submitted_at = datetime(2026, 4, 13, 0, 0, 0)
+        submitted_submission = factories.submission.create()
+        factories.submission_event.create(
+            submission=submitted_submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+            created_at_utc=submitted_at,
+        )
+        unsubmitted_submission = factories.submission.create()
+        factories.submission_event.create(submission=unsubmitted_submission)
+
+        result = db_session.execute(
+            select(Submission.id, Submission.last_submitted_at_utc).where(
+                Submission.id.in_([submitted_submission.id, unsubmitted_submission.id])
+            )
+        ).all()
+
+        assert dict(result) == {submitted_submission.id: submitted_at, unsubmitted_submission.id: None}
 
 
 class TestGrantModel:

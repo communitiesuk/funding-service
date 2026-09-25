@@ -691,6 +691,33 @@ class Submission(BaseModel):
             .scalar_subquery(),
         )
 
+    @hybrid_property
+    def last_submitted_at_utc(self) -> datetime.datetime | None:
+        from app.common.helpers.submission_events import SubmissionEventHelper
+
+        event_helper = SubmissionEventHelper(self)
+        return max(
+            (
+                event.created_at_utc
+                for event in event_helper.events
+                if event.event_type == SubmissionEventType.SUBMISSION_SUBMITTED
+            ),
+            default=None,
+        )
+
+    @last_submitted_at_utc.inplace.expression
+    @classmethod
+    def _last_submitted_at_utc_expression(cls) -> ColumnElement[datetime.datetime]:
+        return (
+            select(func.max(SubmissionEvent.created_at_utc))
+            .where(
+                SubmissionEvent.submission_id == cls.id,
+                SubmissionEvent.event_type == SubmissionEventType.SUBMISSION_SUBMITTED,
+            )
+            .correlate(cls)
+            .scalar_subquery()
+        )
+
     @property
     def is_visible(self):
         if not self.grant_recipient_id:
