@@ -13,6 +13,7 @@ from tests.e2e.access_grant_funding.pages import (
     CreateOrganisationTypePage,
     CreateOrganisationUserNamePage,
     EligibleToApplyPage,
+    OrganisationAlreadyExistsPage,
     PublicSignUpEligibilityQuestionPage,
     PublicSignUpIneligiblePage,
     PublicSignUpStartPage,
@@ -309,7 +310,8 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 ) -> None:
     """A second member of the public, sharing the same email domain as the organisation set up in the previous
     test, is matched to that organisation but finds someone is already applying on its behalf for the first
-    grant. Applying to a second grant the organisation hasn't touched yet succeeds instead."""
+    grant. Trying to create a new organisation with the same name instead is also rejected. Applying to a second
+    grant the organisation hasn't touched yet succeeds instead."""
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
 
@@ -327,6 +329,24 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 
     already_applying_page = AlreadyApplyingPage(page, domain)
     expect(already_applying_page.heading).to_be_visible()
+    already_applying_page.click_back()
+
+    # Instead of applying on behalf of the matched organisation, try to create a new one with already existing name
+    eligible_to_apply_page.select_organisation("Apply on behalf of another organisation")
+    eligible_to_apply_page.click_continue()
+
+    org_type_page = CreateOrganisationTypePage(page, domain)
+    expect(org_type_page.heading).to_be_visible()
+    org_type_page.select_other()
+    org_type_page.click_continue()
+
+    org_name_page = CreateOrganisationNamePage(page, domain)
+    expect(org_name_page.heading).to_be_visible()
+    org_name_page.fill_name(data["org_name"])
+    org_name_page.click_continue()
+
+    organisation_already_exists_page = OrganisationAlreadyExistsPage(page, domain)
+    expect(organisation_already_exists_page.heading).to_be_visible()
 
     # Still the same (already authenticated) user - applying to a second grant that the organisation hasn't
     # applied to yet should succeed, rather than hitting "already applying" again

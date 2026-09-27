@@ -158,6 +158,16 @@ class AlreadyApplyingPage(CookieBannerMixin, BasePage):
     def __init__(self, page: Page, domain: str) -> None:
         super().__init__(page, domain)
         self.heading = self.page.get_by_role("heading", name="Your organisation is already applying")
+        self.back_link = self.page.get_by_role("link", name="Back", exact=True)
+
+    def click_back(self) -> None:
+        self.back_link.click()
+
+
+class OrganisationAlreadyExistsPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="Your organisation already exists")
 
 
 class CreateOrganisationTypePage(CookieBannerMixin, BasePage):
