@@ -311,7 +311,8 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
     """A second member of the public, sharing the same email domain as the organisation set up in the previous
     test, is matched to that organisation but finds someone is already applying on its behalf for the first
     grant. Trying to create a new organisation with the same name instead is also rejected. Applying to a second
-    grant the organisation hasn't touched yet succeeds instead."""
+    grant the organisation hasn't touched yet succeeds instead, and they go on to fill in and submit that
+    application."""
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
 
@@ -370,6 +371,19 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 
     expect(page.get_by_role("heading", name="Added to organisation")).to_be_visible()
     expect(page.get_by_text(f"You've been added to {data['org_name']}. You can now apply for")).to_be_visible()
+
+    # Fill in and submit the application for the second grant
+    grant_page_2 = AccessGrantPage(page, domain)
+    grant_page_2.click_collection(COLLECTION_NAME)
+
+    tasklist_page_2 = RunnerTasklistPage(page, domain, data["grant_2_name"], COLLECTION_NAME)
+    expect(tasklist_page_2.heading).to_be_visible()
+    complete_task(tasklist_page_2, APPLICATION_SECTION_NAME, data["grant_2_name"], [application_question])
+    task_check_your_answers(tasklist_page_2, data["grant_2_name"], COLLECTION_NAME, [application_question])
+
+    confirm_submit_page_2 = tasklist_page_2.click_submit_for_direct_submission()
+    confirmation_page_2 = confirm_submit_page_2.click_confirm_and_submit()
+    expect(confirmation_page_2.heading).to_be_visible()
 
 
 def test_public_sign_up_first_user_resumes_and_submits(
