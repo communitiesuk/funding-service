@@ -170,12 +170,56 @@ def test_public_sign_up_setup(
     report_settings_page.select_collection_status(CollectionStatusEnum.OPEN)
     report_settings_page.click_save()
 
+    # Set up a second grant, copying the form so a domain-matched user can successfully join an
+    # organisation on a grant it hasn't applied to yet, rather than always hitting "already applying"
+    grant_2_name_uuid = str(uuid.uuid4())
+    grant_2_name = f"E2E public sign up 2 {grant_2_name_uuid}"
+
+    all_grants_page.navigate()
+    create_grant(grant_2_name, grant_2_name_uuid, all_grants_page)
+    grant_2_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
+
+    pre_award_forms_page_2 = GrantPreAwardFormsPage(page, domain, grant_2_name)
+    pre_award_forms_page_2.navigate(grant_2_id)
+    method_page_2 = pre_award_forms_page_2.click_add_form()
+    select_form_to_copy_page = method_page_2.click_copy_existing()
+    select_form_to_copy_page.select_form(COLLECTION_NAME)
+    add_form_page_2 = select_form_to_copy_page.click_continue()
+    add_form_page_2.fill_in_form_name(COLLECTION_NAME)
+    pre_award_forms_page_2 = add_form_page_2.click_submit(grant_2_name)
+
+    pre_award_forms_page_2.click_manage_sections(COLLECTION_NAME, grant_2_name)
+    collection_2_id = extract_uuid_from_url(page.url, r"/applications/(?P<uuid>[a-f0-9-]+)")
+
+    # Public sign up carries over from the copy, but we re-save it to be explicit and grab its URL
+    pre_award_forms_page_2.navigate(grant_2_id)
+    manage_collection_page_2 = pre_award_forms_page_2.click_manage_settings(COLLECTION_NAME)
+    public_sign_up_settings_page_2 = manage_collection_page_2.click_change_public_sign_up()
+    public_sign_up_url_2 = public_sign_up_settings_page_2.get_public_sign_up_url()
+    public_sign_up_settings_page_2.select_allow_public_sign_up(True)
+    public_sign_up_settings_page_2.click_save()
+
+    grant_settings_page_2 = PlatformAdminGrantSettingsPage(page, domain, grant_2_id)
+    grant_settings_page_2.navigate()
+    grant_settings_page_2.select_grant_status(GrantStatusEnum.LIVE)
+    grant_settings_page_2.click_save()
+
+    report_settings_page_2 = PlatformAdminReportSettingsPage(page, domain, collection_2_id)
+    report_settings_page_2.navigate()
+    report_settings_page_2.select_collection_status(CollectionStatusEnum.OPEN)
+    report_settings_page_2.click_save()
+
     _shared_setup_data = {
         "grant_name": grant_name,
         "grant_name_uuid": grant_name_uuid,
         "grant_id": grant_id,
         "collection_id": collection_id,
         "public_sign_up_url": public_sign_up_url,
+        "grant_2_name": grant_2_name,
+        "grant_2_name_uuid": grant_2_name_uuid,
+        "grant_2_id": grant_2_id,
+        "collection_2_id": collection_2_id,
+        "public_sign_up_url_2": public_sign_up_url_2,
     }
 
 
@@ -264,7 +308,8 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
     page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets
 ) -> None:
     """A second member of the public, sharing the same email domain as the organisation set up in the previous
-    test, is matched to that organisation but finds someone is already applying on its behalf."""
+    test, is matched to that organisation but finds someone is already applying on its behalf for the first
+    grant. Applying to a second grant the organisation hasn't touched yet succeeds instead."""
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
 
@@ -282,6 +327,29 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 
     already_applying_page = AlreadyApplyingPage(page, domain)
     expect(already_applying_page.heading).to_be_visible()
+
+    # Still the same (already authenticated) user - applying to a second grant that the organisation hasn't
+    # applied to yet should succeed, rather than hitting "already applying" again
+    page.goto(data["public_sign_up_url_2"])
+    start_page_2 = PublicSignUpStartPage(page, domain)
+    expect(start_page_2.start_now_button).to_be_visible()
+    # Being already authenticated skips the magic link step entirely, straight through to eligibility questions
+    start_page_2.start_now_button.click()
+
+    question_page_2 = PublicSignUpEligibilityQuestionPage(page, domain, eligibility_question["text"])
+    expect(question_page_2.heading).to_be_visible()
+    question_page_2.click_yes()
+    question_page_2.click_continue()
+
+    eligible_to_apply_page_2 = EligibleToApplyPage(page, domain)
+    expect(eligible_to_apply_page_2.heading).to_be_visible()
+    eligible_to_apply_page_2.select_organisation(data["org_name"])
+    eligible_to_apply_page_2.click_continue()
+
+    handle_optional_user_name_step(page, domain, "E2E Test Applicant Two", next_heading_name="Added to organisation")
+
+    expect(page.get_by_role("heading", name="Added to organisation")).to_be_visible()
+    expect(page.get_by_text(f"You've been added to {data['org_name']}. You can now apply for")).to_be_visible()
 
 
 def test_public_sign_up_first_user_resumes_and_submits(
@@ -322,5 +390,7 @@ def test_public_sign_up_cleanup(
         pytest.skip("No setup data to clean up")
 
     delete_grant_recipient_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
+    delete_grant_recipient_through_admin(page, domain, _shared_setup_data["grant_2_name_uuid"])
     delete_organisation_through_admin(page, domain, _shared_setup_data["org_name"])
     delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
+    delete_grant_through_admin(page, domain, _shared_setup_data["grant_2_name_uuid"])

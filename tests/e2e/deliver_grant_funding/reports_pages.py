@@ -483,6 +483,36 @@ class ChoosePreAwardFormCreationMethodPage(ReportsBasePage):
         expect(add_form_page.heading).to_be_visible()
         return add_form_page
 
+    def click_copy_existing(self) -> "SelectFormToCopyPage":
+        self.page.get_by_role("radio", name="Copy an existing form").click()
+        self.page.get_by_role("button", name="Continue").click()
+        select_form_page = SelectFormToCopyPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(select_form_page.heading).to_be_visible()
+        return select_form_page
+
+
+class SelectFormToCopyPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Which form do you want to copy?"),
+        )
+        self.continue_button = page.get_by_role("button", name="Continue")
+        self.collection_combobox = page.locator(".choices").filter(has=page.locator("select#collection"))
+
+    def select_form(self, collection_name: str) -> None:
+        expect(self.collection_combobox).to_be_visible()
+        self.collection_combobox.click()
+        self.page.locator(".choices__list--dropdown .choices__item--choice", has_text=collection_name).first.click()
+
+    def click_continue(self) -> AddPreAwardFormPage:
+        self.continue_button.click()
+        add_form_page = AddPreAwardFormPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(add_form_page.heading).to_be_visible()
+        return add_form_page
+
 
 class AddReportPage(ReportsBasePage):
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
