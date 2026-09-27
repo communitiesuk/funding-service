@@ -6,6 +6,7 @@ from playwright.sync_api import Page, expect
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, QuestionDataType
 from tests.e2e.access_grant_funding.pages import (
     AccessGrantPage,
+    AlreadyApplyingPage,
     CreateOrganisationAllowTeamMembersPage,
     CreateOrganisationCheckYourAnswersPage,
     CreateOrganisationNamePage,
@@ -15,6 +16,7 @@ from tests.e2e.access_grant_funding.pages import (
     PublicSignUpEligibilityQuestionPage,
     PublicSignUpIneligiblePage,
     PublicSignUpStartPage,
+    RequestALinkToSignInPage,
 )
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, QuestionDict, QuestionResponse
@@ -46,8 +48,9 @@ COLLECTION_NAME = f"Public sign up round {uuid.uuid4()}"
 APPLICATION_SECTION_NAME = "Section 1"
 ELIGIBILITY_SECTION_NAME = "Eligibility questions"
 
-# Fixed, reusable, non-internal user for public sign up tests
+# Fixed, reusable, non-internal users for public sign up tests
 USER_1_EMAIL = "fs-e2e-public-sign-up-1@levellingup.gov.uk"
+USER_2_EMAIL = "fs-e2e-public-sign-up-2@levellingup.gov.uk"
 
 application_question: QuestionDict = QuestionDict(
     {
@@ -69,6 +72,28 @@ eligibility_question: QuestionDict = QuestionDict(
 
 # Module-level storage for shared test data across dependent tests
 _shared_setup_data: dict | None = None
+
+
+def start_public_sign_up_and_claim_magic_link(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets, public_sign_up_url: str, email: str
+) -> None:
+    page.goto(public_sign_up_url)
+    start_page = PublicSignUpStartPage(page, domain)
+    expect(start_page.start_now_button).to_be_visible()
+    request_a_link_page = start_page.click_start_now()
+
+    request_a_link_page.fill_email_address(email)
+    request_a_link_page.click_continue()
+
+    claim_magic_link_from_notification(page, e2e_test_secrets)
+
+
+def claim_magic_link_from_notification(page: Page, e2e_test_secrets: EndToEndTestSecrets) -> None:
+    notification_id = page.locator("[data-notification-id]").get_attribute("data-notification-id")
+    assert notification_id
+
+    magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
+    page.goto(magic_link_url)
 
 
 def handle_optional_user_name_step(page: Page, domain: str, name: str, next_heading_name: str) -> None:
@@ -154,27 +179,18 @@ def test_public_sign_up_setup(
     }
 
 
-def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets) -> None:
+def test_public_sign_up_new_organisation_leaves_application_not_started(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets
+) -> None:
     """A member of the public with no existing organisation match starts a public sign up, signs in via a magic
     link, answers the eligibility question (including a wrong answer that's corrected after hitting the
-    ineligible page), creates a new organisation with domain sign up enabled, and fills in and submits the
-    application."""
+    ineligible page), and creates a new organisation with domain sign up enabled - leaving the application not
+    started so a second user from the same organisation can be tested before it's filled in."""
     global _shared_setup_data
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
 
-    page.goto(data["public_sign_up_url"])
-    start_page = PublicSignUpStartPage(page, domain)
-    expect(start_page.start_now_button).to_be_visible()
-    request_a_link_page = start_page.click_start_now()
-
-    request_a_link_page.fill_email_address(USER_1_EMAIL)
-    request_a_link_page.click_continue()
-
-    notification_id = page.locator("[data-notification-id]").get_attribute("data-notification-id")
-    assert notification_id
-    magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
-    page.goto(magic_link_url)
+    start_public_sign_up_and_claim_magic_link(page, domain, e2e_test_secrets, data["public_sign_up_url"], USER_1_EMAIL)
 
     # Answer No first, and hit the ineligible page
     question_page = PublicSignUpEligibilityQuestionPage(page, domain, eligibility_question["text"])
@@ -227,7 +243,60 @@ def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secre
         page.get_by_text(f"{org_name} has been created successfully. You can now start applying for")
     ).to_be_visible()
 
-    # Fill in and submit the application
+    # Stop here with the application not started, so a second user from the same organisation can hit the
+    # "already applying" page before we come back, fill it in and submit it
+    grant_page = AccessGrantPage(page, domain)
+    grant_page.click_collection(COLLECTION_NAME)
+
+    tasklist_page = RunnerTasklistPage(page, domain, data["grant_name"], COLLECTION_NAME)
+    expect(tasklist_page.heading).to_be_visible()
+    expect(
+        tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Not started"))
+    ).to_be_visible()
+
+    _shared_setup_data = {
+        **data,
+        "org_name": org_name,
+    }
+
+
+def test_public_sign_up_second_user_same_domain_hits_already_applying(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets
+) -> None:
+    """A second member of the public, sharing the same email domain as the organisation set up in the previous
+    test, is matched to that organisation but finds someone is already applying on its behalf."""
+    assert _shared_setup_data is not None, "Setup test must run first"
+    data = _shared_setup_data
+
+    start_public_sign_up_and_claim_magic_link(page, domain, e2e_test_secrets, data["public_sign_up_url"], USER_2_EMAIL)
+
+    question_page = PublicSignUpEligibilityQuestionPage(page, domain, eligibility_question["text"])
+    expect(question_page.heading).to_be_visible()
+    question_page.click_yes()
+    question_page.click_continue()
+
+    eligible_to_apply_page = EligibleToApplyPage(page, domain)
+    expect(eligible_to_apply_page.heading).to_be_visible()
+    eligible_to_apply_page.select_organisation(data["org_name"])
+    eligible_to_apply_page.click_continue()
+
+    already_applying_page = AlreadyApplyingPage(page, domain)
+    expect(already_applying_page.heading).to_be_visible()
+
+
+def test_public_sign_up_first_user_resumes_and_submits(
+    page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets
+) -> None:
+    """The original applicant signs back in and fills in and submits the application they left not started."""
+    assert _shared_setup_data is not None, "Setup test must run first"
+    data = _shared_setup_data
+
+    request_a_link_page = RequestALinkToSignInPage(page, domain)
+    request_a_link_page.navigate()
+    request_a_link_page.fill_email_address(USER_1_EMAIL)
+    request_a_link_page.click_request_a_link()
+    claim_magic_link_from_notification(page, e2e_test_secrets)
+
     grant_page = AccessGrantPage(page, domain)
     grant_page.click_collection(COLLECTION_NAME)
 
@@ -239,11 +308,6 @@ def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secre
     confirm_submit_page = tasklist_page.click_submit_for_direct_submission()
     confirmation_page = confirm_submit_page.click_confirm_and_submit()
     expect(confirmation_page.heading).to_be_visible()
-
-    _shared_setup_data = {
-        **data,
-        "org_name": org_name,
-    }
 
 
 def test_public_sign_up_cleanup(

@@ -142,9 +142,22 @@ class EligibleToApplyPage(CookieBannerMixin, BasePage):
         super().__init__(page, domain)
         self.heading = self.page.get_by_role("heading", name="You are eligible to apply")
         self.create_an_organisation_button = self.page.get_by_role("button", name="Create an organisation")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
 
     def click_create_an_organisation(self) -> None:
         self.create_an_organisation_button.click()
+
+    def select_organisation(self, org_name: str) -> None:
+        self.page.get_by_role("radio", name=org_name, exact=True).click()
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class AlreadyApplyingPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="Your organisation is already applying")
 
 
 class CreateOrganisationTypePage(CookieBannerMixin, BasePage):
