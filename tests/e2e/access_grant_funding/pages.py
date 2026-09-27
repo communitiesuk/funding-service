@@ -84,3 +84,117 @@ class AccessGrantPage(CookieBannerMixin, BasePage):
 
     def click_collection(self, collection_name: str) -> None:
         self.page.get_by_role("link", name=collection_name).click()
+
+
+class PublicSignUpStartPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.start_now_button = self.page.get_by_role("button", name="Start now")
+
+    def click_start_now(self) -> "PublicSignUpRequestALinkPage":
+        self.start_now_button.click()
+        request_a_link_page = PublicSignUpRequestALinkPage(self.page, self.domain)
+        expect(request_a_link_page.email_address).to_be_visible()
+        return request_a_link_page
+
+
+class PublicSignUpRequestALinkPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.email_address = self.page.get_by_role("textbox", name="Enter your work email address")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def fill_email_address(self, email_address: str) -> None:
+        self.email_address.fill(email_address)
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class PublicSignUpEligibilityQuestionPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str, question_text: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name=question_text)
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def click_yes(self) -> None:
+        self.page.get_by_role("radio", name="Yes").click()
+
+    def click_no(self) -> None:
+        self.page.get_by_role("radio", name="No").click()
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class EligibleToApplyPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="You are eligible to apply")
+        self.create_an_organisation_button = self.page.get_by_role("button", name="Create an organisation")
+
+    def click_create_an_organisation(self) -> None:
+        self.create_an_organisation_button.click()
+
+
+class CreateOrganisationTypePage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="What is your organisation type?")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def select_other(self) -> None:
+        self.page.get_by_role("radio", name="Other", exact=True).click()
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class CreateOrganisationNamePage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="What is the name of your organisation?")
+        self.name = self.page.get_by_role("textbox", name="What is the name of your organisation?")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def fill_name(self, name: str) -> None:
+        self.name.fill(name)
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class CreateOrganisationAllowTeamMembersPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def click_yes(self) -> None:
+        self.page.get_by_role("radio", name="Yes").click()
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class CreateOrganisationUserNamePage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="What is your full name?")
+        self.user_name = self.page.get_by_role("textbox", name="What is your full name?")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def fill_user_name(self, name: str) -> None:
+        self.user_name.fill(name)
+
+    def click_continue(self) -> None:
+        self.continue_button.click()
+
+
+class CreateOrganisationCheckYourAnswersPage(CookieBannerMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.heading = self.page.get_by_role("heading", name="Confirm your details are correct")
+        self.confirm_button = self.page.get_by_role("button", name="Confirm and create organisation")
+
+    def click_confirm(self) -> None:
+        self.confirm_button.click()
