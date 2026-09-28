@@ -5,6 +5,7 @@ from playwright.sync_api import Page, expect
 
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, QuestionDataType
 from tests.e2e.access_grant_funding.pages import (
+    AccessGrantPage,
     CreateOrganisationAllowTeamMembersPage,
     CreateOrganisationCheckYourAnswersPage,
     CreateOrganisationNamePage,
@@ -27,8 +28,13 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     GrantPreAwardFormsPage,
     PlatformAdminGrantSettingsPage,
     PlatformAdminReportSettingsPage,
+    RunnerTasklistPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
+from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
+    complete_task,
+    create_question_or_group,
+    task_check_your_answers,
+)
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
     delete_grant_through_admin,
@@ -37,10 +43,20 @@ from tests.e2e.helpers import (
 )
 
 COLLECTION_NAME = f"Public sign up round {uuid.uuid4()}"
+APPLICATION_SECTION_NAME = "Section 1"
 ELIGIBILITY_SECTION_NAME = "Eligibility questions"
 
 # Fixed, reusable, non-internal user for public sign up tests
 USER_1_EMAIL = "fs-e2e-public-sign-up-1@levellingup.gov.uk"
+
+application_question: QuestionDict = QuestionDict(
+    {
+        "type": QuestionDataType.TEXT_SINGLE_LINE,
+        "text": "What is your project called?",
+        "display_text": "What is your project called?",
+        "answers": [QuestionResponse("Test Project")],
+    }
+)
 
 eligibility_question: QuestionDict = QuestionDict(
     {
@@ -92,7 +108,15 @@ def test_public_sign_up_setup(
     add_form_page.fill_in_form_name(COLLECTION_NAME)
     pre_award_forms_page = add_form_page.click_submit(grant_name)
 
+    # Add a section with a single question to the application form
+    add_section_page = pre_award_forms_page.click_add_section(COLLECTION_NAME, grant_name)
+    add_section_page.fill_in_section_name(APPLICATION_SECTION_NAME)
+    form_sections_page = add_section_page.click_add_section()
+    manage_section_page = form_sections_page.click_manage_section(APPLICATION_SECTION_NAME)
+    create_question_or_group(application_question, manage_section_page)
+
     # Turn on public sign up - this auto-creates the "Eligibility questions" section
+    pre_award_forms_page.navigate(grant_id)
     manage_collection_page = pre_award_forms_page.click_manage_settings(COLLECTION_NAME)
     collection_id = extract_uuid_from_url(page.url, r"/applications/(?P<uuid>[a-f0-9-]+)")
     public_sign_up_settings_page = manage_collection_page.click_change_public_sign_up()
@@ -133,7 +157,8 @@ def test_public_sign_up_setup(
 def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets) -> None:
     """A member of the public with no existing organisation match starts a public sign up, signs in via a magic
     link, answers the eligibility question (including a wrong answer that's corrected after hitting the
-    ineligible page), and creates a new organisation with domain sign up enabled."""
+    ineligible page), creates a new organisation with domain sign up enabled, and fills in and submits the
+    application."""
     global _shared_setup_data
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
@@ -201,6 +226,19 @@ def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secre
     expect(
         page.get_by_text(f"{org_name} has been created successfully. You can now start applying for")
     ).to_be_visible()
+
+    # Fill in and submit the application
+    grant_page = AccessGrantPage(page, domain)
+    grant_page.click_collection(COLLECTION_NAME)
+
+    tasklist_page = RunnerTasklistPage(page, domain, data["grant_name"], COLLECTION_NAME)
+    expect(tasklist_page.heading).to_be_visible()
+    complete_task(tasklist_page, APPLICATION_SECTION_NAME, data["grant_name"], [application_question])
+    task_check_your_answers(tasklist_page, data["grant_name"], COLLECTION_NAME, [application_question])
+
+    confirm_submit_page = tasklist_page.click_submit_for_direct_submission()
+    confirmation_page = confirm_submit_page.click_confirm_and_submit()
+    expect(confirmation_page.heading).to_be_visible()
 
     _shared_setup_data = {
         **data,
