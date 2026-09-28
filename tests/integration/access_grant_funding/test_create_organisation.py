@@ -28,7 +28,6 @@ from app.common.data.types import (
     SubmissionModeEnum,
 )
 from app.common.helpers.collections import get_or_create_unclaimed_submission
-from app.common.helpers.feature_flags import FeatureFlags
 from app.extensions import companies_house_service
 from app.metrics import MetricAttributeName, MetricEventName
 from app.services.companies_house import (
@@ -40,7 +39,6 @@ from app.services.companies_house import (
 )
 from tests.utils import (
     AnyStringMatching,
-    enable_session_feature_flag,
     get_h1_text,
     get_input_value,
     get_summary_list_value_by_key,
@@ -79,16 +77,13 @@ def _seed_session(client, collection, org_session: CreateOrganisationSession | N
 
 
 def _seed_company_session(client, collection, organisation_type=SignUpOrganisationType.COMPANY, **answers) -> None:
-    """A session with the lookup on, for a company found through the register unless said otherwise."""
-    enable_session_feature_flag(client, FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
+    """A session for a company found through the register unless said otherwise."""
     if organisation_type == SignUpOrganisationType.COMPANY:
         answers.setdefault("identified_by", OrganisationIdentification.COMPANIES_HOUSE)
     _seed_session(
         client,
         collection,
-        _create_organisation_session(
-            collection.id, organisation_type=organisation_type, companies_house_lookup=True, **answers
-        ),
+        _create_organisation_session(collection.id, organisation_type=organisation_type, **answers),
     )
 
 
@@ -238,13 +233,13 @@ class TestCreateOrganisationType:
             assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_registered_company_with_the_lookup_enabled_goes_to_the_company_search_page(
+    def test_post_registered_company_goes_to_the_company_search_page(
         self, authenticated_no_role_client, sign_up_collection
     ):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            _create_organisation_session(sign_up_collection.id, companies_house_lookup=True),
+            _create_organisation_session(sign_up_collection.id),
         )
 
         response = authenticated_no_role_client.post(
@@ -267,7 +262,7 @@ class TestCreateOrganisationType:
             assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.COMPANY.value
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_registered_company_from_check_your_answers_with_the_lookup_enabled_forgets_the_name(
+    def test_post_registered_company_from_check_your_answers_forgets_the_name(
         self, authenticated_no_role_client, sign_up_collection
     ):
         _seed_session(
@@ -279,7 +274,6 @@ class TestCreateOrganisationType:
                 name="Test Organisation",
                 external_id="000111222",
                 allow_team_members=False,
-                companies_house_lookup=True,
             ),
         )
 
@@ -318,7 +312,6 @@ class TestCreateOrganisationType:
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.COMPANY,
                 identified_by=OrganisationIdentification.COMPANIES_HOUSE,
-                companies_house_lookup=True,
                 name="Test Company Ltd",
                 external_id="AB123456",
                 allow_team_members=False,
@@ -460,6 +453,7 @@ class TestCreateOrganisationType:
             _create_organisation_session(
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.COMPANY,
+                identified_by=OrganisationIdentification.COMPANIES_HOUSE,
                 name="Test Company",
                 external_id="000111222",
                 allow_team_members=False,
@@ -595,18 +589,6 @@ class TestCreateOrganisationCompanySearch:
         )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_without_the_feature_flag_is_not_found(self, authenticated_no_role_client, sign_up_collection):
-        _seed_session(
-            authenticated_no_role_client,
-            sign_up_collection,
-            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.COMPANY),
-        )
-
-        response = authenticated_no_role_client.get(self._url(sign_up_collection))
-
-        assert response.status_code == 404
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_renders_the_search_form(self, authenticated_no_role_client, sign_up_collection):
         _seed_company_session(authenticated_no_role_client, sign_up_collection)
 
@@ -627,9 +609,6 @@ class TestCreateOrganisationCompanySearch:
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
-        enable_session_feature_flag(
-            authenticated_no_role_client, FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP
-        )
         _seed_session(authenticated_no_role_client, sign_up_collection)
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
@@ -1132,22 +1111,7 @@ class TestCreateOrganisationCompanySearchUnavailable:
         )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_without_the_feature_flag_is_not_found(self, authenticated_no_role_client, sign_up_collection):
-        _seed_session(
-            authenticated_no_role_client,
-            sign_up_collection,
-            _create_organisation_session(sign_up_collection.id, organisation_type=SignUpOrganisationType.COMPANY),
-        )
-
-        response = authenticated_no_role_client.get(self._url(sign_up_collection))
-
-        assert response.status_code == 404
-
-    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
-        enable_session_feature_flag(
-            authenticated_no_role_client, FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP
-        )
         _seed_session(authenticated_no_role_client, sign_up_collection)
 
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
@@ -1340,7 +1304,6 @@ class TestCreateOrganisationName:
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.COMPANY,
                 identified_by=OrganisationIdentification.COMPANIES_HOUSE,
-                companies_house_lookup=True,
             ),
         )
 
@@ -1370,7 +1333,6 @@ class TestCreateOrganisationName:
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.COMPANY,
                 identified_by=OrganisationIdentification.COMPANIES_HOUSE,
-                companies_house_lookup=True,
             ),
         )
 
@@ -2082,7 +2044,6 @@ class TestCreateOrganisationCheckYourAnswers:
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.COMPANY,
                 identified_by=OrganisationIdentification.COMPANIES_HOUSE,
-                companies_house_lookup=True,
                 name="Test Company Ltd",
                 external_id="AB123456",
                 allow_team_members=False,

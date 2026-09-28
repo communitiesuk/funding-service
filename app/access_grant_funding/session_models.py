@@ -98,8 +98,6 @@ class CreateOrganisationSession(SignUpSession):
     # the screens along it don't each have to work it out from the user again
     needs_user_name: bool
     can_share_email_domain: bool
-    # defaults to off so that sessions started before the flag existed still load
-    companies_house_lookup: bool = False
 
     organisation_type: SignUpOrganisationType | None = None
 
@@ -308,12 +306,11 @@ class CreateOrganisationSession(SignUpSession):
             raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
 
     @classmethod
-    def start(cls, *, collection_id: UUID, user: User, companies_house_lookup: bool) -> Self:
+    def start(cls, *, collection_id: UUID, user: User) -> Self:
         return cls(
             collection_id=collection_id,
             needs_user_name=not user.name,
             can_share_email_domain=user.can_share_email_domain,
-            companies_house_lookup=companies_house_lookup,
         )
 
     def answer_organisation_type(self, organisation_type: SignUpOrganisationType) -> None:
@@ -321,9 +318,7 @@ class CreateOrganisationSession(SignUpSession):
         self.organisation_type = organisation_type
         self.identified_by = (
             OrganisationIdentification.COMPANIES_HOUSE
-            if organisation_type == SignUpOrganisationType.COMPANY
-            and self.companies_house_lookup
-            and not self.companies_house_unavailable
+            if organisation_type == SignUpOrganisationType.COMPANY and not self.companies_house_unavailable
             else OrganisationIdentification.MANUAL
         )
 

@@ -28,7 +28,7 @@ from app.access_grant_funding.session_models import (
     OrganisationIdentification,
     SignUpOrganisationType,
 )
-from app.common.auth.decorators import has_feature_flag_enabled, requires_passed_eligibility
+from app.common.auth.decorators import requires_passed_eligibility
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.exceptions import DuplicateValueError
@@ -40,7 +40,6 @@ from app.common.data.interfaces.organisations import (
 )
 from app.common.data.types import OrganisationModeEnum, OrganisationType, SubmissionModeEnum
 from app.common.forms import GenericSubmitForm
-from app.common.helpers.feature_flags import FeatureFlags
 from app.common.helpers.pagination import Pagination
 from app.extensions import auto_commit_after_request, companies_house_service
 from app.metrics import MetricAttributeName, MetricEventName
@@ -129,7 +128,6 @@ def _companies_house_unavailable(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-search", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
-@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
 @requires_create_organisation_session(page=CreateOrganisationPage.COMPANY_SEARCH)
 def create_organisation_company_search(
     grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
@@ -209,7 +207,6 @@ def create_organisation_company_search(
     methods=["GET", "POST"],
 )
 @requires_passed_eligibility
-@has_feature_flag_enabled(FeatureFlags.ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP)
 @requires_create_organisation_session(page=CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE)
 def create_organisation_company_search_unavailable(
     grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
