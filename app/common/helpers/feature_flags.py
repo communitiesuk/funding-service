@@ -90,14 +90,8 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
-class AccessGrantFundingCompaniesHouseLookupFeatureFlag(SessionFeatureFlag):
-    description = "Look up registered companies on Companies House when creating an organisation in public sign-up."
-    resolver_description = "Toggled on and off for your session only."
-
-
 class FeatureFlags:
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
-    ACCESS_GRANT_FUNDING_COMPANIES_HOUSE_LOOKUP = AccessGrantFundingCompaniesHouseLookupFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:
