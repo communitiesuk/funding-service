@@ -93,6 +93,7 @@ class MetricEventName(StrEnum):
     PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE = "public-sign-up-matched-existing-organisation-available"
     PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE = "public-sign-up-matched-by-email-domain-available"
     PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE = "public-sign-up-matched-by-organisation-role-available"
+    PUBLIC_SIGN_UP_MATCHED_BY_INVITATION_AVAILABLE = "public-sign-up-matched-by-invitation-available"
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING = "public-sign-up-matched-organisation-already-applying"
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED = "public-sign-up-matched-organisation-application-created"
     PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public-sign-up-already-has-access"

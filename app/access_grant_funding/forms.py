@@ -56,6 +56,7 @@ class EligibleOrganisationSelectionForm(FlaskForm):
 
     def __init__(
         self,
+        invite_matched_orgs: list[Organisation],
         role_matched_orgs: list[Organisation],
         domain_matched_orgs: list[Organisation],
         email_domain: str,
@@ -63,11 +64,13 @@ class EligibleOrganisationSelectionForm(FlaskForm):
         super().__init__()
 
         # Add the Sign up a new organisaion option at the end
-        self.organisation.choices = [(str(org.id), org.name) for org in [*role_matched_orgs, *domain_matched_orgs]] + [
-            (self.SIGN_UP_NEW_ORGANISATION_VALUE, "Apply on behalf of another organisation")
-        ]
+        self.organisation.choices = [
+            (str(org.id), org.name) for org in [*invite_matched_orgs, *role_matched_orgs, *domain_matched_orgs]
+        ] + [(self.SIGN_UP_NEW_ORGANISATION_VALUE, "Apply on behalf of another organisation")]
 
         item_hints: list[dict] = []
+        for _ in invite_matched_orgs:
+            item_hints.append({"hint": {"text": "Based on an open invite to this organisation"}})
         for _ in role_matched_orgs:
             item_hints.append({"hint": {"text": "Based on your access to other grants"}})
         for _ in domain_matched_orgs:

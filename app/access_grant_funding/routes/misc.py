@@ -388,9 +388,15 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
     email_domain = user.email_domain
 
     modes = get_sign_up_modes(user)
-    matched_orgs = get_matched_organisations(user, email_domain, mode=modes.organisation)
+    matched_orgs = get_matched_organisations(user, email_domain, grant=grant, mode=modes.organisation)
 
     emit_public_sign_up_metric_once(MetricEventName.PUBLIC_SIGN_UP_ELIGIBLE, modes, collection=collection)
+    if matched_orgs.invite_matched_orgs:
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_INVITATION_AVAILABLE,
+            modes,
+            collection=collection,
+        )
     if matched_orgs.role_matched_orgs:
         emit_public_sign_up_metric_once(
             MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_ORGANISATION_ROLE_AVAILABLE, modes, collection=collection
@@ -428,7 +434,8 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         )
 
     form = EligibleOrganisationSelectionForm(
-        matched_orgs.role_matched_orgs,
+        matched_orgs.invite_matched_orgs,
+        matched_orgs.unduplicated_role_matched_orgs(),
         matched_orgs.unduplicated_domain_matched_orgs(),
         email_domain,
     )
@@ -450,7 +457,9 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
             )
         organisation = get_organisation(UUID(selected))
 
-        if not AuthorisationHelper.user_has_matched_organisation(user, organisation.id, mode=modes.organisation):
+        if not AuthorisationHelper.user_has_matched_organisation(
+            user, organisation.id, grant=grant, mode=modes.organisation
+        ):
             current_app.logger.warning(
                 "User %(user_id)s submitted an organisation not in their matched list", {"user_id": user.id}
             )
@@ -498,7 +507,9 @@ def eligible_to_apply_user_name(grant_slug: str, collection_slug: str) -> Respon
     modes = get_sign_up_modes(user)
     organisation = get_organisation(matched_session.organisation_id)
 
-    if not AuthorisationHelper.user_has_matched_organisation(user, organisation.id, mode=modes.organisation):
+    if not AuthorisationHelper.user_has_matched_organisation(
+        user, organisation.id, grant=grant, mode=modes.organisation
+    ):
         current_app.logger.warning(
             "User %(user_id)s submitted an organisation not in their matched list", {"user_id": user.id}
         )

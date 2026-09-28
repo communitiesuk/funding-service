@@ -741,6 +741,25 @@ class TestInvitations:
         user_from_db = db_session.scalar(select(User).where(User.azure_ad_subject_id == "oih12373"))
         assert len(user_from_db.roles) == 3
 
+    def test_create_user_and_claim_invitations_leaves_public_sign_up_invitations_usable(
+        self, db_session, factories
+    ) -> None:
+        grant = factories.grant.create()
+        organisation = factories.organisation.create()
+        invitation = factories.invitation.create(
+            email="test@example.com",
+            organisation=organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+
+        user = interfaces.user.create_user_and_claim_invitations(email_address="test@example.com")
+
+        # The organisation is not a grant recipient yet, so completing public sign up claims this invitation
+        assert invitation.is_usable is True
+        assert invitation.user is None
+        assert user.roles == []
+
     def test_create_user_and_claim_invitations_records_invitation_on_audit_event(self, db_session, factories) -> None:
         grant = factories.grant.create()
         invitation = factories.invitation.create(

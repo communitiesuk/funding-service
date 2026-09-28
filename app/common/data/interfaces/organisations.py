@@ -7,8 +7,8 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 
 from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
-from app.common.data.models import Organisation
-from app.common.data.models_user import User
+from app.common.data.models import Grant, Organisation
+from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     MatchedOrganisations,
     OrganisationData,
@@ -58,12 +58,31 @@ def get_organisations(
 
 
 def get_matched_organisations(
-    user: User, email_domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+    user: User, email_domain: str, *, grant: Grant, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> MatchedOrganisations:
+    # Matched on the invitation email rather than its user, which is only set once the invitation is claimed
+    invite_matched_orgs = list(
+        db.session.scalars(
+            select(Organisation)
+            .join(Invitation, Invitation.organisation_id == Organisation.id)
+            .where(
+                Invitation.email == user.email,
+                Invitation.grant_id == grant.id,
+                Invitation.is_usable.is_(True),
+                Organisation.mode == mode,
+                Organisation.can_manage_grants.is_(False),
+            )
+            .order_by(Organisation.name)
+        ).all()
+    )
     role_matched_orgs = user.get_organisations(mode=mode)
     domain_matched_orgs = list(get_organisations(can_manage_grants=False, domain=email_domain, mode=mode))
 
-    return MatchedOrganisations(role_matched_orgs=role_matched_orgs, domain_matched_orgs=domain_matched_orgs)
+    return MatchedOrganisations(
+        invite_matched_orgs=invite_matched_orgs,
+        role_matched_orgs=role_matched_orgs,
+        domain_matched_orgs=domain_matched_orgs,
+    )
 
 
 def get_organisation(organisation_id: UUID) -> Organisation:

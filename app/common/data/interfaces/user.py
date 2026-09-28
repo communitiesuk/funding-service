@@ -453,6 +453,21 @@ def get_invitations_by_email(email: str, is_usable: bool | None = None) -> Seque
     return db.session.scalars(stmt).all()
 
 
+def get_usable_invitation(email: str, *, grant: Grant, organisation: Organisation) -> Invitation | None:
+    """The pending invitation for `email` to `grant` on `organisation`, if there is one.
+
+    `create_invitation` expires any existing usable invitation for the same email, organisation and grant, so there
+    can only be one."""
+    return db.session.scalars(
+        select(Invitation).where(
+            Invitation.email == email,
+            Invitation.grant_id == grant.id,
+            Invitation.organisation_id == organisation.id,
+            Invitation.is_usable.is_(True),
+        )
+    ).one_or_none()
+
+
 def get_usable_invitations_for_grant_recipient(grant_recipient: GrantRecipient) -> Sequence[Invitation]:
     """Pending invitations to `grant_recipient`, whether for its grant specifically or across its organisation."""
     return db.session.scalars(
@@ -498,8 +513,8 @@ def create_user_and_claim_invitations(
     name: str | TNotProvided = NOT_PROVIDED,
     azure_ad_subject_id: str | None = None,
 ) -> User:
-    """Create (or update) the user for `email_address` and grant them the permissions from every usable invitation
-    sent to that address, claiming each one.
+    """Create (or update) the user for `email_address` and grant them the permissions from the usable invitations
+    sent to that address, claiming each one. Invitations that public sign up claims are left alone.
 
     SSO users pass `azure_ad_subject_id` and are keyed by it, so their email and name follow Entra; magic link users
     are keyed by email. The azure-id branch raises if the email already belongs to a different user (see FSPT-515).
@@ -513,6 +528,16 @@ def create_user_and_claim_invitations(
             name=name,
         )
     for invite in get_invitations_by_email(email=email_address, is_usable=True):
+        # An invite to an Access organisation that is not yet a grant recipient is claimed by completing public sign
+        # up, which is what matches the user to that organisation, so signing in must leave it usable
+        if (
+            invite.grant is not None
+            and invite.organisation is not None
+            and not invite.organisation.can_manage_grants
+            and get_grant_recipient_or_none(invite.grant.id, invite.organisation.id) is None
+        ):
+            continue
+
         add_permissions_to_user(
             user=user,
             permissions=invite.permissions,
