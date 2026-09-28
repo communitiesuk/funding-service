@@ -12,6 +12,7 @@ from tests.e2e.access_grant_funding.pages import (
     CreateOrganisationUserNamePage,
     EligibleToApplyPage,
     PublicSignUpEligibilityQuestionPage,
+    PublicSignUpIneligiblePage,
     PublicSignUpStartPage,
 )
 from tests.e2e.config import EndToEndTestSecrets
@@ -131,7 +132,8 @@ def test_public_sign_up_setup(
 
 def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets) -> None:
     """A member of the public with no existing organisation match starts a public sign up, signs in via a magic
-    link, answers the eligibility question, and creates a new organisation with domain sign up enabled."""
+    link, answers the eligibility question (including a wrong answer that's corrected after hitting the
+    ineligible page), and creates a new organisation with domain sign up enabled."""
     global _shared_setup_data
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
@@ -149,6 +151,17 @@ def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secre
     magic_link_url = retrieve_magic_link(notification_id, e2e_test_secrets)
     page.goto(magic_link_url)
 
+    # Answer No first, and hit the ineligible page
+    question_page = PublicSignUpEligibilityQuestionPage(page, domain, eligibility_question["text"])
+    expect(question_page.heading).to_be_visible()
+    question_page.click_no()
+    question_page.click_continue()
+
+    ineligible_page = PublicSignUpIneligiblePage(page, domain)
+    expect(ineligible_page.heading).to_be_visible()
+    ineligible_page.click_back()
+
+    # Back on the question: answer Yes this time
     question_page = PublicSignUpEligibilityQuestionPage(page, domain, eligibility_question["text"])
     expect(question_page.heading).to_be_visible()
     question_page.click_yes()
