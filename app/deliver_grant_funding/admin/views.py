@@ -31,7 +31,6 @@ from app.common.data.interfaces.exceptions import (
     StateTransitionError,
 )
 from app.common.data.interfaces.grant_recipients import (
-    create_grant_recipient,
     create_grant_recipients,
     get_grant_recipient_data_providers,
     get_grant_recipient_data_providers_count,
@@ -44,6 +43,7 @@ from app.common.data.interfaces.grants import get_all_grants, get_grant, update_
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
 from app.common.data.interfaces.user import (
     add_permissions_to_user,
+    create_invitation,
     get_certifiers_by_organisation,
     get_current_user,
     get_grant_override_certifiers_by_organisation,
@@ -54,12 +54,10 @@ from app.common.data.interfaces.user import (
     upsert_user_by_email,
 )
 from app.common.data.types import (
-    LOCAL_AUTHORITY_TYPES,
     PRE_AWARD_COLLECTIONS,
     CollectionAdminEmailTypeEnum,
     CollectionStatusEnum,
     GrantRecipientModeEnum,
-    GrantRecipientStatusEnum,
     GrantStatusEnum,
     OrganisationModeEnum,
     OrganisationStatus,
@@ -91,6 +89,7 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminMakeCollectionLiveForm,
     PlatformAdminMakeGrantLiveForm,
     PlatformAdminMarkAsOnboardingForm,
+    PlatformAdminMatchApplicantToOrganisationForm,
     PlatformAdminRevokeCertifiersForm,
     PlatformAdminRevokeGrantOverrideCertifiersForm,
     PlatformAdminRevokeGrantRecipientUsersForm,
@@ -101,7 +100,6 @@ from app.deliver_grant_funding.admin.forms import (
     PlatformAdminSetCollectionSubmissionDatesForm,
     PlatformAdminSetPrivacyPolicyForm,
     PlatformAdminSetReminderDaysForm,
-    PlatformAdminSetUpLocalAuthorityApplicantForm,
     PlatformAdminToggleFeatureFlagForm,
 )
 from app.deliver_grant_funding.admin.mixins import (
@@ -658,64 +656,52 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             data_providers_by_grant_recipient=data_providers_by_grant_recipient,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-local-authority-applicant", methods=["GET", "POST"])
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/match-applicant-to-organisation", methods=["GET", "POST"])
     @auto_commit_after_request
-    def set_up_local_authority_applicant(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def match_applicant_to_organisation(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
 
         if not (collection.allow_public_sign_up and grant.status == GrantStatusEnum.LIVE and collection.is_open):
             flash(
-                "Local authority applicants can only be set up when the grant is live and the "
+                "Applicants can only be matched to an organisation when the grant is live and the "
                 f"{collection.type.constants.singular} is open with public sign up allowed."
             )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
-        local_authorities = get_organisations(
-            can_manage_grants=False, types=LOCAL_AUTHORITY_TYPES, status=OrganisationStatus.ACTIVE
-        )
-        form = PlatformAdminSetUpLocalAuthorityApplicantForm(local_authorities=local_authorities)
+        organisations = get_organisations(can_manage_grants=False, status=OrganisationStatus.ACTIVE)
+        form = PlatformAdminMatchApplicantToOrganisationForm(organisations=organisations)
         if form.validate_on_submit():
-            organisation = next(org for org in local_authorities if str(org.id) == form.organisation.data)
+            organisation = next(org for org in organisations if str(org.id) == form.organisation.data)
 
             if get_grant_recipient_or_none(grant.id, organisation.id):
                 form.organisation.errors.append(  # ty: ignore[unresolved-attribute]
-                    f"{organisation.name} is already a grant recipient, add a grant recipient data provider instead"
+                    f"{organisation.name} is already applying for this {collection.type.constants.singular}, ask the "
+                    "applicant to be invited by someone who already has access"
                 )
             else:
-                grant_recipient = create_grant_recipient(
-                    grant=grant, organisation=organisation, status=GrantRecipientStatusEnum.APPLYING
-                )
-                user = upsert_user_by_email(email_address=form.email_address.data, name=form.full_name.data)
-                add_permissions_to_user(
-                    user,
+                create_invitation(
+                    email=form.email_address.data,
                     permissions=[RoleEnum.DATA_PROVIDER],
-                    organisation=organisation,
                     grant=grant,
+                    organisation=organisation,
+                    name=form.full_name.data,
                     by_user=get_current_user(),
                 )
-
-                if form.send_notification_email.data:
-                    notification_service.send_access_confirm_public_sign_up(
-                        user.email, collection=collection, grant_recipient=grant_recipient
-                    )
-                    flash(
-                        f"Successfully set up {user.name} as an applicant for {organisation.name} and sent "
-                        "notification email.",
-                        "success",
-                    )
-                else:
-                    flash(f"Successfully set up {user.name} as an applicant for {organisation.name}.", "success")
+                flash(
+                    f"Successfully matched {form.full_name.data} to {organisation.name} for public sign up.",
+                    "success",
+                )
                 return redirect(
                     url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
                 )
 
         return self.render(
-            "deliver_grant_funding/admin/set-up-local-authority-applicant.html",
+            "deliver_grant_funding/admin/match-applicant-to-organisation.html",
             form=form,
             grant=grant,
             collection=collection,
-            local_authorities=local_authorities,
+            organisations=organisations,
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/add-bulk-data-providers", methods=["GET", "POST"])

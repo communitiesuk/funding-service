@@ -20,9 +20,17 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
-        Set up local authority applicant
+        Match applicant to organisation for public sign up
       </h1>
-      <p class="govuk-body">Sign up an existing local authority as an applicant for this {{ collection.type.constants.singular }}, you can associate the new grant recipient with a user who has contacted us to be added.</p>
+      <p class="govuk-body">Use this for a user who has contacted us because they cannot apply for this {{ collection.type.constants.singular }} on behalf of their organisation.</p>
+      <p class="govuk-body">
+        This invites them to the organisation you choose, which lets them select it when they go through public sign up. It does not create an account, a grant recipient or any permissions, and the invite lasts 7 days.
+      </p>
+      <p class="govuk-body">
+        You then need to reply to the user to tell them they can now
+        <a class="govuk-link" href="{{ collection.public_sign_up }}">sign up for this {{ collection.type.constants.singular }}</a>
+        and select the organisation they asked for access to.
+      </p>
       <p class="govuk-body">
         We should always prefer that an appropriate user signs up using their official government email address for that organisation and then adds the user requesting access. In cases that this isn't possible we can use this tool.
       </p>
@@ -31,19 +39,20 @@
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
       {% set tableRows = [] %}
-      {% for organisation in local_authorities %}
+      {% for organisation in organisations if organisation.domains %}
         {%
           do tableRows.append([
             {"text": organisation.name},
-            {"text": organisation.domains | join(", ") if organisation.domains else "No domains set up"}
+            {"text": organisation.domains | join(", ")}
           ])
         %}
       {% endfor %}
-      {% set localAuthorityDomainsHtml %}
+      {% set organisationDomainsHtml %}
+        <p class="govuk-body">Users on these email domains are matched to the organisation automatically. An organisation that is not listed has no authorised email domain, so its users can only be matched by an invite.</p>
         {{
           govukTable({
             "head": [
-              {"text": "Local authority"},
+              {"text": "Organisation"},
               {"text": "Domains"}
             ],
             "rows": tableRows
@@ -53,8 +62,8 @@
 
       {{
         govukDetails({
-          "summaryText": "Existing local authority authorised email domains",
-          "html": localAuthorityDomainsHtml,
+          "summaryText": "Organisations with authorised email domains",
+          "html": organisationDomainsHtml,
         })
       }}
     </div>
@@ -67,7 +76,6 @@
         {{ form.organisation }}
         {{ form.full_name }}
         {{ form.email_address }}
-        {{ form.send_notification_email }}
 
         {{ form.submit }}
       </form>
