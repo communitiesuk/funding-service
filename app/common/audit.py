@@ -10,7 +10,7 @@ from sqlalchemy.orm import RelationshipDirection
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
-from app.common.data.types import AuditEventType, RoleEnum
+from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
 
 
 class AuditEvent(BaseModel):
@@ -115,12 +115,26 @@ class UserInvitationCancelled(AuditEvent):
     permissions: list[RoleEnum]
 
 
+class CollectionStatusChanged(AuditEvent):
+    event_type: AuditEventType = AuditEventType.COLLECTION_CONFIGURATION
+    action: Literal["fcollection_status_changed"] = "collection_status_changed"
+    grant_id: UUID
+    collection_id: UUID
+    # organisation_id was on the criteria list but is not needed for this event, as the grant_id igrant_id scopes the event and the renderer can reach the organisation through Grant
+
+
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
     AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
     AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
     AuditEventType.USER_MANAGEMENT: TypeAdapter(
         Annotated[
             UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled,
+            Field(discriminator="action"),
+        ]
+    ),
+    AuditEventType.COLLECTION_CONFIGURATION: TypeAdapter(
+        Annotated[
+            CollectionStatusChanged,
             Field(discriminator="action"),
         ]
     ),
@@ -271,4 +285,28 @@ def create_system_event_for_delete(
         action="delete",
         changes=snapshot,
         context=context,
+    )
+
+
+def create_collection_status_change(
+    model: SQLAlchemyBaseModel,
+    user: User,
+    old_status: CollectionStatusEnum,
+    new_status: CollectionStatusEnum,
+) -> CollectionStatusChanged | None:
+    if old_status == new_status:
+        return None
+
+    return CollectionStatusChanged(
+        user_id=user.id,
+        model_class=model.__class__.__name__,
+        model_id=model.id,
+        grant_id=model.grant_id,
+        collection_id=model.id,
+        changes={
+            "status": {
+                "old": _serialize_value(old_status),
+                "new": _serialize_value(new_status),
+            }
+        },
     )
