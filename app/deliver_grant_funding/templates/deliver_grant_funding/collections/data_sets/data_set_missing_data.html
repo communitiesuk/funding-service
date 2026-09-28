@@ -33,7 +33,7 @@
   </div>
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      {{ render_data_set_data_with_missing_data_grant_recipients(session_data.data_columns,missing_data_rows,all_rows) }}
+      <div class="moj-scrollable-pane" role="region" aria-label="{{ session_data.name }}" tabindex="0">{{ render_data_set_data_with_missing_data_grant_recipients(session_data.data_columns,missing_data_rows,all_rows) }}</div>
 
       <form method="POST" novalidate>
         <div class="govuk-button-group">
