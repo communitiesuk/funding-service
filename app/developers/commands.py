@@ -918,7 +918,7 @@ def create_multi_submissions(  # noqa: C901
                     SubmissionHelper(s)
                     for s in get_submissions_by_grant_recipient_collection(grant_recipient, collection.id)
                 ]
-                helper = next(h for h in helpers if h.submission_name == raw_answer)
+                helper = next(h for h in helpers if slugify(h.submission_name) == slugify(raw_answer))
                 helper.toggle_form_completed(question.form, user, is_complete=True)
 
     if commit:

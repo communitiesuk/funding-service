@@ -416,6 +416,43 @@ class TestCreateMultiSubmissions:
         assert helper.cached_get_all_questions_are_answered_for_form(question.form).all_answered is True
         assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
 
+    def test_matches_submission_names_containing_non_breaking_spaces(
+        self, db_session, factories, collection_with_submission_name, system_user, capsys
+    ):
+        collection = collection_with_submission_name
+        question = collection.submission_name_question
+        question.data_source.items = [
+            *question.data_source.items,
+            factories.data_source_item.create(data_source=question.data_source, key="delta-echo", label="Delta Echo"),
+        ]
+        db_session.flush()
+        org = factories.organisation.create(external_id="E06000001")
+        factories.grant_recipient.create(
+            mode=GrantRecipientModeEnum.LIVE,
+            grant=collection.grant,
+            organisation=org,
+        )
+
+        csv_file = _make_csv([("E06000001", "Delta\u00a0Echo")])
+
+        _create_multi_submissions(
+            collection_id=collection.id,
+            mode=GrantRecipientModeEnum.LIVE,
+            file=csv_file,
+            service_user_email_address=system_user.email,
+            commit=True,
+        )
+
+        output = capsys.readouterr().out
+
+        submission = (
+            db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().one()
+        )
+        helper = SubmissionHelper(submission)
+        assert helper.submission_name == "Delta Echo"
+        assert helper.get_status_for_form(question.form) == TasklistSectionStatusEnum.COMPLETED
+        assert "Created 1 submissions" in output
+
 
 def _extract_stdout_json(captured_out: str) -> dict:
     start = captured_out.index("{")
