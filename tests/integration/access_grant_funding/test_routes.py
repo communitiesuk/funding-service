@@ -2191,7 +2191,7 @@ class TestEligibleToApplyPage:
 
     @pytest.mark.authenticate_as("test@example-org.com")
     @patch("app.access_grant_funding.helpers.emit_metric_count")
-    def test_get_as_deliver_user_testing_access_does_not_emit_metrics(
+    def test_get_as_deliver_user_testing_access_emits_metrics_tagged_as_test_mode(
         self, mock_count, authenticated_platform_admin_client, factories
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
@@ -2210,7 +2210,26 @@ class TestEligibleToApplyPage:
         )
 
         assert response.status_code == 200
-        mock_count.assert_not_called()
+        expected_attributes = {MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.TEST)}
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_ELIGIBLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_BY_EMAIL_DOMAIN_AVAILABLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        mock_count.assert_any_call(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_EXISTING_ORGANISATION_AVAILABLE,
+            grant_recipient=None,
+            collection=collection,
+            custom_attributes=expected_attributes,
+        )
+        assert mock_count.call_count == 3
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_get_excludes_role_matched_managed_organisation(self, authenticated_no_role_client, factories, db_session):
@@ -2379,23 +2398,25 @@ class TestEligibleToApplyPage:
         )
 
     @pytest.mark.parametrize(
-        "has_existing_grant_recipient, has_role",
+        "has_existing_grant_recipient, has_role, expected_event",
         (
-            (False, False),
-            (True, False),
-            (True, True),
+            (False, False, MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED),
+            (True, False, MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING),
+            (True, True, MetricEventName.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS),
         ),
     )
     @pytest.mark.authenticate_as("test@example-org.com")
     @patch("app.access_grant_funding.helpers.emit_metric_count")
-    def test_post_as_deliver_user_testing_access_does_not_emit_matched_organisation_metrics(
+    def test_post_as_deliver_user_testing_access_emits_matched_organisation_metric_tagged_as_test_mode(
         self,
         mock_count,
         authenticated_platform_admin_client,
         factories,
+        db_session,
         mock_notification_service_calls,
         has_existing_grant_recipient,
         has_role,
+        expected_event,
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(
@@ -2420,7 +2441,17 @@ class TestEligibleToApplyPage:
         )
 
         assert response.status_code == 302
-        mock_count.assert_not_called()
+        grant_recipient = db_session.scalars(
+            select(GrantRecipient).where(
+                GrantRecipient.grant_id == grant.id, GrantRecipient.organisation_id == organisation.id
+            )
+        ).one()
+        mock_count.assert_any_call(
+            expected_event,
+            grant_recipient=grant_recipient,
+            collection=collection,
+            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(SubmissionModeEnum.TEST)},
+        )
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_post_rejects_organisation_not_in_matched_list(

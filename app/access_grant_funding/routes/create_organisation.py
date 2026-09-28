@@ -38,7 +38,7 @@ from app.common.data.interfaces.organisations import (
     organisation_companies_house_number_exists,
     organisation_name_exists,
 )
-from app.common.data.types import OrganisationModeEnum, OrganisationType, SubmissionModeEnum
+from app.common.data.types import OrganisationModeEnum, OrganisationType
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.pagination import Pagination
 from app.extensions import auto_commit_after_request, companies_house_service
@@ -83,12 +83,9 @@ def create_organisation_local_authority(
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     modes = get_sign_up_modes(interfaces.user.get_current_user())
-    if modes.submission == SubmissionModeEnum.LIVE:
-        emit_public_sign_up_metric_once(
-            MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN,
-            collection=collection,
-            custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
-        )
+    emit_public_sign_up_metric_once(
+        MetricEventName.PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN, modes, collection=collection
+    )
 
     return render_template(
         "access_grant_funding/create_organisation/local_authority.html",
@@ -400,17 +397,16 @@ def create_organisation_check_your_answers(
             organisation_created=True,
         )
 
-        if modes.submission == SubmissionModeEnum.LIVE:
-            emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_ORGANISATION_CREATED,
-                collection=collection,
-                grant_recipient=grant_recipient,
-                custom_attributes={
-                    MetricAttributeName.ORGANISATION_TYPE: str(org_session.organisation_type),
-                    MetricAttributeName.SUBMISSION_MODE: str(modes.submission),
-                    MetricAttributeName.ORGANISATION_IDENTIFIED_BY: org_session.identified_by,
-                },
-            )
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_ORGANISATION_CREATED,
+            modes,
+            collection=collection,
+            grant_recipient=grant_recipient,
+            custom_attributes={
+                MetricAttributeName.ORGANISATION_TYPE: str(org_session.organisation_type),
+                MetricAttributeName.ORGANISATION_IDENTIFIED_BY: org_session.identified_by,
+            },
+        )
 
         return complete_public_sign_up_session_and_redirect(
             user=user, collection=collection, grant_recipient=grant_recipient, mode=modes.submission

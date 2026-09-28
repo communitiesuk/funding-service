@@ -25,8 +25,15 @@ from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
 from app.types import FlashMessageType
 
 
+class SignUpModes(NamedTuple):
+    organisation: OrganisationModeEnum
+    grant_recipient: GrantRecipientModeEnum
+    submission: SubmissionModeEnum
+
+
 def emit_public_sign_up_metric_once(
     event: MetricEventName,
+    modes: SignUpModes,
     *,
     grant_recipient: GrantRecipient | None = None,
     collection: Collection | None = None,
@@ -35,24 +42,21 @@ def emit_public_sign_up_metric_once(
     """
     Emit each public sign up metric at most once per journey (tracked in the session), so a user refreshing a page
     partway through doesn't inflate the count.
+
+    We emit public sign up metrics regardless of mode but ensure the submission mode is passed as a custom attribute so
+    LIVE and TEST activity can be filtered downstream (Sentry/CloudWatch).
     """
     already_emitted = session.get(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, [])
     if event in already_emitted:
         return
 
+    custom_attributes = {**(custom_attributes or {}), MetricAttributeName.SUBMISSION_MODE: str(modes.submission)}
     emit_metric_count(
-        event,
-        grant_recipient=grant_recipient,
-        collection=collection,
-        custom_attributes=custom_attributes,
+        event, grant_recipient=grant_recipient, collection=collection, custom_attributes=custom_attributes
     )
-    session[SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS] = [*already_emitted, str(event)]
 
-
-class SignUpModes(NamedTuple):
-    organisation: OrganisationModeEnum
-    grant_recipient: GrantRecipientModeEnum
-    submission: SubmissionModeEnum
+    already_emitted.append(str(event))
+    session[SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS] = already_emitted
 
 
 def get_sign_up_modes(user: User) -> SignUpModes:
@@ -142,22 +146,20 @@ def sign_up_with_matched_organisation(
             mode=modes.grant_recipient,
             organisation_created=False,
         )
-        if modes.submission == SubmissionModeEnum.LIVE:
-            emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED,
-                collection=collection,
-                grant_recipient=grant_recipient,
-                custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
-            )
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED,
+            modes,
+            collection=collection,
+            grant_recipient=grant_recipient,
+        )
     # A grant recipient exists, and user does not have access to it
     elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
-        if modes.submission == SubmissionModeEnum.LIVE:
-            emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING,
-                collection=collection,
-                grant_recipient=grant_recipient,
-                custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
-            )
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_ALREADY_APPLYING,
+            modes,
+            collection=collection,
+            grant_recipient=grant_recipient,
+        )
         return redirect(
             url_for(
                 "access_grant_funding.already_applying",
@@ -168,13 +170,12 @@ def sign_up_with_matched_organisation(
         )
     # A grant recipient exists, and user already has access to it
     else:
-        if modes.submission == SubmissionModeEnum.LIVE:
-            emit_public_sign_up_metric_once(
-                MetricEventName.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
-                collection=collection,
-                grant_recipient=grant_recipient,
-                custom_attributes={MetricAttributeName.SUBMISSION_MODE: str(modes.submission)},
-            )
+        emit_public_sign_up_metric_once(
+            MetricEventName.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
+            modes,
+            collection=collection,
+            grant_recipient=grant_recipient,
+        )
         flash(
             {"grant_name": grant.name},  # ty: ignore[invalid-argument-type]
             FlashMessageType.PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS,
