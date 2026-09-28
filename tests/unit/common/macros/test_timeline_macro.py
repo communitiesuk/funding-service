@@ -30,7 +30,7 @@ class TestTimelineTemplates:
         (SubmissionEventType.FORM_RUNNER_FORM_COMPLETED, "section completed", RECIPIENT_ORG),
         (SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER, "section reset by certifier", RECIPIENT_ORG),
         (SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS, 'section reset to "In Progress"', RECIPIENT_ORG),
-        (SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, "signed off and submitted by certifier", RECIPIENT_ORG),
+        (SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER, "signed off and submitted to MHCLG", RECIPIENT_ORG),
         (SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER, "declined by certifier", RECIPIENT_ORG),
         (SubmissionEventType.SUBMISSION_REOPENED, "reopened for changes", GRANT_ORG),
         (SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION, "completed and sent for certification", RECIPIENT_ORG),

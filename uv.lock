@@ -6,6 +6,9 @@ requires-python = "==3.14.6"
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
+[options.exclude-newer-package]
+flask-admin = false
+
 [[package]]
 name = "alembic"
 version = "1.19.1"
@@ -473,7 +476,7 @@ async = [
 
 [[package]]
 name = "flask-admin"
-version = "2.2.0"
+version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask" },
@@ -482,9 +485,9 @@ dependencies = [
     { name = "werkzeug" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/61/08/63770603ea3184782d6996455dcf9520893db58e9bd9f3e346b52d91fcea/flask_admin-2.2.0.tar.gz", hash = "sha256:4a5b844789c10076da89320563600a7addf781e73ab315ae800521b3ec018509", size = 5145370, upload-time = "2026-05-07T09:18:01.969Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/86/92b2f706fa49a06a546381e809d84a082f70fe782f6f2d50a72e185422ae/flask_admin-2.2.1.tar.gz", hash = "sha256:08b4b6b63d2100598add70c1dc9a695f484e3c16c894c09ac70af26acb26a87d", size = 5155446, upload-time = "2026-09-21T06:11:08.902Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/80/e68f7b341303acd34eea4ec15428355b30300aecd90cc4f91cb9722a280b/flask_admin-2.2.0-py3-none-any.whl", hash = "sha256:a8cb0f484eefb60b1ed345105ebb7199664ff910c52f02081b7881c390f643d3", size = 6056010, upload-time = "2026-05-07T09:17:59.331Z" },
+    { url = "https://files.pythonhosted.org/packages/af/a6/7adc0885b5178d13b7b7ee72b8999a808163f382f156dc864b9e2fd1dec5/flask_admin-2.2.1-py3-none-any.whl", hash = "sha256:a0533fd1968543fc621733316bb9c30774b501c119816f1e83d7dcedacb99895", size = 6067393, upload-time = "2026-09-21T06:11:06.542Z" },
 ]
 
 [[package]]
@@ -705,7 +708,7 @@ requires-dist = [
     { name = "charset-normalizer", specifier = "==3.5.1" },
     { name = "faker", specifier = "==40.38.0" },
     { name = "flask", specifier = "==3.1.3" },
-    { name = "flask-admin", specifier = "==2.2.0" },
+    { name = "flask-admin", specifier = "==2.2.1" },
     { name = "flask-babel", specifier = "==4.0.0" },
     { name = "flask-login", specifier = "==0.6.3" },
     { name = "flask-migrate", specifier = "==4.1.0" },

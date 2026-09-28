@@ -85,13 +85,13 @@ def sign_up_as_grant_recipient(
         status=GrantRecipientStatusEnum.APPLYING,
         mode=mode,
     )
-    # TODO: in test mode for consistency we could set up each of the
-    #       grant team members as users
-    # TODO: in test mode if the collection requires certification we
-    #       should also give certifier permissions
+    permissions = [RoleEnum.DATA_PROVIDER]
+    if mode == GrantRecipientModeEnum.TEST and collection.requires_certification:
+        permissions.append(RoleEnum.CERTIFIER)
+
     interfaces.user.add_permissions_to_user(
         user=user,
-        permissions=[RoleEnum.DATA_PROVIDER],
+        permissions=permissions,
         organisation=organisation,
         grant=grant,
         by_user=user,

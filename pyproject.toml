@@ -34,7 +34,7 @@ dependencies = [
     "mistune==3.3.4",
     "faker==40.38.0",
     "xgovuk-flask-admin==0.1.9",
-    "flask-admin==2.2.0",
+    "flask-admin==2.2.1",
     "playwright==1.62.0",
     "boto3==1.43.63",
     "types-boto3[s3]==1.43.63",
@@ -77,6 +77,10 @@ dev = [
 required-version = ">=0.11.11"
 add-bounds = "exact"
 exclude-newer = "7 days"  # In line with our renovate spec minimumReleaseAge
+
+# PR 2063
+# Remove exclude-newer-package any time after 29/09/2026
+exclude-newer-package = {flask-admin = false}
 
 [tool.ty.terminal]
 error-on-warning = true

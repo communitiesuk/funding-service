@@ -9,6 +9,7 @@ from werkzeug.datastructures import FileStorage, MultiDict
 from wtforms import ValidationError
 
 from app.common.data.types import (
+    CollectionType,
     DataSourceType,
     MaximumFileSize,
     NumberTypeEnum,
@@ -24,6 +25,7 @@ from app.deliver_grant_funding.forms import (
     GrantAddUserForm,
     GrantGGISForm,
     GrantNameForm,
+    PublicSignUpSettingsForm,
     QuestionForm,
     UploadDataSetForm,
     _validate_no_blank_lines,
@@ -55,10 +57,33 @@ class TestValidators:
             _validate_no_blank_lines(mock.Mock(), mock.Mock(data="    "))
 
     def test_validate_no_duplicates(self):
-        _validate_no_duplicates(mock.Mock(), mock.Mock(data="a\nb\nc"))
+        _validate_no_duplicates(mock.Mock(normalised_data_source_items=["a", "b", "c"]), mock.Mock(data="a\nb\nc"))
+        _validate_no_duplicates(mock.Mock(normalised_data_source_items=None), mock.Mock(data="a\nb\nc"))
 
         with pytest.raises(ValidationError):
-            _validate_no_duplicates(mock.Mock(), mock.Mock(data="a\na\na"))
+            _validate_no_duplicates(mock.Mock(normalised_data_source_items=["a", "a", "a"]), mock.Mock(data="a\na\na"))
+        with pytest.raises(ValidationError):
+            _validate_no_duplicates(mock.Mock(normalised_data_source_items=None), mock.Mock(data="a\na\na"))
+
+    def test_validate_no_duplicates_matches_data_source_keys(self):
+        with pytest.raises(ValidationError):
+            _validate_no_duplicates(
+                mock.Mock(normalised_data_source_items=["Yes", "Yes."]), mock.Mock(data="Yes\nYes.")
+            )
+        with pytest.raises(ValidationError):
+            _validate_no_duplicates(mock.Mock(normalised_data_source_items=None), mock.Mock(data="Yes\nYes."))
+
+    def test_validate_no_duplicates_uses_normalised_items(self):
+        _validate_no_duplicates(
+            mock.Mock(normalised_data_source_items=None),
+            mock.Mock(data="Yes\nNo\nOther"),
+        )
+        # The validator checks `normalised_data_source_items` (which folds in the separate 'Other' option)
+        with pytest.raises(ValidationError):
+            _validate_no_duplicates(
+                mock.Mock(normalised_data_source_items=["Yes", "No", "Other", "Other"]),
+                mock.Mock(data="Yes\nNo\nOther"),
+            )
 
 
 def test_grant_name_form_passes_when_name_does_not_exist():
@@ -209,6 +234,44 @@ class TestQuestionForm:
         assert form.errors == {
             "data_source_items": [f"You have entered too many options. The maximum is {max_data_source_items}"]
         }
+
+    def test_data_source_items_slugified_duplicates_rejected(self, app):
+        # "Yes" and "Yes." both slugify to "yes", which the data source treats as a duplicate
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "Yes\nYes."),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {"data_source_items": ["Remove duplicate options from the list"]}
+
+    def test_data_source_items_other_option_duplicate_rejected(self, app):
+        form = QuestionForm(question_type=QuestionDataType.RADIOS)
+
+        # `noramlised_data_source_items` includes both the list options and separate 'Other' configuration
+        formdata = MultiDict(
+            [
+                ("text", "question"),
+                ("hint", ""),
+                ("name", "name"),
+                ("data_source_items", "Yes\nNo\nOther"),
+                ("separate_option_if_no_items_match", "y"),
+                ("none_of_the_above_item_text", "Other"),
+            ]
+        )
+
+        form.process(formdata)
+
+        assert form.validate() is False
+        assert form.errors == {"data_source_items": ["Remove duplicate options from the list"]}
 
     def test_prefixes_and_suffixes_blank_coerced_to_none(self, app):
         form = QuestionForm(question_type=QuestionDataType.NUMBER)
@@ -459,6 +522,29 @@ class TestUploadDataSetForm:
 
         assert form.validate() is False
         assert "A data set with this name already exists for this monitoring report" in form.name.errors[0]
+
+    def test_blocked_when_collection_allows_public_sign_up(self, factories):
+        csv_content = "Organisation ID,Grant recipient,Amount\nE123,Lothlorien,1000\nE456,Rivendell,2000"
+        file = FileStorage(
+            stream=io.BytesIO(csv_content.encode("utf-8")),
+            filename="test.csv",
+            content_type="text/csv",
+        )
+        data = MultiDict(
+            [
+                ("name", "Test Data Set"),
+                ("data_source_type", DataSourceType.GRANT_RECIPIENT),
+                ("file", file),
+            ]
+        )
+        form = UploadDataSetForm(
+            existing_data_source_names=[],
+            collection=factories.collection.build(allow_public_sign_up=True),
+        )
+        form.process(data)
+
+        assert form.validate() is False
+        assert "You cannot add a data set to a form that has public sign up switched on" in form.file.errors[0]
 
     @pytest.mark.parametrize("is_existing", (True, False))
     def test_missing_file_raises_error(self, factories, is_existing):
@@ -862,6 +948,30 @@ class TestUploadDataSetForm:
             f"The CSV file must contain the columns: {DATA_SET_EXTERNAL_ID_COLUMN_HEADER}, "
             f"{DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER}"
         ) in form.file.errors[0]
+
+
+class TestPublicSignUpSettingsForm:
+    def test_blocked_when_collection_has_data_set(self):
+        form = PublicSignUpSettingsForm(
+            data={"allow_public_sign_up": "True"},
+            collection_type=CollectionType.APPLICATION,
+            has_data_source=True,
+        )
+
+        assert form.validate() is False
+        assert (
+            "You cannot allow public sign up because this form already has a data set"
+            in form.allow_public_sign_up.errors[0]
+        )
+
+    def test_allowed_when_collection_has_no_data_set(self):
+        form = PublicSignUpSettingsForm(
+            data={"allow_public_sign_up": "True"},
+            collection_type=CollectionType.APPLICATION,
+            has_data_source=False,
+        )
+
+        assert form.validate() is True
 
 
 class TestApproveOrRejectSubmissionForm:

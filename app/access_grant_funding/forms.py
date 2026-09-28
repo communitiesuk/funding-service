@@ -2,13 +2,14 @@ from typing import Any
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
-from wtforms import RadioField, StringField, SubmitField
-from wtforms.validators import DataRequired, Email
+from wtforms import HiddenField, RadioField, StringField, SubmitField
+from wtforms.validators import DataRequired, Email, ValidationError
 
 from app.access_grant_funding.session_models import SignUpOrganisationType
 from app.common.data.models import Organisation
 from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.filters import strip_string_if_not_empty
+from app.extensions import companies_house_service
 
 
 class DeclineSignOffForm(FlaskForm):
@@ -120,6 +121,45 @@ class CreateOrganisationNameForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CompaniesHouseSearchForm(FlaskForm):
+    q = StringField(
+        "Search Companies House register",
+        description="Search by company name or number",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter a company name or number")],
+        widget=GovTextInput(),
+    )
+
+    def validate_q(self, field: StringField) -> None:
+        assert field.data is not None
+        min_length = companies_house_service.min_query_length
+        max_length = companies_house_service.max_query_length
+        if len(field.data) < min_length:
+            raise ValidationError(f"Company name or number must be {min_length} characters or more")
+        if len(field.data) > max_length:
+            raise ValidationError(f"Company name or number must be {max_length} characters or fewer")
+
+
+class CompaniesHouseSelectForm(FlaskForm):
+    # not rendered as an input: each result row's Select button submits its company number as this field's value
+    company_number = StringField(validators=[DataRequired()])
+
+
+class CompaniesHouseUnavailableForm(FlaskForm):
+    add_manually = RadioField(
+        "Do you want to add your organisation manually?",
+        choices=[(True, "Yes"), (False, "No, I'll try again later")],
+        validators=[DataRequired("Select yes if you want to add your organisation manually")],
+        widget=GovRadioInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CompaniesHouseSwitchToManualForm(FlaskForm):
+    mode = HiddenField("", validators=[DataRequired()])
+    submit = SubmitField("add your organisation manually")
 
 
 class CreateOrganisationAllowTeamMembersForm(FlaskForm):

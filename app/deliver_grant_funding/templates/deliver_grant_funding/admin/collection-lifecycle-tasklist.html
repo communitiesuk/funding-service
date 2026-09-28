@@ -106,6 +106,17 @@
           "href": url_for('collection_lifecycle.add_individual_data_providers' if collection.is_open else 'collection_lifecycle.add_bulk_data_providers', grant_id=grant.id, collection_id=collection.id),
         })
       %}
+      {% if collection.allow_public_sign_up %}
+        {% set can_set_up_local_authority_applicant = grant.status == enum.grant_status.LIVE and collection.is_open %}
+        {%
+          do rows.append({
+            "title": {"text": "Set up local authority applicant", "classes": "govuk-link--no-visited-state"},
+            "hint": {"text": "The grant must be live and the " ~ collection.type.constants.singular ~ " open for submissions"} if not can_set_up_local_authority_applicant else {},
+            "status": {"tag": {"text": "Optional", "classes": "govuk-tag--blue"}} if can_set_up_local_authority_applicant else {"text": "Cannot start yet", "classes": "govuk-task-list__status--cannot-start-yet"},
+            "href": url_for('collection_lifecycle.set_up_local_authority_applicant', grant_id=grant.id, collection_id=collection.id) if can_set_up_local_authority_applicant else "",
+          })
+        %}
+      {% endif %}
       {%
         do rows.append({
           "title": {"text": "Override certifiers for this grant", "classes": "govuk-link--no-visited-state"},

@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import email_validator
-from flask import current_app, flash
+from flask import current_app, flash, url_for
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxesInput,
@@ -25,7 +25,6 @@ from xgovuk_flask_admin import GovSelectWithSearch
 from app.common.data.types import (
     MONITORING_COLLECTIONS,
     PRE_AWARD_COLLECTIONS,
-    CollectionType,
     GrantRecipientStatusEnum,
     OrganisationData,
     OrganisationType,
@@ -249,7 +248,7 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
         self,
         organisations: Sequence[Organisation],
         existing_grant_recipients: Sequence[GrantRecipient],
-        collection_type: CollectionType,
+        collection: Collection,
     ) -> None:
         super().__init__()
         existing_grant_recipient_org_ids = {gr.organisation.id for gr in existing_grant_recipients}
@@ -262,13 +261,23 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
             item: dict = {}
             if s == GrantRecipientStatusEnum.APPLYING:
                 item["disabled"] = True
-                item["hint"] = {"text": "More work is needed in Deliver to support applying recipients"}
+                set_up_applicant_url = url_for(
+                    "collection_lifecycle.set_up_local_authority_applicant",
+                    grant_id=collection.grant_id,
+                    collection_id=collection.id,
+                )
+                item["hint"] = {
+                    "html": Markup(
+                        "To manually set up an applicant who has not been allocated, "
+                        f'<a class="govuk-link" href="{set_up_applicant_url}">set up a local authority applicant</a>'
+                    )
+                }
             elif s == GrantRecipientStatusEnum.AWARDED:
-                if collection_type in PRE_AWARD_COLLECTIONS:
+                if collection.type in PRE_AWARD_COLLECTIONS:
                     item["disabled"] = True
                     item["hint"] = {"text": "Only available for monitoring report collections"}
             elif s == GrantRecipientStatusEnum.ALLOCATED:
-                if collection_type in MONITORING_COLLECTIONS:
+                if collection.type in MONITORING_COLLECTIONS:
                     item["disabled"] = True
                     item["hint"] = {"text": "Only available for pre-award collections"}
             else:
@@ -387,6 +396,37 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
         self.send_notification_email.description = (
             "Send an email to notify the data provider that the "
             f"{collection.type.constants.singular} is open for submissions."
+        )
+
+
+class PlatformAdminSetUpLocalAuthorityApplicantForm(FlaskForm):
+    organisation = SelectField(
+        "Local authority",
+        choices=[],
+        validators=[DataRequired("Select a local authority")],
+        widget=GovSelectWithSearch(),
+    )
+    full_name = StringField(
+        "Full name",
+        validators=[DataRequired("Enter the applicant's full name")],
+        widget=GovTextInput(),
+    )
+    email_address = StringField(
+        "Email address",
+        validators=[DataRequired("Enter the applicant's email address"), Email()],
+        widget=GovTextInput(),
+    )
+    send_notification_email = BooleanField(
+        "Send 'Application created on Access grant funding' email",
+        widget=GovCheckboxInput(),
+    )
+    submit = SubmitField("Set up applicant", widget=GovSubmitInput())
+
+    def __init__(self, local_authorities: Sequence[Organisation], *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.organisation.choices = [("", "")] + [(str(org.id), org.name) for org in local_authorities]
+        self.send_notification_email.description = (
+            "Send the email applicants receive when they sign up, confirming the application has been created."
         )
 
 

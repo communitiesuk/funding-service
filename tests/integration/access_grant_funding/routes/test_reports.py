@@ -17,6 +17,7 @@ from app.common.data.types import (
     CollectionType,
     DataSourceType,
     ExpressionType,
+    GrantRecipientStatusEnum,
     ManagedExpressionsEnum,
     QuestionDataType,
     RoleEnum,
@@ -526,6 +527,92 @@ class TestCollectionUnavailable:
         )
 
 
+class TestAllQuestions:
+    @pytest.mark.parametrize(
+        "client_fixture, can_access",
+        (
+            ("authenticated_no_role_client", False),
+            ("authenticated_grant_recipient_member_client", True),
+            ("authenticated_grant_recipient_data_provider_client", True),
+        ),
+    )
+    @patch("app.access_grant_funding.routes.collections.emit_metric_count")
+    def test_get_all_questions(
+        self, mock_count, request: FixtureRequest, client_fixture: str, can_access: bool, factories
+    ) -> None:
+        client = request.getfixturevalue(client_fixture)
+        grant_recipient = getattr(client, "grant_recipient", None) or factories.grant_recipient.create()
+        question = factories.question.create(
+            form__title="Colour information",
+            form__collection__grant=grant_recipient.grant,
+            text="What is your favourite colour?",
+        )
+        collection = question.form.collection
+        submission = factories.submission.create(
+            collection=collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+
+        response = client.get(
+            url_for(
+                "access_grant_funding.all_questions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=collection.type,
+                submission_id=submission.id,
+            )
+        )
+
+        if not can_access:
+            assert response.status_code == 403
+            return
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_h1_text(soup) == "All questions"
+        assert collection.name in soup.text
+        assert "What is your favourite colour?" in soup.text
+        assert page_has_link(soup, "Download as PDF")["href"] == url_for(
+            "access_grant_funding.all_questions_pdf",
+            organisation_id=grant_recipient.organisation.id,
+            grant_id=grant_recipient.grant.id,
+            collection_type=collection.type,
+            submission_id=submission.id,
+        )
+        mock_count.assert_called_once_with(MetricEventName.ACCESS_ALL_QUESTIONS_PAGE_ACCESSED, submission=submission)
+
+    @patch("app.access_grant_funding.routes.collections.emit_metric_count")
+    def test_all_questions_pdf(self, mock_count, authenticated_grant_recipient_member_client, factories, mocker):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        question = factories.question.create(
+            form__collection__grant=grant_recipient.grant, text="What is your favourite colour?"
+        )
+        submission = factories.submission.create(
+            collection=question.form.collection, grant_recipient=grant_recipient, mode=SubmissionModeEnum.LIVE
+        )
+        render_pdf = mocker.patch(
+            "app.access_grant_funding.routes.collections.render_pdf", return_value=b"%PDF-1.4 fake"
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.all_questions_pdf",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission.collection.type,
+                submission_id=submission.id,
+            )
+        )
+
+        mock_count.assert_called_once_with(MetricEventName.ACCESS_ALL_QUESTIONS_PDF_DOWNLOADED, submission=submission)
+
+        assert response.status_code == 200
+        assert response.mimetype == "application/pdf"
+        assert "all_questions" in response.headers["Content-Disposition"]
+        printed_html = render_pdf.call_args.args[0]
+        assert "MHCLG Access grant funding" in printed_html
+        assert "What is your favourite colour?" in printed_html
+
+
 class TextExportReportPDF:
     # the first method under test will spin up chromium which will always be marked as as a slow test
     @pytest.mark.fail_slow("1000ms", enabled=False)
@@ -585,6 +672,10 @@ class TextExportReportPDF:
                 "submission_data": previous_data,
                 "section_ids": [],
             },
+        )
+        factories.submission_event.create(
+            submission=submission,
+            event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
         )
         submission.data_manager.set(question, TextSingleLineAnswer("updated answer"))
         submission.status = SubmissionStatusEnum.SUBMITTED
@@ -854,6 +945,27 @@ class TestListForms:
 
 
 class TestListCollectionSubmissions:
+    def test_404_for_applying_grant_recipient(self, authenticated_grant_recipient_member_client, factories):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        grant_recipient.status = GrantRecipientStatusEnum.APPLYING
+        collection = factories.collection.create(
+            grant=grant_recipient.grant,
+            type=CollectionType.MONITORING_REPORT,
+            allow_multiple_submissions=True,
+            status=CollectionStatusEnum.OPEN,
+        )
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.list_collection_submissions",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
+
     def test_lists_submissions_for_collection(self, authenticated_grant_recipient_member_client, factories):
         grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
         question = factories.question.create(

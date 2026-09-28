@@ -422,7 +422,8 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         form = GenericSubmitForm()
         if form.validate_on_submit():
             session[SESSION_CREATE_ORGANISATION] = CreateOrganisationSession.start(
-                collection_id=collection.id, user=user
+                collection_id=collection.id,
+                user=user,
             ).to_session_dict()
             return redirect(
                 url_for(
@@ -450,7 +451,8 @@ def eligible_to_apply(grant_slug: str, collection_slug: str) -> ResponseReturnVa
         # If user selected to set up a new organisation
         if selected == form.SIGN_UP_NEW_ORGANISATION_VALUE:
             session[SESSION_CREATE_ORGANISATION] = CreateOrganisationSession.start(
-                collection_id=collection.id, user=user
+                collection_id=collection.id,
+                user=user,
             ).to_session_dict()
             return redirect(
                 url_for(

@@ -147,7 +147,7 @@
             },
             {
               "key": { "text": "Submitted by" },
-              "value": { "text": helper.submitted_by.name ~ " on " ~ format_date(helper.submission.created_at_utc) },
+              "value": { "text": helper.submitted_by.name ~ " on " ~ format_date(helper.submitted_at_utc) },
             } if helper.is_submitted else None,
           ]
         })

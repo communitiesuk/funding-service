@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from uuid import UUID
 
 from flask import current_app
@@ -26,6 +26,8 @@ def get_organisations(
     with_ids: list[UUID] | None = None,
     with_external_ids: list[str] | None = None,
     domain: str | None = None,
+    types: Collection[OrganisationType] | None = None,
+    status: OrganisationStatus | None = None,
 ) -> Sequence[Organisation]:
     if with_ids is not None and with_external_ids is not None:
         raise ValueError("Cannot specify both with_ids and with_external_ids")
@@ -44,6 +46,12 @@ def get_organisations(
     if domain is not None:
         statement = statement.where(Organisation.domains.contains([domain]))
 
+    if types is not None:
+        statement = statement.where(Organisation.type.in_(types))
+
+    if status is not None:
+        statement = statement.where(Organisation.status == status)
+
     statement = statement.order_by(Organisation.name)
 
     return db.session.scalars(statement).all()
@@ -53,7 +61,7 @@ def get_matched_organisations(
     user: User, email_domain: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> MatchedOrganisations:
     role_matched_orgs = user.get_organisations(mode=mode)
-    domain_matched_orgs = list(get_organisations(domain=email_domain, mode=mode))
+    domain_matched_orgs = list(get_organisations(can_manage_grants=False, domain=email_domain, mode=mode))
 
     return MatchedOrganisations(role_matched_orgs=role_matched_orgs, domain_matched_orgs=domain_matched_orgs)
 
@@ -72,6 +80,15 @@ def organisation_name_exists(name: str, mode: OrganisationModeEnum = Organisatio
         name = Organisation.make_test_name(name)
 
     statement = select(Organisation).where(Organisation.name == name, Organisation.mode == mode)
+    return db.session.scalar(statement) is not None
+
+
+def organisation_companies_house_number_exists(
+    companies_house_number: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+) -> bool:
+    statement = select(Organisation).where(
+        Organisation.companies_house_number == companies_house_number, Organisation.mode == mode
+    )
     return db.session.scalar(statement) is not None
 
 

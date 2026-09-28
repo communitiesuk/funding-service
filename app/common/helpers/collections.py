@@ -54,6 +54,7 @@ from app.common.data.types import (
     COMPLETE_TASKLIST_SECTION_STATUSES,
     IN_PROGRESS_TASKLIST_SECTION_STATUSES,
     CollectionStatusEnum,
+    CollectionType,
     ComponentVisibilityState,
     ConditionsOperator,
     DataSourceType,
@@ -583,7 +584,10 @@ class SubmissionHelper:
 
     @property
     def submitted_by(self) -> User | None:
-        return self.events.submission_state.submitted_by
+        if self.collection.requires_certification:
+            return self.events.submission_state.sent_for_certification_by
+        else:
+            return self.events.submission_state.submitted_by
 
     @property
     def certified_by(self) -> User | None:
@@ -2111,6 +2115,9 @@ class CollectionHelper:
 
     def has_missing_referenced_data_for_organisation(self, organisation_external_id: str) -> bool:
         return _any_data_source_missing_referenced_data(self.collection.data_sources, organisation_external_id)
+
+    def is_visible_to_grant_recipient(self, grant_recipient: GrantRecipient) -> bool:
+        return not (self.collection.type == CollectionType.MONITORING_REPORT and grant_recipient.is_applicant)
 
 
 def _form_data_to_question_type(question: Question, form: DynamicQuestionForm) -> AllAnswerTypes:

@@ -8,6 +8,7 @@ from app.common.data.interfaces.organisations import (
     get_matched_organisations,
     get_organisation_count,
     get_organisations,
+    organisation_companies_house_number_exists,
     organisation_name_exists,
     upsert_organisations,
 )
@@ -158,6 +159,20 @@ class TestGetOrganisations:
         assert len(result) == 2
         assert result == [org1, org2]
 
+    def test_filters_by_types_and_status(self, factories, db_session):
+        london_borough = factories.organisation.create(name="Org 1", type=OrganisationType.LONDON_BOROUGH)
+        shire_county = factories.organisation.create(name="Org 2", type=OrganisationType.SHIRE_COUNTY)
+        factories.organisation.create(
+            name="Org 3", type=OrganisationType.SHIRE_COUNTY, status=OrganisationStatus.RETIRED
+        )
+        factories.organisation.create(name="Org 4", type=OrganisationType.COMPANY)
+
+        result = get_organisations(
+            types=[OrganisationType.LONDON_BOROUGH, OrganisationType.SHIRE_COUNTY], status=OrganisationStatus.ACTIVE
+        )
+
+        assert result == [london_borough, shire_county]
+
 
 class TestGetMatchedOrganisations:
     def test_returns_domain_matched_organisation(self, factories):
@@ -201,6 +216,18 @@ class TestGetMatchedOrganisations:
         factories.organisation.create(name="Org 1", domains=["a-different-domain.com"])
 
         result = get_matched_organisations(user, "no-matching-domain.com")
+
+        assert result.all() == []
+
+    def test_does_not_domain_match_a_managed_organisation(self, factories, db_session):
+        from tests.models import _get_grant_managing_organisation
+
+        user = factories.user.create(email="test@example-org.com")
+        managed_org = _get_grant_managing_organisation()
+        managed_org.domains = ["example-org.com"]
+        db_session.commit()
+
+        result = get_matched_organisations(user, "example-org.com")
 
         assert result.all() == []
 
@@ -254,6 +281,21 @@ class TestOrganisationNameExists:
 
         assert organisation_name_exists("Mirrored Organisation") is False
         assert organisation_name_exists("Mirrored Organisation (test)") is True
+
+
+class TestOrganisationCompaniesHouseNumberExists:
+    def test_true_for_a_registered_company(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
+
+        assert organisation_companies_house_number_exists("00000001") is True
+
+    def test_false_for_an_unknown_company(self, factories, db_session):
+        assert organisation_companies_house_number_exists("00000001") is False
+
+    def test_is_scoped_to_mode(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
+
+        assert organisation_companies_house_number_exists("00000001", mode=OrganisationModeEnum.TEST) is False
 
 
 class TestCreateOrganisation:

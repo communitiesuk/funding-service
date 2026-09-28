@@ -167,7 +167,7 @@ class CompaniesHouseService:
                 status_code = response.status_code
                 if status_code in (404, 416):
                     raise CompaniesHouseNotFoundError("not_found", status_code=status_code)
-                if not 200 <= status_code < 300:
+                if not 200 <= status_code < 300:  # including 429s (rate limit) and 5xxs (internal server error)
                     raise CompaniesHouseError("upstream", status_code=status_code)
                 return response.json(), status_code
         except requests.Timeout as exc:

@@ -1381,6 +1381,22 @@ class TestDataSourceModel:
         results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
         assert data_source in results
 
+    def test_has_missing_data_sql_false_when_applicant_added_since_upload(self, factories, db_session):
+        grant = factories.grant.create()
+        report = factories.collection.create(grant=grant)
+        factories.grant_recipient.create_batch(3, grant=grant)
+        data_source = factories.data_source.create(
+            grant=grant,
+            collection=report,
+            type=DataSourceType.GRANT_RECIPIENT,
+            create_gr_org_items=True,
+            create_gr_org_items__data=[111, 222, 333],
+        )
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+
+        results = db_session.scalars(select(DataSource).where(DataSource.has_missing_data())).all()
+        assert data_source not in results
+
     def test_has_missing_data_sql_false_for_custom_type(self, factories, db_session):
         data_source = factories.data_source.create(type=DataSourceType.CUSTOM)
 

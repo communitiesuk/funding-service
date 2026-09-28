@@ -23,6 +23,7 @@ class MetricAttributeName(StrEnum):
     COLLECTION = "collection"
     COLLECTION_ID = "collection-id"
     COLLECTION_TYPE = "collection-type"
+    COLLECTION_PUBLIC_SIGN_UP = "collection-public-sign-up"
     SUBMISSION = "submission"
     SUBMISSION_ID = "submission-id"
     SUBMISSION_MODE = "submission-mode"
@@ -39,6 +40,8 @@ class MetricAttributeName(StrEnum):
     CALCULATION_INVALID_FIELD = "calculation-invalid-field"
 
     ORGANISATION_TYPE = "organisation-type"
+
+    ORGANISATION_IDENTIFIED_BY = "organisation-identified-by"
 
 
 class MetricEventName(StrEnum):
@@ -72,6 +75,9 @@ class MetricEventName(StrEnum):
 
     SUBMISSIONS_EXPORTED = "submissions-exported"
     SUBMISSION_PDF_DOWNLOADED = "submission-pdf-downloaded"
+
+    ACCESS_ALL_QUESTIONS_PAGE_ACCESSED = "access-all-questions-page-accessed"
+    ACCESS_ALL_QUESTIONS_PDF_DOWNLOADED = "access-all-questions-pdf-downloaded"
 
     VALIDATION_CREATED_CUSTOM = "validation-created-custom"
     VALIDATION_CREATED_MANAGED = "validation-created-managed"
@@ -119,6 +125,7 @@ def _get_event_attributes(
         attributes[str(MetricAttributeName.COLLECTION)] = collection.name
         attributes[str(MetricAttributeName.COLLECTION_ID)] = str(collection.id)
         attributes[str(MetricAttributeName.COLLECTION_TYPE)] = str(collection.type)
+        attributes[str(MetricAttributeName.COLLECTION_PUBLIC_SIGN_UP)] = str(collection.allow_public_sign_up)
 
         if not grant:
             grant = collection.grant

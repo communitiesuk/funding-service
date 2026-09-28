@@ -138,6 +138,11 @@ def run_migrations_online() -> None:
         # again when there are no locks on that table, perhaps at a quieter time.
         connection.execute(text("SET lock_timeout = 1000"))
 
+        # Migrations run on the app engine, which sets statement/idle-in-transaction timeouts sized for web requests.
+        # Long-running migrations (index builds, backfills) must not be cancelled by those, so disable them here.
+        connection.execute(text("SET statement_timeout = 0"))
+        connection.execute(text("SET idle_in_transaction_session_timeout = 0"))
+
         with context.begin_transaction():
             context.run_migrations()
 

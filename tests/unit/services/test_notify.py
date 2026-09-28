@@ -638,7 +638,7 @@ class TestNotificationService:
             match=[
                 matchers.json_params_matcher(
                     {
-                        "email_address": "certifier@communities.gov.uk",
+                        "email_address": "submitter@test.com",
                         "template_id": "ad07a53a-d930-4cb3-ad57-595a1c104e61",
                         "personalisation": {
                             "is_test_data": "no",
@@ -684,7 +684,7 @@ class TestNotificationService:
             match=[
                 matchers.json_params_matcher(
                     {
-                        "email_address": "certifier@communities.gov.uk",
+                        "email_address": "submitter@test.com",
                         "template_id": "ad07a53a-d930-4cb3-ad57-595a1c104e61",
                         "personalisation": {
                             "is_test_data": "no",
@@ -753,7 +753,7 @@ class TestNotificationService:
             match=[
                 matchers.json_params_matcher(
                     {
-                        "email_address": "certifier@communities.gov.uk",
+                        "email_address": "submitter@test.com",
                         "template_id": "07c9df47-e33f-4d71-841c-673f1ca0d0a6",
                         "personalisation": {
                             "is_test_data": "no",
@@ -800,7 +800,7 @@ class TestNotificationService:
             match=[
                 matchers.json_params_matcher(
                     {
-                        "email_address": "certifier@communities.gov.uk",
+                        "email_address": "submitter@test.com",
                         "template_id": "07c9df47-e33f-4d71-841c-673f1ca0d0a6",
                         "personalisation": {
                             "is_test_data": "no",

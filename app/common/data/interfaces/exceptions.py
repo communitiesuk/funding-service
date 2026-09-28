@@ -177,3 +177,7 @@ class GrantMustBeLiveError(Exception):
 
 class GrantCannotBeUpdatedWhenLiveError(Exception):
     pass
+
+
+class EligibilitySectionCannotBeMovedError(Exception):
+    pass

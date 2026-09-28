@@ -1,0 +1,76 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+{% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
+{% from 'govuk_frontend_jinja/components/table/macro.html' import govukTable %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+        Set up local authority applicant
+      </h1>
+      <p class="govuk-body">Sign up an existing local authority as an applicant for this {{ collection.type.constants.singular }}, you can associate the new grant recipient with a user who has contacted us to be added.</p>
+      <p class="govuk-body">
+        We should always prefer that an appropriate user signs up using their official government email address for that organisation and then adds the user requesting access. In cases that this isn't possible we can use this tool.
+      </p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      {% set tableRows = [] %}
+      {% for organisation in local_authorities %}
+        {%
+          do tableRows.append([
+            {"text": organisation.name},
+            {"text": organisation.domains | join(", ") if organisation.domains else "No domains set up"}
+          ])
+        %}
+      {% endfor %}
+      {% set localAuthorityDomainsHtml %}
+        {{
+          govukTable({
+            "head": [
+              {"text": "Local authority"},
+              {"text": "Domains"}
+            ],
+            "rows": tableRows
+          })
+        }}
+      {% endset %}
+
+      {{
+        govukDetails({
+          "summaryText": "Existing local authority authorised email domains",
+          "html": localAuthorityDomainsHtml,
+        })
+      }}
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.organisation }}
+        {{ form.full_name }}
+        {{ form.email_address }}
+        {{ form.send_notification_email }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}

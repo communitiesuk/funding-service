@@ -84,5 +84,15 @@
     {% set submit_text="Continue to submit" %}
   {% endif %}
 
-  {{ collection_tasklist(runner, submit_text, before_submission=before_submission) }}
+  {%
+    set all_questions_href = url_for(
+      "access_grant_funding.all_questions",
+      organisation_id=grant_recipient.organisation.id,
+      grant_id=grant_recipient.grant.id,
+      collection_type=runner.submission.collection.type,
+      submission_id=runner.submission.id
+    )
+  %}
+
+  {{ collection_tasklist(runner, submit_text, before_submission=before_submission, all_questions_href=all_questions_href) }}
 {% endblock content %}

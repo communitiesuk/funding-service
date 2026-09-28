@@ -54,7 +54,7 @@ class OrganisationType(enum.StrEnum):
         """The Organisation column that stores this type's canonical identifier."""
         if self == OrganisationType.CENTRAL_GOVERNMENT:
             return "iati_id"
-        if self in _LOCAL_AUTHORITY_TYPES:
+        if self in LOCAL_AUTHORITY_TYPES:
             return "ons_lad_id"
         if self == OrganisationType.CHARITY:
             return "charity_commission_number"
@@ -68,7 +68,7 @@ class OrganisationType(enum.StrEnum):
         return _EXTERNAL_ID_PREFIXES.get(self)
 
 
-_LOCAL_AUTHORITY_TYPES = frozenset(
+LOCAL_AUTHORITY_TYPES = frozenset(
     [
         OrganisationType.UNITARY_AUTHORITY,
         OrganisationType.SHIRE_DISTRICT,

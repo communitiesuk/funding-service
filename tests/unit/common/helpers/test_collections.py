@@ -1031,6 +1031,41 @@ class TestSubmissionHelper:
 
             assert helper.sent_for_certification_by == user
 
+    class TestSubmittedBy:
+        def test_requires_certification_returns_user_who_sent_for_certification(self, factories):
+            data_provider = factories.user.build()
+            certifier = factories.user.build()
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.LIVE, collection__requires_certification=True
+            )
+            factories.submission_event.build(
+                submission=submission,
+                event_type=SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION,
+                created_by=data_provider,
+                created_at_utc=datetime(2025, 12, 1, 13, 30, 0),
+            )
+            factories.submission_event.build(
+                submission=submission,
+                event_type=SubmissionEventType.SUBMISSION_SUBMITTED,
+                created_by=certifier,
+                created_at_utc=datetime(2025, 12, 2, 13, 30, 0),
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.submitted_by == data_provider
+
+        def test_does_not_require_certification_returns_user_who_submitted(self, factories):
+            user = factories.user.build()
+            submission = factories.submission.build(
+                mode=SubmissionModeEnum.LIVE, collection__requires_certification=False
+            )
+            factories.submission_event.build(
+                submission=submission, event_type=SubmissionEventType.SUBMISSION_SUBMITTED, created_by=user
+            )
+            helper = SubmissionHelper(submission)
+
+            assert helper.submitted_by == user
+
     class TestCanStartForm:
         def test_can_start_when_no_references(self, factories):
             form = factories.form.build()

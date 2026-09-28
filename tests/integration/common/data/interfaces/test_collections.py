@@ -75,6 +75,7 @@ from app.common.data.interfaces.collections import (
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
+    EligibilitySectionCannotBeMovedError,
     GrantMustBeLiveError,
     GrantRecipientUsersRequiredError,
     InvalidReferenceInExpression,
@@ -1632,25 +1633,27 @@ def test_move_form_up_down(db_session, factories):
 
 
 class TestMoveFormUpDownEligibility:
-    def test_move_form_up_does_nothing_for_eligibility_form(self, factories):
+    def test_move_form_up_raises_for_eligibility_form(self, factories):
         collection = factories.collection.create()
         create_form(title="Form A", collection=collection)
         eligibility_form = create_form(
             title="Eligibility questions", collection=collection, is_eligibility_section=True
         )
 
-        move_form_up(eligibility_form)
+        with pytest.raises(EligibilitySectionCannotBeMovedError):
+            move_form_up(eligibility_form)
 
         assert eligibility_form.order == 0
 
-    def test_move_form_down_does_nothing_for_eligibility_form(self, factories):
+    def test_move_form_down_raises_for_eligibility_form(self, factories):
         collection = factories.collection.create()
         create_form(title="Form A", collection=collection)
         eligibility_form = create_form(
             title="Eligibility questions", collection=collection, is_eligibility_section=True
         )
 
-        move_form_down(eligibility_form)
+        with pytest.raises(EligibilitySectionCannotBeMovedError):
+            move_form_down(eligibility_form)
 
         assert eligibility_form.order == 0
 
@@ -1661,7 +1664,8 @@ class TestMoveFormUpDownEligibility:
             title="Eligibility questions", collection=collection, is_eligibility_section=True
         )
 
-        move_form_up(form_a)
+        with pytest.raises(EligibilitySectionCannotBeMovedError):
+            move_form_up(form_a)
 
         assert eligibility_form.order == 0
         assert form_a.order == 1
@@ -1680,6 +1684,15 @@ def test_get_group(db_session, factories):
 
 
 class TestCreateGroup:
+    def test_raises_for_eligibility_section(self, db_session, factories):
+        form = factories.form.create(is_eligibility_section=True)
+
+        with pytest.raises(ValueError, match="Cannot create a question group in the eligibility section"):
+            create_group(
+                form=form,
+                text=InterpolationStatement("Test Group"),
+            )
+
     def test_create_group(self, db_session, factories):
         form = factories.form.create()
         group = create_group(

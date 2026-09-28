@@ -390,11 +390,12 @@
   {% endif %}
 {% endmacro %}
 
-{% macro collection_tasklist(runner, submit_text=None, before_submission=None) %}
+{% macro collection_tasklist(runner, submit_text=None, before_submission=None, all_questions_href=None) %}
   {% set submission = runner.submission %}
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Sections</h2>
       {% set forms = submission.get_ordered_visible_forms() %}
       {% if not forms %}
         <p class="govuk-body">This collection has no forms.</p>
@@ -444,6 +445,10 @@
             "items": rows
           })
         }}
+      {% endif %}
+
+      {% if all_questions_href %}
+        <p class="govuk-body govuk-!-margin-bottom-6">You can <a class="govuk-link govuk-link--no-visited-state" href="{{ all_questions_href }}">view all questions</a>.</p>
       {% endif %}
     </div>
   </div>

@@ -70,6 +70,28 @@ class TestEmitMetricCount:
                 "collection": "Monthly Report",
                 "collection-id": str(collection.id),
                 "collection-type": "monitoring report",
+                "collection-public-sign-up": "False",
+                "grant": "Parent Grant",
+                "grant-id": str(collection.grant.id),
+            },
+        )
+
+    @patch("app.metrics.metrics.count")
+    def test_emission_with_public_sign_up_collection(self, mock_count, factories):
+        collection = factories.collection.build(
+            name="Monthly Report", grant__name="Parent Grant", allow_public_sign_up=True
+        )
+
+        emit_metric_count(MetricEventName.SUBMISSION_CREATED, collection=collection)
+
+        mock_count.assert_called_once_with(
+            MetricEventName.SUBMISSION_CREATED,
+            1,
+            attributes={
+                "collection": "Monthly Report",
+                "collection-id": str(collection.id),
+                "collection-type": "monitoring report",
+                "collection-public-sign-up": "True",
                 "grant": "Parent Grant",
                 "grant-id": str(collection.grant.id),
             },
@@ -115,6 +137,7 @@ class TestEmitMetricCount:
                 "collection": "Monthly Report",
                 "collection-id": str(submission.collection.id),
                 "collection-type": "monitoring report",
+                "collection-public-sign-up": "False",
                 "grant": "Test Grant",
                 "grant-id": str(submission.collection.grant.id),
                 "grant-recipient": "Test Organisation",
@@ -154,6 +177,7 @@ class TestEmitMetricCount:
                 "collection": "Monthly Report",
                 "collection-id": str(collection.id),
                 "collection-type": "monitoring report",
+                "collection-public-sign-up": "False",
                 "grant": "Explicit Grant",
                 "grant-id": str(grant.id),
             },

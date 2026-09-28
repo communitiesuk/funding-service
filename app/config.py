@@ -210,11 +210,34 @@ class _SharedConfig(_BaseConfig):
     DATABASE_PORT: int
     DATABASE_NAME: str
     DATABASE_SECRET: DatabaseSecret
+    DATABASE_STATEMENT_TIMEOUT_MS: int = 30_000  # 0 disables
+    DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS: int = 120_000  # 0 disables
+    DATABASE_APPLICATION_NAME: str = "funding-service"
 
     @property
-    def SQLALCHEMY_ENGINES(self) -> dict[str, str]:
+    def SQLALCHEMY_ENGINES(self) -> dict[str, Any]:
+        # Single source of truth for SQLAlchemy engine and DB connection configuration.
         return {
-            "default": str(self.build_database_uri()),
+            "default": {
+                "url": str(self.build_database_uri()),
+                # Do a light-weight SELECT 1 on a connection before handing it out to a request to ensure it's still
+                # valid and usable. Statement timeouts below may invalidate a connection and make it need recycling.
+                "pool_pre_ping": True,
+                # Close and replace any pooled connection older than 30 minutes, so connections don't live forever.
+                "pool_recycle": 1800,
+                "connect_args": {
+                    # Disable psycopg's automatic server-side prepared statements.
+                    "prepare_threshold": None,
+                    # Label our sessions in pg_stat_activity so they can be told apart from other clients.
+                    "application_name": self.DATABASE_APPLICATION_NAME,
+                    # Postgres-side safety nets: cancel any single statement that runs too long, and kill any session
+                    # that sits idle inside an open transaction (holding locks and blocking vacuum) for too long.
+                    "options": (
+                        f"-c statement_timeout={self.DATABASE_STATEMENT_TIMEOUT_MS} "
+                        f"-c idle_in_transaction_session_timeout={self.DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS}"
+                    ),
+                },
+            }
         }
 
     RECORD_SQLALCHEMY_QUERIES: bool = False
