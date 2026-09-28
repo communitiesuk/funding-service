@@ -13,6 +13,7 @@ from tests.e2e.access_grant_funding.pages import (
     CreateOrganisationTypePage,
     CreateOrganisationUserNamePage,
     EligibleToApplyPage,
+    OrganisationAlreadyExistsPage,
     PublicSignUpEligibilityQuestionPage,
     PublicSignUpIneligiblePage,
     PublicSignUpStartPage,
@@ -309,7 +310,9 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 ) -> None:
     """A second member of the public, sharing the same email domain as the organisation set up in the previous
     test, is matched to that organisation but finds someone is already applying on its behalf for the first
-    grant. Applying to a second grant the organisation hasn't touched yet succeeds instead."""
+    grant. Trying to create a new organisation with the same name instead is also rejected. Applying to a second
+    grant the organisation hasn't touched yet succeeds instead, and they go on to fill in and submit that
+    application."""
     assert _shared_setup_data is not None, "Setup test must run first"
     data = _shared_setup_data
 
@@ -327,6 +330,24 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 
     already_applying_page = AlreadyApplyingPage(page, domain)
     expect(already_applying_page.heading).to_be_visible()
+    already_applying_page.click_back()
+
+    # Instead of applying on behalf of the matched organisation, try to create a new one with already existing name
+    eligible_to_apply_page.select_organisation("Apply on behalf of another organisation")
+    eligible_to_apply_page.click_continue()
+
+    org_type_page = CreateOrganisationTypePage(page, domain)
+    expect(org_type_page.heading).to_be_visible()
+    org_type_page.select_other()
+    org_type_page.click_continue()
+
+    org_name_page = CreateOrganisationNamePage(page, domain)
+    expect(org_name_page.heading).to_be_visible()
+    org_name_page.fill_name(data["org_name"])
+    org_name_page.click_continue()
+
+    organisation_already_exists_page = OrganisationAlreadyExistsPage(page, domain)
+    expect(organisation_already_exists_page.heading).to_be_visible()
 
     # Still the same (already authenticated) user - applying to a second grant that the organisation hasn't
     # applied to yet should succeed, rather than hitting "already applying" again
@@ -350,6 +371,19 @@ def test_public_sign_up_second_user_same_domain_hits_already_applying(
 
     expect(page.get_by_role("heading", name="Added to organisation")).to_be_visible()
     expect(page.get_by_text(f"You've been added to {data['org_name']}. You can now apply for")).to_be_visible()
+
+    # Fill in and submit the application for the second grant
+    grant_page_2 = AccessGrantPage(page, domain)
+    grant_page_2.click_collection(COLLECTION_NAME)
+
+    tasklist_page_2 = RunnerTasklistPage(page, domain, data["grant_2_name"], COLLECTION_NAME)
+    expect(tasklist_page_2.heading).to_be_visible()
+    complete_task(tasklist_page_2, APPLICATION_SECTION_NAME, data["grant_2_name"], [application_question])
+    task_check_your_answers(tasklist_page_2, data["grant_2_name"], COLLECTION_NAME, [application_question])
+
+    confirm_submit_page_2 = tasklist_page_2.click_submit_for_direct_submission()
+    confirmation_page_2 = confirm_submit_page_2.click_confirm_and_submit()
+    expect(confirmation_page_2.heading).to_be_visible()
 
 
 def test_public_sign_up_first_user_resumes_and_submits(
