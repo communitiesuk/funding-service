@@ -104,6 +104,17 @@ class CompaniesHouseDisabledError(CompaniesHouseError):
 class CompaniesHouseService:
     """Search and profile lookup using the Companies House public data API."""
 
+    # Leaves dissolved companies out of the register search. This is the only search filter the (non-advanced)
+    # search endpoint offers, and Companies House does not document what it does beyond the "company name
+    # availability" example, so it can't be narrowed to particular statuses. Companies in liquidation,
+    # administration and other insolvency states still exist on the register and are still returned.
+    search_restrictions = "active-companies"
+
+    # Which should map to the following statuses from API docs:
+    # https://developer-specs.company-information.service.gov.uk/companies-house-public-data-api/resources/companyprofile?v=latest
+    # We record these so we can 404/400 on any direct `get_company` calls for these companies.
+    excluded_statuses = ("dissolved", "removed", "closed", "converted-closed")
+
     def init_app(self, app: Flask) -> None:
         app.extensions["companies_house_service"] = self
         self.api_url: str = app.config["COMPANIES_HOUSE_API_URL"].rstrip("/")
@@ -132,7 +143,13 @@ class CompaniesHouseService:
             page = 1
         start_index = (page - 1) * self.items_per_page
         data, status_code = self._get_json(
-            "/search/companies", {"q": query, "items_per_page": self.items_per_page, "start_index": start_index}
+            "/search/companies",
+            {
+                "q": query,
+                "items_per_page": self.items_per_page,
+                "start_index": start_index,
+                "restrictions": self.search_restrictions,
+            },
         )
         results = self._parse(
             CompanySearchResults, data, status_code=status_code, context={"max_results": self.max_search_results}
@@ -145,8 +162,13 @@ class CompaniesHouseService:
         company_number = normalize_company_number(company_number)
         data, status_code = self._get_json(f"/company/{quote(company_number, safe='')}")
         profile = self._parse(CompanyProfile, data, status_code=status_code)
+
         if profile.company_number != company_number:
             raise CompaniesHouseError("invalid_payload", status_code=status_code)
+
+        if profile.company_status in self.excluded_statuses:
+            raise CompaniesHouseNotFoundError("invalid_company_status")
+
         return profile
 
     def _get_json(self, path: str, params: dict[str, str | int] | None = None) -> tuple[Any, int]:
