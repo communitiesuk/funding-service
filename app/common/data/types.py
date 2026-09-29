@@ -703,7 +703,7 @@ class DataSourceSchemaPostgresType(TypeDecorator):
 
 class TimelineEvent(typing.TypedDict):
     date: datetime.date
-    type: Literal["opening", "closing", "hard_deadline", "reminder"]
+    type: Literal["opening", "closing", "hard_deadline", "moving_to_overdue", "reminder"]
     collection: "Collection"
     is_today: bool
     is_past: bool

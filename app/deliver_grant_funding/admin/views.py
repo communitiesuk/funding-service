@@ -150,10 +150,13 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
             end_date = collection.submission_period_end_date
             if end_date:
                 event_date = collection.date_to_send_overdue_emails
-                event_type: Literal["closing", "hard_deadline"] = "closing"
+                event_type: Literal["closing", "hard_deadline", "moving_to_overdue"] = "closing"
                 if not collection.allow_edits_after_submission_deadline:
                     event_date = end_date if collection.status == CollectionStatusEnum.OPEN else None
                     event_type = "hard_deadline"
+                elif not collection.send_overdue_emails and collection.status == CollectionStatusEnum.OPEN:
+                    event_date = end_date
+                    event_type = "moving_to_overdue"
 
                 if event_date and seven_days_ago <= event_date <= seven_days_ahead:
                     timeline_events.append(
@@ -1106,7 +1109,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                         "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_NOTIFICATION_TEMPLATE_ID"
                     ]
             case CollectionAdminEmailTypeEnum.DEADLINE_REMINDER:
-                if not collection.status == CollectionStatusEnum.OPEN:
+                if not collection.status == CollectionStatusEnum.OPEN or not collection.send_deadline_reminder_emails:
                     return abort(404)
 
                 if collection.multiple_submissions_are_managed_by_service:
@@ -1123,6 +1126,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     or not collection.is_overdue
                     or not collection.allow_edits_after_submission_deadline
                     or collection.allow_public_sign_up
+                    or not collection.send_overdue_emails
                 ):
                     return abort(404)
                 if collection.multiple_submissions_are_managed_by_service:
@@ -1159,6 +1163,15 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
     ) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
+
+        if (
+            email_type == CollectionAdminEmailTypeEnum.DEADLINE_REMINDER
+            and not collection.send_deadline_reminder_emails
+        ):
+            return abort(404)
+
+        if email_type == CollectionAdminEmailTypeEnum.COLLECTION_OVERDUE and not collection.send_overdue_emails:
+            return abort(404)
 
         assert collection.submission_period_end_date
 

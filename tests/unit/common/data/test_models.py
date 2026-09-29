@@ -736,6 +736,22 @@ class TestCollectionModel:
         with patch("app.common.helpers.dates.get_bank_holidays", return_value=frozenset({date(2026, 6, 22)})):
             assert collection.date_to_send_reminder_emails == date(2026, 6, 18)
 
+    def test_date_to_send_reminder_emails_is_none_when_disabled(self, factories):
+        collection = factories.collection.build(
+            submission_period_end_date=date(2026, 6, 24),
+            send_deadline_reminder_emails=False,
+        )
+
+        assert collection.date_to_send_reminder_emails is None
+
+    def test_date_to_send_overdue_emails_is_none_when_disabled(self, factories):
+        collection = factories.collection.build(
+            submission_period_end_date=date(2026, 6, 24),
+            send_overdue_emails=False,
+        )
+
+        assert collection.date_to_send_overdue_emails is None
+
     def test_submission_visibility_no_public_sign_up(self, factories):
         collection = factories.collection.build(allow_public_sign_up=False)
         assert collection.submission_visibility == SubmissionVisibilityEnum.ALWAYS_VISIBLE
