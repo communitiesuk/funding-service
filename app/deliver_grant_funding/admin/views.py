@@ -15,8 +15,6 @@ from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
-from app.common.audit import create_collection_status_change
-from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.collections import (
     get_collection,
     get_collections_by_status_excluding_draft_grants,
@@ -976,14 +974,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = PlatformAdminScheduleCollectionForm(collection=collection)
         if form.validate_on_submit():
             try:
-                current_user = get_current_user()
-                old_status = collection.status
-                update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
-
-                if event := create_collection_status_change(
-                    collection, current_user, old_status, collection.status
-                ):
-                    track_audit_event(event, current_user)
+                update_collection(collection, status=CollectionStatusEnum.SCHEDULED, by_user=get_current_user())
 
                 flash(
                     f"{collection.name} is now locked and form designers cannot make any more changes.",
@@ -1044,14 +1035,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         )
         if form.validate_on_submit():
             try:
-                current_user = get_current_user()
-                old_status = collection.status
-                update_collection(collection, status=CollectionStatusEnum.OPEN)
-
-                if event := create_collection_status_change(
-                    collection, current_user, old_status, collection.status
-                ):
-                    track_audit_event(event, current_user)
+                update_collection(collection, status=CollectionStatusEnum.OPEN, by_user=get_current_user())
 
                 if collection.allow_public_sign_up:
                     flash_message = (
@@ -1276,14 +1260,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = GenericSubmitForm()
         if form.validate_on_submit():
             try:
-                current_user = get_current_user()
-                old_status = collection.status
-                update_collection(collection, status=CollectionStatusEnum.CLOSED)
-
-                if event := create_collection_status_change(
-                    collection, current_user, old_status, collection.status
-                ):
-                    track_audit_event(event, current_user)
+                update_collection(collection, status=CollectionStatusEnum.CLOSED, by_user=get_current_user())
                 flash(
                     (
                         f"{markupsafe.escape(collection.name)} is now closed and grant recipients can make no more "

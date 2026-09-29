@@ -94,6 +94,7 @@ from app.common.data.models import (
     Submission,
     SubmissionEvent,
 )
+from app.common.data.models_audit import AuditEvent
 from app.common.data.submission_data_manager import SubmissionDataManager
 from app.common.data.types import (
     CollectionStatusEnum,
@@ -309,7 +310,10 @@ class TestUpdateCollection:
         end_date = datetime.date(2024, 12, 31)
 
         updated_collection = update_collection(
-            collection, reporting_period_start_date=start_date, reporting_period_end_date=end_date
+            collection,
+            reporting_period_start_date=start_date,
+            reporting_period_end_date=end_date,
+            by_user=factories.user.create(),
         )
 
         assert updated_collection.reporting_period_start_date == start_date
@@ -1028,12 +1032,37 @@ class TestUpdateCollection:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        updated_collection = update_collection(collection, status=to_status)
+        updated_collection = update_collection(collection, status=to_status, by_user=user)
 
         assert updated_collection.status == to_status
 
         from_db = db_session.get(Collection, collection.id)
         assert from_db.status == to_status
+
+        audit_event = db_session.scalars(select(AuditEvent)).one()
+        assert audit_event.user_id == user.id
+        assert audit_event.data["action"] == "collection_status_changed"
+        assert audit_event.data["organisation_id"] == str(grant.organisation.id)
+        assert audit_event.data["grant_id"] == str(grant.id)
+        assert audit_event.data["collection_id"] == str(collection.id)
+        assert audit_event.data["old_status"] == from_status.name
+        assert audit_event.data["new_status"] == to_status.name
+
+    def test_unchanged_status_does_not_create_audit_event(self, db_session, factories):
+        collection = factories.collection.create(status=CollectionStatusEnum.DRAFT)
+
+        update_collection(collection, status=CollectionStatusEnum.DRAFT, by_user=factories.user.create())
+
+        assert db_session.scalars(select(AuditEvent)).all() == []
+
+    def test_update_collection_status_requires_by_user(self, db_session, factories):
+        collection = factories.collection.create(status=CollectionStatusEnum.SCHEDULED)
+
+        with pytest.raises(ValueError, match="by_user must be provided when changing collection status"):
+            update_collection(collection, status=CollectionStatusEnum.DRAFT)
+
+        assert collection.status == CollectionStatusEnum.SCHEDULED
+        assert db_session.scalars(select(AuditEvent)).all() == []
 
     @pytest.mark.parametrize(
         "from_status, to_status",
@@ -1060,7 +1089,11 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(StateTransitionError) as exc_info:
-            update_collection(collection, status=to_status)
+            update_collection(
+                collection,
+                status=to_status,
+                by_user=factories.user.create(),
+            )
 
         assert exc_info.value.from_state == from_status.value
         assert exc_info.value.to_state == to_status.value
@@ -1078,7 +1111,11 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(GrantMustBeLiveError):
-            update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+            update_collection(
+                collection,
+                status=CollectionStatusEnum.SCHEDULED,
+                by_user=factories.user.create(),
+            )
 
     @pytest.mark.freeze_time("2025-01-10 12:00:00")
     def test_opening_a_scheduled_report_only_after_submission_start_period(self, db_session, factories):
@@ -1102,7 +1139,11 @@ class TestUpdateCollection:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
 
-        updated_collection = update_collection(collection, status=CollectionStatusEnum.OPEN)
+        updated_collection = update_collection(
+            collection,
+            status=CollectionStatusEnum.OPEN,
+            by_user=factories.user.create(),
+        )
 
         assert updated_collection.status == CollectionStatusEnum.OPEN
 
@@ -1129,7 +1170,7 @@ class TestUpdateCollection:
         collection = factories.collection.create(grant=grant, status=CollectionStatusEnum.DRAFT, **date_kwargs)
 
         with pytest.raises(CollectionChronologyError) as exc_info:
-            update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+            update_collection(collection, status=CollectionStatusEnum.SCHEDULED, by_user=factories.user.create())
 
         assert "submission period dates must be set" in str(exc_info.value)
 
@@ -1150,7 +1191,7 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(GrantRecipientUsersRequiredError) as exc_info:
-            update_collection(collection, status=to_status)
+            update_collection(collection, status=to_status, by_user=factories.user.create())
 
         assert "Grant recipients must be set up" in str(exc_info.value)
 
@@ -1173,7 +1214,11 @@ class TestUpdateCollection:
             submission_period_end_date=datetime.date(2025, 1, 31),
         )
 
-        updated_collection = update_collection(collection, status=to_status)
+        updated_collection = update_collection(
+            collection,
+            status=to_status,
+            by_user=factories.user.create(),
+        )
 
         assert updated_collection.status == to_status
 
@@ -1194,6 +1239,7 @@ class TestUpdateCollection:
             update_collection(
                 collection,
                 status=CollectionStatusEnum.CLOSED,
+                by_user=factories.user.create(),
             )
 
         assert (
@@ -1215,10 +1261,7 @@ class TestUpdateCollection:
         )
 
         with pytest.raises(CollectionChronologyError) as exc_info:
-            update_collection(
-                collection,
-                status=CollectionStatusEnum.CLOSED,
-            )
+            update_collection(collection, status=CollectionStatusEnum.CLOSED, by_user=factories.user.create())
 
         assert (
             f"You cannot close the report for submissions before the submission period "
@@ -1243,6 +1286,7 @@ class TestUpdateCollection:
         update_collection(
             collection,
             status=CollectionStatusEnum.CLOSED,
+            by_user=factories.user.create(),
         )
 
         from_db = db_session.get(Submission, submission_not_started.id)

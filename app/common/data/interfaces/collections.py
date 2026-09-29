@@ -12,6 +12,8 @@ from sqlalchemy import and_, delete, func, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.common.audit import create_collection_status_change
+from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
@@ -371,6 +373,7 @@ def get_collections_with_dates_near_today_excluding_draft_grants(
 def update_collection(  # noqa: C901
     collection: Collection,
     *,
+    by_user: User | None = None,
     name: str | TNotProvided = NOT_PROVIDED,
     status: CollectionStatusEnum | TNotProvided = NOT_PROVIDED,
     reporting_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
@@ -560,6 +563,9 @@ def update_collection(  # noqa: C901
         collection.allow_edits_after_submission_deadline = allow_edits_after_submission_deadline
 
     if status is not NOT_PROVIDED and collection.status != status:
+        if by_user is None:
+            raise ValueError("by_user must be provided when changing collection status")
+        old_status = collection.status
         match (collection.status, status):
             case (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED) | (
                 CollectionStatusEnum.SCHEDULED,
@@ -642,11 +648,13 @@ def update_collection(  # noqa: C901
             MetricEventName.COLLECTION_STATUS_CHANGED,
             collection=collection,
             custom_attributes={
-                MetricAttributeName.FROM_STATUS: str(collection.status),
+                MetricAttributeName.FROM_STATUS: str(old_status),
                 MetricAttributeName.TO_STATUS: str(status),
             },
         )
         collection.status = status
+        if event := create_collection_status_change(collection, by_user, old_status, status):
+            track_audit_event(event, by_user)
 
     return collection
 

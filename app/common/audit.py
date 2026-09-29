@@ -1,16 +1,19 @@
 import datetime
 import enum
 from collections import ChainMap
-from typing import Annotated, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, field_serializer, field_validator
 from sqlalchemy import inspect
 from sqlalchemy.orm import RelationshipDirection
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
 from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
+
+if TYPE_CHECKING:
+    from app.common.data.models import Collection
 
 
 class AuditEvent(BaseModel):
@@ -117,10 +120,24 @@ class UserInvitationCancelled(AuditEvent):
 
 class CollectionStatusChanged(AuditEvent):
     event_type: AuditEventType = AuditEventType.COLLECTION_CONFIGURATION
-    action: Literal["fcollection_status_changed"] = "collection_status_changed"
-    grant_id: UUID
+    action: Literal["collection_status_changed"] = "collection_status_changed"
     collection_id: UUID
-    # organisation_id was on the criteria list but is not needed for this event, as the grant_id igrant_id scopes the event and the renderer can reach the organisation through Grant
+    organisation_id: UUID | None
+    grant_id: UUID | None
+    old_status: CollectionStatusEnum
+    new_status: CollectionStatusEnum
+
+    # statuses are stored by enum name because enum values can change
+    @field_validator("old_status", "new_status", mode="before")
+    @classmethod
+    def _parse_status_name(cls, value: Any) -> Any:
+        if isinstance(value, str) and value in CollectionStatusEnum.__members__:
+            return CollectionStatusEnum[value]
+        return value
+
+    @field_serializer("old_status", "new_status", when_used="json")
+    def _serialize_status_name(self, status: CollectionStatusEnum) -> str:
+        return _serialize_value(status)
 
 
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
@@ -132,12 +149,7 @@ _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
             Field(discriminator="action"),
         ]
     ),
-    AuditEventType.COLLECTION_CONFIGURATION: TypeAdapter(
-        Annotated[
-            CollectionStatusChanged,
-            Field(discriminator="action"),
-        ]
-    ),
+    AuditEventType.COLLECTION_CONFIGURATION: TypeAdapter(CollectionStatusChanged),
 }
 
 
@@ -289,7 +301,7 @@ def create_system_event_for_delete(
 
 
 def create_collection_status_change(
-    model: SQLAlchemyBaseModel,
+    collection: "Collection",
     user: User,
     old_status: CollectionStatusEnum,
     new_status: CollectionStatusEnum,
@@ -299,14 +311,9 @@ def create_collection_status_change(
 
     return CollectionStatusChanged(
         user_id=user.id,
-        model_class=model.__class__.__name__,
-        model_id=model.id,
-        grant_id=model.grant_id,
-        collection_id=model.id,
-        changes={
-            "status": {
-                "old": _serialize_value(old_status),
-                "new": _serialize_value(new_status),
-            }
-        },
+        organisation_id=collection.grant.organisation_id,
+        grant_id=collection.grant_id,
+        collection_id=collection.id,
+        old_status=old_status,
+        new_status=new_status,
     )
