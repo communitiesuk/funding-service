@@ -155,7 +155,7 @@ class ExpressionReference(str):
             return None
 
         try:
-            data_source = get_data_source(ds_ref.data_source_id) if ds_ref else None
+            data_source = get_data_source(ds_ref.data_source_id)
         except NoResultFound:
             data_source = None
 
