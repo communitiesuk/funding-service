@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.common.data.types import ExpressionType, ManagedExpressionsEnum, RoleEnum
+from app.common.data.types import ExpressionType, ManagedExpressionsEnum, RoleEnum, SubmissionModeEnum
 from app.common.expressions import ExpressionReference
 
 
@@ -192,3 +192,48 @@ class TestFormConstraints:
     def test_eligibility_section_allowed_across_different_collections(self, factories):
         factories.form.create(is_eligibility_section=True)
         factories.form.create(is_eligibility_section=True)
+
+
+class TestSubmissionConstraints:
+    def test_only_one_unclaimed_submission_per_user_collection_mode(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        factories.submission.create(
+            created_by=user, collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        with pytest.raises(IntegrityError) as error:
+            factories.submission.create(
+                created_by=user, collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+            )
+
+        assert (
+            'duplicate key value violates unique constraint "uq_submission_unclaimed_created_by_collection_mode"'
+            in error.value.args[0]
+        )
+
+    def test_multiple_unclaimed_submissions_allowed_for_different_users(self, factories):
+        collection = factories.collection.create()
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None)
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None)
+
+    def test_multiple_unclaimed_submissions_allowed_for_different_modes(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        factories.submission.create(
+            created_by=user, collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+        factories.submission.create(
+            created_by=user, collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=None
+        )
+
+    def test_multiple_claimed_submissions_allowed_for_same_user_collection_mode(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        grant_recipient = factories.grant_recipient.create(grant=collection.grant)
+        factories.submission.create(
+            created_by=user, collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+        factories.submission.create(
+            created_by=user, collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
