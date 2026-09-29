@@ -29,7 +29,8 @@ class AuditEventDetailsRenderer:
     """Renders a parsed audit event as nested GOV.UK summary lists, linking entity ids to their admin details pages."""
 
     def __init__(self, views: Iterable["PlatformAdminModelView"]) -> None:
-        self._views_by_model_name = {view.model.__name__: view for view in views}
+        # A model can have more than one view (eg User has a separate edit-only view); link to the one showing details
+        self._views_by_model_name = {view.model.__name__: view for view in views if view.can_view_details}
 
     def render(self, event: AuditEvent) -> Markup:
         return _summary_list(
