@@ -422,6 +422,8 @@ class Collection(BaseModel):
     submission_period_start_date: Mapped[datetime.date | None]
     submission_period_end_date: Mapped[datetime.date | None]
     reminder_email_business_days_before_closing: Mapped[int] = mapped_column(default=5)
+    send_deadline_reminder_emails: Mapped[bool] = mapped_column(default=True)
+    send_overdue_emails: Mapped[bool] = mapped_column(default=True)
     requires_certification: Mapped[bool]
     allow_submission_reopening: Mapped[bool] = mapped_column(default=True)
     allow_edits_after_submission_deadline: Mapped[bool] = mapped_column(default=True)
@@ -584,14 +586,14 @@ class Collection(BaseModel):
 
     @property
     def date_to_send_reminder_emails(self) -> datetime.date | None:
-        if not self.submission_period_end_date:
+        if not self.send_deadline_reminder_emails or not self.submission_period_end_date:
             return None
 
         return subtract_business_days(self.submission_period_end_date, self.reminder_email_business_days_before_closing)
 
     @property
     def date_to_send_overdue_emails(self) -> datetime.date | None:
-        if not self.submission_period_end_date:
+        if not self.send_overdue_emails or not self.submission_period_end_date:
             return None
 
         return (
