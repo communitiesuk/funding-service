@@ -43,7 +43,7 @@ class DuplicateValueError(Exception):
 
         self.model_name = diagnostics.table_name
         self.field_name = DuplicateValueError.constraint_name_map[diagnostics.constraint_name]
-        self.new_value = integrity_error.params.get(self.field_name, "unknown")  # ty: ignore[invalid-assignment]
+        self.new_value = integrity_error.params.get(self.field_name, "unknown")
 
 
 class DuplicateDataSourceItemError(Exception):

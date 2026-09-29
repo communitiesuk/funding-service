@@ -173,7 +173,9 @@ def _get_model_changes(model: SQLAlchemyBaseModel) -> dict[str, dict[str, Any]]:
         if relationship.direction is not RelationshipDirection.MANYTOONE:
             continue
 
-        fk_column_key = insp.mapper.get_property_by_column(relationship.local_remote_pairs[0][0]).key
+        fk_column_key = insp.mapper.get_property_by_column(
+            relationship.local_remote_pairs[0][0]  # ty: ignore[not-subscriptable]
+        ).key
         if fk_column_key in changes:
             continue
 
