@@ -207,6 +207,7 @@ class TestCompaniesHouseService:
                             "q": "Test Company",
                             "items_per_page": companies_house_service.items_per_page,
                             "start_index": 0,
+                            "restrictions": "active-companies",
                         }
                     ),
                     matchers.header_matcher(auth_header),
@@ -225,6 +226,19 @@ class TestCompaniesHouseService:
                 CompanySearchResult(company_number="00000002", title="TEST COMPANY LIMITED"),
             ]
             assert results.total_results == 2
+            assert request.call_count == 1
+
+        @responses.activate
+        @pytest.mark.parametrize("page", [1, 2])
+        def test_asks_the_register_to_leave_out_dissolved_companies(self, search_url, page):
+            request = responses.get(
+                search_url,
+                json=_search_payload([], start_index=(page - 1) * 20),
+                match=[matchers.query_param_matcher({"restrictions": "active-companies"}, strict_match=False)],
+            )
+
+            companies_house_service.search_companies("Test Company", page=page)
+
             assert request.call_count == 1
 
         @responses.activate
@@ -329,6 +343,25 @@ class TestCompaniesHouseService:
                 companies_house_service.get_company("00000001")
 
             _assert_error(exc_info, "not_found", status_code=404)
+
+        @responses.activate
+        @pytest.mark.parametrize("company_status", ["dissolved", "removed", "closed", "converted-closed"])
+        def test_dissolved_or_inactive_company_raises_not_found(self, api_url, company_status):
+            responses.get(f"{api_url}/company/00000001", json=_profile(company_status=company_status))
+
+            with pytest.raises(CompaniesHouseNotFoundError):
+                companies_house_service.get_company("00000001")
+
+        @responses.activate
+        @pytest.mark.parametrize(
+            "company_status", ["active", "liquidation", "administration", "insolvency-proceedings"]
+        )
+        def test_returns_companies_still_on_the_register(self, api_url, company_status):
+            responses.get(f"{api_url}/company/00000001", json=_profile(company_status=company_status))
+
+            profile = companies_house_service.get_company("00000001")
+
+            assert profile.company_status == company_status
 
         @responses.activate
         def test_rejects_a_profile_for_a_different_company(self, api_url):
