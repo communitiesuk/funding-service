@@ -23,13 +23,10 @@
         Match applicant to organisation for public sign up
       </h1>
       <p class="govuk-body">Use this for a user who has contacted us because they cannot apply for this {{ collection.type.constants.singular }} on behalf of their organisation.</p>
+      <p class="govuk-body">This invites them to the organisation you choose, which lets them select it when they go through public sign up and will last for 7 days. It does not set up a grant recipient.</p>
+      <p class="govuk-body">You then need to reply to the user to tell them they can now sign up for this {{ collection.type.constants.singular }} and select the organisation they asked for access to.</p>
       <p class="govuk-body">
-        This invites them to the organisation you choose, which lets them select it when they go through public sign up. It does not create an account, a grant recipient or any permissions, and the invite lasts 7 days.
-      </p>
-      <p class="govuk-body">
-        You then need to reply to the user to tell them they can now
-        <a class="govuk-link" href="{{ collection.public_sign_up }}">sign up for this {{ collection.type.constants.singular }}</a>
-        and select the organisation they asked for access to.
+        <a class="govuk-link" href="{{ collection.public_sign_up }}">{{ collection.public_sign_up }}</a>
       </p>
       <p class="govuk-body">
         We should always prefer that an appropriate user signs up using their official government email address for that organisation and then adds the user requesting access. In cases that this isn't possible we can use this tool.
@@ -48,7 +45,9 @@
         %}
       {% endfor %}
       {% set organisationDomainsHtml %}
-        <p class="govuk-body">Users on these email domains are matched to the organisation automatically. An organisation that is not listed has no authorised email domain, so its users can only be matched by an invite.</p>
+        <p class="govuk-body">
+          Users on these email domains are matched to the organisation automatically. An organisation that is not listed has no authorised email domain, so its users can only be matched by existing access or a support invite.
+        </p>
         {{
           govukTable({
             "head": [

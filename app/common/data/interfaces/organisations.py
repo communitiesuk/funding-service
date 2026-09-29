@@ -6,9 +6,10 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 
+from app.common.data import interfaces
 from app.common.data.interfaces.exceptions import DuplicateValueError, flush_and_rollback_on_exceptions
 from app.common.data.models import Grant, Organisation
-from app.common.data.models_user import Invitation, User
+from app.common.data.models_user import User
 from app.common.data.types import (
     MatchedOrganisations,
     OrganisationData,
@@ -60,20 +61,15 @@ def get_organisations(
 def get_matched_organisations(
     user: User, email_domain: str, *, grant: Grant, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> MatchedOrganisations:
-    # Matched on the invitation email rather than its user, which is only set once the invitation is claimed
-    invite_matched_orgs = list(
-        db.session.scalars(
-            select(Organisation)
-            .join(Invitation, Invitation.organisation_id == Organisation.id)
-            .where(
-                Invitation.email == user.email,
-                Invitation.grant_id == grant.id,
-                Invitation.is_usable.is_(True),
-                Organisation.mode == mode,
-                Organisation.can_manage_grants.is_(False),
-            )
-            .order_by(Organisation.name)
-        ).all()
+    # small performance cost of not having a unique interface joining here but invitations during public
+    # sign up are not a common code path
+    invite_matched_orgs = sorted(
+        [
+            invite.organisation
+            for invite in interfaces.user.get_invitations_by_email(user.email, is_usable=True)
+            if invite.grant_id == grant.id and invite.organisation.mode == mode
+        ],
+        key=lambda org: org.name,
     )
     role_matched_orgs = user.get_organisations(mode=mode)
     domain_matched_orgs = list(get_organisations(can_manage_grants=False, domain=email_domain, mode=mode))

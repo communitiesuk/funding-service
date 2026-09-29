@@ -146,19 +146,19 @@ def sign_up_with_matched_organisation(
             mode=modes.grant_recipient,
             organisation_created=False,
         )
-        
+
         # clear any matched invites, if they existed through the support process
         invitation = interfaces.user.get_usable_invitation(user.email, grant=grant, organisation=organisation)
         if invitation:
             interfaces.user.claim_invitation(invitation=invitation, user=user)
-        
+
         emit_public_sign_up_metric_once(
             MetricEventName.PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED,
             modes,
             collection=collection,
             grant_recipient=grant_recipient,
         )
-    
+
     # A grant recipient exists, and user does not have access to it
     elif not AuthorisationHelper.has_access_grant_role(grant_recipient, RoleEnum.MEMBER, user):
         emit_public_sign_up_metric_once(
