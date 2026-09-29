@@ -125,6 +125,15 @@ def _name_url(collection, **params):
     )
 
 
+def _company_number_url(collection, **params):
+    return url_for(
+        "access_grant_funding.create_organisation_company_number",
+        grant_slug=collection.grant.slug,
+        collection_slug=collection.slug,
+        **params,
+    )
+
+
 def _unavailable_url(collection, **params):
     return url_for(
         "access_grant_funding.create_organisation_company_search_unavailable",
@@ -341,14 +350,16 @@ class TestCreateOrganisationType:
             assert "external_id" not in flask_session["create_organisation"]
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_a_different_type_drops_a_name_taken_from_the_register(
-        self, authenticated_no_role_client, sign_up_collection
+    @pytest.mark.parametrize("identified_by", list(OrganisationIdentification))
+    def test_post_a_different_type_drops_a_companys_name_and_number_however_it_was_found(
+        self, authenticated_no_role_client, sign_up_collection, identified_by
     ):
         _seed_company_session(
             authenticated_no_role_client,
             sign_up_collection,
-            name="TEST COMPANY LIMITED",
-            external_id="00000001",
+            identified_by=identified_by,
+            name="Test Company Ltd",
+            external_id="AB123456",
         )
 
         response = authenticated_no_role_client.post(
@@ -361,13 +372,14 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
             assert "name" not in flask_session["create_organisation"]
             assert "external_id" not in flask_session["create_organisation"]
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_registered_company_after_falling_back_continues_to_name(
+    def test_post_registered_company_after_falling_back_continues_to_the_company_number(
         self, authenticated_no_role_client, sign_up_collection
     ):
         _seed_company_session(
@@ -384,7 +396,7 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
-        assert response.location == _name_url(sign_up_collection)
+        assert response.location == _company_number_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_local_authority_goes_to_the_support_desk_page(self, authenticated_no_role_client, sign_up_collection):
@@ -815,7 +827,7 @@ class TestCreateOrganisationCompanySearch:
         assert response.location == _unavailable_url(sign_up_collection, source="check-your-answers")
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_after_falling_back_redirects_to_the_name_page(
+    def test_get_after_falling_back_redirects_to_the_company_number_page(
         self, authenticated_no_role_client, sign_up_collection, companies_house
     ):
         _seed_company_session(
@@ -828,7 +840,7 @@ class TestCreateOrganisationCompanySearch:
         response = authenticated_no_role_client.get(self._url(sign_up_collection, q="Test Company"))
 
         assert response.status_code == 302
-        assert response.location == _name_url(sign_up_collection)
+        assert response.location == _company_number_url(sign_up_collection)
         companies_house[0].assert_not_called()
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
@@ -1055,7 +1067,7 @@ class TestCreateOrganisationCompanySearch:
         assert get_input_value(soup, "submit") is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_to_add_the_organisation_manually_continues_to_the_name_page(
+    def test_post_to_add_the_organisation_manually_continues_to_the_company_number_page(
         self, authenticated_no_role_client, sign_up_collection, companies_house
     ):
         _seed_company_session(authenticated_no_role_client, sign_up_collection)
@@ -1066,7 +1078,7 @@ class TestCreateOrganisationCompanySearch:
         )
 
         assert response.status_code == 302
-        assert response.location == _name_url(sign_up_collection)
+        assert response.location == _company_number_url(sign_up_collection)
         companies_house[1].assert_not_called()
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["identified_by"] == OrganisationIdentification.MANUAL.value
@@ -1075,7 +1087,7 @@ class TestCreateOrganisationCompanySearch:
             assert "external_id" not in flask_session["create_organisation"]
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_to_add_the_organisation_manually_from_check_your_answers_asks_for_the_name_on_the_way_back(
+    def test_post_to_add_the_organisation_manually_from_check_your_answers_asks_for_the_number_on_the_way_back(
         self, authenticated_no_role_client, sign_up_collection, companies_house
     ):
         _seed_company_session(
@@ -1092,7 +1104,7 @@ class TestCreateOrganisationCompanySearch:
         )
 
         assert response.status_code == 302
-        assert response.location == _name_url(sign_up_collection, source="check-your-answers")
+        assert response.location == _company_number_url(sign_up_collection, source="check-your-answers")
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert "name" not in flask_session["create_organisation"]
             assert "external_id" not in flask_session["create_organisation"]
@@ -1137,7 +1149,7 @@ class TestCreateOrganisationCompanySearchUnavailable:
         assert back_link.attrs["href"] == self._journey_url(sign_up_collection, "create_organisation_company_search")
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_get_once_adding_manually_redirects_to_the_name_page(
+    def test_get_once_adding_manually_redirects_to_the_company_number_page(
         self, authenticated_no_role_client, sign_up_collection
     ):
         _seed_company_session(
@@ -1150,7 +1162,7 @@ class TestCreateOrganisationCompanySearchUnavailable:
         response = authenticated_no_role_client.get(self._url(sign_up_collection))
 
         assert response.status_code == 302
-        assert response.location == _name_url(sign_up_collection)
+        assert response.location == _company_number_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
@@ -1184,7 +1196,7 @@ class TestCreateOrganisationCompanySearchUnavailable:
         )
 
         assert response.status_code == 302
-        assert response.location == _name_url(sign_up_collection)
+        assert response.location == _company_number_url(sign_up_collection)
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["identified_by"] == OrganisationIdentification.MANUAL.value
             assert flask_session["create_organisation"]["companies_house_unavailable"] is True
@@ -1192,7 +1204,7 @@ class TestCreateOrganisationCompanySearchUnavailable:
             assert "external_id" not in flask_session["create_organisation"]
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_yes_from_check_your_answers_asks_for_the_name_on_the_way_back(
+    def test_post_yes_from_check_your_answers_asks_for_the_number_on_the_way_back(
         self, authenticated_no_role_client, sign_up_collection
     ):
         _seed_company_session(
@@ -1208,9 +1220,7 @@ class TestCreateOrganisationCompanySearchUnavailable:
         )
 
         assert response.status_code == 302
-        assert response.location == self._journey_url(
-            sign_up_collection, "create_organisation_name", source="check-your-answers"
-        )
+        assert response.location == _company_number_url(sign_up_collection, source="check-your-answers")
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_no_returns_to_the_start_page_and_keeps_the_sign_up_as_it_was(
@@ -1228,6 +1238,215 @@ class TestCreateOrganisationCompanySearchUnavailable:
         assert response.location == self._journey_url(sign_up_collection, "public_sign_up_start_page")
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"] == session_before
+
+
+class TestCreateOrganisationCompanyNumber:
+    def _seed_manual_company_session(self, client, collection, **answers) -> None:
+        _seed_company_session(client, collection, identified_by=OrganisationIdentification.MANUAL, **answers)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_renders_the_question(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(_company_number_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What is your company number?" in get_h1_text(soup)
+        assert page_has_button(soup, "Continue")
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == url_for(
+            "access_grant_funding.create_organisation_type",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_prefills_a_number_already_in_the_session(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection, external_id="AB123456")
+
+        response = authenticated_no_role_client.get(_company_number_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_input_value(soup, "company_number") == "AB123456"
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(_company_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_a_looked_up_company_session_redirects_to_the_company_search(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(_company_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_company_search",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client, sign_up_collection, organisation_type=SignUpOrganisationType.OTHER
+        )
+
+        response = authenticated_no_role_client.get(_company_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_type",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_stores_the_number_and_continues_to_the_name_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection), data={"company_number": " ab123456 ", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == "AB123456"
+            assert "name" not in flask_session["create_organisation"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_number_already_registered_goes_to_the_already_exists_page(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection), data={"company_number": "AB123456", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_already_exists",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == "AB123456"
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_number_already_registered_from_check_your_answers_keeps_the_source(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        self._seed_manual_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            name="Test Company Ltd",
+            external_id="CD654321",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection, source="check-your-answers"),
+            data={"company_number": "AB123456", "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_already_exists",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+            source="check-your-answers",
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_number_only_taken_in_test_mode_continues(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(
+            type=OrganisationType.COMPANY,
+            external_id="CH-AB123456",
+            name="Other Test Org (test)",
+            mode=OrganisationModeEnum.TEST,
+        )
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection), data={"company_number": "AB123456", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_without_a_number_shows_an_error(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection), data={"company_number": "", "submit": "y"}
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter your company number")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize("company_number", ["1234567", "123456789", "AB-12345", "AB 123456"])
+    def test_post_a_number_that_is_not_eight_letters_or_digits_shows_an_error(
+        self, authenticated_no_role_client, sign_up_collection, company_number
+    ):
+        self._seed_manual_company_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection), data={"company_number": company_number, "submit": "y"}
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Company number must be 8 characters, made up of letters and numbers")
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert "external_id" not in flask_session["create_organisation"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_from_check_your_answers_returns_there(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_manual_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            name="Test Company Ltd",
+            external_id="AB123456",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(
+            _company_number_url(sign_up_collection, source="check-your-answers"),
+            data={"company_number": "CD654321", "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_check_your_answers",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == "CD654321"
+            assert flask_session["create_organisation"]["name"] == "Test Company Ltd"
 
 
 class TestCreateOrganisationName:
@@ -1384,6 +1603,67 @@ class TestCreateOrganisationName:
             stored = flask_session["create_organisation"]
         assert stored["name"] == "Acme Ltd"
         assert len(stored["external_id"]) == 9
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_entered_by_hand_before_its_number_redirects_to_the_company_number_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client, sign_up_collection, identified_by=OrganisationIdentification.MANUAL
+        )
+
+        response = authenticated_no_role_client.get(_name_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_for_a_company_entered_by_hand_keeps_its_number_as_the_external_id(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.post(
+            _name_url(sign_up_collection), data={"name": "Test Company Ltd", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["name"] == "Test Company Ltd"
+            assert flask_session["create_organisation"]["external_id"] == "AB123456"
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_company_number_taken_since_it_was_entered_goes_to_the_already_exists_page(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.post(
+            _name_url(sign_up_collection), data={"name": "Test Company Ltd", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_already_exists",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_an_existing_organisation_name_goes_to_the_already_exists_page(
@@ -1656,7 +1936,7 @@ class TestCreateOrganisationAlreadyExists:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "TEST COMPANY LIMITED is already an existing organisation" in soup.text
+        assert "An organisation with the company number 00000001 is already an existing organisation" in soup.text
         back_link = page_has_link(soup, "Back")
         assert back_link is not None
         assert back_link.attrs["href"] == url_for(
@@ -1664,6 +1944,156 @@ class TestCreateOrganisationAlreadyExists:
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
         )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_entered_by_hand_matched_by_number_says_so_and_links_back_to_the_number_page(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            name="Test Company Ltd",
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "An organisation with the company number AB123456 is already an existing organisation" in soup.text
+        assert "Test Company Ltd is already an existing organisation" not in soup.text
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == _company_number_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_number_before_a_name_links_back_to_the_number_page(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "An organisation with the company number AB123456 is already an existing organisation" in soup.text
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == _company_number_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_number_before_a_name_from_check_your_answers_keeps_the_source(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+                source="check-your-answers",
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == _company_number_url(sign_up_collection, source="check-your-answers")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_number_that_is_not_taken_redirects_back_to_the_number_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == _company_number_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_entered_by_hand_without_a_number_redirects(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client, sign_up_collection, identified_by=OrganisationIdentification.MANUAL
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_company_matched_by_name_and_number_names_the_organisation(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Test Company Ltd")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            name="Test Company Ltd",
+            external_id="AB123456",
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Test Company Ltd is already an existing organisation on Access grant funding." in soup.text
+        assert "An organisation with the company number" not in soup.text
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_without_a_name_in_the_session_redirects(self, authenticated_no_role_client, sign_up_collection):
@@ -2071,6 +2501,66 @@ class TestCreateOrganisationCheckYourAnswers:
         )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_shows_a_looked_up_companys_number_with_a_change_link_to_the_search(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            name="TEST COMPANY LIMITED",
+            external_id="00000001",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Company number").text.strip() == "00000001"
+        change_number = page_has_link(soup, "Change company number")
+        assert change_number
+        assert change_number.attrs["href"] == url_for(
+            "access_grant_funding.create_organisation_company_search",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+            source="check-your-answers",
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_shows_a_company_number_entered_by_hand_with_a_change_link(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            name="Test Company Ltd",
+            external_id="AB123456",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Company number").text.strip() == "AB123456"
+        change_number = page_has_link(soup, "Change company number")
+        assert change_number
+        assert change_number.attrs["href"] == _company_number_url(sign_up_collection, source="check-your-answers")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_omits_the_company_number_row_for_other_organisation_types(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_session(authenticated_no_role_client, sign_up_collection, self._complete_session(sign_up_collection))
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Company number") is None
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_shows_a_name_we_already_hold_without_a_change_link(
         self, authenticated_no_role_client, sign_up_collection
     ):
@@ -2188,13 +2678,59 @@ class TestCreateOrganisationCheckYourAnswers:
         assert organisation.custom_code is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_with_a_company_entered_by_hand_creates_a_company_organisation(
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            name="Test Company Ltd",
+            external_id="AB123456",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "CH-AB123456")).one()
+        assert organisation.name == "Test Company Ltd"
+        assert organisation.type == OrganisationType.COMPANY
+        assert organisation.companies_house_number == "AB123456"
+        assert organisation.custom_code is None
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_with_a_company_number_taken_in_the_meantime_redirects_to_already_exists(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            identified_by=OrganisationIdentification.MANUAL,
+            name="Test Company Ltd",
+            external_id="AB123456",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_already_exists",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+            source="check-your-answers",
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_creates_the_organisation_grant_recipient_and_data_provider_role(
         self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls, caplog
     ):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
-            self._complete_session(sign_up_collection, organisation_type=SignUpOrganisationType.COMPANY),
+            self._complete_session(sign_up_collection, organisation_type=SignUpOrganisationType.OTHER),
         )
 
         with caplog.at_level(logging.INFO):
@@ -2204,7 +2740,7 @@ class TestCreateOrganisationCheckYourAnswers:
         assert any(
             message
             == AnyStringMatching(
-                rf"^Organisation {organisation.external_id} created\. Organisation type was ignored: COMPANY$"
+                rf"^Organisation {organisation.external_id} created\. Organisation type was ignored: OTHER$"
             )
             for message in caplog.messages
         )

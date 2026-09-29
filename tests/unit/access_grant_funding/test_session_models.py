@@ -54,6 +54,15 @@ class TestCreateOrganisationSession:
         assert session.name == "Acme Ltd"
         assert session.external_id
 
+    def test_answering_a_company_number_by_hand_keeps_it_through_naming_the_company(self):
+        session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.COMPANY)
+
+        session.answer_company_number("AB123456")
+        session.answer_name("Test Company Ltd")
+
+        assert session.name == "Test Company Ltd"
+        assert session.external_id == "AB123456"
+
     def test_answering_a_company_from_the_register_takes_its_number_as_the_identifier(self):
         session = _session(
             uuid.uuid4(),
@@ -76,6 +85,7 @@ class TestCreateOrganisationSession:
         session.fall_back_to_manual_entry()
 
         assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.identification_page is CreateOrganisationPage.COMPANY_NUMBER
         assert session.name_page is CreateOrganisationPage.NAME
 
         session.answer_organisation_type(SignUpOrganisationType.COMPANY)
@@ -106,6 +116,7 @@ class TestCreateOrganisationSession:
         session.switch_to_manual_entry()
 
         assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.identification_page is CreateOrganisationPage.COMPANY_NUMBER
         assert session.name_page is CreateOrganisationPage.NAME
         assert session.name is None
         assert session.external_id is None
@@ -119,6 +130,7 @@ class TestCreateOrganisationSession:
         session.answer_organisation_type(SignUpOrganisationType.COMPANY)
 
         assert session.identified_by is OrganisationIdentification.COMPANIES_HOUSE
+        assert session.identification_page is CreateOrganisationPage.COMPANY_SEARCH
         assert session.name_page is CreateOrganisationPage.COMPANY_SEARCH
 
     def test_to_session_dict_round_trips_through_json(self):
@@ -233,6 +245,24 @@ class TestCreateOrganisationNavigation:
         assert session.pages[:2] == [CreateOrganisationPage.TYPE, CreateOrganisationPage.COMPANY_SEARCH]
         assert session.first_incomplete_page is CreateOrganisationPage.COMPANY_SEARCH
 
+    def test_a_registered_company_entered_by_hand_gives_its_number_before_its_name(self):
+        session = _session(uuid.uuid4(), companies_house_unavailable=True)
+
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.enters_company_number is True
+        assert session.pages[:3] == [
+            CreateOrganisationPage.TYPE,
+            CreateOrganisationPage.COMPANY_NUMBER,
+            CreateOrganisationPage.NAME,
+        ]
+        assert session.first_incomplete_page is CreateOrganisationPage.COMPANY_NUMBER
+
+        session.answer_company_number("AB123456")
+
+        assert session.first_incomplete_page is CreateOrganisationPage.NAME
+
     @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.CHARITY, SignUpOrganisationType.OTHER])
     def test_other_organisations_are_named_by_hand(self, organisation_type):
         session = _session(uuid.uuid4())
@@ -240,6 +270,8 @@ class TestCreateOrganisationNavigation:
         session.answer_organisation_type(organisation_type)
 
         assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.enters_company_number is False
+        assert session.identification_page is CreateOrganisationPage.NAME
         assert session.name_page is CreateOrganisationPage.NAME
         assert session.first_incomplete_page is CreateOrganisationPage.NAME
 
@@ -267,6 +299,28 @@ class TestCreateOrganisationNavigation:
 
         assert session.name == "Acme Ltd"
         assert session.external_id == "000123456"
+
+    @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.CHARITY, SignUpOrganisationType.OTHER])
+    def test_changing_a_company_entered_by_hand_to_another_type_forgets_its_number(self, organisation_type):
+        session = self._named_session(
+            organisation_type=SignUpOrganisationType.COMPANY,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="AB123456",
+        )
+
+        session.answer_organisation_type(organisation_type)
+
+        assert session.name is None
+        assert session.external_id is None
+
+    def test_changing_another_type_to_a_company_entered_by_hand_forgets_the_generated_identifier(self):
+        session = self._named_session(companies_house_unavailable=True)
+
+        session.answer_organisation_type(SignUpOrganisationType.COMPANY)
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.name is None
+        assert session.external_id is None
 
     def test_first_incomplete_page_starts_with_the_organisation_type(self):
         assert _session(uuid.uuid4()).first_incomplete_page is CreateOrganisationPage.TYPE
@@ -385,21 +439,46 @@ class TestCreateOrganisationNavigationUrls:
 
         assert session.previous_page == self._url(CreateOrganisationPage.COMPANY_SEARCH, source=CHECK_YOUR_ANSWERS)
 
-    def test_next_page_after_falling_back_to_manual_entry_is_the_name_page(self):
+    def test_next_page_after_falling_back_to_manual_entry_is_the_company_number_page(self):
         session = self._bind(self._register_session(), CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE)
 
         session.fall_back_to_manual_entry()
 
-        assert session.next_page == self._url(CreateOrganisationPage.NAME)
+        assert session.next_page == self._url(CreateOrganisationPage.COMPANY_NUMBER)
 
-    def test_next_page_after_falling_back_from_check_your_answers_asks_for_the_name_first(self):
+    def test_next_page_after_falling_back_from_check_your_answers_asks_for_the_company_number_first(self):
         session = self._bind(
             self._register_session(), CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE, from_check_your_answers=True
         )
 
         session.fall_back_to_manual_entry()
 
-        assert session.next_page == self._url(CreateOrganisationPage.NAME, source=CHECK_YOUR_ANSWERS)
+        assert session.next_page == self._url(CreateOrganisationPage.COMPANY_NUMBER, source=CHECK_YOUR_ANSWERS)
+
+    def test_previous_page_from_already_exists_for_a_company_entered_by_hand_is_the_name_page(self):
+        session = self._bind(
+            self._named_session(
+                organisation_type=SignUpOrganisationType.COMPANY,
+                identified_by=OrganisationIdentification.MANUAL,
+                external_id="AB123456",
+            ),
+            CreateOrganisationPage.ALREADY_EXISTS,
+        )
+
+        assert session.previous_page == self._url(CreateOrganisationPage.NAME)
+
+    def test_previous_page_from_already_exists_before_a_company_entered_by_hand_is_named_is_the_number_page(self):
+        session = self._bind(
+            _session(
+                uuid.uuid4(),
+                organisation_type=SignUpOrganisationType.COMPANY,
+                identified_by=OrganisationIdentification.MANUAL,
+                external_id="AB123456",
+            ),
+            CreateOrganisationPage.ALREADY_EXISTS,
+        )
+
+        assert session.previous_page == self._url(CreateOrganisationPage.COMPANY_NUMBER)
 
 
 class TestNamedCreateOrganisationSession:
