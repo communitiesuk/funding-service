@@ -9,6 +9,7 @@ from app.access_grant_funding.session_models import (
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
     OrganisationIdentification,
+    OrganisationMatch,
     SignUpOrganisationType,
     start_public_sign_up,
 )
@@ -62,6 +63,28 @@ class TestCreateOrganisationSession:
 
         assert session.name == "Test Company Ltd"
         assert session.external_id == "AB123456"
+
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            pytest.param(lambda session: session.answer_name("Acme Ltd"), id="name"),
+            pytest.param(lambda session: session.answer_company_number("AB123456"), id="company number"),
+            pytest.param(lambda session: session.answer_company("TEST COMPANY LIMITED", "00000001"), id="company"),
+            pytest.param(lambda session: session.answer_organisation_type(SignUpOrganisationType.OTHER), id="type"),
+        ],
+    )
+    def test_answering_again_forgets_that_the_organisation_already_existed(self, answer):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.COMPANY,
+            identified_by=OrganisationIdentification.MANUAL,
+            external_id="CD654321",
+        )
+        session.record_organisation_already_exists(OrganisationMatch.COMPANY_NUMBER)
+
+        answer(session)
+
+        assert session.already_exists_matched_on is None
 
     def test_answering_a_company_from_the_register_takes_its_number_as_the_identifier(self):
         session = _session(
@@ -467,18 +490,39 @@ class TestCreateOrganisationNavigationUrls:
 
         assert session.previous_page == self._url(CreateOrganisationPage.NAME)
 
-    def test_previous_page_from_already_exists_before_a_company_entered_by_hand_is_named_is_the_number_page(self):
+    def test_previous_page_from_already_exists_matched_on_the_company_number_is_the_number_page(self):
         session = self._bind(
             _session(
                 uuid.uuid4(),
                 organisation_type=SignUpOrganisationType.COMPANY,
                 identified_by=OrganisationIdentification.MANUAL,
                 external_id="AB123456",
+                already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
             ),
             CreateOrganisationPage.ALREADY_EXISTS,
         )
 
         assert session.previous_page == self._url(CreateOrganisationPage.COMPANY_NUMBER)
+
+    def test_previous_page_from_already_exists_matched_on_the_name_is_the_name_page(self):
+        session = self._bind(
+            self._named_session(
+                organisation_type=SignUpOrganisationType.COMPANY,
+                identified_by=OrganisationIdentification.MANUAL,
+                external_id="AB123456",
+                already_exists_matched_on=OrganisationMatch.NAME,
+            ),
+            CreateOrganisationPage.ALREADY_EXISTS,
+        )
+
+        assert session.previous_page == self._url(CreateOrganisationPage.NAME)
+
+    def test_next_page_returns_to_already_exists_while_a_match_is_recorded(self):
+        session = self._bind(
+            self._named_session(already_exists_matched_on=OrganisationMatch.NAME), CreateOrganisationPage.TEAM_MEMBERS
+        )
+
+        assert session.next_page == self._url(CreateOrganisationPage.ALREADY_EXISTS)
 
 
 class TestNamedCreateOrganisationSession:

@@ -116,6 +116,8 @@ class CreateOrganisationSession(SignUpSession):
     # optional as only asked of users whose email domain isn't a shared provider
     allow_team_members: bool | None = None
 
+    already_exists_matched_on: OrganisationMatch | None = None
+
     _page: CreateOrganisationPage = PrivateAttr()
     _grant_slug: str = PrivateAttr()
     _collection_slug: str = PrivateAttr()
@@ -242,6 +244,9 @@ class CreateOrganisationSession(SignUpSession):
     @property
     def next_page(self) -> str:
         """Next destination after a valid input submission; completion stays with its handler."""
+        if self.already_exists_matched_on:
+            return self.page_url(CreateOrganisationPage.ALREADY_EXISTS)
+
         next_step = self._next_step
         if self._from_check_your_answers:
             next_step = self.first_incomplete_page
@@ -256,8 +261,10 @@ class CreateOrganisationSession(SignUpSession):
             return self.page_url(self.name_page)
 
         if self._page == CreateOrganisationPage.ALREADY_EXISTS:
-            # back to the last answer that identified the organisation, which may be a company number before its name
-            return self.page_url(self.name_page if self.name else self.identification_page)
+            if self.already_exists_matched_on == OrganisationMatch.COMPANY_NUMBER:
+                return self.page_url(self.identification_page)
+            else:
+                return self.page_url(self.name_page)
 
         if (
             self._from_check_your_answers
@@ -353,12 +360,14 @@ class CreateOrganisationSession(SignUpSession):
         if (self.identified_by, self.enters_company_number) != found_by:
             self.name = None
             self.external_id = None
+            self.already_exists_matched_on = None
 
     def answer_name(self, name: str) -> None:
         # imported here as the data utils pull in the models, which are still loading when this module is imported
         from app.common.data.utils import generate_organisation_custom_code
 
         self.name = name
+        self.already_exists_matched_on = None
 
         # a company entered by hand keeps the number typed in before its name; the other types entered by hand
         # are considered "OTHER" for now, so their identifier is generated
@@ -368,9 +377,14 @@ class CreateOrganisationSession(SignUpSession):
     def answer_company(self, name: str, company_number: str) -> None:
         self.name = name
         self.external_id = company_number
+        self.already_exists_matched_on = None
 
     def answer_company_number(self, company_number: str) -> None:
         self.external_id = company_number
+        self.already_exists_matched_on = None
+
+    def record_organisation_already_exists(self, matched_on: OrganisationMatch) -> None:
+        self.already_exists_matched_on = matched_on
 
     def fall_back_to_manual_entry(self) -> None:
         """Name the company by hand from here on, as the register could not be reached."""
@@ -422,3 +436,10 @@ def clear_public_sign_up_session() -> UUID | None:
     session.pop(SESSION_MATCHED_ORGANISATION, None)
     session.pop(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, None)
     return session.pop(SESSION_SIGNING_UP_FOR_COLLECTION_ID, None)
+
+
+class OrganisationMatch(enum.StrEnum):
+    """Which of the session's answers an existing organisation was found by."""
+
+    NAME = "NAME"
+    COMPANY_NUMBER = "COMPANY_NUMBER"

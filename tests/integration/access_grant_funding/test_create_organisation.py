@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.access_grant_funding.session_models import (
     CreateOrganisationSession,
     OrganisationIdentification,
+    OrganisationMatch,
     SignUpOrganisationType,
 )
 from app.common.data.models import GrantRecipient, Organisation
@@ -1348,6 +1349,7 @@ class TestCreateOrganisationCompanyNumber:
         )
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["external_id"] == "AB123456"
+            assert flask_session["create_organisation"]["already_exists_matched_on"] == OrganisationMatch.COMPANY_NUMBER
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_a_number_already_registered_from_check_your_answers_keeps_the_source(
@@ -1643,7 +1645,7 @@ class TestCreateOrganisationName:
             assert flask_session["create_organisation"]["external_id"] == "AB123456"
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_a_company_number_taken_since_it_was_entered_goes_to_the_already_exists_page(
+    def test_post_does_not_check_the_company_number_again(
         self, authenticated_no_role_client, sign_up_collection, factories
     ):
         factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
@@ -1660,7 +1662,7 @@ class TestCreateOrganisationName:
 
         assert response.status_code == 302
         assert response.location == url_for(
-            "access_grant_funding.create_organisation_already_exists",
+            "access_grant_funding.create_organisation_allow_team_members",
             grant_slug=sign_up_collection.grant.slug,
             collection_slug=sign_up_collection.slug,
         )
@@ -1850,6 +1852,7 @@ class TestCreateOrganisationAlreadyExists:
             organisation_type=SignUpOrganisationType.OTHER,
             name="Acme Ltd",
             external_id="000111222",
+            already_exists_matched_on=OrganisationMatch.NAME,
         )
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
@@ -1924,6 +1927,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             name="TEST COMPANY LIMITED",
             external_id="00000001",
+            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -1956,6 +1960,7 @@ class TestCreateOrganisationAlreadyExists:
             identified_by=OrganisationIdentification.MANUAL,
             name="Test Company Ltd",
             external_id="AB123456",
+            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -1984,6 +1989,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             identified_by=OrganisationIdentification.MANUAL,
             external_id="AB123456",
+            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -2011,6 +2017,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             identified_by=OrganisationIdentification.MANUAL,
             external_id="AB123456",
+            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -2037,6 +2044,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             identified_by=OrganisationIdentification.MANUAL,
             external_id="AB123456",
+            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -2080,6 +2088,7 @@ class TestCreateOrganisationAlreadyExists:
             identified_by=OrganisationIdentification.MANUAL,
             name="Test Company Ltd",
             external_id="AB123456",
+            already_exists_matched_on=OrganisationMatch.NAME,
         )
 
         response = authenticated_no_role_client.get(
