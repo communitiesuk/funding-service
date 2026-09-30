@@ -418,7 +418,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
     def edit_form(self, obj: Grant | None = None) -> Form:  # ty:ignore[invalid-method-override]
         form = super().edit_form(obj)
         if obj:
-            privacy_policy_url = url_for("access_grant_funding.privacy_policy", grant_id=obj.id)
+            privacy_policy_url = url_for("access_grant_funding.privacy_notice", grant_id=obj.id)
             form.privacy_policy_markdown.description = markupsafe.Markup(  # ty: ignore[unresolved-attribute]
                 "GOV.UK-style markdown for the grant's privacy policy. Once saved, "
                 f"<a class='govuk-link govuk-link--no-visited-state' href='{privacy_policy_url}' target='_blank'>"

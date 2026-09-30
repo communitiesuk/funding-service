@@ -24,7 +24,7 @@
       <p class="govuk-body">
         Enter GOV.UK-style markdown for the grant's privacy policy.
         {% if grant.privacy_policy_markdown %}
-          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.privacy_policy', grant_id=grant.id) }}" target="_blank">Preview the current privacy policy (opens in a new tab)</a>.
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('access_grant_funding.privacy_notice', grant_id=grant.id) }}" target="_blank">Preview the current privacy policy (opens in a new tab)</a>.
         {% endif %}
       </p>
 

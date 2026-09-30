@@ -257,9 +257,9 @@ def cookies() -> ResponseReturnValue:
     return render_template("access_grant_funding/cookies.html")
 
 
-@access_grant_funding_blueprint.route("/privacy-policy")
-@access_grant_funding_blueprint.route("/privacy-policy/<uuid:grant_id>")
-def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
+@access_grant_funding_blueprint.route("/privacy-notice")
+@access_grant_funding_blueprint.route("/privacy-notice/<uuid:grant_id>")
+def privacy_notice(grant_id: UUID | None = None) -> ResponseReturnValue:
     grant = get_grant(grant_id) if grant_id else None
     privacy_policy_renderer = partial(
         convert_text_to_govuk_markup,
@@ -268,7 +268,7 @@ def privacy_policy(grant_id: UUID | None = None) -> ResponseReturnValue:
         heading_level_classes=("govuk-heading-m", "govuk-heading-s"),
     )
     return render_template(
-        "access_grant_funding/privacy-policy.html", grant=grant, privacy_policy_renderer=privacy_policy_renderer
+        "access_grant_funding/privacy-notice.html", grant=grant, privacy_policy_renderer=privacy_policy_renderer
     )
 
 
