@@ -67,7 +67,9 @@ def get_matched_organisations(
         [
             invite.organisation
             for invite in interfaces.user.get_invitations_by_email(user.email, is_usable=True)
-            if invite.grant_id == grant.id and invite.organisation.mode == mode
+            if invite.grant_id == grant.id
+            and invite.organisation.mode == mode
+            and not invite.organisation.can_manage_grants
         ],
         key=lambda org: org.name,
     )

@@ -10,7 +10,7 @@ from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.data import interfaces
 from app.common.data.interfaces.grant_recipients import create_grant_recipient, get_grant_recipient_or_none
 from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
-from app.common.data.models_user import User
+from app.common.data.models_user import Invitation, User
 from app.common.data.types import (
     GrantRecipientModeEnum,
     GrantRecipientStatusEnum,
@@ -82,6 +82,7 @@ def sign_up_as_grant_recipient(
     organisation: Organisation,
     mode: GrantRecipientModeEnum,
     organisation_created: bool,
+    invitation: Invitation | None = None,
 ) -> GrantRecipient:
     grant_recipient = create_grant_recipient(
         grant=grant,
@@ -89,7 +90,14 @@ def sign_up_as_grant_recipient(
         status=GrantRecipientStatusEnum.APPLYING,
         mode=mode,
     )
-    permissions = [RoleEnum.DATA_PROVIDER]
+
+    if invitation:
+        if invitation.organisation != organisation:
+            raise ValueError(
+                "Organisation selected through public sign up invite match should never differ from the invite scope"
+            )
+
+    permissions = invitation.permissions if invitation else [RoleEnum.DATA_PROVIDER]
     if mode == GrantRecipientModeEnum.TEST and collection.requires_certification:
         permissions.append(RoleEnum.CERTIFIER)
 
@@ -99,6 +107,7 @@ def sign_up_as_grant_recipient(
         organisation=organisation,
         grant=grant,
         by_user=user,
+        invitation=invitation,
     )
     notification_service.send_access_confirm_public_sign_up(
         user.email, collection=collection, grant_recipient=grant_recipient
@@ -138,6 +147,9 @@ def sign_up_with_matched_organisation(
                 )
             )
 
+        # award any permissions against the support invite that matched this org, if one existed
+        invitation = interfaces.user.get_usable_invitation(user.email, grant=grant, organisation=organisation)
+
         grant_recipient = sign_up_as_grant_recipient(
             user=user,
             grant=grant,
@@ -145,10 +157,9 @@ def sign_up_with_matched_organisation(
             organisation=organisation,
             mode=modes.grant_recipient,
             organisation_created=False,
+            invitation=invitation,
         )
 
-        # clear any matched invites, if they existed through the support process
-        invitation = interfaces.user.get_usable_invitation(user.email, grant=grant, organisation=organisation)
         if invitation:
             interfaces.user.claim_invitation(invitation=invitation, user=user)
 
