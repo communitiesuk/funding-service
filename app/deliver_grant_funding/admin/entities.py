@@ -62,6 +62,7 @@ from app.common.data.types import (
     SubmissionEventType,
     SubmissionModeEnum,
 )
+from app.common.helpers.charities import normalise_charity_number
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.pdf import render_pdf
 from app.common.security.utils import sanitise_redirect_url
@@ -74,6 +75,7 @@ from app.deliver_grant_funding.admin.mixins import (
 from app.deliver_grant_funding.helpers import preview_guidance_response
 from app.extensions import db, notification_service, s3_service
 from app.metrics import MetricEventName, emit_metric_count
+from app.services.companies_house import normalize_company_number
 
 if TYPE_CHECKING:
     from app.common.audit import DatabaseModelChange
@@ -307,6 +309,13 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
 
         if not model.typed_id:
             raise ValueError(f"{model.type.typed_id_field} is required for organisation type {model.type.value}")
+
+        # as sign-up stores them; not on edit, as that would change an existing organisation's external ID
+        if is_created and model.type == OrganisationType.CHARITY:
+            model.typed_id = normalise_charity_number(model.typed_id)
+        elif is_created and model.type == OrganisationType.COMPANY:
+            model.typed_id = normalize_company_number(model.typed_id)
+
         model.external_id = model.make_external_id()
         result = super().on_model_change(form, model, is_created)
 

@@ -25,6 +25,8 @@ class CreateOrganisationPage(enum.StrEnum):
     COMPANY_SEARCH = "create_organisation_company_search"
     COMPANY_SEARCH_UNAVAILABLE = "create_organisation_company_search_unavailable"
     COMPANY_NUMBER = "create_organisation_company_number"
+    CHARITY_REGULATOR = "create_organisation_charity_regulator"
+    CHARITY_NUMBER = "create_organisation_charity_number"
     NAME = "create_organisation_name"
     ALREADY_EXISTS = "create_organisation_already_exists"
     TEAM_MEMBERS = "create_organisation_allow_team_members"
@@ -52,6 +54,25 @@ class SignUpOrganisationType(enum.StrEnum):
                 return "Local authority"
             case SignUpOrganisationType.OTHER:
                 return "Other"
+
+
+class CharityRegulator(enum.StrEnum):
+    ENGLAND_AND_WALES = "ENGLAND_AND_WALES"
+    SCOTLAND = "SCOTLAND"
+    NORTHERN_IRELAND = "NORTHERN_IRELAND"
+    NOT_REGISTERED = "NOT_REGISTERED"
+
+    @property
+    def label(self) -> str:
+        match self:
+            case CharityRegulator.ENGLAND_AND_WALES:
+                return "Charity Commission for England and Wales"
+            case CharityRegulator.SCOTLAND:
+                return "Scottish Charity Regulator"
+            case CharityRegulator.NORTHERN_IRELAND:
+                return "The Charity Commission for Northern Ireland"
+            case CharityRegulator.NOT_REGISTERED:
+                return "My charity is not registered"
 
 
 class SignUpSession(BaseModel):
@@ -101,6 +122,7 @@ class CreateOrganisationSession(SignUpSession):
     can_share_email_domain: bool
 
     organisation_type: SignUpOrganisationType | None = None
+    charity_regulator: CharityRegulator | None = None
 
     # Records how organisation info was provided; lookups can fall back to manual if unavailable
     identified_by: OrganisationIdentification = OrganisationIdentification.MANUAL
@@ -139,7 +161,10 @@ class CreateOrganisationSession(SignUpSession):
             case CreateOrganisationPage.TYPE:
                 return self.organisation_type is not None
 
-            case CreateOrganisationPage.COMPANY_NUMBER:
+            case CreateOrganisationPage.CHARITY_REGULATOR:
+                return self.charity_regulator is not None
+
+            case CreateOrganisationPage.COMPANY_NUMBER | CreateOrganisationPage.CHARITY_NUMBER:
                 return bool(self.external_id)
 
             case CreateOrganisationPage.COMPANY_SEARCH | CreateOrganisationPage.NAME:
@@ -155,9 +180,9 @@ class CreateOrganisationSession(SignUpSession):
                 return False
 
     @property
-    def enters_company_number(self) -> bool:
-        """Whether the identifier is a company number typed in by hand, not generated or taken from the register."""
-        return (
+    def enters_registration_number(self) -> bool:
+        """Whether the identifier is a registration number typed in by hand, not generated or taken from a register."""
+        return self.registered_charity or (
             self.organisation_type == SignUpOrganisationType.COMPANY
             and self.identified_by == OrganisationIdentification.MANUAL
         )
@@ -172,11 +197,20 @@ class CreateOrganisationSession(SignUpSession):
         )
 
     @property
+    def registered_charity(self) -> bool:
+        return (
+            self.organisation_type == SignUpOrganisationType.CHARITY
+            and self.charity_regulator != CharityRegulator.NOT_REGISTERED
+        )
+
+    @property
     def identification_page(self) -> CreateOrganisationPage:
-        """Where identifying the organisation starts: the register search, typing a company number, or the name."""
+        """Where identifying the organisation starts: the register search, typing a registration number, or the name."""
         if self.identified_by == OrganisationIdentification.COMPANIES_HOUSE:
             return CreateOrganisationPage.COMPANY_SEARCH
-        return CreateOrganisationPage.COMPANY_NUMBER if self.enters_company_number else CreateOrganisationPage.NAME
+        if self.registered_charity:
+            return CreateOrganisationPage.CHARITY_NUMBER
+        return CreateOrganisationPage.COMPANY_NUMBER if self.enters_registration_number else CreateOrganisationPage.NAME
 
     @property
     def pages(self) -> list[CreateOrganisationPage]:
@@ -196,6 +230,12 @@ class CreateOrganisationSession(SignUpSession):
 
             case SignUpOrganisationType.COMPANY, OrganisationIdentification.MANUAL:
                 pages.extend([CreateOrganisationPage.COMPANY_NUMBER, CreateOrganisationPage.NAME])
+
+            case SignUpOrganisationType.CHARITY, _:
+                pages.append(CreateOrganisationPage.CHARITY_REGULATOR)
+                if self.registered_charity:
+                    pages.append(CreateOrganisationPage.CHARITY_NUMBER)
+                pages.append(CreateOrganisationPage.NAME)
 
             case _:
                 pages.append(CreateOrganisationPage.NAME)
@@ -244,12 +284,21 @@ class CreateOrganisationSession(SignUpSession):
     @property
     def next_page(self) -> str:
         """Next destination after a valid input submission; completion stays with its handler."""
-        if self.already_exists_matched_on:
+        next_step = self.first_incomplete_page if self._from_check_your_answers else self._next_step
+
+        pages = self.pages
+        matched_page = (
+            self.identification_page
+            if self.already_exists_matched_on == OrganisationMatch.COMPANY_NUMBER
+            else self.name_page
+        )
+        if (
+            self.already_exists_matched_on
+            and matched_page in pages
+            and pages.index(next_step) > pages.index(matched_page)
+        ):
             return self.page_url(CreateOrganisationPage.ALREADY_EXISTS)
 
-        next_step = self._next_step
-        if self._from_check_your_answers:
-            next_step = self.first_incomplete_page
         return self.page_url(next_step)
 
     @property
@@ -325,6 +374,13 @@ class CreateOrganisationSession(SignUpSession):
                 # a company's name and number are answered on whichever of these fit how it is being found
                 raise SessionJourneyRecoveryRedirect(self.page_url(self.identification_page))
 
+            if (
+                self.organisation_type == SignUpOrganisationType.CHARITY
+                and page == CreateOrganisationPage.CHARITY_NUMBER
+            ):
+                # a charity that isn't registered has no number to give
+                raise SessionJourneyRecoveryRedirect(self.page_url(self.identification_page))
+
             if page not in (CreateOrganisationPage.TEAM_MEMBERS, CreateOrganisationPage.USER_NAME):
                 # a page for another type of organisation: choosing the type again leads to the right pages
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.TYPE))
@@ -348,19 +404,35 @@ class CreateOrganisationSession(SignUpSession):
         )
 
     def answer_organisation_type(self, organisation_type: SignUpOrganisationType) -> None:
-        found_by = self.identified_by, self.enters_company_number
+        identification_page = self.identification_page
         self.organisation_type = organisation_type
         self.identified_by = (
             OrganisationIdentification.COMPANIES_HOUSE
             if organisation_type == SignUpOrganisationType.COMPANY and not self.companies_house_unavailable
             else OrganisationIdentification.MANUAL
         )
+        if organisation_type != SignUpOrganisationType.CHARITY:
+            self.charity_regulator = None
 
         # a name and identifier found one way don't carry over to being found another
-        if (self.identified_by, self.enters_company_number) != found_by:
+        if self.identification_page != identification_page:
             self.name = None
             self.external_id = None
             self.already_exists_matched_on = None
+
+    def answer_charity_regulator(self, charity_regulator: CharityRegulator) -> None:
+        # each register's numbers are in their own format, so one given for another register doesn't carry over
+        if charity_regulator != self.charity_regulator:
+            self.external_id = None
+            if self.already_exists_matched_on == OrganisationMatch.COMPANY_NUMBER:
+                self.already_exists_matched_on = None
+        self.charity_regulator = charity_regulator
+
+        # a charity that isn't registered is identified by a generated code
+        if not self.enters_registration_number and self.name and not self.external_id:
+            from app.common.data.utils import generate_organisation_custom_code
+
+            self.external_id = generate_organisation_custom_code()
 
     def answer_name(self, name: str) -> None:
         # imported here as the data utils pull in the models, which are still loading when this module is imported
@@ -369,9 +441,9 @@ class CreateOrganisationSession(SignUpSession):
         self.name = name
         self.already_exists_matched_on = None
 
-        # a company entered by hand keeps the number typed in before its name; the other types entered by hand
-        # are considered "OTHER" for now, so their identifier is generated
-        if not self.enters_company_number:
+        # a company or charity entered by hand keeps the registration number typed in before its name; the other
+        # types entered by hand are considered "OTHER", so their identifier is generated
+        if not self.enters_registration_number:
             self.external_id = generate_organisation_custom_code()
 
     def answer_company(self, name: str, company_number: str) -> None:
@@ -379,8 +451,8 @@ class CreateOrganisationSession(SignUpSession):
         self.external_id = company_number
         self.already_exists_matched_on = None
 
-    def answer_company_number(self, company_number: str) -> None:
-        self.external_id = company_number
+    def answer_registration_number(self, registration_number: str) -> None:
+        self.external_id = registration_number
         self.already_exists_matched_on = None
 
     def record_organisation_already_exists(self, matched_on: OrganisationMatch) -> None:

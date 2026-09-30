@@ -8405,6 +8405,74 @@ class TestPlatformAdminGrantView:
             assert ("GrantRecipient", str(grant_recipient.id)) in audit_model_classes_and_ids
 
 
+class TestPlatformAdminOrganisationView:
+    def _organisation_form_data(self, organisation_type, typed_id_field, typed_id, name="Test Organisation"):
+        return {
+            "name": name,
+            "type": organisation_type.name,
+            typed_id_field: typed_id,
+            "mode": OrganisationModeEnum.LIVE.name,
+            "status": OrganisationStatus.ACTIVE.name,
+            "active_date": ["", "", ""],
+            "retirement_date": ["", "", ""],
+            "domains": "",
+        }
+
+    @pytest.mark.parametrize(
+        "organisation_type, typed_id_field, entered, expected_external_id",
+        [
+            (OrganisationType.CHARITY, "charity_commission_number", "sc 012345", "CC-SC012345"),
+            (OrganisationType.COMPANY, "companies_house_number", " ab123456 ", "CH-AB123456"),
+        ],
+    )
+    def test_create_stores_the_registration_number_normalised(
+        self,
+        authenticated_platform_admin_client,
+        db_session,
+        organisation_type,
+        typed_id_field,
+        entered,
+        expected_external_id,
+    ):
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/organisation/new/",
+            data=self._organisation_form_data(organisation_type, typed_id_field, entered),
+        )
+
+        assert response.status_code == 302
+        organisation = db_session.scalar(select(Organisation).where(Organisation.name == "Test Organisation"))
+        assert organisation.external_id == expected_external_id
+
+    @pytest.mark.parametrize(
+        "organisation_type, typed_id_field, entered, error",
+        [
+            (
+                OrganisationType.CHARITY,
+                "charity_commission_number",
+                "1234567-1",
+                "Charity number must be 6 or 7 digits",
+            ),
+            (
+                OrganisationType.COMPANY,
+                "companies_house_number",
+                "AB-12345",
+                "Company number must contain eight ASCII letters or digits",
+            ),
+        ],
+    )
+    def test_create_rejects_a_registration_number_in_the_wrong_format(
+        self, authenticated_platform_admin_client, db_session, organisation_type, typed_id_field, entered, error
+    ):
+        response = authenticated_platform_admin_client.post(
+            "/deliver/admin/organisation/new/",
+            data=self._organisation_form_data(organisation_type, typed_id_field, entered),
+        )
+
+        assert response.status_code == 200
+        assert page_has_flash(BeautifulSoup(response.data, "html.parser"), error)
+        assert db_session.scalar(select(Organisation).where(Organisation.name == "Test Organisation")) is None
+
+
 class TestPlatformAdminInvitationView:
     def test_details_shows_name(self, authenticated_platform_admin_client, factories, db_session):
         invitation = factories.invitation.create(

@@ -1,14 +1,21 @@
-from typing import Any
+import re
+from typing import Any, NamedTuple
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms import HiddenField, RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, ValidationError
 
-from app.access_grant_funding.session_models import SignUpOrganisationType
+from app.access_grant_funding.session_models import CharityRegulator, SignUpOrganisationType
 from app.common.data.models import Organisation
 from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.filters import strip_string_if_not_empty
+from app.common.helpers.charities import (
+    ENGLAND_AND_WALES_CHARITY_NUMBER,
+    NORTHERN_IRELAND_CHARITY_NUMBER,
+    SCOTLAND_CHARITY_NUMBER,
+    clean_charity_number,
+)
 from app.extensions import companies_house_service
 from app.services.companies_house import normalize_company_number
 
@@ -132,6 +139,71 @@ class CreateOrganisationCompanyNumberForm(FlaskForm):
             field.data = normalize_company_number(field.data)
         except ValueError as e:
             raise ValidationError("Company number must be 8 characters, made up of letters and numbers") from e
+
+
+class CreateOrganisationCharityRegulatorForm(FlaskForm):
+    charity_regulator = RadioField(
+        "Where is your charity registered?",
+        choices=[(regulator.value, regulator.label) for regulator in CharityRegulator],
+        widget=MHCLGRadioInput(insert_divider_before_last_item=True),
+        validators=[DataRequired("Select where your charity is registered")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CharityNumberFormat(NamedTuple):
+    hint: str
+    pattern: re.Pattern[str]
+    error: str
+    register_url_config_key: str
+    prefix: str = ""  # part of every number on the register, so shown in front of the input, not typed
+
+
+CHARITY_NUMBER_FORMATS = {
+    CharityRegulator.ENGLAND_AND_WALES: CharityNumberFormat(
+        hint="This is 6 or 7 numbers.",
+        pattern=ENGLAND_AND_WALES_CHARITY_NUMBER,
+        error="Charity number must be 6 or 7 numbers, for example, 123456 or 1234567",
+        register_url_config_key="CHARITY_COMMISSION_URL",
+    ),
+    CharityRegulator.SCOTLAND: CharityNumberFormat(
+        hint="This is 8 characters in total and starts with SC0, for example, SC012345.",
+        pattern=SCOTLAND_CHARITY_NUMBER,
+        error="Charity number must be 8 characters starting with SC0, for example, SC012345",
+        register_url_config_key="SCOTTISH_CHARITY_REGULATOR_URL",
+    ),
+    CharityRegulator.NORTHERN_IRELAND: CharityNumberFormat(
+        hint="This is NIC followed by 6 numbers, for example, NIC123456.",
+        pattern=NORTHERN_IRELAND_CHARITY_NUMBER,
+        error="Charity number must be 6 numbers, for example, 123456",
+        register_url_config_key="CHARITY_COMMISSION_NI_URL",
+        prefix="NIC",
+    ),
+}
+
+
+class CreateOrganisationCharityNumberForm(FlaskForm):
+    charity_number = StringField(
+        "What is your charity number?",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter your charity number")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def __init__(self, charity_regulator: CharityRegulator, charity_number: str | None) -> None:
+        self.number_format = CHARITY_NUMBER_FORMATS[charity_regulator]
+        super().__init__(
+            charity_number=charity_number.removeprefix(self.number_format.prefix) if charity_number else None
+        )
+
+    def validate_charity_number(self, field: StringField) -> None:
+        assert field.data is not None
+        prefix = self.number_format.prefix
+        charity_number = prefix + clean_charity_number(field.data).removeprefix(prefix)
+        if not self.number_format.pattern.fullmatch(charity_number):
+            raise ValidationError(self.number_format.error)
+        field.data = charity_number
 
 
 class CreateOrganisationNameForm(FlaskForm):

@@ -200,6 +200,12 @@ def get_checked_radio_value(soup: BeautifulSoup, input_name: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def get_input_prefix(soup: BeautifulSoup, input_name: str) -> str | None:
+    field = soup.find("input", attrs={"name": input_name})
+    prefix = field.find_previous_sibling("div", class_="govuk-input__prefix") if isinstance(field, Tag) else None
+    return prefix.text.strip() if isinstance(prefix, Tag) else None
+
+
 def get_task_list_item_status_text(soup: BeautifulSoup, task_title: str) -> str | None:
     for item in soup.select("li.govuk-task-list__item"):
         name_and_hint = item.find("div", class_="govuk-task-list__name-and-hint")
