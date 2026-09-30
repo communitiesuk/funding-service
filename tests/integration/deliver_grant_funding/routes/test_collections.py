@@ -10635,6 +10635,38 @@ class TestListSubmissions:
 
         assert len(mock_s3_service_calls.all_calls) == 0
 
+    def test_submissions_table_is_sortable_in_browser(self, authenticated_grant_member_client, factories, db_session):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Acme Corp"
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        table = soup.select_one("table[data-module='moj-sortable-table']")
+        assert table is not None
+
+        headers = {header.text.strip(): header.get("aria-sort") for header in table.select("thead th")}
+        assert headers["Grant recipient"] == "ascending"
+        assert headers["Last updated"] == "none"
+        assert headers["Status"] is None
+
+        last_updated_cell = table.select("tbody tr td")[-1]
+        assert last_updated_cell.get("data-sort-value") is not None
+
 
 class TestListSubmissionsMultipleSubmissions:
     def test_multi_submission_table_shows_submission_submission_name(

@@ -122,9 +122,9 @@
             {% set submission_name_link %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.submission_id) }}" data-submission-link>{{ submission.name }}</a>
             {% endset %}
-            {% do cells.append({"html": submission_name_link}) %}
+            {% do cells.append({"html": submission_name_link, "attributes": {"data-sort-value": submission.name}}) %}
           {% else %}
-            {% do cells.append({"text": "No submission"}) %}
+            {% do cells.append({"text": "No submission", "attributes": {"data-sort-value": ""}}) %}
           {% endif %}
           {% do cells.append({"text": submission.organisation_name}) %}
         {% elif submission.submission_id %}
@@ -133,7 +133,7 @@
               >{{ submission.organisation_name }}</a
             >
           {% endset %}
-          {% do cells.append({"html": grant_recipient_link}) %}
+          {% do cells.append({"html": grant_recipient_link, "attributes": {"data-sort-value": submission.organisation_name}}) %}
         {% else %}
           {% do cells.append({"text": submission.organisation_name}) %}
         {% endif %}
@@ -147,7 +147,12 @@
             {% do cells.append({"html": submissionStatusTag(enum.submission_status.NOT_SUBMITTED if collection.is_closed else enum.submission_status.NOT_STARTED, collection.is_overdue)}) %}
           {% endif %}
         {% endif %}
-        {% do cells.append({"text": format_date_short(submission.last_updated_at_utc) if submission.last_updated_at_utc else ""}) %}
+        {%
+          do cells.append({
+            "text": format_date_short(submission.last_updated_at_utc) if submission.last_updated_at_utc else "",
+            "attributes": {"data-sort-value": submission.last_updated_at_utc.timestamp() | int if submission.last_updated_at_utc else 0},
+          })
+        %}
         {% do rows.append(cells) %}
       {% else %}
         {% set no_submissions_text %}
@@ -158,19 +163,22 @@
 
       {% set head = [] %}
       {% if collection.allow_multiple_submissions %}
-        {% do head.append({"text": (collection.submission_name_question.name | uppercase_first) if collection.submission_name_question else "Submission", "classes": "govuk-!-width-one-third"}) %}
-        {% do head.append({"text": "Grant recipient"}) %}
+        {% do head.append({"text": (collection.submission_name_question.name | uppercase_first) if collection.submission_name_question else "Submission", "classes": "govuk-!-width-one-third", "attributes": {"aria-sort": "none"}}) %}
+        {# Multi-submission rows default to a compound organisation-then-submission-name order the single-column
+           sort can't reproduce, so we leave the column sortable but don't indicate it as the current sort #}
+        {% do head.append({"text": "Grant recipient", "attributes": {"aria-sort": "none"}}) %}
       {% else %}
-        {% do head.append({"text": "Grant recipient", "classes": "govuk-!-width-one-half"}) %}
+        {% do head.append({"text": "Grant recipient", "classes": "govuk-!-width-one-half", "attributes": {"aria-sort": "ascending"}}) %}
       {% endif %}
       {% do head.append({"text": "Status"}) %}
-      {% do head.append({"text": "Last updated"}) %}
+      {% do head.append({"text": "Last updated", "attributes": {"aria-sort": "none"}}) %}
 
       {{
         govukTable({
           "captionClasses": "govuk-table__caption--m",
           "head": head,
-          "rows": rows
+          "rows": rows,
+          "attributes": {"data-module": "moj-sortable-table"}
         })
       }}
     </div>
