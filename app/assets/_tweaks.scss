@@ -79,6 +79,10 @@
     padding-left: govuk.govuk-spacing(4);
 }
 
+ol.app-list-lower-alpha {
+    list-style-type: lower-alpha;
+}
+
 .app-all-questions {
     @media print {
         // keep section headings with their first question
