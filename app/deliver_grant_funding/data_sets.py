@@ -188,6 +188,8 @@ def validate_data_set_grant_recipients(
                     f"Row {idx + 2}: Data is present but {DATA_SET_EXTERNAL_ID_COLUMN_HEADER} and grant recipient "
                     "are missing"
                 )
+            else:
+                errors.append(f"Row {idx + 2}: Row is empty and should be removed from the data set")
             continue
 
         if bool(external_id) != bool(recipient):

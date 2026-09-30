@@ -12799,6 +12799,37 @@ class TestUploadDataSet:
         assert len(mock_s3_service_calls.upload_file_calls) == 1
         assert mock_s3_service_calls.upload_file_calls[0].args[2] == {"status": DataSourceFileTagEnum.PENDING}
 
+    def test_post_raises_error_for_fully_empty_rows(
+        self, authenticated_grant_admin_client, factories, mock_s3_service_calls
+    ):
+        grant = authenticated_grant_admin_client.grant
+        collection = factories.collection.create(grant=grant)
+        factories.grant_recipient.create(
+            grant=grant, organisation__external_id="E06000123", organisation__name="Lothlorien"
+        )
+
+        csv_content = 'Organisation ID,Grant recipient,Amount\nE06000123,Lothlorien,1000\n"","",""'
+        data = {
+            "name": "Test Data Set",
+            "data_source_type": DataSourceType.GRANT_RECIPIENT,
+            "file": (io.BytesIO(csv_content.encode("utf-8")), "test.csv"),
+        }
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.upload_data_set",
+                grant_id=grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            ),
+            data=data,
+            content_type="multipart/form-data",
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Row 3: Row is empty and should be removed from the data set")
+
     def test_post_stores_preview_data(self, authenticated_grant_admin_client, factories, mock_s3_service_calls):
         grant = authenticated_grant_admin_client.grant
         collection = factories.collection.create(grant=grant)
