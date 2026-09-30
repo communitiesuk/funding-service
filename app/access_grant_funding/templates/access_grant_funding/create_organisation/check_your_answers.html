@@ -16,30 +16,50 @@
 
       {%
         set rows = [
-          {
-            "key": {"text": "Email address"},
-            "value": {"text": current_user.email},
-          },
-          {
-            "key": {"text": "Full name"},
-            "value": {"text": org_session.user_name or current_user.name},
-            "actions": {"items": [{
-              "href": org_session.page_url(pages.USER_NAME, from_check_your_answers=True),
-              "classes": "govuk-link--no-visited-state",
-              "text": "Change",
-              "visuallyHiddenText": "full name"
-            }]} if org_session.needs_user_name else None
-          },
-          {
-            "key": {"text": "Organisation type"},
-            "value": {"text": org_session.organisation_type.label},
-            "actions": {"items": [{
-              "href": org_session.page_url(pages.TYPE, from_check_your_answers=True),
-              "classes": "govuk-link--no-visited-state",
-              "text": "Change",
-              "visuallyHiddenText": "organisation type"
-            }]}
-          },
+        {
+          "key": {"text": "Email address"},
+          "value": {"text": current_user.email},
+        },
+        {
+          "key": {"text": "Full name"},
+          "value": {"text": org_session.user_name or current_user.name},
+          "actions": {"items": [{
+            "href": org_session.page_url(pages.USER_NAME, from_check_your_answers=True),
+            "classes": "govuk-link--no-visited-state",
+            "text": "Change",
+            "visuallyHiddenText": "full name"
+          }]} if org_session.needs_user_name else None
+        },
+        {
+          "key": {"text": "Organisation type"},
+          "value": {"text": org_session.organisation_type.label},
+          "actions": {"items": [{
+            "href": org_session.page_url(pages.TYPE, from_check_your_answers=True),
+            "classes": "govuk-link--no-visited-state",
+            "text": "Change",
+            "visuallyHiddenText": "organisation type"
+          }]}
+        }
+        ]
+      %}
+      {% if org_session.organisation_type == organisation_types.COMPANY %}
+        {%
+          set rows = rows + [
+            {
+              "key": {"text": "Company number"},
+              "value": {"text": org_session.external_id},
+              "actions": {"items": [{
+                "href": org_session.page_url(org_session.identification_page, from_check_your_answers=True),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "company number"
+              }]}
+            }
+          ]
+        %}
+      {% endif %}
+      {%
+        set rows = rows + [
           {
             "key": {"text": "Organisation name"},
             "value": {"text": org_session.name},

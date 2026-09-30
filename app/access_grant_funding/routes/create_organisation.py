@@ -9,6 +9,7 @@ from app.access_grant_funding.forms import (
     CompaniesHouseSwitchToManualForm,
     CompaniesHouseUnavailableForm,
     CreateOrganisationAllowTeamMembersForm,
+    CreateOrganisationCompanyNumberForm,
     CreateOrganisationNameForm,
     CreateOrganisationTypeForm,
     UserNameForm,
@@ -25,7 +26,7 @@ from app.access_grant_funding.session_models import (
     CreateOrganisationPage,
     CreateOrganisationSession,
     NamedCreateOrganisationSession,
-    OrganisationIdentification,
+    OrganisationMatch,
     SignUpOrganisationType,
 )
 from app.common.auth.decorators import requires_passed_eligibility
@@ -95,18 +96,26 @@ def create_organisation_local_authority(
     )
 
 
-def _organisation_already_registered(org_session: CreateOrganisationSession, *, mode: OrganisationModeEnum) -> bool:
-    assert org_session.name is not None
+def _organisation_already_registered(
+    org_session: CreateOrganisationSession, *, mode: OrganisationModeEnum, check: OrganisationMatch | None = None
+) -> OrganisationMatch | None:
+    """Checks whichever of the name and company number have been answered so far against existing organisations."""
+    if (
+        (not check or check == OrganisationMatch.NAME)
+        and org_session.name
+        and organisation_name_exists(org_session.name, mode=mode)
+    ):
+        return OrganisationMatch.NAME
 
-    if organisation_name_exists(org_session.name, mode=mode):
-        return True
+    if org_session.organisation_type != SignUpOrganisationType.COMPANY or not org_session.external_id:
+        return None
 
-    if org_session.identified_by != OrganisationIdentification.COMPANIES_HOUSE:
-        return False
+    if (not check or check == OrganisationMatch.COMPANY_NUMBER) and organisation_companies_house_number_exists(
+        org_session.external_id, mode=mode
+    ):
+        return OrganisationMatch.COMPANY_NUMBER
 
-    assert org_session.external_id is not None
-
-    return organisation_companies_house_number_exists(org_session.external_id, mode=mode)
+    return None
 
 
 def _companies_house_unavailable(
@@ -149,6 +158,7 @@ def create_organisation_company_search(
 
         modes = get_sign_up_modes(interfaces.user.get_current_user())
         if _organisation_already_registered(org_session, mode=modes.organisation):
+            org_session.record_organisation_already_exists(OrganisationMatch.NAME)
             return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS))
 
         return redirect(org_session.next_page)
@@ -234,6 +244,41 @@ def create_organisation_company_search_unavailable(
 
 
 @access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/company-number", methods=["GET", "POST"]
+)
+@requires_passed_eligibility
+@requires_create_organisation_session(page=CreateOrganisationPage.COMPANY_NUMBER)
+def create_organisation_company_number(
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
+) -> ResponseReturnValue:
+    grant = get_grant_by_slug(grant_slug)
+    collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+
+    form = CreateOrganisationCompanyNumberForm(company_number=org_session.external_id)
+    if form.validate_on_submit():
+        assert form.company_number.data is not None
+        org_session.answer_company_number(form.company_number.data)
+
+        modes = get_sign_up_modes(interfaces.user.get_current_user())
+        if (
+            matched_on := _organisation_already_registered(
+                org_session, mode=modes.organisation, check=OrganisationMatch.COMPANY_NUMBER
+            )
+        ) == OrganisationMatch.COMPANY_NUMBER:
+            org_session.record_organisation_already_exists(matched_on)
+            return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS))
+        return redirect(org_session.next_page)
+
+    return render_template(
+        "access_grant_funding/create_organisation/company_number.html",
+        form=form,
+        grant=grant,
+        collection=collection,
+        back_link_href=org_session.previous_page,
+    )
+
+
+@access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/create-organisation/organisation-name", methods=["GET", "POST"]
 )
 @requires_passed_eligibility
@@ -250,7 +295,12 @@ def create_organisation_name(
         org_session.answer_name(form.name.data)
 
         modes = get_sign_up_modes(interfaces.user.get_current_user())
-        if organisation_name_exists(form.name.data, mode=modes.organisation):
+        if (
+            matched_on := _organisation_already_registered(
+                org_session, mode=modes.organisation, check=OrganisationMatch.NAME
+            )
+        ) == OrganisationMatch.NAME:
+            org_session.record_organisation_already_exists(matched_on)
             return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS))
         return redirect(org_session.next_page)
 
@@ -272,24 +322,28 @@ def create_organisation_name(
 @requires_passed_eligibility
 @requires_create_organisation_session(page=CreateOrganisationPage.ALREADY_EXISTS)
 def create_organisation_already_exists(
-    grant_slug: str, collection_slug: str, org_session: NamedCreateOrganisationSession
+    grant_slug: str, collection_slug: str, org_session: CreateOrganisationSession
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
     modes = get_sign_up_modes(interfaces.user.get_current_user())
 
-    # double checks the current session name is in this state before presenting it
+    # double checks the current session answers are in this state before presenting it
     # going back and forward will change the state but this screen will be stored in
     # the browser history
-    if not _organisation_already_registered(org_session, mode=modes.organisation):
+    match = _organisation_already_registered(org_session, mode=modes.organisation)
+    if match is None:
         return redirect(org_session.previous_page)
 
     return render_template(
         "access_grant_funding/create_organisation/organisation_already_exists.html",
         grant=grant,
         collection=collection,
-        organisation_name=org_session.name,
+        organisation_name=org_session.name if org_session.already_exists_matched_on == OrganisationMatch.NAME else None,
+        company_number=org_session.external_id
+        if org_session.already_exists_matched_on == OrganisationMatch.COMPANY_NUMBER
+        else None,
         back_link_href=org_session.previous_page,
     )
 
@@ -372,16 +426,19 @@ def create_organisation_check_your_answers(
                 name=org_session.name,
                 # TODO: charities are still considered OTHER until their register lookup is built
                 type_=OrganisationType.COMPANY
-                if org_session.identified_by == OrganisationIdentification.COMPANIES_HOUSE
+                if org_session.organisation_type == SignUpOrganisationType.COMPANY
                 else OrganisationType.OTHER,
                 typed_id=org_session.external_id,
                 mode=modes.organisation,
                 domains=[user.email_domain] if org_session.allow_team_members else None,
             )
-            current_app.logger.info(
-                "Organisation %(organisation_id)s created. Organisation type was ignored: %(organisation_type)s",
-                dict(organisation_id=organisation.external_id, organisation_type=org_session.organisation_type.value),
-            )
+            if organisation.type == OrganisationType.OTHER:
+                current_app.logger.info(
+                    "Organisation %(organisation_id)s created. Organisation type was ignored: %(organisation_type)s",
+                    dict(
+                        organisation_id=organisation.external_id, organisation_type=org_session.organisation_type.value
+                    ),
+                )
         except DuplicateValueError:
             return redirect(org_session.page_url(CreateOrganisationPage.ALREADY_EXISTS, from_check_your_answers=True))
 
@@ -419,5 +476,6 @@ def create_organisation_check_your_answers(
         collection=collection,
         org_session=org_session,
         pages=CreateOrganisationPage,
+        organisation_types=SignUpOrganisationType,
         back_link_href=org_session.previous_page,
     )

@@ -10,6 +10,7 @@ from app.common.data.models import Organisation
 from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.filters import strip_string_if_not_empty
 from app.extensions import companies_house_service
+from app.services.companies_house import normalize_company_number
 
 
 class DeclineSignOffForm(FlaskForm):
@@ -110,6 +111,24 @@ class UserNameForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CreateOrganisationCompanyNumberForm(FlaskForm):
+    company_number = StringField(
+        "What is your company number?",
+        description="Company number is usually 8 characters long",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter your company number")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    def validate_company_number(self, field: StringField) -> None:
+        assert field.data is not None
+        try:
+            field.data = normalize_company_number(field.data)
+        except ValueError as e:
+            raise ValidationError("Company number must be 8 characters, made up of letters and numbers") from e
 
 
 class CreateOrganisationNameForm(FlaskForm):

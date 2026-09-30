@@ -13,7 +13,11 @@
       <span class="govuk-caption-l">Create an organisation</span>
       <h1 class="govuk-heading-l">Your organisation already exists</h1>
 
-      <p class="govuk-body">{{ organisation_name }} is already an existing organisation on Access grant funding.</p>
+      {% if company_number %}
+        <p class="govuk-body">An organisation with the company number {{ company_number }} is already an existing organisation on Access grant funding.</p>
+      {% else %}
+        <p class="govuk-body">{{ organisation_name }} is already an existing organisation on Access grant funding.</p>
+      {% endif %}
 
       <h2 class="govuk-heading-m">Contact our support desk</h2>
       <p class="govuk-body">

@@ -25,7 +25,6 @@ def requires_create_organisation_session(
     # page can be visited is decided by validate_for_page, which is why a session that fails the stricter model is
     # loaded again as the base model rather than rejected here.
     session_model = {
-        CreateOrganisationPage.ALREADY_EXISTS: NamedCreateOrganisationSession,
         CreateOrganisationPage.TEAM_MEMBERS: NamedCreateOrganisationSession,
         CreateOrganisationPage.USER_NAME: NamedCreateOrganisationSession,
         CreateOrganisationPage.CHECK_YOUR_ANSWERS: CompleteCreateOrganisationSession,

@@ -24,6 +24,7 @@ class CreateOrganisationPage(enum.StrEnum):
     LOCAL_AUTHORITY = "create_organisation_local_authority"
     COMPANY_SEARCH = "create_organisation_company_search"
     COMPANY_SEARCH_UNAVAILABLE = "create_organisation_company_search_unavailable"
+    COMPANY_NUMBER = "create_organisation_company_number"
     NAME = "create_organisation_name"
     ALREADY_EXISTS = "create_organisation_already_exists"
     TEAM_MEMBERS = "create_organisation_allow_team_members"
@@ -115,6 +116,8 @@ class CreateOrganisationSession(SignUpSession):
     # optional as only asked of users whose email domain isn't a shared provider
     allow_team_members: bool | None = None
 
+    already_exists_matched_on: OrganisationMatch | None = None
+
     _page: CreateOrganisationPage = PrivateAttr()
     _grant_slug: str = PrivateAttr()
     _collection_slug: str = PrivateAttr()
@@ -136,6 +139,9 @@ class CreateOrganisationSession(SignUpSession):
             case CreateOrganisationPage.TYPE:
                 return self.organisation_type is not None
 
+            case CreateOrganisationPage.COMPANY_NUMBER:
+                return bool(self.external_id)
+
             case CreateOrganisationPage.COMPANY_SEARCH | CreateOrganisationPage.NAME:
                 return bool(self.name and self.external_id)
 
@@ -149,6 +155,14 @@ class CreateOrganisationSession(SignUpSession):
                 return False
 
     @property
+    def enters_company_number(self) -> bool:
+        """Whether the identifier is a company number typed in by hand, not generated or taken from the register."""
+        return (
+            self.organisation_type == SignUpOrganisationType.COMPANY
+            and self.identified_by == OrganisationIdentification.MANUAL
+        )
+
+    @property
     def name_page(self) -> CreateOrganisationPage:
         """Which page captures the company name"""
         return (
@@ -156,6 +170,13 @@ class CreateOrganisationSession(SignUpSession):
             if self.identified_by == OrganisationIdentification.COMPANIES_HOUSE
             else CreateOrganisationPage.NAME
         )
+
+    @property
+    def identification_page(self) -> CreateOrganisationPage:
+        """Where identifying the organisation starts: the register search, typing a company number, or the name."""
+        if self.identified_by == OrganisationIdentification.COMPANIES_HOUSE:
+            return CreateOrganisationPage.COMPANY_SEARCH
+        return CreateOrganisationPage.COMPANY_NUMBER if self.enters_company_number else CreateOrganisationPage.NAME
 
     @property
     def pages(self) -> list[CreateOrganisationPage]:
@@ -172,6 +193,9 @@ class CreateOrganisationSession(SignUpSession):
 
             case SignUpOrganisationType.COMPANY, OrganisationIdentification.COMPANIES_HOUSE:
                 pages.append(CreateOrganisationPage.COMPANY_SEARCH)
+
+            case SignUpOrganisationType.COMPANY, OrganisationIdentification.MANUAL:
+                pages.extend([CreateOrganisationPage.COMPANY_NUMBER, CreateOrganisationPage.NAME])
 
             case _:
                 pages.append(CreateOrganisationPage.NAME)
@@ -220,6 +244,9 @@ class CreateOrganisationSession(SignUpSession):
     @property
     def next_page(self) -> str:
         """Next destination after a valid input submission; completion stays with its handler."""
+        if self.already_exists_matched_on:
+            return self.page_url(CreateOrganisationPage.ALREADY_EXISTS)
+
         next_step = self._next_step
         if self._from_check_your_answers:
             next_step = self.first_incomplete_page
@@ -230,8 +257,14 @@ class CreateOrganisationSession(SignUpSession):
         if self._showing_search_results:
             return self.page_url(CreateOrganisationPage.COMPANY_SEARCH)
 
-        if self._page in (CreateOrganisationPage.ALREADY_EXISTS, CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE):
+        if self._page == CreateOrganisationPage.COMPANY_SEARCH_UNAVAILABLE:
             return self.page_url(self.name_page)
+
+        if self._page == CreateOrganisationPage.ALREADY_EXISTS:
+            if self.already_exists_matched_on == OrganisationMatch.COMPANY_NUMBER:
+                return self.page_url(self.identification_page)
+            else:
+                return self.page_url(self.name_page)
 
         if (
             self._from_check_your_answers
@@ -266,8 +299,8 @@ class CreateOrganisationSession(SignUpSession):
         pages = self.pages
         answered_pages = pages.index(self.first_incomplete_page)
         if page == CreateOrganisationPage.ALREADY_EXISTS:
-            # an interstitial off the name page, so only reachable once a name has been entered there
-            if self.name_page not in pages or answered_pages <= pages.index(self.name_page):
+            # an interstitial off the pages identifying the organisation, so only reachable once the first is answered
+            if self.identification_page not in pages or answered_pages <= pages.index(self.identification_page):
                 raise SessionJourneyRecoveryRedirect(self.page_url(CreateOrganisationPage.SIGN_UP_ROUTER))
             return
 
@@ -276,7 +309,7 @@ class CreateOrganisationSession(SignUpSession):
             if CreateOrganisationPage.COMPANY_SEARCH not in pages:
                 raise SessionJourneyRecoveryRedirect(
                     self.page_url(
-                        self.name_page
+                        self.identification_page
                         if self.organisation_type == SignUpOrganisationType.COMPANY
                         else CreateOrganisationPage.TYPE
                     )
@@ -286,10 +319,11 @@ class CreateOrganisationSession(SignUpSession):
         if page not in pages:
             if self.organisation_type == SignUpOrganisationType.COMPANY and page in (
                 CreateOrganisationPage.COMPANY_SEARCH,
+                CreateOrganisationPage.COMPANY_NUMBER,
                 CreateOrganisationPage.NAME,
             ):
-                # a company's name is answered on whichever of these fits how it is being found
-                raise SessionJourneyRecoveryRedirect(self.page_url(self.name_page))
+                # a company's name and number are answered on whichever of these fit how it is being found
+                raise SessionJourneyRecoveryRedirect(self.page_url(self.identification_page))
 
             if page not in (CreateOrganisationPage.TEAM_MEMBERS, CreateOrganisationPage.USER_NAME):
                 # a page for another type of organisation: choosing the type again leads to the right pages
@@ -314,7 +348,7 @@ class CreateOrganisationSession(SignUpSession):
         )
 
     def answer_organisation_type(self, organisation_type: SignUpOrganisationType) -> None:
-        identified_by = self.identified_by
+        found_by = self.identified_by, self.enters_company_number
         self.organisation_type = organisation_type
         self.identified_by = (
             OrganisationIdentification.COMPANIES_HOUSE
@@ -323,24 +357,34 @@ class CreateOrganisationSession(SignUpSession):
         )
 
         # a name and identifier found one way don't carry over to being found another
-        if self.identified_by != identified_by:
+        if (self.identified_by, self.enters_company_number) != found_by:
             self.name = None
             self.external_id = None
+            self.already_exists_matched_on = None
 
     def answer_name(self, name: str) -> None:
         # imported here as the data utils pull in the models, which are still loading when this module is imported
         from app.common.data.utils import generate_organisation_custom_code
 
         self.name = name
+        self.already_exists_matched_on = None
 
-        # for now all organisations are going to be considered to have type "OTHER" which means that
-        # we'll generate their identifier, other ways of looking up organisations will have their own
-        # methods for finding the name and external ID
-        self.external_id = generate_organisation_custom_code()
+        # a company entered by hand keeps the number typed in before its name; the other types entered by hand
+        # are considered "OTHER" for now, so their identifier is generated
+        if not self.enters_company_number:
+            self.external_id = generate_organisation_custom_code()
 
     def answer_company(self, name: str, company_number: str) -> None:
         self.name = name
         self.external_id = company_number
+        self.already_exists_matched_on = None
+
+    def answer_company_number(self, company_number: str) -> None:
+        self.external_id = company_number
+        self.already_exists_matched_on = None
+
+    def record_organisation_already_exists(self, matched_on: OrganisationMatch) -> None:
+        self.already_exists_matched_on = matched_on
 
     def fall_back_to_manual_entry(self) -> None:
         """Name the company by hand from here on, as the register could not be reached."""
@@ -392,3 +436,10 @@ def clear_public_sign_up_session() -> UUID | None:
     session.pop(SESSION_MATCHED_ORGANISATION, None)
     session.pop(SESSION_EMITTED_PUBLIC_SIGN_UP_METRICS, None)
     return session.pop(SESSION_SIGNING_UP_FOR_COLLECTION_ID, None)
+
+
+class OrganisationMatch(enum.StrEnum):
+    """Which of the session's answers an existing organisation was found by."""
+
+    NAME = "NAME"
+    COMPANY_NUMBER = "COMPANY_NUMBER"
