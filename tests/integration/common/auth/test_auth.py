@@ -527,8 +527,8 @@ class TestClaimMagicLinkView:
     ):
         # 1. support matched a user A to an existing organisation so they could sign up as them
         # 2. someone else from that org swooped in and started the application
-        # 3. the original user A should still be able to sign in and join that grant as long as
-        #    the invite is valid, even if they already have prior roles elsewhere
+        # 3. the original user A should still be able to sign in through the public sign up link and join that
+        #    grant as long as the invite is valid, even if they already have prior roles elsewhere
         user = factories.user.create(email="user@hastings.gov.uk", name="My User")
         existing_grant_recipient = factories.grant_recipient.create()
         factories.user_role.create(
@@ -538,6 +538,7 @@ class TestClaimMagicLinkView:
             permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
         )
         grant_recipient = factories.grant_recipient.create()
+        collection = factories.collection.create(grant=grant_recipient.grant)
         invitation = factories.invitation.create(
             email="user@hastings.gov.uk",
             organisation=grant_recipient.organisation,
@@ -545,7 +546,10 @@ class TestClaimMagicLinkView:
             permissions=[RoleEnum.DATA_PROVIDER],
         )
         magic_link = interfaces.magic_link.create_magic_link(
-            email="user@hastings.gov.uk", user=user, redirect_to_path=url_for("access_grant_funding.index")
+            email="user@hastings.gov.uk",
+            user=user,
+            redirect_to_path=url_for("access_grant_funding.index"),
+            collection=collection,
         )
 
         response = anonymous_client.post(
