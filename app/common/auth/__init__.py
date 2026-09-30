@@ -188,7 +188,13 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     form = GenericSubmitForm()
     if form.validate_on_submit():
         user = magic_link.user
-        if not user or get_invitations_by_email(email=user.email, is_usable=True):
+        # new users and users without roles claim their invitations on standard sign in
+        # existing users with roles are narrowed to only be claim during a relevant public sign up
+        claims_invitation_for_collection = magic_link.collection is not None and any(
+            invite.grant_id == magic_link.collection.grant_id
+            for invite in get_invitations_by_email(email=str(magic_link.email), is_usable=True)
+        )
+        if not user or not user.roles or claims_invitation_for_collection:
             user = interfaces.user.create_user_and_claim_invitations(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
