@@ -604,15 +604,24 @@ class OrganisationData(BaseModel):
 
 @dataclass
 class MatchedOrganisations:
+    invite_matched_orgs: list["Organisation"]
     role_matched_orgs: list["Organisation"]
     domain_matched_orgs: list["Organisation"]
 
+    def unduplicated_role_matched_orgs(self) -> list["Organisation"]:
+        invite_matched_ids = {org.id for org in self.invite_matched_orgs}
+        return [org for org in self.role_matched_orgs if org.id not in invite_matched_ids]
+
     def unduplicated_domain_matched_orgs(self) -> list["Organisation"]:
-        role_matched_ids = {org.id for org in self.role_matched_orgs}
-        return [org for org in self.domain_matched_orgs if org.id not in role_matched_ids]
+        matched_ids = {org.id for org in [*self.invite_matched_orgs, *self.role_matched_orgs]}
+        return [org for org in self.domain_matched_orgs if org.id not in matched_ids]
 
     def all(self) -> list["Organisation"]:
-        return [*self.role_matched_orgs, *self.unduplicated_domain_matched_orgs()]
+        return [
+            *self.invite_matched_orgs,
+            *self.unduplicated_role_matched_orgs(),
+            *self.unduplicated_domain_matched_orgs(),
+        ]
 
 
 class AuditEventType(enum.Enum):

@@ -10,6 +10,10 @@ from app.common.data.types import MatchedOrganisations, OrganisationModeEnum, Ro
 
 
 class TestAuthorisationHelper:
+    @pytest.fixture
+    def grant(self, factories):
+        return factories.grant.build()
+
     @pytest.mark.parametrize(
         "name, last_logged_in, expected",
         [
@@ -328,64 +332,80 @@ class TestAuthorisationHelper:
 
         assert AuthorisationHelper.has_access_org_access(user=user, organisation_id=organisation.id) is False
 
-    def test_user_has_matched_organisation_true_for_role_matched(self, factories, mocker):
+    def test_user_has_matched_organisation_true_for_role_matched(self, factories, mocker, grant):
         user = factories.user.build()
         organisation = factories.organisation.build()
         get_matched_organisations = mocker.patch(
             "app.common.auth.authorisation_helper.get_matched_organisations",
-            return_value=MatchedOrganisations(role_matched_orgs=[organisation], domain_matched_orgs=[]),
+            return_value=MatchedOrganisations(
+                invite_matched_orgs=[], role_matched_orgs=[organisation], domain_matched_orgs=[]
+            ),
         )
 
-        assert AuthorisationHelper.user_has_matched_organisation(user, organisation.id) is True
-        get_matched_organisations.assert_called_once_with(user, user.email_domain, mode=OrganisationModeEnum.LIVE)
+        assert AuthorisationHelper.user_has_matched_organisation(user, organisation.id, grant=grant) is True
+        get_matched_organisations.assert_called_once_with(
+            user, user.email_domain, grant=grant, mode=OrganisationModeEnum.LIVE
+        )
 
-    def test_user_has_matched_organisation_true_for_domain_matched(self, factories, mocker):
+    def test_user_has_matched_organisation_true_for_domain_matched(self, factories, mocker, grant):
         user = factories.user.build()
         organisation = factories.organisation.build()
         mocker.patch(
             "app.common.auth.authorisation_helper.get_matched_organisations",
-            return_value=MatchedOrganisations(role_matched_orgs=[], domain_matched_orgs=[organisation]),
+            return_value=MatchedOrganisations(
+                invite_matched_orgs=[], role_matched_orgs=[], domain_matched_orgs=[organisation]
+            ),
         )
 
-        assert AuthorisationHelper.user_has_matched_organisation(user, organisation.id) is True
+        assert AuthorisationHelper.user_has_matched_organisation(user, organisation.id, grant=grant) is True
 
-    def test_user_has_matched_organisation_false_for_unmatched_organisation(self, factories, mocker):
+    def test_user_has_matched_organisation_false_for_unmatched_organisation(self, factories, mocker, grant):
         user = factories.user.build()
         organisation = factories.organisation.build()
         unmatched_organisation = factories.organisation.build()
         mocker.patch(
             "app.common.auth.authorisation_helper.get_matched_organisations",
-            return_value=MatchedOrganisations(role_matched_orgs=[organisation], domain_matched_orgs=[]),
+            return_value=MatchedOrganisations(
+                invite_matched_orgs=[], role_matched_orgs=[organisation], domain_matched_orgs=[]
+            ),
         )
 
-        assert AuthorisationHelper.user_has_matched_organisation(user, unmatched_organisation.id) is False
+        assert AuthorisationHelper.user_has_matched_organisation(user, unmatched_organisation.id, grant=grant) is False
 
-    def test_user_has_matched_organisation_false_when_no_matches(self, factories, mocker):
+    def test_user_has_matched_organisation_false_when_no_matches(self, factories, mocker, grant):
         user = factories.user.build()
         mocker.patch(
             "app.common.auth.authorisation_helper.get_matched_organisations",
-            return_value=MatchedOrganisations(role_matched_orgs=[], domain_matched_orgs=[]),
+            return_value=MatchedOrganisations(invite_matched_orgs=[], role_matched_orgs=[], domain_matched_orgs=[]),
         )
 
-        assert AuthorisationHelper.user_has_matched_organisation(user, uuid.uuid4()) is False
+        assert AuthorisationHelper.user_has_matched_organisation(user, uuid.uuid4(), grant=grant) is False
 
-    def test_user_has_matched_organisation_false_for_anonymous_user(self, mocker):
+    def test_user_has_matched_organisation_false_for_anonymous_user(self, mocker, grant):
         get_matched_organisations = mocker.patch("app.common.auth.authorisation_helper.get_matched_organisations")
 
-        assert AuthorisationHelper.user_has_matched_organisation(AnonymousUserMixin(), uuid.uuid4()) is False
+        assert (
+            AuthorisationHelper.user_has_matched_organisation(AnonymousUserMixin(), uuid.uuid4(), grant=grant) is False
+        )
         get_matched_organisations.assert_not_called()
 
-    def test_user_has_matched_organisation_uses_the_given_mode(self, factories, mocker):
+    def test_user_has_matched_organisation_uses_the_given_mode(self, factories, mocker, grant):
         user = factories.user.build()
         organisation = factories.organisation.build()
         get_matched_organisations = mocker.patch(
             "app.common.auth.authorisation_helper.get_matched_organisations",
-            return_value=MatchedOrganisations(role_matched_orgs=[organisation], domain_matched_orgs=[]),
+            return_value=MatchedOrganisations(
+                invite_matched_orgs=[], role_matched_orgs=[organisation], domain_matched_orgs=[]
+            ),
         )
 
-        AuthorisationHelper.user_has_matched_organisation(user, organisation.id, mode=OrganisationModeEnum.TEST)
+        AuthorisationHelper.user_has_matched_organisation(
+            user, organisation.id, grant=grant, mode=OrganisationModeEnum.TEST
+        )
 
-        get_matched_organisations.assert_called_once_with(user, user.email_domain, mode=OrganisationModeEnum.TEST)
+        get_matched_organisations.assert_called_once_with(
+            user, user.email_domain, grant=grant, mode=OrganisationModeEnum.TEST
+        )
 
     @pytest.mark.parametrize(
         "role, expected",

@@ -11,7 +11,7 @@ from app.common.data.models_user import User
 from app.common.data.types import OrganisationModeEnum, RoleEnum, SubmissionModeEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import GrantRecipient, Organisation, Submission
+    from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
 
 
 class AuthorisationHelper:
@@ -262,12 +262,13 @@ class AuthorisationHelper:
         user: User | AnonymousUserMixin,
         organisation_id: UUID,
         *,
+        grant: "Grant",
         mode: OrganisationModeEnum = OrganisationModeEnum.LIVE,
     ) -> bool:
         if isinstance(user, AnonymousUserMixin):
             return False
 
-        matched_orgs = get_matched_organisations(user, user.email_domain, mode=mode)
+        matched_orgs = get_matched_organisations(user, user.email_domain, grant=grant, mode=mode)
         return any(org.id == organisation_id for org in matched_orgs.all())
 
     @staticmethod

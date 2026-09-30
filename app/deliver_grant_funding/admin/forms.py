@@ -261,15 +261,16 @@ class PlatformAdminBulkCreateGrantRecipientsForm(FlaskForm):
             item: dict = {}
             if s == GrantRecipientStatusEnum.APPLYING:
                 item["disabled"] = True
-                set_up_applicant_url = url_for(
-                    "collection_lifecycle.set_up_local_authority_applicant",
+                match_applicant_url = url_for(
+                    "collection_lifecycle.match_applicant_to_organisation",
                     grant_id=collection.grant_id,
                     collection_id=collection.id,
                 )
                 item["hint"] = {
                     "html": Markup(
                         "To manually set up an applicant who has not been allocated, "
-                        f'<a class="govuk-link" href="{set_up_applicant_url}">set up a local authority applicant</a>'
+                        f'<a class="govuk-link" href="{match_applicant_url}">match an applicant to an organisation'
+                        "</a>"
                     )
                 }
             elif s == GrantRecipientStatusEnum.AWARDED:
@@ -399,11 +400,11 @@ class PlatformAdminAddSingleDataProviderForm(FlaskForm):
         )
 
 
-class PlatformAdminSetUpLocalAuthorityApplicantForm(FlaskForm):
+class PlatformAdminMatchApplicantToOrganisationForm(FlaskForm):
     organisation = SelectField(
-        "Local authority",
+        "Organisation",
         choices=[],
-        validators=[DataRequired("Select a local authority")],
+        validators=[DataRequired("Select an organisation")],
         widget=GovSelectWithSearch(),
     )
     full_name = StringField(
@@ -416,18 +417,11 @@ class PlatformAdminSetUpLocalAuthorityApplicantForm(FlaskForm):
         validators=[DataRequired("Enter the applicant's email address"), Email()],
         widget=GovTextInput(),
     )
-    send_notification_email = BooleanField(
-        "Send 'Application created on Access grant funding' email",
-        widget=GovCheckboxInput(),
-    )
-    submit = SubmitField("Set up applicant", widget=GovSubmitInput())
+    submit = SubmitField("Match applicant to organisation", widget=GovSubmitInput())
 
-    def __init__(self, local_authorities: Sequence[Organisation], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, organisations: Sequence[Organisation], *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.organisation.choices = [("", "")] + [(str(org.id), org.name) for org in local_authorities]
-        self.send_notification_email.description = (
-            "Send the email applicants receive when they sign up, confirming the application has been created."
-        )
+        self.organisation.choices = [("", "")] + [(str(org.id), org.name) for org in organisations]
 
 
 class PlatformAdminAddTestGrantRecipientUserForm(FlaskForm):

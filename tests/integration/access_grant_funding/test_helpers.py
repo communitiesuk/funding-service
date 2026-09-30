@@ -55,3 +55,55 @@ class TestSignUpAsGrantRecipient:
             set(interfaces.user.get_user_role(user, organisation.id, collection.grant.id).permissions)
             == expected_permissions
         )
+
+    def test_grants_the_invitation_permissions_when_an_invitation_is_present(
+        self, factories, user, mock_notification_service_calls
+    ):
+        collection = factories.collection.create(requires_certification=False)
+        organisation = factories.organisation.create(can_manage_grants=False)
+        invitation = factories.invitation.create(
+            email=user.email,
+            organisation=organisation,
+            grant=collection.grant,
+            permissions=[RoleEnum.CERTIFIER, RoleEnum.MEMBER],
+        )
+
+        sign_up_as_grant_recipient(
+            user=user,
+            grant=collection.grant,
+            collection=collection,
+            organisation=organisation,
+            mode=GrantRecipientModeEnum.LIVE,
+            organisation_created=False,
+            invitation=invitation,
+        )
+
+        assert set(interfaces.user.get_user_role(user, organisation.id, collection.grant.id).permissions) == {
+            RoleEnum.CERTIFIER,
+            RoleEnum.MEMBER,
+        }
+
+    def test_does_not_grant_permissions_if_matched_organisation_erroneously_drifts(self, factories, user):
+        collection = factories.collection.create(requires_certification=False)
+        organisation = factories.organisation.create(can_manage_grants=False)
+        drift_organisation = factories.organisation.create(can_manage_grants=False)
+        invitation = factories.invitation.create(
+            email=user.email,
+            organisation=organisation,
+            grant=collection.grant,
+            permissions=[RoleEnum.CERTIFIER, RoleEnum.MEMBER],
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Organisation selected through public sign up invite match should never differ from the invite scope",
+        ):
+            sign_up_as_grant_recipient(
+                user=user,
+                grant=collection.grant,
+                collection=collection,
+                organisation=drift_organisation,
+                mode=GrantRecipientModeEnum.LIVE,
+                organisation_created=False,
+                invitation=invitation,
+            )

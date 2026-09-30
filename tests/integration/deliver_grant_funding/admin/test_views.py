@@ -9,9 +9,9 @@ from sqlalchemy.sql.expression import select
 
 from app import CollectionAdminEmailTypeEnum
 from app.common.collections.types import TextSingleLineAnswer
-from app.common.data.interfaces.grant_recipients import get_grant_recipient
+from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
-from app.common.data.interfaces.user import get_user, get_user_by_email
+from app.common.data.interfaces.user import get_usable_invitation, get_user, get_user_by_email
 from app.common.data.models import Grant, Organisation
 from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation
@@ -1130,7 +1130,7 @@ class TestCollectionLifecycleTasklist:
             (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, False, None),
         ],
     )
-    def test_set_up_local_authority_applicant_task(
+    def test_match_applicant_to_organisation_task(
         self,
         authenticated_platform_grant_lifecycle_manager_client,
         factories,
@@ -1155,7 +1155,7 @@ class TestCollectionLifecycleTasklist:
             (
                 item
                 for item in soup.find("ul", {"id": "grant-tasks"}).find_all("li", {"class": "govuk-task-list__item"})
-                if "Set up local authority applicant" in item.get_text()
+                if "Match applicant to organisation for public sign up" in item.get_text()
             ),
             None,
         )
@@ -1168,7 +1168,7 @@ class TestCollectionLifecycleTasklist:
         link = task.find("a")
         if expected_status == "Optional":
             assert link.get("href") == (
-                f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-local-authority-applicant"
+                f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/match-applicant-to-organisation"
             )
         else:
             assert link is None
@@ -2958,8 +2958,8 @@ class TestSetupGrantRecipients:
         applying_radio = soup.find("input", {"name": "status", "value": "applying"})
         assert applying_radio.has_attr("disabled")
         applying_hint = soup.find(id=applying_radio["aria-describedby"])
-        assert applying_hint.find("a", string="set up a local authority applicant").get("href") == (
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-local-authority-applicant"
+        assert applying_hint.find("a", string="match an applicant to an organisation").get("href") == (
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/match-applicant-to-organisation"
         )
 
     def test_get_excludes_grant_managing_organisations(
@@ -3393,7 +3393,7 @@ class TestAddIndividualDataProviders:
         mock_send.assert_not_called()
 
 
-class TestSetUpLocalAuthorityApplicant:
+class TestMatchApplicantToOrganisation:
     @pytest.fixture
     def open_public_collection(self, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
@@ -3415,7 +3415,7 @@ class TestSetUpLocalAuthorityApplicant:
     def test_permissions(self, client_fixture, expected_code, request, open_public_collection, db_session):
         client = request.getfixturevalue(client_fixture)
         response = client.get(
-            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/set-up-local-authority-applicant"
+            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/match-applicant-to-organisation"
         )
         assert response.status_code == expected_code
 
@@ -3442,13 +3442,13 @@ class TestSetUpLocalAuthorityApplicant:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-local-authority-applicant"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/match-applicant-to-organisation"
         )
 
         assert response.status_code == 302
         assert response.location == f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
 
-    def test_get_lists_only_active_live_local_authorities(
+    def test_get_lists_active_live_organisations(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
     ):
         factories.organisation.create(
@@ -3459,44 +3459,34 @@ class TestSetUpLocalAuthorityApplicant:
         factories.organisation.create(name="Test Authority", mode=OrganisationModeEnum.TEST)
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/set-up-local-authority-applicant"
+            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/match-applicant-to-organisation"
         )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Set up local authority applicant" in get_h1_text(soup)
+        assert "Match applicant to organisation for public sign up" in get_h1_text(soup)
 
         options = soup.find("select", {"id": "organisation"}).find_all("option")
-        assert [option.get_text(strip=True) for option in options] == ["", "Local Authority"]
+        assert [option.get_text(strip=True) for option in options] == ["", "Company", "Local Authority"]
 
+        # Only organisations with authorised email domains are listed
         domain_rows = soup.find("table").find("tbody").find_all("tr")
         assert [[cell.get_text(strip=True) for cell in row.find_all("td")] for row in domain_rows] == [
             ["Local Authority", "la.gov.uk, la2.gov.uk"]
         ]
 
-    @pytest.mark.parametrize("send_notification_email", [True, False])
-    def test_post_creates_grant_recipient_and_data_provider(
-        self,
-        authenticated_platform_grant_lifecycle_manager_client,
-        factories,
-        db_session,
-        mocker,
-        open_public_collection,
-        send_notification_email,
+    def test_post_creates_invitation(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
     ):
-        mock_send = mocker.patch(
-            "app.deliver_grant_funding.admin.views.notification_service.send_access_confirm_public_sign_up"
-        )
         grant = open_public_collection.grant
         org = factories.organisation.create(name="Local Authority")
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{open_public_collection.id}/set-up-local-authority-applicant",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{open_public_collection.id}/match-applicant-to-organisation",
             data={
                 "organisation": str(org.id),
                 "full_name": "John Doe",
                 "email_address": "john@example.com",
-                **({"send_notification_email": "y"} if send_notification_email else {}),
                 "submit": "y",
             },
             follow_redirects=True,
@@ -3504,28 +3494,16 @@ class TestSetUpLocalAuthorityApplicant:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        expected_flash = "Successfully set up John Doe as an applicant for Local Authority"
-        if send_notification_email:
-            assert page_has_flash(soup, f"{expected_flash} and sent notification email.")
-        else:
-            assert page_has_flash(soup, f"{expected_flash}.")
+        assert page_has_flash(soup, "Successfully matched John Doe to Local Authority for public sign up.")
 
-        grant_recipient = get_grant_recipient(grant.id, org.id)
-        assert grant_recipient.status == GrantRecipientStatusEnum.APPLYING
-        assert grant_recipient.mode == GrantRecipientModeEnum.LIVE
+        invitation = get_usable_invitation("john@example.com", grant=grant, organisation=org)
+        assert invitation is not None
+        assert invitation.name == "John Doe"
+        assert set(invitation.permissions) == {RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER}
 
-        user = get_user_by_email("john@example.com")
-        assert user.name == "John Doe"
-        assert RoleEnum.DATA_PROVIDER in user.roles[0].permissions
-        assert user.roles[0].organisation_id == org.id
-        assert user.roles[0].grant_id == grant.id
-
-        if send_notification_email:
-            mock_send.assert_called_once_with(
-                "john@example.com", collection=open_public_collection, grant_recipient=grant_recipient
-            )
-        else:
-            mock_send.assert_not_called()
+        # The user signs themselves up through public sign up, which is what creates these
+        assert get_grant_recipient_or_none(grant.id, org.id) is None
+        assert get_user_by_email("john@example.com") is None
 
     def test_post_with_existing_grant_recipient_shows_error(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
@@ -3534,7 +3512,7 @@ class TestSetUpLocalAuthorityApplicant:
         factories.grant_recipient.create(grant=open_public_collection.grant, organisation=org)
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/set-up-local-authority-applicant",
+            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/match-applicant-to-organisation",
             data={
                 "organisation": str(org.id),
                 "full_name": "John Doe",
@@ -3545,8 +3523,10 @@ class TestSetUpLocalAuthorityApplicant:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(soup, "Local Authority is already a grant recipient")
-        assert get_user_by_email("john@example.com") is None
+        assert page_has_error(
+            soup, "Local Authority is already applying for this report, ask the applicant to be invited"
+        )
+        assert get_usable_invitation("john@example.com", grant=open_public_collection.grant, organisation=org) is None
 
 
 class TestAddBulkDataProviders:
