@@ -175,6 +175,22 @@ class TestAuditEventDetailsRenderer:
         assert "Permanent delivery failure" in html
         assert "<pre" not in html
 
+    def test_user_permissions_event_renders_empty_context_as_dash(self, renderer):
+        event = UserPermissionsAdded(
+            user_id=uuid4(),
+            target_user_id=uuid4(),
+            organisation_id=None,
+            grant_id=None,
+            grant_recipient_id=None,
+            permissions=[RoleEnum.MEMBER],
+            resulting_permissions=[RoleEnum.MEMBER],
+        )
+
+        html = renderer.render(event)
+
+        assert '<dt class="govuk-summary-list__key">Context</dt><dd class="govuk-summary-list__value">—</dd>' in html
+        assert "<pre" not in html
+
     def test_only_nested_lists_are_borderless(self, renderer):
         event = DatabaseModelChange(
             user_id=uuid4(),

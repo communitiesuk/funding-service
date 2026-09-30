@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from flask import url_for
 from markupsafe import Markup, escape
 
-from app.common.audit import AuditEvent, DatabaseModelChange, SystemEvent
+from app.common.audit import AuditEvent, DatabaseModelChange
 
 if TYPE_CHECKING:
     from app.common.data.models_audit import AuditEvent as AuditEventModel
@@ -56,8 +56,8 @@ class AuditEventDetailsRenderer:
     def _render_field(self, event: AuditEvent, field_name: str) -> Markup:
         if isinstance(event, DatabaseModelChange) and field_name == "changes":
             return self._render_changes(event)
-        if isinstance(event, SystemEvent) and field_name == "context":
-            return self._render_context(event)
+        if field_name == "context":
+            return self._render_context(getattr(event, field_name))
 
         value = getattr(event, field_name)
         if value is not None and field_name in event.related_entities:
@@ -90,13 +90,11 @@ class AuditEventDetailsRenderer:
             return self._render_entity_link(event.related_entities[column], value)
         return _render_value(value)
 
-    def _render_context(self, event: SystemEvent) -> Markup:
-        if not event.context:
+    def _render_context(self, context: dict[str, Any]) -> Markup:
+        if not context:
             return _render_value(None)
 
-        return _summary_list(
-            ((_field_label(key), _render_value(value)) for key, value in event.context.items()), nested=True
-        )
+        return _summary_list(((_field_label(key), _render_value(value)) for key, value in context.items()), nested=True)
 
     def _render_entity_link(self, model_name: str, entity_id: str) -> Markup:
         view = self._views_by_model_name.get(model_name)
