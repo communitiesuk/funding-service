@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy.sql.expression import select
 
 from app import CollectionAdminEmailTypeEnum
+from app.common.audit import UserInvited, UserPermissionsAdded, UserPermissionsRemoved
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
@@ -6710,6 +6711,24 @@ class TestPlatformAdminDataAnalysis:
         response = client.get("/deliver/admin/data-analysis/certification-events.csv")
         assert response.status_code == expected_code
 
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_data_analyst_client", 200),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_user_management_events_csv_permissions(self, client_fixture, expected_code, request):
+        client = request.getfixturevalue(client_fixture)
+        response = client.get("/deliver/admin/data-analysis/user-management-events.csv")
+        assert response.status_code == expected_code
+
     def test_data_analysis_index_page(self, authenticated_platform_data_analyst_client):
         response = authenticated_platform_data_analyst_client.get("/deliver/admin/data-analysis/")
         assert response.status_code == 200
@@ -6717,6 +6736,11 @@ class TestPlatformAdminDataAnalysis:
         soup = BeautifulSoup(response.data, "html.parser")
         assert get_h1_text(soup) == "Data analysis"
         assert soup.find("a", href="/deliver/admin/data-analysis/certification-events.csv")
+        assert get_h2_text(soup) == "Reports"
+        assert soup.find("h2", string="User management")
+        user_management_events_link = soup.find("a", href="/deliver/admin/data-analysis/user-management-events.csv")
+        assert user_management_events_link is not None
+        assert user_management_events_link.text.strip() == "Download user management events (CSV)"
 
     def test_certification_events_csv_content(self, authenticated_platform_data_analyst_client, factories, db_session):
         grant = factories.grant.create()
@@ -6755,6 +6779,236 @@ class TestPlatformAdminDataAnalysis:
         row = lines[1].split(",")
         assert row[0] == submission.reference
         assert row[2] == "2"
+
+    def test_user_management_events_csv_content(
+        self, authenticated_platform_data_analyst_client, factories, db_session
+    ):
+        managing_org = _get_grant_managing_organisation()
+        recipient_org = factories.organisation.create(
+            name="Recipient Council",
+            external_id="ORG-123",
+            can_manage_grants=False,
+        )
+        grant = factories.grant.create(
+            name="Flood Recovery Grant",
+            ggis_number="GGIS-456",
+            organisation=managing_org,
+        )
+        grant_recipient = factories.grant_recipient.create(
+            grant=grant,
+            organisation=recipient_org,
+            status=GrantRecipientStatusEnum.APPLYING,
+        )
+        factories.collection.create(
+            grant=grant,
+            type=CollectionType.APPLICATION,
+            created_at_utc=datetime.datetime(2025, 5, 1, 9, 0, 0),
+            submission_period_start_date=datetime.date(2025, 5, 15),
+        )
+        factories.collection.create(
+            grant=grant,
+            type=CollectionType.MONITORING_REPORT,
+            created_at_utc=datetime.datetime(2025, 6, 5, 9, 0, 0),
+            submission_period_start_date=datetime.date(2025, 6, 5),
+        )
+
+        self_serve_actor = factories.user.create(email="team-member@example.com")
+        platform_actor = factories.user.create(email="admin@example.com")
+        platform_data_provider_actor = factories.user.create(email="platform-data-provider-admin@example.com")
+        factories.user_role.create(
+            user=platform_data_provider_actor,
+            organisation=None,
+            grant=None,
+            permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER],
+        )
+        invited_user = factories.user.create(email="invited@example.com")
+        public_sign_up_user = factories.user.create(email="public-sign-up@example.com")
+        removed_user = factories.user.create(email="removed@example.com")
+        platform_added_user = factories.user.create(email="platform-added@example.com")
+
+        claimed_invitation = factories.invitation.create(
+            email="invited@example.com",
+            name="Invited Person",
+            organisation=recipient_org,
+            grant=grant,
+            created_by=self_serve_actor,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            created_at_utc=datetime.datetime(2025, 6, 1, 9, 0, 0),
+            claimed_at_utc=datetime.datetime(2025, 6, 2, 10, 30, 0),
+            user=invited_user,
+        )
+        unclaimed_invitation = factories.invitation.create(
+            email="pending@example.com",
+            name="Pending Person",
+            organisation=recipient_org,
+            grant=grant,
+            created_by=self_serve_actor,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            created_at_utc=datetime.datetime(2025, 6, 3, 9, 0, 0),
+        )
+
+        factories.audit_event.create(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            user=self_serve_actor,
+            user_id=self_serve_actor.id,
+            created_at_utc=datetime.datetime(2025, 6, 1, 9, 1, 2),
+            data=UserInvited(
+                user_id=self_serve_actor.id,
+                invitation_id=claimed_invitation.id,
+                organisation_id=recipient_org.id,
+                grant_id=grant.id,
+                grant_recipient_id=grant_recipient.id,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            ).model_dump(mode="json"),
+        )
+        factories.audit_event.create(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            user=self_serve_actor,
+            user_id=self_serve_actor.id,
+            created_at_utc=datetime.datetime(2025, 6, 3, 9, 1, 2),
+            data=UserInvited(
+                user_id=self_serve_actor.id,
+                invitation_id=unclaimed_invitation.id,
+                organisation_id=recipient_org.id,
+                grant_id=grant.id,
+                grant_recipient_id=grant_recipient.id,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            ).model_dump(mode="json"),
+        )
+        factories.audit_event.create(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            user=invited_user,
+            user_id=invited_user.id,
+            created_at_utc=datetime.datetime(2025, 6, 2, 10, 30, 1),
+            data=UserPermissionsAdded(
+                user_id=invited_user.id,
+                target_user_id=invited_user.id,
+                organisation_id=recipient_org.id,
+                grant_id=grant.id,
+                grant_recipient_id=grant_recipient.id,
+                invitation_id=claimed_invitation.id,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+                resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            ).model_dump(mode="json"),
+        )
+        factories.audit_event.create(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            user=public_sign_up_user,
+            user_id=public_sign_up_user.id,
+            created_at_utc=datetime.datetime(2025, 6, 4, 12, 13, 14),
+            data=UserPermissionsAdded(
+                user_id=public_sign_up_user.id,
+                target_user_id=public_sign_up_user.id,
+                organisation_id=recipient_org.id,
+                grant_id=grant.id,
+                grant_recipient_id=grant_recipient.id,
+                invitation_id=None,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+                resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            ).model_dump(mode="json"),
+        )
+        factories.audit_event.create(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            user=platform_data_provider_actor,
+            user_id=platform_data_provider_actor.id,
+            created_at_utc=datetime.datetime(2025, 6, 4, 13, 14, 15),
+            data=UserPermissionsAdded(
+                user_id=platform_data_provider_actor.id,
+                target_user_id=platform_added_user.id,
+                organisation_id=recipient_org.id,
+                grant_id=grant.id,
+                grant_recipient_id=grant_recipient.id,
+                invitation_id=None,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+                resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            ).model_dump(mode="json"),
+        )
+        factories.audit_event.create(
+            event_type=AuditEventType.USER_MANAGEMENT,
+            user=platform_actor,
+            user_id=platform_actor.id,
+            created_at_utc=datetime.datetime(2025, 6, 5, 12, 13, 14),
+            data=UserPermissionsRemoved(
+                user_id=platform_actor.id,
+                target_user_id=removed_user.id,
+                organisation_id=managing_org.id,
+                grant_id=grant.id,
+                grant_recipient_id=None,
+                invitation_id=None,
+                permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+                resulting_permissions=[],
+            ).model_dump(mode="json"),
+        )
+
+        response = authenticated_platform_data_analyst_client.get(
+            "/deliver/admin/data-analysis/user-management-events.csv"
+        )
+
+        assert response.status_code == 200
+        assert response.content_type == "text/csv; charset=utf-8"
+        assert response.headers["Content-Disposition"] == "attachment; filename=user-management-events.csv"
+
+        rows = list(csv.DictReader(io.StringIO(response.data.decode("utf-8-sig"))))
+        assert list(rows[0].keys()) == [
+            "Timestamp",
+            "Event",
+            "Source",
+            "Grant name",
+            "Grant ID",
+            "Grant GGIS number",
+            "Organisation name",
+            "Organisation ID",
+            "Organisation external ID",
+            "Pre-award or monitoring",
+            "Actor email",
+            "Permissions",
+            "Invite date",
+            "Accepted date",
+            "Unclaimed invitation",
+        ]
+        assert [row["Event"] for row in rows] == [
+            "user_invited",
+            "permissions_added",
+            "user_invited",
+            "permissions_added",
+            "permissions_added",
+            "permissions_removed",
+        ]
+
+        claimed_invitation_row = rows[0]
+        assert claimed_invitation_row["Timestamp"] == "01/06/2025 09:01:02"
+        assert claimed_invitation_row["Source"] == "self-serve"
+        assert claimed_invitation_row["Grant name"] == "Flood Recovery Grant"
+        assert claimed_invitation_row["Grant ID"] == str(grant.id)
+        assert claimed_invitation_row["Grant GGIS number"] == "GGIS-456"
+        assert claimed_invitation_row["Organisation name"] == "Recipient Council"
+        assert claimed_invitation_row["Organisation ID"] == str(recipient_org.id)
+        assert claimed_invitation_row["Organisation external ID"] == "ORG-123"
+        assert claimed_invitation_row["Pre-award or monitoring"] == "pre-award"
+        assert claimed_invitation_row["Invite date"] == "01/06/2025 09:00:00"
+        assert claimed_invitation_row["Accepted date"] == "02/06/2025 10:30:00"
+        assert claimed_invitation_row["Unclaimed invitation"] == "0"
+        assert claimed_invitation_row["Actor email"] == ""
+
+        unclaimed_invitation_row = rows[2]
+        assert unclaimed_invitation_row["Unclaimed invitation"] == "1"
+        assert unclaimed_invitation_row["Accepted date"] == ""
+
+        public_sign_up_row = rows[3]
+        assert public_sign_up_row["Source"] == "public sign-up"
+        assert public_sign_up_row["Actor email"] == ""
+        assert public_sign_up_row["Permissions"] == "data-provider, member"
+
+        platform_added_row = rows[4]
+        assert platform_added_row["Source"] == "platform/admin added"
+        assert platform_added_row["Organisation name"] == "Recipient Council"
+        assert platform_added_row["Pre-award or monitoring"] == "pre-award"
+        assert platform_added_row["Actor email"] == "platform-data-provider-admin@example.com"
+
+        permissions_removed_row = rows[5]
+        assert permissions_removed_row["Source"] == "platform/admin added"
+        assert permissions_removed_row["Actor email"] == "admin@example.com"
+        assert permissions_removed_row["Pre-award or monitoring"] == "unknown"
 
 
 class TestPlatformAdminSubmissionsView:

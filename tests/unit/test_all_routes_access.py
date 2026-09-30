@@ -378,6 +378,7 @@ routes_with_access_controlled_by_flask_admin = [
     "collection_lifecycle.close_collection",
     "data_analysis.index",
     "data_analysis.download_certification_events_csv",
+    "data_analysis.download_user_management_events_csv",
     "developer_tools.index",
     "developer_tools.stop",
     "feature_flags.index",
