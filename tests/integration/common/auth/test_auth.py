@@ -522,6 +522,43 @@ class TestClaimMagicLinkView:
             grant_id=grant_recipient.grant.id,
         )
 
+    def test_post_claims_public_sign_up_invitation_when_organisation_already_applying(
+        self, anonymous_client, factories, db_session
+    ):
+        # 1. support matched a user A to an existing organisation so they could sign up as them
+        # 2. someone else from that org swooped in and started the application
+        # 3. the original user A should still be able to sign in and join that grant as long as
+        #    the invite is valid, even if they already have prior roles elsewhere
+        user = factories.user.create(email="user@hastings.gov.uk", name="My User")
+        existing_grant_recipient = factories.grant_recipient.create()
+        factories.user_role.create(
+            user=user,
+            organisation=existing_grant_recipient.organisation,
+            grant=existing_grant_recipient.grant,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+        grant_recipient = factories.grant_recipient.create()
+        invitation = factories.invitation.create(
+            email="user@hastings.gov.uk",
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        magic_link = interfaces.magic_link.create_magic_link(
+            email="user@hastings.gov.uk", user=user, redirect_to_path=url_for("access_grant_funding.index")
+        )
+
+        response = anonymous_client.post(
+            url_for("auth.claim_magic_link", magic_link_code=magic_link.code),
+            json={"submit": "yes"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+
+        assert invitation.is_usable is False
+        assert invitation.user == user
+        assert AuthorisationHelper.is_access_grant_data_provider(grant_recipient, user)
+
     def test_post_with_session_flag_logs_auto_submit_true(self, anonymous_client, factories, caplog):
         magic_link = factories.magic_link.create()
 
