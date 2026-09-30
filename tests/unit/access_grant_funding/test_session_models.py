@@ -4,6 +4,7 @@ import pytest
 from flask import Flask, session, url_for
 
 from app.access_grant_funding.session_models import (
+    CharityRegulator,
     CompleteCreateOrganisationSession,
     CreateOrganisationPage,
     CreateOrganisationSession,
@@ -58,7 +59,7 @@ class TestCreateOrganisationSession:
     def test_answering_a_company_number_by_hand_keeps_it_through_naming_the_company(self):
         session = _session(uuid.uuid4(), organisation_type=SignUpOrganisationType.COMPANY)
 
-        session.answer_company_number("AB123456")
+        session.answer_registration_number("AB123456")
         session.answer_name("Test Company Ltd")
 
         assert session.name == "Test Company Ltd"
@@ -68,7 +69,7 @@ class TestCreateOrganisationSession:
         "answer",
         [
             pytest.param(lambda session: session.answer_name("Acme Ltd"), id="name"),
-            pytest.param(lambda session: session.answer_company_number("AB123456"), id="company number"),
+            pytest.param(lambda session: session.answer_registration_number("AB123456"), id="registration number"),
             pytest.param(lambda session: session.answer_company("TEST COMPANY LIMITED", "00000001"), id="company"),
             pytest.param(lambda session: session.answer_organisation_type(SignUpOrganisationType.OTHER), id="type"),
         ],
@@ -80,11 +81,68 @@ class TestCreateOrganisationSession:
             identified_by=OrganisationIdentification.MANUAL,
             external_id="CD654321",
         )
-        session.record_organisation_already_exists(OrganisationMatch.COMPANY_NUMBER)
+        session.record_organisation_already_exists(OrganisationMatch.NUMBER)
 
         answer(session)
 
         assert session.already_exists_matched_on is None
+
+    def test_answering_a_charity_number_keeps_it_through_naming_the_charity(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+        )
+
+        session.answer_registration_number("1234567")
+        session.answer_name("Test Charity")
+
+        assert session.name == "Test Charity"
+        assert session.external_id == "1234567"
+
+    def test_naming_a_charity_that_is_not_registered_generates_the_organisation_identifier(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.NOT_REGISTERED,
+        )
+
+        session.answer_name("Test Charity")
+
+        assert session.name == "Test Charity"
+        assert session.external_id
+
+    def test_answering_a_different_regulator_forgets_the_number_but_not_the_name(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+            name="Test Charity",
+            already_exists_matched_on=OrganisationMatch.NUMBER,
+        )
+
+        session.answer_charity_regulator(CharityRegulator.SCOTLAND)
+
+        assert session.charity_regulator is CharityRegulator.SCOTLAND
+        assert session.external_id is None
+        assert session.name == "Test Charity"
+        assert session.already_exists_matched_on is None
+        assert session.first_incomplete_page is CreateOrganisationPage.CHARITY_NUMBER
+
+    def test_answering_the_same_regulator_again_keeps_the_number(self):
+        session = _session(
+            uuid.uuid4(),
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+            name="Test Charity",
+        )
+
+        session.answer_charity_regulator(CharityRegulator.ENGLAND_AND_WALES)
+
+        assert session.external_id == "1234567"
+        assert session.name == "Test Charity"
 
     def test_answering_a_company_from_the_register_takes_its_number_as_the_identifier(self):
         session = _session(
@@ -274,7 +332,7 @@ class TestCreateOrganisationNavigation:
         session.answer_organisation_type(SignUpOrganisationType.COMPANY)
 
         assert session.identified_by is OrganisationIdentification.MANUAL
-        assert session.enters_company_number is True
+        assert session.enters_registration_number is True
         assert session.pages[:3] == [
             CreateOrganisationPage.TYPE,
             CreateOrganisationPage.COMPANY_NUMBER,
@@ -282,18 +340,64 @@ class TestCreateOrganisationNavigation:
         ]
         assert session.first_incomplete_page is CreateOrganisationPage.COMPANY_NUMBER
 
-        session.answer_company_number("AB123456")
+        session.answer_registration_number("AB123456")
 
         assert session.first_incomplete_page is CreateOrganisationPage.NAME
 
-    @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.CHARITY, SignUpOrganisationType.OTHER])
-    def test_other_organisations_are_named_by_hand(self, organisation_type):
+    @pytest.mark.parametrize(
+        "charity_regulator",
+        [CharityRegulator.ENGLAND_AND_WALES, CharityRegulator.SCOTLAND, CharityRegulator.NORTHERN_IRELAND],
+    )
+    def test_a_registered_charity_gives_its_regulator_and_number_before_its_name(self, charity_regulator):
         session = _session(uuid.uuid4())
 
-        session.answer_organisation_type(organisation_type)
+        session.answer_organisation_type(SignUpOrganisationType.CHARITY)
 
         assert session.identified_by is OrganisationIdentification.MANUAL
-        assert session.enters_company_number is False
+        assert session.enters_registration_number is True
+        assert session.identification_page is CreateOrganisationPage.CHARITY_NUMBER
+        assert session.name_page is CreateOrganisationPage.NAME
+        assert session.pages[:4] == [
+            CreateOrganisationPage.TYPE,
+            CreateOrganisationPage.CHARITY_REGULATOR,
+            CreateOrganisationPage.CHARITY_NUMBER,
+            CreateOrganisationPage.NAME,
+        ]
+        assert session.first_incomplete_page is CreateOrganisationPage.CHARITY_REGULATOR
+
+        session.answer_charity_regulator(charity_regulator)
+
+        assert session.registered_charity is True
+        assert session.first_incomplete_page is CreateOrganisationPage.CHARITY_NUMBER
+
+        session.answer_registration_number("1234567")
+
+        assert session.first_incomplete_page is CreateOrganisationPage.NAME
+
+    def test_a_charity_that_is_not_registered_is_named_by_hand(self):
+        session = _session(uuid.uuid4())
+
+        session.answer_organisation_type(SignUpOrganisationType.CHARITY)
+        session.answer_charity_regulator(CharityRegulator.NOT_REGISTERED)
+
+        assert session.registered_charity is False
+        assert session.enters_registration_number is False
+        assert session.identification_page is CreateOrganisationPage.NAME
+        assert session.name_page is CreateOrganisationPage.NAME
+        assert session.pages[:3] == [
+            CreateOrganisationPage.TYPE,
+            CreateOrganisationPage.CHARITY_REGULATOR,
+            CreateOrganisationPage.NAME,
+        ]
+        assert session.first_incomplete_page is CreateOrganisationPage.NAME
+
+    def test_other_organisations_are_named_by_hand(self):
+        session = _session(uuid.uuid4())
+
+        session.answer_organisation_type(SignUpOrganisationType.OTHER)
+
+        assert session.identified_by is OrganisationIdentification.MANUAL
+        assert session.enters_registration_number is False
         assert session.identification_page is CreateOrganisationPage.NAME
         assert session.name_page is CreateOrganisationPage.NAME
         assert session.first_incomplete_page is CreateOrganisationPage.NAME
@@ -315,13 +419,46 @@ class TestCreateOrganisationNavigation:
         assert session.external_id is None
         assert session.allow_team_members is True
 
-    def test_changing_to_a_type_found_the_same_way_keeps_the_name_and_identifier(self):
+    def test_choosing_the_same_type_again_keeps_the_name_and_identifier(self):
+        session = self._named_session()
+
+        session.answer_organisation_type(SignUpOrganisationType.OTHER)
+
+        assert session.name == "Acme Ltd"
+        assert session.external_id == "000123456"
+
+    @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.COMPANY, SignUpOrganisationType.OTHER])
+    def test_changing_a_charity_to_another_type_forgets_its_regulator_and_number(self, organisation_type):
+        session = self._named_session(
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+        )
+
+        session.answer_organisation_type(organisation_type)
+
+        assert session.charity_regulator is None
+        assert session.name is None
+        assert session.external_id is None
+
+    def test_changing_a_charity_that_is_not_registered_to_other_keeps_the_name_and_identifier(self):
+        session = self._named_session(
+            organisation_type=SignUpOrganisationType.CHARITY, charity_regulator=CharityRegulator.NOT_REGISTERED
+        )
+
+        session.answer_organisation_type(SignUpOrganisationType.OTHER)
+
+        assert session.charity_regulator is None
+        assert session.name == "Acme Ltd"
+        assert session.external_id == "000123456"
+
+    def test_changing_another_type_to_a_charity_forgets_the_generated_identifier(self):
         session = self._named_session()
 
         session.answer_organisation_type(SignUpOrganisationType.CHARITY)
 
-        assert session.name == "Acme Ltd"
-        assert session.external_id == "000123456"
+        assert session.name is None
+        assert session.external_id is None
 
     @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.CHARITY, SignUpOrganisationType.OTHER])
     def test_changing_a_company_entered_by_hand_to_another_type_forgets_its_number(self, organisation_type):
@@ -490,6 +627,20 @@ class TestCreateOrganisationNavigationUrls:
 
         assert session.previous_page == self._url(CreateOrganisationPage.NAME)
 
+    def test_previous_page_from_already_exists_matched_on_a_charity_number_is_the_charity_number_page(self):
+        session = self._bind(
+            _session(
+                uuid.uuid4(),
+                organisation_type=SignUpOrganisationType.CHARITY,
+                charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+                external_id="1234567",
+                already_exists_matched_on=OrganisationMatch.NUMBER,
+            ),
+            CreateOrganisationPage.ALREADY_EXISTS,
+        )
+
+        assert session.previous_page == self._url(CreateOrganisationPage.CHARITY_NUMBER)
+
     def test_previous_page_from_already_exists_matched_on_the_company_number_is_the_number_page(self):
         session = self._bind(
             _session(
@@ -497,7 +648,7 @@ class TestCreateOrganisationNavigationUrls:
                 organisation_type=SignUpOrganisationType.COMPANY,
                 identified_by=OrganisationIdentification.MANUAL,
                 external_id="AB123456",
-                already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
+                already_exists_matched_on=OrganisationMatch.NUMBER,
             ),
             CreateOrganisationPage.ALREADY_EXISTS,
         )

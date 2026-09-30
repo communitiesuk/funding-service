@@ -190,6 +190,26 @@ def get_input_value(soup: BeautifulSoup, input_name: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def get_input_prefix(soup: BeautifulSoup, input_name: str) -> str | None:
+    field = soup.find("input", attrs={"name": input_name})
+    prefix = field.find_previous_sibling("div", class_="govuk-input__prefix") if isinstance(field, Tag) else None
+    return prefix.text.strip() if isinstance(prefix, Tag) else None
+
+
+def get_radio_labels(soup: BeautifulSoup, input_name: str) -> list[str]:
+    labels = []
+    for radio in soup.find_all("input", attrs={"name": input_name, "type": "radio"}):
+        label = radio.find_next_sibling("label")
+        labels.append(label.text.strip() if isinstance(label, Tag) else "")
+    return labels
+
+
+def get_checked_radio_value(soup: BeautifulSoup, input_name: str) -> str | None:
+    radio = soup.find("input", attrs={"name": input_name, "type": "radio", "checked": True})
+    value = radio.get("value") if isinstance(radio, Tag) else None
+    return value if isinstance(value, str) else None
+
+
 def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
     buttons = soup.select("button")
 

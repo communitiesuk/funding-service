@@ -8,8 +8,8 @@ from app.common.data.interfaces.organisations import (
     get_matched_organisations,
     get_organisation_count,
     get_organisations,
-    organisation_companies_house_number_exists,
     organisation_name_exists,
+    organisation_typed_id_exists,
     upsert_organisations,
 )
 from app.common.data.interfaces.user import add_permissions_to_user
@@ -329,19 +329,31 @@ class TestOrganisationNameExists:
         assert organisation_name_exists("Mirrored Organisation (test)") is True
 
 
-class TestOrganisationCompaniesHouseNumberExists:
+class TestOrganisationTypedIdExists:
     def test_true_for_a_registered_company(self, factories, db_session):
         factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
 
-        assert organisation_companies_house_number_exists("00000001") is True
+        assert organisation_typed_id_exists(OrganisationType.COMPANY, "00000001") is True
+
+    def test_true_for_a_registered_charity(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.CHARITY, external_id="CC-1234567")
+
+        assert organisation_typed_id_exists(OrganisationType.CHARITY, "1234567") is True
 
     def test_false_for_an_unknown_company(self, factories, db_session):
-        assert organisation_companies_house_number_exists("00000001") is False
+        assert organisation_typed_id_exists(OrganisationType.COMPANY, "00000001") is False
+
+    def test_only_matches_the_identifier_of_the_given_type(self, factories, db_session):
+        factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-1234567")
+
+        assert organisation_typed_id_exists(OrganisationType.CHARITY, "1234567") is False
 
     def test_is_scoped_to_mode(self, factories, db_session):
         factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-00000001")
 
-        assert organisation_companies_house_number_exists("00000001", mode=OrganisationModeEnum.TEST) is False
+        assert (
+            organisation_typed_id_exists(OrganisationType.COMPANY, "00000001", mode=OrganisationModeEnum.TEST) is False
+        )
 
 
 class TestCreateOrganisation:
