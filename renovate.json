@@ -7,20 +7,33 @@
   "packageRules": [
     {
       "groupName": "Frontend asset dependencies",
-      "matchManagers": ["npm"],
-      "matchDepTypes": ["devDependencies"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "devDependencies"
+      ],
       "automerge": true
     },
     {
       "groupName": "GOV.UK Frontend",
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["govuk-frontend"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "govuk-frontend"
+      ],
       "automerge": false
     },
     {
       "groupName": "Postgres in line with deployed environments",
-      "matchPackageNames": ["postgres"],
-      "matchManagers": ["docker-compose", "github-actions"],
+      "matchPackageNames": [
+        "postgres"
+      ],
+      "matchManagers": [
+        "docker-compose",
+        "github-actions"
+      ],
       "allowedVersions": "<17",
       "description": "If updating to a new major version, update testcontainers in tests/integration/conftest",
       "prBodyNotes": [
@@ -29,16 +42,33 @@
     },
     {
       "groupName": "Paths filter GitHub action",
-      "matchPackageNames": ["dorny/paths-filter"],
-      "matchManagers": ["github-actions"],
+      "matchPackageNames": [
+        "dorny/paths-filter"
+      ],
+      "matchManagers": [
+        "github-actions"
+      ],
       "enabled": false,
       "description": "Disable updates to 3rd party GitHub action to reduce security risk"
     },
     {
       "groupName": "Astral ty",
       "matchManagers": "pep621",
-      "matchPackageNames": ["ty"],
+      "matchPackageNames": [
+        "ty"
+      ],
       "automerge": false
+    },
+    {
+      "groupName": "Node.js",
+      "matchDatasources": [
+        "node-version"
+      ],
+      "automerge": false,
+      "description": "Keeps .nvmrc and package.json's engines.node in a single PR so they cannot drift apart",
+      "prBodyNotes": [
+        "## Notice for developers\n\n`package.json`'s `engines.node` is what the `heroku/nodejs` buildpack reads to pick the Node.js distribution baked into the deployed image — the buildpack ignores `.nvmrc` entirely. Both must move together: `engines.node` is what fixes production, `.nvmrc` keeps CI and local dev aligned with it.\n\nNode patch bumps also carry the bundled npm, and npm vendors its own copy of `tar`. Several `tar` CVEs are only resolvable by moving Node, so please don't defer these."
+      ]
     }
   ]
 }
