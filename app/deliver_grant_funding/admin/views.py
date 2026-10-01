@@ -1584,3 +1584,11 @@ class PlatformAdminDeltaCertifiersView(FlaskAdminPlatformAdminGrantLifecycleMana
             delegated_rows=_build_delegated_rows(delta_officers, certifiers_by_org),
             delta_last_updated_at=delta_last_updated_at,
         )
+
+
+class JustToTestReview:
+    def DoesNotFollowCodeStyle(self, thing):
+        if 1:
+            if 0:
+                if False:
+                    return thing
