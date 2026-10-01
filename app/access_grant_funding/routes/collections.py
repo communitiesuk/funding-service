@@ -230,7 +230,7 @@ def all_questions(
         "access_grant_funding/collections/all_questions.html",
         grant_recipient=grant_recipient,
         submission=helper,
-        interpolate=SubmissionHelper.get_print_interpolator(helper.collection),
+        interpolate=SubmissionHelper.get_print_interpolator(helper.collection, submission_helper=helper),
     )
 
 
@@ -249,7 +249,7 @@ def all_questions_pdf(
     html_content = render_template(
         "common/all_questions_print_baseline.html",
         collection=helper.collection,
-        interpolate=SubmissionHelper.get_print_interpolator(helper.collection),
+        interpolate=SubmissionHelper.get_print_interpolator(helper.collection, submission_helper=helper),
     )
 
     emit_metric_count(MetricEventName.ACCESS_ALL_QUESTIONS_PDF_DOWNLOADED, submission=helper.submission)

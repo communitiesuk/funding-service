@@ -212,22 +212,34 @@ class SubmissionHelper:
         )
 
     @staticmethod
-    def get_print_interpolator(collection: Collection) -> Callable[[InterpolationStatement | str | None], Markup]:
-        context = ExpressionContext(
-            submission_data={
-                question.safe_qid: Markup("<u>{}</u>").format(question.name)
-                for form in collection.forms
-                for question in form.cached_questions
-            },
-            data_source_context={
-                data_source.safe_did: {
-                    column_name: Markup("<u>{}</u>").format(data_source.column_reference_label(column_schema))
-                    for column_name, column_schema in data_source.schema.ordered_items()
-                }
-                for data_source in collection.data_sources
-                if data_source.schema and data_source.schema.root
-            },
+    def get_print_interpolator(
+        collection: Collection,
+        submission_helper: SubmissionHelper | None = None,
+    ) -> Callable[[InterpolationStatement | str | None], Markup]:
+        # When a submission is known we interpolate the grant recipient's own answers; anything they haven't
+        # answered falls back to the underlined name of the question or data source value being referenced.
+        submission_data = ExpressionContext._build_submission_data(
+            mode="interpolation",
+            collection=collection,
+            data_manager=submission_helper.submission.data_manager if submission_helper else None,
         )
+        data_source_context = ExpressionContext._build_data_source_context(
+            mode="interpolation", submission_helper=submission_helper
+        )
+
+        for form in collection.forms:
+            for question in form.cached_questions:
+                submission_data.setdefault(question.safe_qid, Markup("<u>{}</u>").format(question.name))
+
+        for data_source in collection.data_sources:
+            if data_source.schema and data_source.schema.root:
+                data_source_context.setdefault(data_source.safe_did, {})
+                for column_name, column_schema in data_source.schema.ordered_items():
+                    data_source_context[data_source.safe_did].setdefault(
+                        column_name, Markup("<u>{}</u>").format(data_source.column_reference_label(column_schema))
+                    )
+
+        context = ExpressionContext(submission_data=submission_data, data_source_context=data_source_context)
         return lambda text: Markup(interpolate(text, context))
 
     @cached_property

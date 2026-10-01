@@ -3209,6 +3209,22 @@ class TestSubmissionHelper:
 
             assert result == "<u>&lt;script&gt;alert(1)&lt;/script&gt;</u>"
 
+        def test_interpolates_grant_recipient_answers_with_name_fallback(self, db_session, factories):
+            answered = factories.question.create(name="Project name", text="Project name")
+            unanswered = factories.question.create(form=answered.form, name="Project cost", text="Project cost")
+            submission = factories.submission.create(collection=answered.form.collection)
+            helper = SubmissionHelper(submission)
+            form = build_question_form([answered], evaluation_context=EC(), interpolation_context=EC())(
+                **{answered.safe_qid: "My project"}
+            )
+            helper.submit_answer_for_question(answered.id, form, submission.created_by)
+
+            interpolate = SubmissionHelper.get_print_interpolator(helper.collection, submission_helper=helper)
+
+            answered_ref = ExpressionReference.from_question(answered).wrapped
+            unanswered_ref = ExpressionReference.from_question(unanswered).wrapped
+            assert interpolate(f"{answered_ref} costs {unanswered_ref}") == "My project costs <u>Project cost</u>"
+
     class TestEligibilityAnswersCurrentlyPass:
         def test_true_when_no_eligibility_form(self, factories):
             collection = factories.collection.create()
