@@ -72,6 +72,7 @@ from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, Is
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
+from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -114,6 +115,7 @@ from tests.integration.utils import build_file_upload_form_data
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
+    enable_session_feature_flag,
     get_form_data,
     get_h1_text,
     get_h2_text,
@@ -10634,6 +10636,39 @@ class TestListSubmissions:
         assert len(remaining_test) == 2
 
         assert len(mock_s3_service_calls.all_calls) == 0
+
+    def test_submissions_table_is_sortable_in_browser(self, authenticated_grant_member_client, factories, db_session):
+        collection = factories.collection.create(grant=authenticated_grant_member_client.grant, name="Test Report")
+        grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, organisation__name="Acme Corp"
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
+        )
+
+        enable_session_feature_flag(authenticated_grant_member_client, FeatureFlags.SORTABLE_SUBMISSIONS)
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.MONITORING_REPORT,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.LIVE,
+            )
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        table = soup.select_one("table[data-module='moj-sortable-table']")
+        assert table is not None
+
+        headers = {header.text.strip(): header.get("aria-sort") for header in table.select("thead th")}
+        assert headers["Grant recipient"] == "ascending"
+        assert headers["Last updated"] == "none"
+        assert headers["Status"] is None
+
+        last_updated_cell = table.select("tbody tr td")[-1]
+        assert last_updated_cell.get("data-sort-value") is not None
 
 
 class TestListSubmissionsMultipleSubmissions:

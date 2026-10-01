@@ -1,8 +1,7 @@
-import { initAll } from "govuk-frontend";
+import { createAll, initAll } from "govuk-frontend";
 
-// Uncomment this when we need MoJ Frontend components.
-// Consider only importing+initialising the components that we use.
-// import { initAll as mojInitAll } from "@ministryofjustice/frontend";
+// Only import+initialise the MoJ Frontend components that we use.
+import { SortableTable } from "@ministryofjustice/frontend";
 import accessibleAutocomplete from "accessible-autocomplete";
 import { pasteListener } from "./components/paste-html-to-markdown";
 import { initAjaxMarkdownPreviews } from "./components/ajax-markdown-preview";
@@ -12,7 +11,7 @@ import { initSectionNavScroll } from "./components/submission-section-nav/index.
 import selectWithSearch from "./components/select-with-search/index.js";
 
 initAll();
-// mojInitAll();
+createAll(SortableTable);
 initSectionNavScroll();
 
 for (let el of document.querySelectorAll("[data-accessible-autocomplete]")) {
