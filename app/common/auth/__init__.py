@@ -12,6 +12,7 @@ from app.common.auth.decorators import collection_is_open_for_sign_up, redirect_
 from app.common.auth.forms import SignInForm
 from app.common.auth.sso import MSAL_ERROR_AUTHORIZATION_CODE_WAS_ALREADY_REDEEMED, build_auth_code_flow, build_msal_app
 from app.common.data import interfaces
+from app.common.data.interfaces.user import get_invitations_by_email
 from app.common.data.types import AuthMethodEnum, RoleEnum
 from app.common.forms import GenericSubmitForm
 from app.common.security.utils import sanitise_redirect_url
@@ -187,7 +188,13 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     form = GenericSubmitForm()
     if form.validate_on_submit():
         user = magic_link.user
-        if not user:
+        # new users and users without roles claim their invitations on standard sign in
+        # existing users with roles are narrowed to only be claim during a relevant public sign up
+        claims_invitation_for_collection = magic_link.collection is not None and any(
+            invite.grant_id == magic_link.collection.grant_id
+            for invite in get_invitations_by_email(email=str(magic_link.email), is_usable=True)
+        )
+        if not user or not user.roles or claims_invitation_for_collection:
             user = interfaces.user.create_user_and_claim_invitations(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
