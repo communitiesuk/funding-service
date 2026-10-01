@@ -522,7 +522,7 @@ class TestValidateDataSetGrantRecipients:
             for e in errors
         )
 
-    def test_fully_empty_row_is_skipped(self, factories):
+    def test_fully_empty_row_is_error(self, factories):
         gr = factories.grant_recipient.create(organisation__external_id="E06000501")
         data_set = _make_data_set(data_columns=["Amount"])
         all_rows = [
@@ -534,7 +534,25 @@ class TestValidateDataSetGrantRecipients:
             {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "", "Amount": ""},
         ]
         errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
-        assert errors == []
+        assert errors == ["Row 3: Row is empty and should be removed from the data set"]
+
+    def test_multiple_fully_empty_rows_are_errors(self, factories):
+        gr = factories.grant_recipient.create(organisation__external_id="E06000501")
+        data_set = _make_data_set(data_columns=["Amount"])
+        all_rows = [
+            {
+                DATA_SET_EXTERNAL_ID_COLUMN_HEADER: gr.organisation.external_id,
+                DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: gr.organisation.name,
+                "Amount": "100",
+            },
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "", "Amount": ""},
+            {DATA_SET_EXTERNAL_ID_COLUMN_HEADER: "", DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER: "", "Amount": ""},
+        ]
+        errors = validate_data_set_grant_recipients(data_set, [gr], all_rows)
+        assert errors == [
+            "Row 3: Row is empty and should be removed from the data set",
+            "Row 4: Row is empty and should be removed from the data set",
+        ]
 
     def test_unknown_external_id_suppresses_recipient_duplicate_check(self, factories):
         gr = factories.grant_recipient.create(
