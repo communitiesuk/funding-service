@@ -298,8 +298,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
                     status_event = create_collection_status_change(
                         model,
                         user,
-                        CollectionStatusEnum([status_change["old"]]),
-                        CollectionStatusEnum([status_change["new"]]),
+                        CollectionStatusEnum[status_change["old"]],
+                        CollectionStatusEnum[status_change["new"]],
                     )
                     if status_event:
                         track_audit_event(status_event, get_current_user())
