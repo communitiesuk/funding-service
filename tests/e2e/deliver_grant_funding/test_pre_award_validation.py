@@ -163,9 +163,8 @@ def test_pre_award_validation_setup(
     approve_org_name = "End-to-End Testing Organisation (Approve)"
     collection_lifecycle_tasklist_page = AdminCollectionLifecycleTasklistPage(page, domain, grant_id, collection_id)
 
-    collection_lifecycle_tasklist_page.navigate()
-    collection_lifecycle_tasklist_page.click_task("Set up organisations")
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
+    set_up_orgs_page.navigate()
     set_up_orgs_page.fill_organisations(
         [
             OrganisationSetupRow("MHCLG-TEST-ORG-REJECT", reject_org_name, "Central Government"),

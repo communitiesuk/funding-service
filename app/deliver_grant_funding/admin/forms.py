@@ -11,6 +11,7 @@ from govuk_frontend_wtf.wtforms_widgets import (
     GovCheckboxInput,
     GovDateInput,
     GovRadioInput,
+    GovSelect,
     GovSubmitInput,
     GovTextArea,
     GovTextInput,
@@ -34,7 +35,7 @@ from app.common.data.utils import generate_organisation_custom_code
 from app.common.filters import format_date_short
 from app.common.helpers.request_tracing import REQUEST_TRACING_TTL
 from app.common.utils import comma_join_items, uppercase_first
-from app.types import NOT_PROVIDED
+from app.types import NOT_PROVIDED, TNotProvided
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Grant, GrantRecipient, Organisation
@@ -84,6 +85,50 @@ class PlatformAdminMarkAsOnboardingForm(FlaskForm):
     submit = SubmitField("Mark as onboarding", widget=GovSubmitInput())
 
 
+def build_organisation_data(
+    organisation_id: str,
+    name: str,
+    org_type: OrganisationType,
+    active_date: datetime.date | None,
+    retirement_date: datetime.date | None,
+    domains: list[str] | TNotProvided,
+) -> OrganisationData:
+    """Turn a platform admin's organisation details into the OrganisationData the organisation interfaces expect.
+
+    Raises ValueError if an 'Other' organisation is given an ID that does not carry the Funding Service prefix.
+    """
+    if org_type == OrganisationType.OTHER:
+        prefix = cast(str, org_type.external_id_prefix)
+        if organisation_id and not organisation_id.startswith(prefix):
+            raise ValueError(
+                f"Organisation '{name}' has type Other but its ID '{organisation_id}'"
+                f" does not start with '{prefix}'. Leave blank to auto-generate, or provide"
+                f" an ID starting with '{prefix}'."
+            )
+        custom_code = organisation_id.removeprefix(prefix) if organisation_id else generate_organisation_custom_code()
+        return OrganisationData(
+            external_id=f"{prefix}{custom_code}",
+            name=name,
+            type=org_type,
+            active_date=active_date,
+            retirement_date=retirement_date,
+            custom_code=custom_code,
+            domains=domains,
+        )
+
+    prefix = org_type.external_id_prefix
+    typed_id = organisation_id.removeprefix(prefix) if prefix else organisation_id
+    return OrganisationData(
+        external_id=f"{prefix}{typed_id}" if prefix else organisation_id,
+        name=name,
+        type=org_type,
+        active_date=active_date,
+        retirement_date=retirement_date,
+        domains=domains,
+        **{org_type.typed_id_field: typed_id},
+    )
+
+
 class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
     # The default structure of this data is set so that it should be easy to copy+paste from Delta's organisation export
     # when opened in Excel. Hide the irrelevant columns in Excel, then select the table contents and paste it into
@@ -121,51 +166,82 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         _ = next(tsv_reader)  # Skip the header
         normalised_organisations = []
         for row in tsv_reader:
-            org_type = OrganisationType(row[2])
-            external_id = row[0]
             # domains will be replaced or ignored, there is deliberately no way to clear domnains in bulk
             # domains can be cleared from individual organisations in the edit interface (unless required in future)
             parsed_domains = [domain.strip() for domain in row[5].split(",") if domain.strip()] if len(row) > 5 else []
-            domains = parsed_domains or NOT_PROVIDED
-
-            if org_type == OrganisationType.OTHER:
-                prefix = cast(str, org_type.external_id_prefix)
-                if external_id and not external_id.startswith(prefix):
-                    raise ValueError(
-                        f"Organisation '{row[1]}' has type Other but its ID '{external_id}'"
-                        f" does not start with '{prefix}'. Leave blank to auto-generate, or provide"
-                        f" an ID starting with '{prefix}'."
-                    )
-                if not external_id:
-                    custom_code = generate_organisation_custom_code()
-                else:
-                    custom_code = external_id.removeprefix(prefix)
-                normalised_organisations.append(
-                    OrganisationData(
-                        external_id=f"{prefix}{custom_code}",
-                        name=row[1],
-                        type=org_type,
-                        active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
-                        retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
-                        custom_code=custom_code,
-                        domains=domains,
-                    )
+            normalised_organisations.append(
+                build_organisation_data(
+                    organisation_id=row[0],
+                    name=row[1],
+                    org_type=OrganisationType(row[2]),
+                    active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
+                    retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
+                    domains=parsed_domains or NOT_PROVIDED,
                 )
-            else:
-                prefix = org_type.external_id_prefix
-                typed_id = external_id.removeprefix(prefix) if prefix else external_id
-                normalised_organisations.append(
-                    OrganisationData(
-                        external_id=f"{prefix}{typed_id}" if prefix else external_id,
-                        name=row[1],
-                        type=org_type,
-                        active_date=datetime.datetime.strptime(row[3], "%d/%m/%Y") if row[3] else None,
-                        retirement_date=datetime.datetime.strptime(row[4], "%d/%m/%Y") if row[4] else None,
-                        domains=domains,
-                        **{org_type.typed_id_field: typed_id},
-                    )
-                )
+            )
         return normalised_organisations
+
+
+class PlatformAdminAddSingleOrganisationForm(FlaskForm):
+    name = StringField(
+        "Organisation name",
+        validators=[DataRequired("Enter the organisation's name")],
+        widget=GovTextInput(),
+    )
+    organisation_type = SelectField(
+        "Organisation type",
+        choices=[("", "")] + [(org_type.value, org_type.value) for org_type in OrganisationType],
+        validators=[DataRequired("Select the organisation's type")],
+        widget=GovSelect(),
+    )
+    organisation_id = StringField(
+        "Organisation ID",
+        description=(
+            "The IATI identifier for central government, ONS code for local authorities, Charity Commission "
+            "number for charities or Companies House number for companies. Leave blank for 'Other' organisations "
+            "to generate an ID automatically."
+        ),
+        validators=[Optional()],
+        widget=GovTextInput(),
+    )
+    domains = StringField(
+        "Email domains (optional)",
+        description=(
+            "A comma-separated list of email domains, for example 'council.gov.uk'. Anyone with an email address on "
+            "these domains can join the organisation when signing up."
+        ),
+        validators=[Optional()],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Add organisation", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        if not super().validate(extra_validators):
+            return False
+
+        if OrganisationType(self.organisation_type.data) != OrganisationType.OTHER and not self.organisation_id.data:
+            self.organisation_id.errors.append("Enter the organisation's ID")  # ty: ignore[unresolved-attribute]
+            return False
+
+        try:
+            self.get_organisation_data()
+        except ValueError as e:
+            self.organisation_id.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+            return False
+
+        return True
+
+    def get_organisation_data(self) -> OrganisationData:
+        assert self.name.data and self.organisation_type.data
+        domains = [domain.strip() for domain in (self.domains.data or "").split(",") if domain.strip()]
+        return build_organisation_data(
+            organisation_id=(self.organisation_id.data or "").strip(),
+            name=self.name.data.strip(),
+            org_type=OrganisationType(self.organisation_type.data),
+            active_date=None,
+            retirement_date=None,
+            domains=domains or NOT_PROVIDED,
+        )
 
 
 class PlatformAdminCreateCertifiersForm(FlaskForm):

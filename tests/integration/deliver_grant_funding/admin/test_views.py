@@ -152,7 +152,7 @@ class TestCollectionLifecycleSelectGrant:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_h1_text(soup) == "Collection lifecycle"
+        assert "Collection lifecycle" in get_h1_text(soup)
 
         select_element = soup.find("select", {"id": "grant_id"})
         assert select_element is not None
@@ -338,9 +338,10 @@ class TestCollectionLifecycleTasklist:
         organisations_task = platform_task_items[0]
         task_title = organisations_task.find("a", {"class": "govuk-link"})
         assert task_title is not None
-        assert task_title.get_text(strip=True) == "Set up organisations"
-        assert f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations" in task_title.get(
-            "href"
+        assert task_title.get_text(strip=True) == "Add an organisation"
+        assert (
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation"
+            in task_title.get("href")
         )
 
         task_status = organisations_task.find("strong", {"class": "govuk-tag"})
@@ -2474,7 +2475,7 @@ class TestCollectionLifecycleMarkGrantAsOnboarding:
         assert page_has_flash(soup, "Test Grant is now marked as onboarding.")
 
 
-class TestManageOrganisations:
+class TestAddIndividualOrganisation:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
@@ -2488,22 +2489,258 @@ class TestManageOrganisations:
             ("anonymous_client", 302),
         ],
     )
-    def test_manage_organisations_permissions(self, client_fixture, expected_code, request, factories, db_session):
+    def test_add_individual_organisation_permissions(
+        self, client_fixture, expected_code, request, factories, db_session
+    ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
 
         client = request.getfixturevalue(client_fixture)
-        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations")
+        response = client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation"
+        )
         assert response.status_code == expected_code
 
-    def test_get_manage_organisations_page(
+    def test_get_add_individual_organisation_page(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(name="Test Grant")
         collection = factories.collection.create(grant=grant)
 
         response = authenticated_platform_grant_lifecycle_manager_client.get(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations"
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Add an organisation" in get_h1_text(soup)
+
+        assert soup.find("input", {"id": "name"}) is not None
+        assert soup.find("select", {"id": "organisation_type"}) is not None
+        assert soup.find("input", {"id": "organisation_id"}) is not None
+        assert soup.find("input", {"id": "domains"}) is not None
+
+    def test_post_creates_organisation_and_test_organisation(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        initial_count = get_organisation_count()
+        initial_test_count = get_organisation_count(mode=OrganisationModeEnum.TEST)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Test Council",
+                "organisation_type": OrganisationType.UNITARY_AUTHORITY.value,
+                "organisation_id": "E06000001",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Successfully added Test Council and a matching test organisation.")
+        assert "Collection lifecycle" in get_h1_text(soup)
+
+        assert get_organisation_count() == initial_count + 1
+        org = db_session.query(Organisation).filter_by(external_id="E06000001", mode=OrganisationModeEnum.LIVE).one()
+        assert org.name == "Test Council"
+        assert org.type == OrganisationType.UNITARY_AUTHORITY
+        assert org.status == OrganisationStatus.ACTIVE
+        assert org.ons_lad_id == "E06000001"
+        assert org.domains == []
+
+        assert get_organisation_count(mode=OrganisationModeEnum.TEST) == initial_test_count + 1
+        test_org = (
+            db_session.query(Organisation).filter_by(external_id="E06000001", mode=OrganisationModeEnum.TEST).one()
+        )
+        assert test_org.name == "Test Council (test)"
+        assert test_org.type == OrganisationType.UNITARY_AUTHORITY
+
+    def test_post_creates_company_with_prefixed_external_id(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Test Company",
+                "organisation_type": OrganisationType.COMPANY.value,
+                "organisation_id": "12345678",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(name="Test Company", mode=OrganisationModeEnum.LIVE).one()
+        assert org.external_id == "CH-12345678"
+        assert org.companies_house_number == "12345678"
+
+    def test_post_creates_other_org_with_auto_generated_id(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Some Other Org",
+                "organisation_type": OrganisationType.OTHER.value,
+                "organisation_id": "",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(name="Some Other Org", mode=OrganisationModeEnum.LIVE).one()
+        assert org.type == OrganisationType.OTHER
+        assert org.external_id == f"FS-{org.custom_code}"
+
+    def test_post_creates_organisation_with_domains(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Test Department",
+                "organisation_type": OrganisationType.CENTRAL_GOVERNMENT.value,
+                "organisation_id": "GB-GOV-123",
+                "domains": "test.gov.uk, example.test.gov.uk",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        org = db_session.query(Organisation).filter_by(external_id="GB-GOV-123", mode=OrganisationModeEnum.LIVE).one()
+        assert org.domains == ["test.gov.uk", "example.test.gov.uk"]
+
+    def test_post_without_organisation_id_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Test Council",
+                "organisation_type": OrganisationType.UNITARY_AUTHORITY.value,
+                "organisation_id": "",
+                "submit": "y",
+            },
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter the organisation's ID")
+        assert db_session.query(Organisation).filter_by(name="Test Council").count() == 0
+
+    def test_post_other_org_with_invalid_prefix_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Bad Other Org",
+                "organisation_type": OrganisationType.OTHER.value,
+                "organisation_id": "BADPREFIX-123",
+                "submit": "y",
+            },
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "does not start with 'FS-'")
+
+    def test_post_with_existing_external_id_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.organisation.create(name="Existing Council", external_id="E06000001", can_manage_grants=False)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "New Council",
+                "organisation_type": OrganisationType.UNITARY_AUTHORITY.value,
+                "organisation_id": "E06000001",
+                "submit": "y",
+            },
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "An organisation with the ID 'E06000001' already exists.")
+        assert db_session.query(Organisation).filter_by(name="New Council").count() == 0
+
+    def test_post_with_existing_name_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        factories.organisation.create(name="Existing Council", can_manage_grants=False)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-individual-organisation",
+            data={
+                "name": "Existing Council",
+                "organisation_type": OrganisationType.UNITARY_AUTHORITY.value,
+                "organisation_id": "E06000099",
+                "submit": "y",
+            },
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "An organisation called 'Existing Council' already exists.")
+        assert db_session.query(Organisation).filter_by(external_id="E06000099").count() == 0
+
+
+class TestAddBulkOrganisations:
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_add_bulk_organisations_permissions(self, client_fixture, expected_code, request, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        client = request.getfixturevalue(client_fixture)
+        response = client.get(f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations")
+        assert response.status_code == expected_code
+
+    def test_get_add_bulk_organisations_page(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations"
         )
         assert response.status_code == 200
 
@@ -2532,7 +2769,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2586,7 +2823,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2614,7 +2851,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2646,7 +2883,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2676,7 +2913,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2701,7 +2938,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2727,7 +2964,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2750,7 +2987,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -2768,7 +3005,7 @@ class TestManageOrganisations:
         tsv_data = "Wrong Header\nGB-GOV-123\tTest Department\tCentral Government\t01/01/2020\t"
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -2796,7 +3033,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -2817,7 +3054,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=False,
         )
@@ -2838,7 +3075,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": tsv_data, "submit": "y"},
             follow_redirects=True,
         )
@@ -2866,7 +3103,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": none_tsv_data_no_override, "submit": "y"},
             follow_redirects=True,
         )
@@ -2881,7 +3118,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": whitespace_tsv_data_no_override, "submit": "y"},
             follow_redirects=True,
         )
@@ -2896,7 +3133,7 @@ class TestManageOrganisations:
         )
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-up-organisations",
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/add-bulk-organisations",
             data={"organisations_data": separators_only_tsv_data_no_override, "submit": "y"},
             follow_redirects=True,
         )
