@@ -34,7 +34,6 @@ from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
     get_grant_recipient_data_providers,
     get_grant_recipient_data_providers_count,
-    get_grant_recipient_or_none,
     get_grant_recipients,
     get_grant_recipients_count,
     get_grant_recipients_with_outstanding_submissions_for_collection,
@@ -674,27 +673,19 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             organisation = next(org for org in organisations if str(org.id) == form.organisation.data)
 
-            if get_grant_recipient_or_none(grant.id, organisation.id):
-                form.organisation.errors.append(  # ty: ignore[unresolved-attribute]
-                    f"{organisation.name} is already applying for this {collection.type.constants.singular}, ask the "
-                    "applicant to be invited by someone who already has access"
-                )
-            else:
-                create_invitation(
-                    email=form.email_address.data,
-                    permissions=[RoleEnum.DATA_PROVIDER],
-                    grant=grant,
-                    organisation=organisation,
-                    name=form.full_name.data,
-                    by_user=get_current_user(),
-                )
-                flash(
-                    f"Successfully matched {form.full_name.data} to {organisation.name} for public sign up.",
-                    "success",
-                )
-                return redirect(
-                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
-                )
+            create_invitation(
+                email=form.email_address.data,
+                permissions=[RoleEnum.DATA_PROVIDER],
+                grant=grant,
+                organisation=organisation,
+                name=form.full_name.data,
+                by_user=get_current_user(),
+            )
+            flash(
+                f"Successfully matched {form.full_name.data} to {organisation.name} for public sign up.",
+                "success",
+            )
+            return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
             "deliver_grant_funding/admin/match-applicant-to-organisation.html",
