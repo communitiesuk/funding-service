@@ -39,7 +39,12 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipients_with_outstanding_submissions_for_collection,
 )
 from app.common.data.interfaces.grants import get_all_grants, get_grant, update_grant
-from app.common.data.interfaces.organisations import get_organisation_count, get_organisations, upsert_organisations
+from app.common.data.interfaces.organisations import (
+    get_organisation_count,
+    get_organisations,
+    organisation_name_exists,
+    upsert_organisations,
+)
 from app.common.data.interfaces.user import (
     add_permissions_to_user,
     create_invitation,
@@ -78,6 +83,7 @@ from app.common.helpers.request_tracing import (
 )
 from app.deliver_grant_funding.admin.forms import (
     PlatformAdminAddSingleDataProviderForm,
+    PlatformAdminAddSingleOrganisationForm,
     PlatformAdminAddTestGrantRecipientUserForm,
     PlatformAdminBulkCreateGrantRecipientsForm,
     PlatformAdminBulkCreateOrganisationsForm,
@@ -318,9 +324,39 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             collection=collection,
         )
 
-    @expose("/<uuid:grant_id>/<uuid:collection_id>/set-up-organisations", methods=["GET", "POST"])
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/add-individual-organisation", methods=["GET", "POST"])
     @auto_commit_after_request
-    def set_up_organisations(self, grant_id: UUID, collection_id: UUID) -> Any:
+    def add_individual_organisation(self, grant_id: UUID, collection_id: UUID) -> Any:
+        grant = get_grant(grant_id)
+        collection = get_collection(collection_id, grant_id=grant_id)
+        form = PlatformAdminAddSingleOrganisationForm()
+        if form.validate_on_submit():
+            organisation = form.get_organisation_data()
+            if get_organisations(with_external_ids=[organisation.external_id]):
+                form.organisation_id.errors.append(  # ty: ignore[unresolved-attribute]
+                    f"An organisation with the ID '{organisation.external_id}' already exists."
+                )
+            elif organisation_name_exists(organisation.name):
+                form.name.errors.append(  # ty: ignore[unresolved-attribute]
+                    f"An organisation called '{organisation.name}' already exists."
+                )
+            else:
+                upsert_organisations([organisation], cascade_to_test_mode_organisations=True)
+                flash(f"Successfully added {organisation.name} and a matching test organisation.", "success")
+                return redirect(
+                    url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id)
+                )
+
+        return self.render(
+            "deliver_grant_funding/admin/add-individual-organisation.html",
+            form=form,
+            grant=grant,
+            collection=collection,
+        )
+
+    @expose("/<uuid:grant_id>/<uuid:collection_id>/add-bulk-organisations", methods=["GET", "POST"])
+    @auto_commit_after_request
+    def add_bulk_organisations(self, grant_id: UUID, collection_id: UUID) -> Any:
         grant = get_grant(grant_id)
         collection = get_collection(collection_id, grant_id=grant_id)
         form = PlatformAdminBulkCreateOrganisationsForm()
@@ -336,7 +372,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
-            "deliver_grant_funding/admin/set-up-organisations.html",
+            "deliver_grant_funding/admin/add-bulk-organisations.html",
             form=form,
             grant=grant,
             collection=collection,

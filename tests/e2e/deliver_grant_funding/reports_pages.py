@@ -2712,7 +2712,7 @@ class SetUpOrganisationsPage:
 
     def navigate(self) -> None:
         self.page.goto(
-            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/set-up-organisations"
+            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/add-bulk-organisations"
         )
         expect(self.heading).to_be_visible()
 

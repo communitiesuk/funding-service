@@ -21,8 +21,9 @@
       <p class="govuk-body">Set up new organisations if they do not exist, or update organisations in bulk.</p>
 
       <p class="govuk-body">
-        If you need to check what organisations already exist, or only need to create a small number of organisations,
-        <a class="govuk-link--no-underline govuk-link--no-visited-state" href="{{ url_for('organisation.index_view') }}">view and create individual organisations</a>.
+        If you only need to create a small number of organisations,
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.add_individual_organisation', grant_id=grant.id, collection_id=collection.id) }}">add organisations individually</a>. If you need to check
+        what organisations already exist, <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('organisation.index_view') }}">view existing organisations</a>.
       </p>
 
       <p class="govuk-body">
