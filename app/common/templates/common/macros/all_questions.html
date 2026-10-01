@@ -21,7 +21,7 @@
   {% endif %}
 {% endmacro %}
 
-{% macro _render_items(components) %}
+{% macro _render_items(components, suppress_guidance=false) %}
   {% for component in components %}
     <li class="govuk-!-margin-bottom-4 app-dont-page-break">
       {% if component.is_group %}
@@ -33,7 +33,8 @@
         {{ _component_guidance(component) }}
         {{ _component_conditions(component) }}
         <ul class="govuk-list govuk-list--bullet">
-          {{ _render_items(component.components) }}
+          {# questions shown on the same page use the group's guidance, so their own guidance isn't shown #}
+          {{ _render_items(component.components, suppress_guidance=component.same_page) }}
         </ul>
       {% else %}
         {{ interpolate(component.text) -}}
@@ -47,7 +48,7 @@
             {% endfor %}
           </ul>
         {% endif %}
-        {{ _component_guidance(component) }}
+        {% if not suppress_guidance %}{{ _component_guidance(component) }}{% endif %}
       {% endif %}
     </li>
   {% endfor %}

@@ -144,6 +144,38 @@ class TestCollectionAllQuestions:
         assert nested_list is not None
         assert nested_list.get_text(" ", strip=True) == "What are your staff costs?"
 
+    def test_same_page_group_shows_group_guidance_but_not_question_guidance(
+        self, authenticated_platform_admin_client, factories
+    ):
+        form = factories.form.create(title="Project details")
+        group = factories.group.create(
+            form=form,
+            order=0,
+            name="Costs",
+            guidance_body=InterpolationStatement("Tell us about your costs"),
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=True),
+        )
+        factories.question.create(
+            form_id=form.id,
+            parent=group,
+            order=0,
+            text="What are your staff costs?",
+            hint=InterpolationStatement("Include salaries"),
+            guidance_body=InterpolationStatement("This should not be shown"),
+        )
+        db.session.commit()
+
+        response = authenticated_platform_admin_client.get(
+            url_for("collection.all_questions", collection_id=form.collection.id)
+        )
+
+        assert response.status_code == 200
+        text = BeautifulSoup(response.data, "html.parser").get_text(" ", strip=True)
+
+        assert "Tell us about your costs" in text
+        assert "Include salaries" in text
+        assert "This should not be shown" not in text
+
     def test_references_are_underlined_question_names(self, authenticated_platform_admin_client, factories):
         form = factories.form.create(title="About your project")
         project_name = factories.question.create(form=form, order=0, name="Project name", text="Project name")
