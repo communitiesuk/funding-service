@@ -63,6 +63,7 @@ class StaticFeatureFlag(FeatureFlagBase):
 class SessionFeatureFlag(FeatureFlagBase):
     uses_request_context = False
     is_session_based = True
+    resolver_description = "Toggled on and off for your session only."
 
     @classmethod
     def resolve(cls, session_: SessionMixin, name: str) -> bool:
@@ -90,8 +91,13 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
+class SortableSubmissionsFeatureFlag(SessionFeatureFlag):
+    description = "Show sortable submissions table in Deliver"
+
+
 class FeatureFlags:
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
+    SORTABLE_SUBMISSIONS = SortableSubmissionsFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:

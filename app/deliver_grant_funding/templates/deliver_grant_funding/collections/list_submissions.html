@@ -122,20 +122,20 @@
             {% set submission_name_link %}
               <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.submission_id) }}" data-submission-link>{{ submission.name }}</a>
             {% endset %}
-            {% do cells.append({"html": submission_name_link, "attributes": {"data-sort-value": submission.name}}) %}
+            {% do cells.append({"html": submission_name_link, "attributes": {"data-sort-value": submission.name | lower}}) %}
           {% else %}
             {% do cells.append({"text": "No submission", "attributes": {"data-sort-value": ""}}) %}
           {% endif %}
-          {% do cells.append({"text": submission.organisation_name}) %}
+          {% do cells.append({"text": submission.organisation_name, "attributes": {"data-sort-value": submission.organisation_name | lower}}) %}
         {% elif submission.submission_id %}
           {% set grant_recipient_link %}
             <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=submission.submission_id) }}" data-submission-link
               >{{ submission.organisation_name }}</a
             >
           {% endset %}
-          {% do cells.append({"html": grant_recipient_link, "attributes": {"data-sort-value": submission.organisation_name}}) %}
+          {% do cells.append({"html": grant_recipient_link, "attributes": {"data-sort-value": submission.organisation_name | lower}}) %}
         {% else %}
-          {% do cells.append({"text": submission.organisation_name}) %}
+          {% do cells.append({"text": submission.organisation_name, "attributes": {"data-sort-value": submission.organisation_name | lower}}) %}
         {% endif %}
 
         {% if submission.is_assessed %}
@@ -178,7 +178,7 @@
           "captionClasses": "govuk-table__caption--m",
           "head": head,
           "rows": rows,
-          "attributes": {"data-module": "moj-sortable-table"}
+          "attributes": {"data-module": "moj-sortable-table"} if feature_flags.SORTABLE_SUBMISSIONS else {},
         })
       }}
     </div>
