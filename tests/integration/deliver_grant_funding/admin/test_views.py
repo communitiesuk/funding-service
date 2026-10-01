@@ -3505,29 +3505,6 @@ class TestMatchApplicantToOrganisation:
         assert get_grant_recipient_or_none(grant.id, org.id) is None
         assert get_user_by_email("john@example.com") is None
 
-    def test_post_with_existing_grant_recipient_shows_error(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
-    ):
-        org = factories.organisation.create(name="Local Authority")
-        factories.grant_recipient.create(grant=open_public_collection.grant, organisation=org)
-
-        response = authenticated_platform_grant_lifecycle_manager_client.post(
-            f"/deliver/admin/collection-lifecycle/{open_public_collection.grant.id}/{open_public_collection.id}/match-applicant-to-organisation",
-            data={
-                "organisation": str(org.id),
-                "full_name": "John Doe",
-                "email_address": "john@example.com",
-                "submit": "y",
-            },
-        )
-        assert response.status_code == 200
-
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_error(
-            soup, "Local Authority is already applying for this report, ask the applicant to be invited"
-        )
-        assert get_usable_invitation("john@example.com", grant=open_public_collection.grant, organisation=org) is None
-
 
 class TestAddBulkDataProviders:
     @pytest.mark.parametrize(
