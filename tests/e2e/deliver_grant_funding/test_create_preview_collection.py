@@ -1288,14 +1288,13 @@ def test_setup_grant_and_collection(
     switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
     collection_lifecycle_tasklist_page = AdminCollectionLifecycleTasklistPage(page, domain, grant_id, collection_id)
-    collection_lifecycle_tasklist_page.navigate()
-    collection_lifecycle_tasklist_page.click_task("Set up organisations")
 
     # TODO seed our e2e test organisation; note a shadow test org will be created automatically
     org_name = "End-to-End Testing Organisation"
     user_name = "MHCLG Test User"
     user_email = "fsd-post-award@levellingup.gov.uk"
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
+    set_up_orgs_page.navigate()
     set_up_orgs_page.fill_organisations([OrganisationSetupRow("MHCLG-TEST-ORG", org_name, "Central Government")])
     set_up_orgs_page.click_set_up_organisations()
 

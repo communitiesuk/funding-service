@@ -28,9 +28,9 @@
       {% set rows=[] %}
       {%
         do rows.append({
-          "title": {"text": "Set up organisations", "classes": "govuk-link--no-visited-state"},
+          "title": {"text": "Add an organisation", "classes": "govuk-link--no-visited-state"},
           "status": {"html": govukTag({"text": organisation_count ~ (" organisation" if organisation_count == 1 else " organisations"), "classes": "govuk-tag--blue"})},
-          "href": url_for('collection_lifecycle.set_up_organisations', grant_id=grant.id, collection_id=collection.id),
+          "href": url_for('collection_lifecycle.add_individual_organisation', grant_id=grant.id, collection_id=collection.id),
         })
       %}
       {%

@@ -1,0 +1,48 @@
+{% extends "admin/master.html" %}
+{% import 'admin/layout.html' as layout with context %}
+{% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
+{% from 'govuk_frontend_jinja/components/error-summary/macro.html' import govukErrorSummary %}
+
+{% block beforeContent %}
+  {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }) }}
+{% endblock %}
+
+{% block action_panel %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {{ layout.messages() }}
+
+      {% if form.errors %}
+        {{ govukErrorSummary(wtforms_errors(form)) }}
+      {% endif %}
+
+      <h1 class="govuk-heading-l">
+        <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
+        Add an organisation
+      </h1>
+      <p class="govuk-body">Add a new organisation so that it can be set up as a grant recipient. A matching test organisation is created automatically.</p>
+      <p class="govuk-body">
+        If you need to check what organisations already exist, or update an existing organisation,
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('organisation.index_view') }}">view existing organisations</a>.
+      </p>
+      <p class="govuk-body">
+        If you need to add a lot of organisations at once,
+        <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.add_bulk_organisations', grant_id=grant.id, collection_id=collection.id) }}">add organisations in bulk</a>.
+      </p>
+    </div>
+  </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <form method="post" novalidate>
+        {{ form.csrf_token }}
+
+        {{ form.name }}
+        {{ form.organisation_type }}
+        {{ form.organisation_id }}
+        {{ form.domains }}
+
+        {{ form.submit }}
+      </form>
+    </div>
+  </div>
+{% endblock %}
