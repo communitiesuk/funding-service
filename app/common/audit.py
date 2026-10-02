@@ -1,16 +1,19 @@
 import datetime
 import enum
 from collections import ChainMap
-from typing import Annotated, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, field_serializer, field_validator
 from sqlalchemy import inspect
 from sqlalchemy.orm import RelationshipDirection
 
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
-from app.common.data.types import AuditEventType, RoleEnum
+from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
+
+if TYPE_CHECKING:
+    from app.common.data.models import Collection
 
 
 class AuditEvent(BaseModel):
@@ -115,6 +118,28 @@ class UserInvitationCancelled(AuditEvent):
     permissions: list[RoleEnum]
 
 
+class CollectionStatusChanged(AuditEvent):
+    event_type: AuditEventType = AuditEventType.COLLECTION_CONFIGURATION
+    action: Literal["collection_status_changed"] = "collection_status_changed"
+    collection_id: UUID
+    organisation_id: UUID | None
+    grant_id: UUID | None
+    old_status: CollectionStatusEnum
+    new_status: CollectionStatusEnum
+
+    # statuses are stored by enum name because enum values can change
+    @field_validator("old_status", "new_status", mode="before")
+    @classmethod
+    def _parse_status_name(cls, value: Any) -> Any:
+        if isinstance(value, str) and value in CollectionStatusEnum.__members__:
+            return CollectionStatusEnum[value]
+        return value
+
+    @field_serializer("old_status", "new_status", when_used="json")
+    def _serialize_status_name(self, status: CollectionStatusEnum) -> str:
+        return _serialize_value(status)
+
+
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
     AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
     AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
@@ -124,6 +149,7 @@ _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
             Field(discriminator="action"),
         ]
     ),
+    AuditEventType.COLLECTION_CONFIGURATION: TypeAdapter(CollectionStatusChanged),
 }
 
 
@@ -271,4 +297,23 @@ def create_system_event_for_delete(
         action="delete",
         changes=snapshot,
         context=context,
+    )
+
+
+def create_collection_status_change(
+    collection: "Collection",
+    user: User,
+    old_status: CollectionStatusEnum,
+    new_status: CollectionStatusEnum,
+) -> CollectionStatusChanged | None:
+    if old_status == new_status:
+        return None
+
+    return CollectionStatusChanged(
+        user_id=user.id,
+        organisation_id=collection.grant.organisation_id,
+        grant_id=collection.grant_id,
+        collection_id=collection.id,
+        old_status=old_status,
+        new_status=new_status,
     )

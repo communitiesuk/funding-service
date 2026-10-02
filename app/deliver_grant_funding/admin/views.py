@@ -1010,7 +1010,8 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = PlatformAdminScheduleCollectionForm(collection=collection)
         if form.validate_on_submit():
             try:
-                update_collection(collection, status=CollectionStatusEnum.SCHEDULED)
+                update_collection(collection, status=CollectionStatusEnum.SCHEDULED, by_user=get_current_user())
+
                 flash(
                     f"{collection.name} is now locked and form designers cannot make any more changes.",
                     "success",
@@ -1070,7 +1071,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         )
         if form.validate_on_submit():
             try:
-                update_collection(collection, status=CollectionStatusEnum.OPEN)
+                update_collection(collection, status=CollectionStatusEnum.OPEN, by_user=get_current_user())
 
                 if collection.allow_public_sign_up:
                     flash_message = (
@@ -1295,7 +1296,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = GenericSubmitForm()
         if form.validate_on_submit():
             try:
-                update_collection(collection, status=CollectionStatusEnum.CLOSED)
+                update_collection(collection, status=CollectionStatusEnum.CLOSED, by_user=get_current_user())
                 flash(
                     (
                         f"{markupsafe.escape(collection.name)} is now closed and grant recipients can make no more "

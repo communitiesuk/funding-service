@@ -4,6 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app.common.audit import (
+    CollectionStatusChanged,
     DatabaseModelChange,
     UserPermissionsAdded,
     create_database_model_change_for_create,
@@ -11,11 +12,33 @@ from app.common.audit import (
     create_system_event_for_delete,
 )
 from app.common.data.models_audit import AuditEvent
-from app.common.data.types import AuditEventType, RoleEnum
+from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
 from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
 class TestPlatformAdminAuditEventView:
+    def test_displays_collection_status_change_event(self, authenticated_platform_admin_client, factories, db_session):
+        actor = factories.user.create()
+        collection = factories.collection.create()
+        event = CollectionStatusChanged(
+            user_id=actor.id,
+            organisation_id=collection.grant.organisation.id,
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            old_status=CollectionStatusEnum.DRAFT,
+            new_status=CollectionStatusEnum.SCHEDULED,
+        )
+        audit_event = factories.audit_event.create(
+            user=actor, event_type=AuditEventType.COLLECTION_CONFIGURATION, data=event.model_dump(mode="json")
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Old status").get_text(strip=True) == "Draft"
+        assert get_summary_list_value_by_key(soup, "New status").get_text(strip=True) == "Scheduled to open"
+        assert soup.find("a", href=f"/deliver/admin/collection/details/?id={collection.id}") is not None
+
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
