@@ -22,7 +22,11 @@ from app.common.data.interfaces.collections import (
     get_overdue_open_collections_excluding_draft_grants,
     update_collection,
 )
-from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
+from app.common.data.interfaces.data_analysis import (
+    USER_MANAGEMENT_EVENTS_CSV_HEADERS,
+    get_unique_users_count_for_live_grant_recipients,
+    get_user_management_event_csv_rows,
+)
 from app.common.data.interfaces.data_sets import get_referenced_grant_recipient_data_sources_for_collection
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -1375,6 +1379,23 @@ class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessible
             mimetype="text/csv",
             as_attachment=True,
             download_name="certification-events.csv",
+        )
+
+    @expose("/user-management-events.csv")
+    def download_user_management_events_csv(self) -> Any:
+        csv_output = StringIO()
+        csv_writer = csv.writer(csv_output)
+        csv_writer.writerow(USER_MANAGEMENT_EVENTS_CSV_HEADERS)
+        csv_writer.writerows(row.as_csv_row() for row in get_user_management_event_csv_rows())
+
+        csv_bytes = BytesIO(csv_output.getvalue().encode("utf-8-sig"))
+        csv_bytes.seek(0)
+
+        return send_file(
+            csv_bytes,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name="user-management-events.csv",
         )
 
 
