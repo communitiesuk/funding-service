@@ -1,6 +1,7 @@
 import datetime
 import io
 import uuid
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlencode
 
@@ -15,7 +16,7 @@ from flask_babel import ngettext
 from flask_sqlalchemy_lite import SQLAlchemy
 from govuk_frontend_wtf.wtforms_widgets import GovTextArea
 from pydantic import ValidationError
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
 from werkzeug.utils import secure_filename
@@ -38,6 +39,7 @@ from app.common.data.interfaces.collections import (
     get_collection,
 )
 from app.common.data.interfaces.grant_recipients import delete_grant_recipients
+from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.models import (
     Collection,
@@ -67,6 +69,7 @@ from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipi
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
+    FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.deliver_grant_funding.helpers import preview_guidance_response
 from app.extensions import db, notification_service, s3_service
@@ -153,7 +156,59 @@ class PlatformAdminModelView(XGovukModelView):
         return super().after_model_delete(model)
 
 
-class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
+class _GrantFilterOptions:
+    """The grants offered by `UserGrantAccessFilter`, looked up each time the options are iterated.
+
+    flask-admin caches a filter's options when its view is constructed, which is at app startup - before the database
+    is necessarily reachable, and long before any grant created afterwards exists. Deferring the query to iteration
+    (which only happens while rendering the list page) keeps the list of grants correct.
+    """
+
+    def __iter__(self) -> Iterator[tuple[str, str]]:
+        return iter([(str(grant.id), grant.name) for grant in get_all_grants()])
+
+
+class UserGrantAccessFilter(BaseSQLAFilter):
+    """Filters users down to those whose roles give them access to a given grant.
+
+    A role gives access to the grant if it names the grant directly, or if it is organisation-wide (grant_id IS NULL)
+    for the organisation managing the grant or for one of the grant's recipient organisations.
+    """
+
+    def __init__(self, name: str = "Grant") -> None:
+        super().__init__(User.id, name)
+
+    def apply(self, query: Any, value: uuid.UUID, alias: Any = None) -> Any:
+        managing_organisation = select(Grant.organisation_id).where(Grant.id == value).scalar_subquery()
+        recipient_organisations = select(GrantRecipient.organisation_id).where(GrantRecipient.grant_id == value)
+
+        return query.filter(
+            User.roles.any(
+                or_(
+                    UserRole.grant_id == value,
+                    and_(
+                        UserRole.grant_id.is_(None),
+                        or_(
+                            UserRole.organisation_id == managing_organisation,
+                            UserRole.organisation_id.in_(recipient_organisations),
+                        ),
+                    ),
+                )
+            )
+        )
+
+    def clean(self, value: str) -> uuid.UUID:
+        # Also drives `validate`, which discards filter values that can't be cleaned
+        return uuid.UUID(value)
+
+    def operation(self) -> str:
+        return "has access to"
+
+    def get_options(self, view: Any) -> Any:
+        return _GrantFilterOptions()
+
+
+class PlatformAdminUserView(FlaskAdminPlatformMemberAccessibleMixin, PlatformAdminModelView):
     _model = User
 
     def entity_label(self, model: User) -> str:
@@ -162,15 +217,45 @@ class PlatformAdminUserView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdmi
     column_list = ["email", "name", "last_logged_in_at_utc"]
     column_searchable_list = ["email", "name"]
 
-    form_columns = ["email", "name"]
+    column_filters = ["email", "name", UserGrantAccessFilter()]
+
+    column_labels = {
+        "azure_ad_subject_id": "Azure AD subject ID",
+        "created_at_utc": "Created at UTC",
+        "updated_at_utc": "Updated at UTC",
+        "last_logged_in_at_utc": "Last logged in at UTC",
+    }
+
+    details_template = "deliver_grant_funding/admin/user-details.html"
+
+
+class PlatformAdminUserEditView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
+    """Editing a user's name and email address, which only platform admins may do.
+
+    This is a second view onto `User` rather than `can_edit` on `PlatformAdminUserView` because the theme's list
+    template sends the first column of every row to the edit form whenever a view can be edited. Keeping the editing
+    here means everyone - platform admins included - still lands on a user's details page from the list, and only
+    platform admins can reach (or even see a link to) this form.
+    """
+
+    _model = User
 
     can_edit = True
+    can_view_details = False
 
-    column_filters = ["email", "name"]
+    form_columns = ["email", "name"]
 
     form_args = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
     }
+
+    def is_visible(self) -> bool:
+        # This view exists only to host the edit form, which is linked from a user's details page
+        return False
+
+    @expose("/")
+    def index_view(self) -> ResponseReturnValue:
+        return redirect(url_for("user.index_view"))
 
 
 class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdminModelView):
