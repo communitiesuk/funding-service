@@ -1,0 +1,85 @@
+{% extends 'admin/model/details.html' %}
+{% from 'govuk_frontend_jinja/components/table/macro.html' import govukTable %}
+{% from 'govuk_frontend_jinja/components/inset-text/macro.html' import govukInsetText %}
+
+{% macro grantAccessTable(caption, grants, roles, via_managing_org) %}
+  {% set rows = [] %}
+  {% for grant in grants %}
+    {% set recipient_organisation_ids = grant.grant_recipients | map(attribute="organisation_id") | list %}
+    {% set matching_roles = [] %}
+    {% for role in roles %}
+      {% set organisation_matches = role.organisation_id == grant.organisation_id if via_managing_org else role.organisation_id in recipient_organisation_ids %}
+      {% if organisation_matches and (role.grant_id == grant.id or role.grant_id is none) %}
+        {% do matching_roles.append(role) %}
+      {% endif %}
+    {% endfor %}
+
+    {% set organisation = grant.organisation.name if via_managing_org else matching_roles | map(attribute="organisation.name") | unique | sort | join(", ") %}
+    {% set permissions = matching_roles | map(attribute="permissions") | sum(start=[]) | map(attribute="value") | unique | sort | join(", ") %}
+    {% set applies_to = "Whole organisation" if (matching_roles | selectattr("grant_id", "none") | list) else "This grant only" %}
+
+
+    {% set grant_cell %}<a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_homepage', grant_id=grant.id) }}">{{ grant.name }}</a>{% endset %}
+
+    {% set row = [{"html": grant_cell}, {"text": organisation}, {"text": permissions}, {"text": applies_to}] %}
+
+    {% if not via_managing_org %}
+      {% set live_collections = grant.collections | selectattr("status", "in", [enum.collection_status.OPEN, enum.collection_status.CLOSED]) | list %}
+      {% set collections_cell %}
+        {% if live_collections %}
+          <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+            {% for collection in live_collections %}
+              <li><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=grant.id, collection_id=collection.id) }}">{{ collection.name }}</a></li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endset %}
+      {% do row.append({"html": collections_cell}) %}
+    {% endif %}
+    {% do rows.append(row) %}
+  {% endfor %}
+
+  {% set head = [{"text": "Grant"}, {"text": "Organisation"}, {"text": "Permissions"}, {"text": "Role applies to"}] %}
+  {% if not via_managing_org %}
+    {% do head.append({"text": "Collections"}) %}
+  {% endif %}
+
+  {{ govukTable({"caption": caption, "captionClasses": "govuk-table__caption--s", "head": head, "rows": rows}) }}
+{% endmacro %}
+
+{% block action_panel %}
+  {{ super() }}
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full-width">
+      {% if authorisation_helper.is_platform_admin(current_user) %}
+        <p class="govuk-body">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('user_edit.edit_view', id=model.id, url=request.full_path) }}">Change this user’s name or email address</a>
+        </p>
+      {% endif %}
+
+      <h2 class="govuk-heading-m">Grant access</h2>
+
+      {% set platform_roles = model.roles | rejectattr("organisation_id") | rejectattr("grant_id") | list %}
+      {% if platform_roles %}
+        {% set platform_permissions = platform_roles | map(attribute="permissions") | sum(start=[]) | map(attribute="value") | unique | sort | join(", ") %}
+        {{ govukInsetText({"text": "This user has a platform-level role (" ~ platform_permissions ~ ") so can see every grant."}) }}
+      {% endif %}
+
+      {% set deliver_grants = model.deliver_grants | rejectattr("status", "equalto", enum.grant_status.DRAFT) | list %}
+      {% set access_grants = model.access_grants | rejectattr("status", "equalto", enum.grant_status.DRAFT) | list %}
+
+      {% if deliver_grants %}
+        {{ grantAccessTable("Deliver grant funding", deliver_grants, model.roles, true) }}
+      {% endif %}
+
+      {% if access_grants %}
+        {{ grantAccessTable("Access grant funding", access_grants, model.roles, false) }}
+      {% endif %}
+
+      {% if not platform_roles and not deliver_grants and not access_grants %}
+        <p class="govuk-body">This user has no roles that give them access to a grant.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
