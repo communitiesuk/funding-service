@@ -673,7 +673,6 @@ class AnyOf(BaseDataSourceManagedExpression):
     _key: ManagedExpressionsEnum = name
 
     items: list[TRadioItem]
-    multilple_answers_allowed: bool = False
 
     @property
     def description(self) -> str:
@@ -694,13 +693,10 @@ class AnyOf(BaseDataSourceManagedExpression):
     def statement(self) -> EvaluationStatement:
         item_keys = {str(item["key"]) for item in self.items}
 
-        # handle checkboxes differently because the data is stored as a dict of {item_key: True/False} rather than a single value
-        if self.subject_reference.question.data_type == QuestionDataType.CHECKBOXES:
-            return EvaluationStatement(
-                " or ".join(
-                    f"{self.subject_reference.unwrapped}.get('{item_key}', False)" for item_key in sorted(item_keys)
-                )
-            )
+        # handle checkboxes differently because the data is stored as a dict eg {}
+        question =self.subject_reference.question
+        if question and question.data_type == QuestionDataType.CHECKBOXES:
+            return EvaluationStatement(f"{self.subject_reference.unwrapped}.isdisjoint({item_keys}) is False")
 
         return EvaluationStatement(f"{self.subject_reference.unwrapped} in {item_keys}")
 
@@ -741,7 +737,6 @@ class AnyOf(BaseDataSourceManagedExpression):
         return AnyOf(
             subject_reference=subject_reference,
             items=items,
-            muiltple_answers_allowed=question.data_type == QuestionDataType.CHECKBOXES,
         )
 
     @property
