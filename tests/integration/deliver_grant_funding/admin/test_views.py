@@ -1511,6 +1511,31 @@ class TestCollectionLifecycleTasklist:
         else:
             assert link is None
 
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_grant_recipient_tasks_are_hidden_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, allow_public_sign_up
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=allow_public_sign_up)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        grant_task_titles = [
+            item.find("div", {"class": "govuk-task-list__name-and-hint"}).get_text(strip=True)
+            for item in soup.find("ul", {"id": "grant-tasks"}).find_all("li", {"class": "govuk-task-list__item"})
+        ]
+
+        for task_title in [
+            "Set up grant recipients",
+            "Set up grant recipient data providers",
+            "Override certifiers for this grant",
+        ]:
+            assert (task_title in grant_task_titles) is not allow_public_sign_up
+
     def test_invite_and_overdue_email_tasks_are_hidden_with_public_sign_up(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
