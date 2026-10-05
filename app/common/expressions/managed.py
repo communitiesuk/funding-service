@@ -863,14 +863,16 @@ class Specifically(BaseDataSourceManagedExpression):
                 default=expression.context["item"]["key"] if expression else None,  # ty: ignore[invalid-argument-type, not-subscriptable]
                 widget=GovRadioInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
-                validators=[DataRequired("Choose one option")],
+                validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
         }
 
     @staticmethod
     def update_validators(form: _ManagedExpressionForm) -> None:
-        pass
+        form.specifically.validators = [  # ty: ignore[unresolved-attribute]
+            DataRequired("Choose one option"),
+        ]
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> Specifically:
