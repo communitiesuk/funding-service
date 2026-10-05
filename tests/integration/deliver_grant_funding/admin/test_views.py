@@ -1411,6 +1411,45 @@ class TestSendEmailsToRecipients:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
+        "email_type, collection_status",
+        [
+            (CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionStatusEnum.OPEN),
+            (CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_send_emails_to_recipients_shows_public_sign_up_recipients_message(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        email_type,
+        collection_status,
+        allow_public_sign_up,
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            type=CollectionType.APPLICATION,
+            status=collection_status,
+            allow_public_sign_up=allow_public_sign_up,
+            submission_period_end_date=datetime.date(2025, 10, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+
+        assert response.status_code == 200
+        message = (
+            "This form allows public sign up, so these emails will only be sent to organisations that have started "
+            "but not yet submitted a submission."
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (message in soup.get_text(" ", strip=True)) is allow_public_sign_up
+
+    @pytest.mark.parametrize(
         "email_type",
         [
             CollectionAdminEmailTypeEnum.DEADLINE_REMINDER,

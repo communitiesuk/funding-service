@@ -29,6 +29,9 @@
           Let grant recipient users know that there is only one week left until their {{ collection.type.constants.singular }} needs to be submitted for {{ collection.grant.name }}. This email is sent to all data providers and certifiers
           for grant recipients that have not yet submitted this {{ collection.type.constants.singular }}.
         </p>
+        {% if collection.allow_public_sign_up %}
+          <p class="govuk-body">This {{ collection.type.constants.singular }} allows public sign up, so these emails will only be sent to organisations that have started but not yet submitted a submission.</p>
+        {% endif %}
         <ul class="govuk-list govuk-list--bullet">
           <li>Submission deadline: {{ format_collection_submission_deadline_short(collection) }}</li>
           {% if collection.date_to_send_reminder_emails %}
@@ -59,6 +62,9 @@
           Let grant recipient users know that the {{ collection.type.constants.singular }} has now closed and no further changes can be made to their submissions. This email is sent to all data providers for all grant recipients for
           {{ collection.grant.name }}.
         </p>
+        {% if collection.allow_public_sign_up %}
+          <p class="govuk-body">This {{ collection.type.constants.singular }} allows public sign up, so these emails will only be sent to organisations that have started but not yet submitted a submission.</p>
+        {% endif %}
       {% endif %}
 
       <h2 class="govuk-heading-m">How to send emails</h2>
