@@ -63,15 +63,15 @@ class TestFlaskAdminAccess:
         [
             ("authenticated_platform_admin_client", 200),
             ("authenticated_platform_grant_lifecycle_manager_client", 200),
-            ("authenticated_platform_data_analyst_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
             ("anonymous_client", 302),
         ],
     )
-    def test_admin_user_list_allowed_for_platform_members(self, client_fixture, expected_code, request):
+    def test_admin_user_list_allowed_for_grant_lifecycle_managers(self, client_fixture, expected_code, request):
         client = request.getfixturevalue(client_fixture)
         response = client.get("/deliver/admin/user/")
         assert response.status_code == expected_code
@@ -81,15 +81,15 @@ class TestFlaskAdminAccess:
         [
             ("authenticated_platform_admin_client", 200),
             ("authenticated_platform_grant_lifecycle_manager_client", 200),
-            ("authenticated_platform_data_analyst_client", 200),
-            ("authenticated_platform_member_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
             ("authenticated_grant_member_client", 403),
             ("authenticated_no_role_client", 403),
             ("anonymous_client", 302),
         ],
     )
-    def test_admin_user_detail_allowed_for_platform_members(
+    def test_admin_user_detail_allowed_for_grant_lifecycle_managers(
         self, client_fixture, expected_code, request, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
@@ -170,11 +170,11 @@ class TestPlatformAdminUserView:
         return [[cell.get_text(strip=True) for cell in row.find_all(["th", "td"])] for row in table.find("tbody")("tr")]
 
     def test_list_links_to_user_details_and_not_to_editing(
-        self, authenticated_platform_member_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         user = factories.user.create()
 
-        response = authenticated_platform_member_client.get("/deliver/admin/user/")
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/user/")
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -201,7 +201,7 @@ class TestPlatformAdminUserView:
             soup = BeautifulSoup(response.data, "html.parser")
             return [link["href"] for link in soup.find_all("a", href=True) if "/user-edit/edit/" in link["href"]]
 
-        assert get_edit_links("authenticated_platform_member_client") == []
+        assert get_edit_links("authenticated_platform_grant_lifecycle_manager_client") == []
 
         edit_links = get_edit_links("authenticated_platform_admin_client")
         assert len(edit_links) == 1
@@ -224,7 +224,7 @@ class TestPlatformAdminUserView:
         assert user.email == "updated@communities.gov.uk"
 
     def test_details_shows_grants_the_user_can_access(
-        self, authenticated_platform_member_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         user = factories.user.create()
 
@@ -244,7 +244,9 @@ class TestPlatformAdminUserView:
 
         factories.grant.create(name="Gamma Grant")
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -256,7 +258,7 @@ class TestPlatformAdminUserView:
         ]
 
     def test_details_shows_all_grants_for_an_organisation_wide_deliver_role(
-        self, authenticated_platform_member_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         user = factories.user.create()
         managing_organisation = _get_grant_managing_organisation()
@@ -266,7 +268,9 @@ class TestPlatformAdminUserView:
             user=user, organisation=managing_organisation, grant=None, permissions=[RoleEnum.MEMBER]
         )
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -277,7 +281,7 @@ class TestPlatformAdminUserView:
         assert self._grant_access_rows(soup, "Access grant funding") is None
 
     def test_deliver_and_access_roles_on_the_same_grant_are_shown_separately(
-        self, authenticated_platform_member_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         # A deliver grant team member is also set up with data provider/certifier roles on the grant's test recipients;
         # each role must be attributed to the table for its own organisation, not merged onto the deliver row.
@@ -297,7 +301,9 @@ class TestPlatformAdminUserView:
             permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER, RoleEnum.MEMBER],
         )
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -308,13 +314,17 @@ class TestPlatformAdminUserView:
             ["Alpha Grant", "Recipient Council", "certifier, data-provider, member", "This grant only", ""],
         ]
 
-    def test_details_notes_platform_level_roles(self, authenticated_platform_member_client, factories, db_session):
+    def test_details_notes_platform_level_roles(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         user = factories.user.create()
         factories.user_role.create(
             user=user, organisation=None, grant=None, permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER]
         )
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -324,12 +334,14 @@ class TestPlatformAdminUserView:
         assert self._grant_access_rows(soup, "Access grant funding") is None
 
     def test_details_when_the_user_has_no_grant_access(
-        self, authenticated_platform_member_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         user = factories.user.create()
         factories.grant.create(name="Alpha Grant")
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -337,14 +349,18 @@ class TestPlatformAdminUserView:
         assert self._grant_access_rows(soup, "Access grant funding") is None
         assert "This user has no roles that give them access to a grant." in soup.get_text()
 
-    def test_details_excludes_draft_grants(self, authenticated_platform_member_client, factories, db_session):
+    def test_details_excludes_draft_grants(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         user = factories.user.create()
         live_grant = factories.grant.create(name="Live Grant", status=GrantStatusEnum.LIVE)
         draft_grant = factories.grant.create(name="Draft Grant", status=GrantStatusEnum.DRAFT)
         factories.user_role.create(user=user, grant=live_grant, permissions=[RoleEnum.MEMBER])
         factories.user_role.create(user=user, grant=draft_grant, permissions=[RoleEnum.MEMBER])
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -352,12 +368,16 @@ class TestPlatformAdminUserView:
             ["Live Grant", _get_grant_managing_organisation().name, "member", "This grant only"],
         ]
 
-    def test_deliver_grant_names_link_to_the_grant(self, authenticated_platform_member_client, factories, db_session):
+    def test_deliver_grant_names_link_to_the_grant(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         user = factories.user.create()
         grant = factories.grant.create(name="Alpha Grant", status=GrantStatusEnum.LIVE)
         factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -367,7 +387,7 @@ class TestPlatformAdminUserView:
         assert grant_link["href"] == f"/deliver/{grant.id}/index"
 
     def test_access_grant_collections_link_to_their_lifecycle_page_when_open_or_closed(
-        self, authenticated_platform_member_client, factories, db_session
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         user = factories.user.create()
         grant = factories.grant.create(name="Beta Grant", status=GrantStatusEnum.LIVE)
@@ -384,7 +404,9 @@ class TestPlatformAdminUserView:
         factories.collection.create(grant=grant, name="Draft Report", status=CollectionStatusEnum.DRAFT)
         factories.collection.create(grant=grant, name="Scheduled Report", status=CollectionStatusEnum.SCHEDULED)
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/details/?id={user.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
@@ -395,7 +417,9 @@ class TestPlatformAdminUserView:
             "Closed Report": f"/deliver/admin/collection-lifecycle/{grant.id}/{closed_collection.id}",
         }
 
-    def test_filter_list_by_grant_access(self, authenticated_platform_member_client, factories, db_session):
+    def test_filter_list_by_grant_access(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
         grant = factories.grant.create(name="Alpha Grant")
         other_grant = factories.grant.create(name="Beta Grant")
 
@@ -415,7 +439,7 @@ class TestPlatformAdminUserView:
         user_on_another_grant = factories.user.create(email="another-grant@communities.gov.uk")
         factories.user_role.create(user=user_on_another_grant, grant=other_grant, permissions=[RoleEnum.MEMBER])
 
-        response = authenticated_platform_member_client.get("/deliver/admin/user/")
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/user/")
         assert response.status_code == 200
 
         # The filter's query string parameter is generated by flask-admin, so find it via the grant it lists
@@ -427,7 +451,9 @@ class TestPlatformAdminUserView:
         ]
         assert len(grant_filters) == 1
 
-        response = authenticated_platform_member_client.get(f"/deliver/admin/user/?{grant_filters[0]}={grant.id}")
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/?{grant_filters[0]}={grant.id}"
+        )
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")

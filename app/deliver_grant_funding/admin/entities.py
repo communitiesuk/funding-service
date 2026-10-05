@@ -69,7 +69,6 @@ from app.deliver_grant_funding.admin.forms import PlatformAdminChangeGrantRecipi
 from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformAdminAccessibleMixin,
     FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin,
-    FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.deliver_grant_funding.helpers import preview_guidance_response
 from app.extensions import db, notification_service, s3_service
@@ -208,7 +207,7 @@ class UserGrantAccessFilter(BaseSQLAFilter):
         return _GrantFilterOptions()
 
 
-class PlatformAdminUserView(FlaskAdminPlatformMemberAccessibleMixin, PlatformAdminModelView):
+class PlatformAdminUserView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, PlatformAdminModelView):
     _model = User
 
     def entity_label(self, model: User) -> str:
