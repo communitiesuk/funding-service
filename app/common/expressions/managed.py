@@ -663,13 +663,17 @@ class BaseDataSourceManagedExpression(ManagedExpression):
 @register_managed_expression
 class AnyOf(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {
+        QuestionDataType.RADIOS,
+        QuestionDataType.CHECKBOXES,
+    }
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
     _key: ManagedExpressionsEnum = name
 
     items: list[TRadioItem]
+    multilple_answers_allowed: bool = False
 
     @property
     def description(self) -> str:
@@ -689,6 +693,15 @@ class AnyOf(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> EvaluationStatement:
         item_keys = {str(item["key"]) for item in self.items}
+
+        # handle checkboxes differently because the data is stored as a dict of {item_key: True/False} rather than a single value
+        if self.subject_reference.question.data_type == QuestionDataType.CHECKBOXES:
+            return EvaluationStatement(
+                " or ".join(
+                    f"{self.subject_reference.unwrapped}.get('{item_key}', False)" for item_key in sorted(item_keys)
+                )
+            )
+
         return EvaluationStatement(f"{self.subject_reference.unwrapped} in {item_keys}")
 
     @staticmethod
@@ -728,6 +741,7 @@ class AnyOf(BaseDataSourceManagedExpression):
         return AnyOf(
             subject_reference=subject_reference,
             items=items,
+            muiltple_answers_allowed=question.data_type == QuestionDataType.CHECKBOXES,
         )
 
     @property

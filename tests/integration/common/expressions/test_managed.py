@@ -461,6 +461,22 @@ class TestAnyOfExpression:
         ):
             expr.get_form_fields(data_source_ref)
 
+    @pytest.mark.parametrize(
+        "items, answers, expected_result",
+        (
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"red"}, True),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"red", "blue"}, True),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"blue", "green"},True,),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"green"}, False,),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], set(), False,),
+        )
+    )
+    def test_evaluate_checkboxes(self, items: list[TRadioItem], answers: set[str], expected_result: bool, factories):
+        question = factories.question.build(data_type=QuestionDataType.CHECKBOXES)
+        expr = AnyOf(subject_reference=ExpressionReference.from_question(question), items=items)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answers})) is expected_result
+
 
 class TestIsYesExpression:
     @pytest.mark.parametrize(
