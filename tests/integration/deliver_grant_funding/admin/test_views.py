@@ -1411,6 +1411,45 @@ class TestSendEmailsToRecipients:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
+        "email_type, collection_status",
+        [
+            (CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionStatusEnum.OPEN),
+            (CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_send_emails_to_recipients_shows_public_sign_up_recipients_message(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        email_type,
+        collection_status,
+        allow_public_sign_up,
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            type=CollectionType.APPLICATION,
+            status=collection_status,
+            allow_public_sign_up=allow_public_sign_up,
+            submission_period_end_date=datetime.date(2025, 10, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+
+        assert response.status_code == 200
+        message = (
+            "This form allows public sign up, so these emails will only be sent to organisations that have started "
+            "but not yet submitted a submission."
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (message in soup.get_text(" ", strip=True)) is allow_public_sign_up
+
+    @pytest.mark.parametrize(
         "email_type",
         [
             CollectionAdminEmailTypeEnum.DEADLINE_REMINDER,
@@ -1851,6 +1890,70 @@ class TestSendEmailsToRecipients:
         rows = list(csv.DictReader(io.StringIO(response.text)))
         assert len(rows) == 1
         assert rows[0]["submission_deadline"] == "Wednesday 30 April 2025 at 2pm"
+
+    @pytest.mark.parametrize(
+        "email_type, collection_status",
+        [
+            (CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionStatusEnum.OPEN),
+            (CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, expected_emails",
+        [
+            # Only grant recipients that have started (but not submitted) a submission, regardless of status
+            (True, {"awarded-started@example.com", "applicant-started@example.com"}),
+            # All non-applicant grant recipients that haven't submitted, whether or not they've started
+            (False, {"awarded-started@example.com", "awarded-not-started@example.com"}),
+        ],
+    )
+    def test_download_csv_public_sign_up_only_includes_grant_recipients_with_unsubmitted_submissions(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        email_type,
+        collection_status,
+        allow_public_sign_up,
+        expected_emails,
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+            submission_period_end_date=datetime.date(2025, 4, 30),
+            allow_public_sign_up=allow_public_sign_up,
+        )
+        for email, status, submission_status in [
+            ("awarded-not-started@example.com", GrantRecipientStatusEnum.AWARDED, None),
+            ("awarded-started@example.com", GrantRecipientStatusEnum.AWARDED, SubmissionStatusEnum.IN_PROGRESS),
+            ("awarded-submitted@example.com", GrantRecipientStatusEnum.AWARDED, SubmissionStatusEnum.SUBMITTED),
+            ("applicant-not-started@example.com", GrantRecipientStatusEnum.APPLYING, None),
+            ("applicant-started@example.com", GrantRecipientStatusEnum.APPLYING, SubmissionStatusEnum.IN_PROGRESS),
+            ("applicant-submitted@example.com", GrantRecipientStatusEnum.APPLYING, SubmissionStatusEnum.SUBMITTED),
+        ]:
+            organisation = factories.organisation.create(can_manage_grants=False)
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation, status=status)
+            factories.user_role.create(
+                user=factories.user.create(email=email),
+                organisation=organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            if submission_status:
+                submission = factories.submission.create(
+                    grant_recipient=grant_recipient, collection=collection, mode=SubmissionModeEnum.LIVE
+                )
+                submission.status = submission_status
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{email_type.value}"
+        )
+
+        assert response.status_code == 200
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        assert {row["email_address"] for row in rows} == expected_emails
 
     def test_download_csv_format_and_content_report_closed(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

@@ -6,7 +6,7 @@ from sqlalchemy import String, cast, delete, func, select, text
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.common.data.interfaces.exceptions import flush_and_rollback_on_exceptions
-from app.common.data.models import Grant, GrantRecipient, Organisation, Submission
+from app.common.data.models import Collection, Grant, GrantRecipient, Organisation, Submission
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
     GrantRecipientModeEnum,
@@ -45,8 +45,52 @@ def get_grant_recipients(
     return db.session.scalars(stmt).unique().all()
 
 
+def get_grant_recipients_with_submissions_for_collection(
+    grant: Grant,
+    *,
+    collection_id: uuid.UUID,
+    submission_mode: SubmissionModeEnum = SubmissionModeEnum.LIVE,
+    exclude_submitted: bool = False,
+    with_data_providers: bool = False,
+    with_certifiers: bool = False,
+) -> Sequence[GrantRecipient]:
+    """
+    Gets all the grant recipients who have at least one submission for the given collection, regardless of their
+    status. Each grant recipient is only returned once, even if they have multiple submissions.
+
+    If `exclude_submitted` is True, only grant recipients whose submissions have not been submitted are returned.
+
+    """
+    stmt = (
+        select(GrantRecipient)
+        .join(Submission)
+        .where(
+            GrantRecipient.grant_id == grant.id,
+            Submission.collection_id == collection_id,
+            Submission.mode == submission_mode,
+        )
+    )
+
+    if exclude_submitted:
+        stmt = stmt.where(~Submission.is_submitted)
+
+    if with_data_providers:
+        stmt = stmt.options(joinedload(GrantRecipient.data_providers))
+
+    if with_certifiers:
+        stmt = stmt.options(joinedload(GrantRecipient._all_certifiers).joinedload(User.roles))
+
+    stmt = stmt.join(Organisation, GrantRecipient.organisation_id == Organisation.id).order_by(Organisation.name)
+
+    return db.session.scalars(stmt).unique().all()
+
+
 def get_grant_recipients_with_outstanding_submissions_for_collection(
-    grant: Grant, *, collection_id: uuid.UUID, with_data_providers: bool = False, with_certifiers: bool = False
+    grant: Grant,
+    *,
+    collection: Collection,
+    with_data_providers: bool = False,
+    with_certifiers: bool = False,
 ) -> list[GrantRecipient]:
     """
     Gets all the grant recipients who have not submitted their submission for the given collection.
@@ -55,22 +99,39 @@ def get_grant_recipients_with_outstanding_submissions_for_collection(
     - They have a submission that is not in the SUBMITTED state
     - They do not have a submission for this collection
 
+    For collections that allow public sign up, only grant recipients who have started (but not submitted) a
+    submission for this collection are returned, regardless of their status, as being an applicant on the grant
+    doesn't mean they applied through this specific collection.
+
     """
     from app.common.data.interfaces.collections import get_all_submissions_with_mode_for_collection
 
-    all_grant_recipients = get_grant_recipients(
-        grant, with_data_providers=with_data_providers, with_certifiers=with_certifiers
-    )
-    submissions = get_all_submissions_with_mode_for_collection(
-        grant_recipient_ids=[gr.id for gr in all_grant_recipients],
-        collection_id=collection_id,
-        submission_mode=SubmissionModeEnum.LIVE,
-    )
-    grant_recipients_with_outstanding_submissions = []
-    for gr in all_grant_recipients:
-        submission = next((s for s in submissions if s.grant_recipient_id == gr.id), None)
-        if not submission or not submission.is_submitted:
-            grant_recipients_with_outstanding_submissions.append(gr)
+    if collection.allow_public_sign_up:
+        grant_recipients_with_outstanding_submissions = list(
+            get_grant_recipients_with_submissions_for_collection(
+                grant,
+                collection_id=collection.id,
+                exclude_submitted=True,
+                with_data_providers=with_data_providers,
+                with_certifiers=with_certifiers,
+            )
+        )
+    else:
+        all_grant_recipients = get_grant_recipients(
+            grant,
+            with_data_providers=with_data_providers,
+            with_certifiers=with_certifiers,
+        )
+        submissions = get_all_submissions_with_mode_for_collection(
+            grant_recipient_ids=[gr.id for gr in all_grant_recipients],
+            collection_id=collection.id,
+            submission_mode=SubmissionModeEnum.LIVE,
+        )
+        grant_recipients_with_outstanding_submissions = []
+        for gr in all_grant_recipients:
+            submission = next((s for s in submissions if s.grant_recipient_id == gr.id), None)
+            if not submission or not submission.is_submitted:
+                grant_recipients_with_outstanding_submissions.append(gr)
 
     return grant_recipients_with_outstanding_submissions
 
