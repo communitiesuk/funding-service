@@ -1104,7 +1104,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         )
 
     @expose("/<uuid:grant_id>/<uuid:collection_id>/send-emails-to-data-providers/<email_type>", methods=["GET"])
-    def send_emails_to_recipients(
+    def send_emails_to_recipients(  # noqa: C901
         self, grant_id: UUID, collection_id: UUID, email_type: CollectionAdminEmailTypeEnum
     ) -> Any:
         grant = get_grant(grant_id)
@@ -1128,6 +1128,10 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 if collection.multiple_submissions_are_managed_by_service:
                     notify_template_id = current_app.config[
                         "GOVUK_NOTIFY_GRANT_RECIPIENT_MANAGED_MULTI_SUBMISSION_REPORT_DEADLINE_REMINDER_TEMPLATE_ID"
+                    ]
+                elif collection.allow_public_sign_up:
+                    notify_template_id = current_app.config[
+                        "GOVUK_NOTIFY_GRANT_RECIPIENT_REPORT_PUBLIC_SIGN_UP_COMPETED_DEADLINE_REMINDER_TEMPLATE_ID"
                     ]
                 else:
                     notify_template_id = current_app.config[
@@ -1222,7 +1226,10 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 | CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION
             ):
                 grant_recipients = get_grant_recipients_with_outstanding_submissions_for_collection(
-                    grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
+                    grant,
+                    collection=collection,
+                    with_data_providers=True,
+                    with_certifiers=True,
                 )
                 email_recipients = {
                     (recipient_user, grant_recipient)

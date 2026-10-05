@@ -16,6 +16,7 @@ from app.common.data.interfaces.grant_recipients import (
     get_grant_recipients_for_collection_with_locked_submissions,
     get_grant_recipients_for_organisation,
     get_grant_recipients_with_outstanding_submissions_for_collection,
+    get_grant_recipients_with_submissions_for_collection,
 )
 from app.common.data.models import GrantRecipient
 from app.common.data.types import (
@@ -422,11 +423,144 @@ class TestGetGrantRecipientsWithOutstandingReports:
         # org 4 has not started their report yet so should be in the list
 
         result = get_grant_recipients_with_outstanding_submissions_for_collection(
-            grant, collection_id=collection.id, with_certifiers=True, with_data_providers=True
+            grant, collection=collection, with_certifiers=True, with_data_providers=True
         )
 
         assert len(result) == 3
         assert {gr.organisation_id for gr in result} == {org1.id, org3.id, org4.id}
+
+    def test_public_sign_up_only_returns_grant_recipients_with_started_unsubmitted_submissions(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=True)
+
+        started_awarded = factories.grant_recipient.create(
+            grant=grant, organisation__name="Org A", status=GrantRecipientStatusEnum.AWARDED
+        )
+        started_applicant = factories.grant_recipient.create(
+            grant=grant, organisation__name="Org B", status=GrantRecipientStatusEnum.APPLYING
+        )
+        submitted_applicant = factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.APPLYING)
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.AWARDED)
+
+        factories.submission.create(
+            grant_recipient=started_awarded, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+        factories.submission.create(
+            grant_recipient=started_applicant, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+        submission = factories.submission.create(
+            grant_recipient=submitted_applicant, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+        submission.status = SubmissionStatusEnum.SUBMITTED
+
+        result = get_grant_recipients_with_outstanding_submissions_for_collection(grant, collection=collection)
+
+        assert result == [started_awarded, started_applicant]
+
+
+class TestGetGrantRecipientsWithSubmissionsForCollection:
+    def test_returns_grant_recipients_with_any_submission_for_collection_regardless_of_status(
+        self, factories, db_session
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        other_collection = factories.collection.create(grant=grant)
+
+        in_progress_awarded = factories.grant_recipient.create(
+            grant=grant, organisation__name="Org A", status=GrantRecipientStatusEnum.AWARDED
+        )
+        submitted_applicant = factories.grant_recipient.create(
+            grant=grant, organisation__name="Org B", status=GrantRecipientStatusEnum.APPLYING
+        )
+        other_collection_applicant = factories.grant_recipient.create(
+            grant=grant, status=GrantRecipientStatusEnum.APPLYING
+        )
+        factories.grant_recipient.create(grant=grant, status=GrantRecipientStatusEnum.AWARDED)
+
+        factories.submission.create(
+            grant_recipient=in_progress_awarded, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+        submission = factories.submission.create(
+            grant_recipient=submitted_applicant, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+        submission.status = SubmissionStatusEnum.SUBMITTED
+        factories.submission.create(
+            grant_recipient=other_collection_applicant, collection=other_collection, mode=SubmissionModeEnum.LIVE
+        )
+
+        result = get_grant_recipients_with_submissions_for_collection(grant, collection_id=collection.id)
+
+        assert result == [in_progress_awarded, submitted_applicant]
+
+    def test_exclude_submitted(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        in_progress = factories.grant_recipient.create(grant=grant)
+        submitted = factories.grant_recipient.create(grant=grant)
+
+        factories.submission.create(grant_recipient=in_progress, collection=collection, mode=SubmissionModeEnum.LIVE)
+        submission = factories.submission.create(
+            grant_recipient=submitted, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+        submission.status = SubmissionStatusEnum.SUBMITTED
+
+        result = get_grant_recipients_with_submissions_for_collection(
+            grant, collection_id=collection.id, exclude_submitted=True
+        )
+
+        assert result == [in_progress]
+
+    def test_filters_by_submission_mode(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        live = factories.grant_recipient.create(grant=grant)
+        test = factories.grant_recipient.create(grant=grant, mode=GrantRecipientModeEnum.TEST)
+
+        factories.submission.create(grant_recipient=live, collection=collection, mode=SubmissionModeEnum.LIVE)
+        factories.submission.create(grant_recipient=test, collection=collection, mode=SubmissionModeEnum.TEST)
+
+        assert get_grant_recipients_with_submissions_for_collection(grant, collection_id=collection.id) == [live]
+        assert get_grant_recipients_with_submissions_for_collection(
+            grant, collection_id=collection.id, submission_mode=SubmissionModeEnum.TEST
+        ) == [test]
+
+    def test_returns_grant_recipient_once_with_multiple_submissions(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        grant_recipient = factories.grant_recipient.create(grant=grant)
+
+        factories.submission.create_batch(
+            2, grant_recipient=grant_recipient, collection=collection, mode=SubmissionModeEnum.LIVE
+        )
+
+        result = get_grant_recipients_with_submissions_for_collection(grant, collection_id=collection.id)
+
+        assert result == [grant_recipient]
+
+    def test_eager_loads_data_providers_and_certifiers(self, factories, db_session, track_sql_queries):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+        for _ in range(2):
+            grant_recipient = factories.grant_recipient.create(grant=grant)
+            factories.submission.create(
+                grant_recipient=grant_recipient, collection=collection, mode=SubmissionModeEnum.LIVE
+            )
+
+        result = get_grant_recipients_with_submissions_for_collection(
+            grant, collection_id=collection.id, with_data_providers=True, with_certifiers=True
+        )
+
+        with track_sql_queries() as queries:
+            for gr in result:
+                _ = gr.data_providers
+                _ = gr.certifiers
+
+        assert len(queries) == 0
 
 
 class TestGetGrantRecipientsForOrganisation:
