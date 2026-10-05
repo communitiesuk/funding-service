@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "30 2 * * *"
   pull_request:
-    types: [labeled, unlabeled, synchronize, closed, reopened]
+    types: [ labeled, unlabeled, synchronize, closed, reopened ]
 
 jobs:
   deploy:
@@ -33,8 +33,7 @@ jobs:
           echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
       - uses: pullpreview/action@7ef9914ea29854d3e9cd60a0cec35ce3f060855a  # v6.2.1
         with:
-          admins: 'samuelhwilliams,srh-sloan,sfount,gidsg,marcusher,nuwan-samarasinghe'
-          always_on: 'main'
+          admins: 'samuelhwilliams,srh-sloan,sfount,marcusher,albertkol,rachaelcodes,nusaalexa,Tudor-MHCLG'
           compose_files: docker-compose.pullpreview.yml
           instance_type: micro
           ttl: 1h
