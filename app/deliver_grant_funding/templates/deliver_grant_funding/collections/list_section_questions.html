@@ -83,9 +83,7 @@
           <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.choose_question_type', grant_id=grant.id, form_id=db_form.id) }}"
             >{{ "Add another question" if db_form.cached_questions else "Add a question" }}</a
           >
-          {% if not db_form.is_eligibility_section %}
-            <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_question_group_name', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add a question group" }}</a>
-          {% endif %}
+          <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.add_question_group_name', grant_id=grant.id, form_id=db_form.id) }}">{{ "Add a question group" }}</a>
         </div>
       {% endif %}
     </div>

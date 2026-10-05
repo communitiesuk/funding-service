@@ -1352,8 +1352,6 @@ class AddQuestionGroup(BaseModel):
 @auto_commit_after_request
 def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    if form.is_eligibility_section:
-        return abort(404)
 
     group_name = request.args.get("name", None)
 
@@ -1401,8 +1399,6 @@ def add_question_group_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValu
 @auto_commit_after_request
 def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    if form.is_eligibility_section:
-        return abort(404)
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
@@ -1465,8 +1461,6 @@ def add_question_group_display_options(grant_id: UUID, form_id: UUID) -> Respons
 @auto_commit_after_request
 def add_question_group_add_another_option(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     form = get_form_by_id(form_id)
-    if form.is_eligibility_section:
-        return abort(404)
 
     parent_id = request.args.get("parent_id", None)
     parent = get_group_by_id(UUID(parent_id)) if parent_id else None
