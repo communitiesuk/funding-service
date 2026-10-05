@@ -693,9 +693,9 @@ class AnyOf(BaseDataSourceManagedExpression):
     def statement(self) -> EvaluationStatement:
         item_keys = {str(item["key"]) for item in self.items}
 
-        # handle checkboxes differently because the data is stored as a dict eg {}
-        question =self.subject_reference.question
-        if question and question.data_type == QuestionDataType.CHECKBOXES:
+        # handle checkboxes differently because the data is stored as a list of items
+        # eg [{"one":"One","two":"Two"}] if selected 'One' and 'Two' from 'One, Two Three'
+        if self.subject_reference.question and self.subject_reference.question.data_type == QuestionDataType.CHECKBOXES:
             return EvaluationStatement(f"{self.subject_reference.unwrapped}.isdisjoint({item_keys}) is False")
 
         return EvaluationStatement(f"{self.subject_reference.unwrapped} in {item_keys}")

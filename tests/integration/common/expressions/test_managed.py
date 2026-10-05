@@ -440,8 +440,8 @@ class TestAnyOfExpression:
         ),
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool, factories):
-        expr = AnyOf(subject_reference=ExpressionReference.from_question(factories.question.build()), items=items)
-        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        expr = AnyOf(subject_reference=ExpressionReference.from_question(factories.question.create()), items=items)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.create())
         assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     def test_needs_a_question_subject_reference(self, factories):
@@ -466,15 +466,48 @@ class TestAnyOfExpression:
         (
             ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"red"}, True),
             ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"red", "blue"}, True),
-            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"blue", "green"},True,),
-            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"green"}, False,),
-            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], set(), False,),
-        )
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                {"blue", "green"},
+                True,
+            ),
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                {"green"},
+                False,
+            ),
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                set(),
+                False,
+            ),
+            (
+                [
+                    {"key": "red", "label": "Red"},
+                ],
+                {"red"},
+                True,
+            ),
+            (
+                [
+                    {"key": "red", "label": "Red"},
+                ],
+                {"blue"},
+                False,
+            ),
+            (
+                [
+                    {"key": "red", "label": "Red"},
+                ],
+                set(),
+                False,
+            ),
+        ),
     )
     def test_evaluate_checkboxes(self, items: list[TRadioItem], answers: set[str], expected_result: bool, factories):
-        question = factories.question.build(data_type=QuestionDataType.CHECKBOXES)
+        question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
         expr = AnyOf(subject_reference=ExpressionReference.from_question(question), items=items)
-        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.create())
         assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answers})) is expected_result
 
 
