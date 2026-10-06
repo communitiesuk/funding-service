@@ -60,19 +60,24 @@ def get_grant_recipients_with_submissions_for_collection(
 
     If `exclude_submitted` is True, only grant recipients whose submissions have not been submitted are returned.
 
+    Only grant recipients with the mode matching `submission_mode` are returned.
+
     """
-    stmt = (
-        select(GrantRecipient)
-        .join(Submission)
-        .where(
-            GrantRecipient.grant_id == grant.id,
-            Submission.collection_id == collection_id,
-            Submission.mode == submission_mode,
-        )
+    # filter on a subquery of grant recipient IDs rather than joining submissions, so that multiple submissions
+    # for a grant recipient don't multiply the rows returned for any eager loaded relationships
+    grant_recipient_ids_from_submissions = select(Submission.grant_recipient_id).where(
+        Submission.collection_id == collection_id,
+        Submission.mode == submission_mode,
     )
 
     if exclude_submitted:
-        stmt = stmt.where(~Submission.is_submitted)
+        grant_recipient_ids_from_submissions = grant_recipient_ids_from_submissions.where(~Submission.is_submitted)
+
+    stmt = select(GrantRecipient).where(
+        GrantRecipient.grant_id == grant.id,
+        GrantRecipient.mode == GrantRecipientModeEnum.from_similar(submission_mode),
+        GrantRecipient.id.in_(grant_recipient_ids_from_submissions),
+    )
 
     if with_data_providers:
         stmt = stmt.options(joinedload(GrantRecipient.data_providers))

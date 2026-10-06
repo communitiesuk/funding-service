@@ -92,20 +92,6 @@
           "href": link_href,
         })
       %}
-      {%
-        do rows.append({
-          "title": {"text": "Set up grant recipients", "classes": "govuk-link--no-visited-state"},
-          "status": {"html": govukTag({"text": grant_recipients_count ~ (" grant recipient" if grant_recipients_count == 1 else " grant recipients"), "classes": "govuk-tag--blue"})},
-          "href": url_for('collection_lifecycle.set_up_grant_recipients', grant_id=grant.id, collection_id=collection.id),
-        })
-      %}
-      {%
-        do rows.append({
-          "title": {"text": "Set up grant recipient data providers", "classes": "govuk-link--no-visited-state"},
-          "status": {"html": govukTag({"text": grant_recipient_users_count ~ (" data provider" if grant_recipient_users_count == 1 else " data providers"), "classes": "govuk-tag--blue"})},
-          "href": url_for('collection_lifecycle.add_individual_data_providers' if collection.is_open else 'collection_lifecycle.add_bulk_data_providers', grant_id=grant.id, collection_id=collection.id),
-        })
-      %}
       {% if collection.allow_public_sign_up %}
         {% set can_match_applicant_to_organisation = grant.status == enum.grant_status.LIVE and collection.is_open %}
         {%
@@ -116,14 +102,29 @@
             "href": url_for('collection_lifecycle.match_applicant_to_organisation', grant_id=grant.id, collection_id=collection.id) if can_match_applicant_to_organisation else "",
           })
         %}
+      {% else %}
+        {%
+          do rows.append({
+            "title": {"text": "Set up grant recipients", "classes": "govuk-link--no-visited-state"},
+            "status": {"html": govukTag({"text": grant_recipients_count ~ (" grant recipient" if grant_recipients_count == 1 else " grant recipients"), "classes": "govuk-tag--blue"})},
+            "href": url_for('collection_lifecycle.set_up_grant_recipients', grant_id=grant.id, collection_id=collection.id),
+          })
+        %}
+        {%
+          do rows.append({
+            "title": {"text": "Set up grant recipient data providers", "classes": "govuk-link--no-visited-state"},
+            "status": {"html": govukTag({"text": grant_recipient_users_count ~ (" data provider" if grant_recipient_users_count == 1 else " data providers"), "classes": "govuk-tag--blue"})},
+            "href": url_for('collection_lifecycle.add_individual_data_providers' if collection.is_open else 'collection_lifecycle.add_bulk_data_providers', grant_id=grant.id, collection_id=collection.id),
+          })
+        %}
+        {%
+          do rows.append({
+            "title": {"text": "Override certifiers for this grant", "classes": "govuk-link--no-visited-state"},
+            "status": {"html": govukTag({"text": grant_override_certifiers_count ~ (" override" if grant_override_certifiers_count == 1 else " overrides"), "classes": "govuk-tag--blue"})},
+            "href": url_for('collection_lifecycle.override_grant_certifiers', grant_id=grant.id, collection_id=collection.id),
+          })
+        %}
       {% endif %}
-      {%
-        do rows.append({
-          "title": {"text": "Override certifiers for this grant", "classes": "govuk-link--no-visited-state"},
-          "status": {"html": govukTag({"text": grant_override_certifiers_count ~ (" override" if grant_override_certifiers_count == 1 else " overrides"), "classes": "govuk-tag--blue"})},
-          "href": url_for('collection_lifecycle.override_grant_certifiers', grant_id=grant.id, collection_id=collection.id),
-        })
-      %}
       {{ govukTaskList({ "idPrefix": "grant-tasks", "items": rows, "attributes": {"id": "grant-tasks"} }) }}
 
       <h2 class="govuk-heading-m">{{ collection.type.constants.singular | capitalize }} tasks</h2>
