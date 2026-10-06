@@ -493,12 +493,39 @@ class SubmissionHelper:
         if not self.cached_get_all_questions_are_answered_for_form(form).all_answered:
             return False
 
+        return self.find_first_ineligible_answer(form) is None
+
+    def find_first_ineligible_answer(self, form: Form) -> tuple[Question, int | None] | None:
+        """Finds the first saved answer in the `form`, including every add-another entries, that fails its
+        question's eligibility expression. Questions or entries that haven't been answered yet are skipped,
+        rather than treated as failing."""
         for question in self.cached_get_ordered_visible_questions(form):
             eligibility_expression = question.eligibility
-            if eligibility_expression and not evaluate(eligibility_expression, self.cached_evaluation_context):
-                return False
+            # If a question has no eligibility expression, it is considered eligible by default
+            if not eligibility_expression:
+                continue
 
-        return True
+            if question.add_another_container:
+                number_of_add_another_entries = self.get_count_for_add_another(question.add_another_container)
+                for i in range(number_of_add_another_entries):
+                    # Question is not yet answered, so we cannot evaluate it. Skip to next.
+                    if self.cached_get_answer_for_question(question.id, add_another_index=i) is None:
+                        continue
+
+                    # Get context and evaluate answer
+                    context = self.cached_evaluation_context.with_add_another_context(
+                        question, data_manager=self.submission.data_manager, add_another_index=i
+                    )
+                    if not evaluate(eligibility_expression, context):
+                        return question, i
+
+            # If it not an add-another question, check if it has an answer and evaluate it
+            elif self.cached_get_answer_for_question(question.id) is not None and not evaluate(
+                eligibility_expression, self.cached_evaluation_context
+            ):
+                return question, None
+
+        return None
 
     @property
     def status(self) -> SubmissionStatusEnum:
