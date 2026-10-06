@@ -3304,6 +3304,201 @@ class TestSubmissionHelper:
 
             assert SubmissionHelper(submission).eligibility_answers_currently_pass is True
 
+        def test_true_when_add_another_entries_all_pass(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            group = factories.group.create(form=eligibility_form, add_another=True)
+            question = factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[
+                    FactoryAnswer(question, YesNoAnswer(True), add_another_index=0),
+                    FactoryAnswer(question, YesNoAnswer(True), add_another_index=1),
+                ],
+            )
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is True
+
+        def test_false_when_one_add_another_entry_fails(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            group = factories.group.create(form=eligibility_form, add_another=True)
+            question = factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[
+                    FactoryAnswer(question, YesNoAnswer(True), add_another_index=0),
+                    FactoryAnswer(question, YesNoAnswer(False), add_another_index=1),
+                ],
+            )
+
+            assert SubmissionHelper(submission).eligibility_answers_currently_pass is False
+
+    class TestFindFirstIneligibleAnswer:
+        def test_none_when_no_eligibility_expression(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            question = factories.question.create(form=eligibility_form)
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("User submitted data"))],
+            )
+
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) is None
+
+        def test_none_when_question_unanswered(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(collection=collection)
+
+            # unanswered questions are skipped, not treated as failing
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) is None
+
+        def test_returns_failing_question_for_plain_question(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[FactoryAnswer(question, YesNoAnswer(False))],
+            )
+
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) == (question, None)
+
+        def test_none_for_passing_plain_question(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[FactoryAnswer(question, YesNoAnswer(True))],
+            )
+
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) is None
+
+        def test_none_when_add_another_has_no_entries(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            group = factories.group.create(form=eligibility_form, add_another=True)
+            question = factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(collection=collection)
+
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) is None
+
+        def test_none_when_add_another_entry_question_unanswered(self, factories):
+            # a group with multiple questions where only some have been answered for a given entry
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            group = factories.group.create(form=eligibility_form, add_another=True)
+            first_question = factories.question.create(form=eligibility_form, parent=group, order=0)
+            eligibility_question = factories.question.create(
+                form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=1
+            )
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(eligibility_question))
+            factories.expression.create(
+                question=eligibility_question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[
+                    FactoryAnswer(first_question, TextSingleLineAnswer("only this answered"), add_another_index=0)
+                ],
+            )
+
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) is None
+
+        def test_returns_failing_entry_for_add_another_question(self, factories):
+            collection = factories.collection.create()
+            eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+            group = factories.group.create(form=eligibility_form, add_another=True)
+            question = factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO)
+            user = factories.user.create()
+            expression = IsYes(subject_reference=ExpressionReference.from_question(question))
+            factories.expression.create(
+                question=question,
+                created_by=user,
+                type_=ExpressionType.ELIGIBILITY,
+                statement=expression.statement,
+                context=expression.model_dump(mode="json"),
+                managed_name=ManagedExpressionsEnum.IS_YES,
+            )
+            submission = factories.submission.create(
+                collection=collection,
+                answers=[
+                    FactoryAnswer(question, YesNoAnswer(True), add_another_index=0),
+                    FactoryAnswer(question, YesNoAnswer(False), add_another_index=1),
+                ],
+            )
+
+            assert SubmissionHelper(submission).find_first_ineligible_answer(eligibility_form) == (question, 1)
+
 
 class TestFormResetOnAnswerChange:
     def test_same_section_reset_when_completed(self, db_session, factories):
