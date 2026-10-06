@@ -396,7 +396,7 @@ class TestAdminAuditTracking:
         initial_audit_count = db_session.query(AuditEvent).count()
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/user/edit/?id={user.id}",
+            f"/deliver/admin/user-edit/edit/?id={user.id}",
             data={
                 "name": "Updated Name",
                 "email": user.email,
@@ -424,7 +424,7 @@ class TestAdminAuditTracking:
         initial_audit_count = db_session.query(AuditEvent).count()
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/user/edit/?id={user.id}",
+            f"/deliver/admin/user-edit/edit/?id={user.id}",
             data={
                 "name": user.name,
                 "email": user.email,
@@ -441,7 +441,7 @@ class TestAdminAuditTracking:
         db_session.commit()
 
         response = authenticated_platform_admin_client.post(
-            f"/deliver/admin/user/edit/?id={user.id}",
+            f"/deliver/admin/user-edit/edit/?id={user.id}",
             data={
                 "name": "Changed Name",
                 "email": user.email,
