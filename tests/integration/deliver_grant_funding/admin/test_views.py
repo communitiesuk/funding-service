@@ -3725,13 +3725,7 @@ class TestSetupGrantRecipients:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(
-            soup,
-            (
-                "Created 2 grant recipients and 2 test grant recipients. All existing grant team members have been"
-                " set up as data providers/certifiers for the test grant recipients."
-            ),
-        )
+        assert page_has_flash(soup, "Created 2 grant recipients and 2 test grant recipients.")
 
         from app.common.data.interfaces.grant_recipients import get_grant_recipients
 
@@ -3748,15 +3742,13 @@ class TestSetupGrantRecipients:
         assert org1.matching_test_organisation.id in test_recipient_org_ids
         assert org2.matching_test_organisation.id in test_recipient_org_ids
 
-    def test_post_sets_up_grant_team_members_in_test_grant_recipients(
+    def test_post_does_not_grant_team_members_test_grant_recipient_roles(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
         org1 = factories.organisation.create(name="Org 1", can_manage_grants=False, with_matching_test_org=True)
         test_org1 = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[org1.external_id])[0]
-        org2 = factories.organisation.create(name="Org 2", can_manage_grants=False, with_matching_test_org=True)
-        test_org2 = get_organisations(mode=OrganisationModeEnum.TEST, with_external_ids=[org2.external_id])[0]
         team_member1 = factories.user.create()
         factories.user_role.create(
             user=team_member1,
@@ -3773,27 +3765,11 @@ class TestSetupGrantRecipients:
         assert response.status_code == 200
 
         user = get_user(team_member1.id)
-        assert not any(
-            r
-            for r in user.roles
-            if r.organisation == org1
-            and r.grant == grant
-            and RoleEnum.DATA_PROVIDER in r.permissions
-            and RoleEnum.CERTIFIER in r.permissions
-        ), "Should not be added to the live grant recipient organisation"
-        assert any(
-            r
-            for r in user.roles
-            if r.organisation == test_org1
-            and r.grant == grant
-            and RoleEnum.DATA_PROVIDER in r.permissions
-            and RoleEnum.CERTIFIER in r.permissions
-        ), "Should be added to the test grant recipient organisation"
-        assert not any(r for r in user.roles if r.organisation == org2 and r.grant == grant), (
-            "Should not be added to a non-grant-recipient organisation"
+        assert not any(r for r in user.roles if r.organisation == org1 and r.grant == grant), (
+            "Should not be added to the live grant recipient organisation"
         )
-        assert not any(r for r in user.roles if r.organisation == test_org2 and r.grant == grant), (
-            "Should not be added to a non-grant-recipient test organisation"
+        assert not any(r for r in user.roles if r.organisation == test_org1 and r.grant == grant), (
+            "Should not be auto-granted roles on the test grant recipient organisation"
         )
 
     def test_post_redirects_to_tasklist(

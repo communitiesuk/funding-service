@@ -30,7 +30,7 @@ from app.common.data.interfaces.grant_recipients import (
 from app.common.data.interfaces.grants import get_all_grants
 from app.common.data.interfaces.organisations import get_organisations
 from app.common.data.interfaces.temporary import delete_grant
-from app.common.data.interfaces.user import add_permissions_to_user, get_or_create_system_user, get_user_by_email
+from app.common.data.interfaces.user import get_user_by_email
 from app.common.data.models import (
     Collection,
     Component,
@@ -58,7 +58,6 @@ from app.common.data.types import (
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionPresentationOptions,
-    RoleEnum,
     SubmissionModeEnum,
 )
 from app.common.exceptions import SubmissionAnswerConflict
@@ -732,7 +731,6 @@ def sync_test_grant_recipients(commit: bool) -> None:
 
     click.echo("Syncing test grant recipients for all live grant recipients.")
 
-    system_user = get_or_create_system_user()
     grants = get_all_grants()
     created = 0
     for grant in grants:
@@ -770,16 +768,6 @@ def sync_test_grant_recipients(commit: bool) -> None:
             click.echo(
                 f" -> Created test grant recipient for live organisation {live_grant_recipient.organisation.name}"
             )
-
-            for grant_team_user in grant.grant_team_users:
-                add_permissions_to_user(
-                    grant_team_user,
-                    organisation=matching_test_organisation,
-                    grant=grant,
-                    permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
-                    by_user=system_user,
-                )
-                click.echo(f" -> Adding test grant recipient permissions for {grant_team_user.email}")
 
     if commit:
         db.session.commit()
