@@ -151,19 +151,25 @@ class TestSubmissionHelper:
         @pytest.mark.parametrize(
             "condition_indexes, answer_indexes, expected",
             [
-                pytest.param([0], [0], True, id="matched"),
-                pytest.param([0], [0, 1], True, id="matched_with_other"),
-                pytest.param([1], [0], False, id="one_of_many_matched"),
-                pytest.param([0, 2], [2], True, id="all_matched"),
-                pytest.param([0], [1], False, id="not_matched"),
-                pytest.param([0, 2], [1], False, id="none_of_many_matched"),
+                pytest.param(["red"], ["red"], True, id="matched"),
+                pytest.param(["red"], ["red", "green"], True, id="matched_plus_unrelated"),
+                pytest.param(["red"], ["blue"], False, id="not_matched"),
+                pytest.param(["red", "blue"], ["blue", "red", "green"], True, id="all_options_matched"),
+                pytest.param(["red", "blue"], ["green"], False, id="none_of_many_matched"),
+                pytest.param(["red", "blue"], ["blue"], True, id="one_of_many_matched"),
             ],
         )
-        def test_any_condition_on_checkboxes(self, factories, condition_indexes, answer_indexes, expected):
+        def test_any_of_condition_on_checkboxes(self, factories, condition_indexes, answer_indexes, expected):
             collection = factories.collection.create()
             form = factories.form.create(collection=collection)
-            checkbox_question = factories.question.create(form=form, data_type=QuestionDataType.CHECKBOXES, order=0)
-            items = checkbox_question.data_source.items
+            checkbox_question = factories.question.create(
+                form=form, data_type=QuestionDataType.CHECKBOXES, order=0, data_source__items=[]
+            )
+
+            checkbox_question.data_source.items = [
+                factories.data_source_item.create(data_source=checkbox_question.data_source, key=key, label=key)
+                for key in ["red", "green", "blue"]
+            ]
 
             follow_up_question = factories.question.create(
                 form=form,
@@ -172,7 +178,7 @@ class TestSubmissionHelper:
                     Expression.from_evaluatable_expression(
                         AnyOf(
                             subject_reference=ExpressionReference.from_question(checkbox_question),
-                            items=[{"key": items[i].key, "label": items[i].label} for i in condition_indexes],
+                            items=[{"key": key, "label": key} for key in condition_indexes],
                         ),
                         ExpressionType.CONDITION,
                         collection.created_by,
@@ -184,9 +190,7 @@ class TestSubmissionHelper:
                 answers=[
                     FactoryAnswer(
                         checkbox_question,
-                        MultipleChoiceFromListAnswer(
-                            choices=[{"key": items[i].key, "label": items[i].label} for i in answer_indexes]
-                        ),
+                        MultipleChoiceFromListAnswer(choices=[{"key": key, "label": key} for key in answer_indexes]),
                     )
                 ],
             )
@@ -194,7 +198,7 @@ class TestSubmissionHelper:
             helper = SubmissionHelper(submission)
 
             expected_question_ids = (
-                [checkbox_question.id] + [follow_up_question.id] if expected else [checkbox_question.id]
+                [checkbox_question.id, follow_up_question.id] if expected else [checkbox_question.id]
             )
             assert list(helper.all_visible_questions().keys()) == expected_question_ids
 

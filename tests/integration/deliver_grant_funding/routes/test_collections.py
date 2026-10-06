@@ -3223,70 +3223,6 @@ class TestChangeConditionsOperator:
             is not None
         )
 
-    def test_post_any_of_for_checkboxes(self, authenticated_grant_admin_client, factories, db_session):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
-        db_form = factories.form.create(collection=collection, title="Organisation information")
-
-        depends_on_question = factories.question.create(
-            form=db_form,
-            text="Which cheese do you like?",
-            name="cheese question",
-            hint="Please select all that apply",
-            data_type=QuestionDataType.CHECKBOXES,
-        )
-
-        reference = ExpressionReference.from_question(depends_on_question)
-
-        target_question = factories.question.create(
-            form=db_form,
-            text="Why do you like those cheeses?",
-            name="cheese reason question",
-            hint="Tell us why",
-            data_type=QuestionDataType.TEXT_MULTI_LINE,
-        )
-
-        assert len(target_question.expressions) == 0
-
-        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
-        form = ConditionForm(
-            data={
-                "type": "Any of",
-                "any_of": {depends_on_question.data_source.items[0].key, depends_on_question.data_source.items[2].key},
-            }
-        )
-
-        response = authenticated_grant_admin_client.post(
-            url_for(
-                "deliver_grant_funding.add_question_condition",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                component_id=target_question.id,
-                subject_reference=reference,
-            ),
-            data=get_form_data(form),
-            follow_redirects=False,
-        )
-
-        assert response.status_code == 302
-        assert response.location == AnyStringMatching(
-            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
-        )
-
-        assert len(target_question.expressions) == 1
-        expression = target_question.expressions[0]
-        assert expression.type_ == ExpressionType.CONDITION
-        assert expression.managed.name == "Any of"
-        assert expression.managed.referenced_question.id == depends_on_question.id
-        assert expression.managed.items == [
-            {
-                "key": depends_on_question.data_source.items[0].key,
-                "label": depends_on_question.data_source.items[0].label,
-            },
-            {
-                "key": depends_on_question.data_source.items[2].key,
-                "label": depends_on_question.data_source.items[2].label,
-            },
-        ]
-
     def test_post_for_question(self, authenticated_grant_admin_client, factories, db_session):
         db_form = factories.form.create(
             collection__grant=authenticated_grant_admin_client.grant, title="Organisation information"
@@ -7656,6 +7592,71 @@ class TestAddQuestionCondition:
         assert expression.type_ == ExpressionType.CONDITION
         assert expression.managed_name == "Yes"
         assert expression.managed.referenced_question.id == depends_on_question.id
+
+    def test_post_any_of_for_checkboxes(self, authenticated_grant_admin_client, factories, db_session):
+        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
+        db_form = factories.form.create(collection=collection, title="Organisation information")
+
+        depends_on_question = factories.question.create(
+            form=db_form,
+            text="Which cheese do you like?",
+            name="cheese question",
+            hint="Please select all that apply",
+            data_type=QuestionDataType.CHECKBOXES,
+            data_source__items=[],
+        )
+
+        depends_on_question.data_source.items = [
+            factories.data_source_item.create(data_source=depends_on_question.data_source, key=key, label=key.title())
+            for key in ["cheddar", "brie", "stilton"]
+        ]
+
+        reference = ExpressionReference.from_question(depends_on_question)
+
+        target_question = factories.question.create(
+            form=db_form,
+            text="Why do you like those cheeses?",
+            name="cheese reason question",
+            hint="Tell us why",
+            data_type=QuestionDataType.TEXT_MULTI_LINE,
+            data_source__items=[],
+        )
+
+        assert len(target_question.expressions) == 0
+
+        ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference)
+        form = ConditionForm(
+            data={
+                "type": "Any of",
+                "any_of": ["cheddar", "stilton"],
+            }
+        )
+
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.add_question_condition",
+                grant_id=authenticated_grant_admin_client.grant.id,
+                component_id=target_question.id,
+                subject_reference=reference,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == AnyStringMatching(
+            rf"/deliver/grant/{authenticated_grant_admin_client.grant.id}/question/{target_question.id}"
+        )
+
+        assert len(target_question.expressions) == 1
+        expression = target_question.expressions[0]
+        assert expression.type_ == ExpressionType.CONDITION
+        assert expression.managed_name == "Any of"
+        assert expression.managed.referenced_question.id == depends_on_question.id
+        assert expression.managed.items == [
+            {"key": "cheddar", "label": "Cheddar"},
+            {"key": "stilton", "label": "Stilton"},
+        ]
 
     def test_post_for_group(self, authenticated_grant_admin_client, factories, db_session):
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant, name="Test Report")
