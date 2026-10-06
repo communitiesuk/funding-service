@@ -27,7 +27,7 @@ from app.common.auth.decorators import (
     is_signing_up,
     requires_passed_eligibility,
 )
-from app.common.collections.forms import build_question_form
+from app.common.collections.runner import EligibilityFormRunner
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import get_collection_by_slug
 from app.common.data.interfaces.grant_recipients import get_grant_recipient, get_grant_recipient_or_none
@@ -35,7 +35,6 @@ from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_matched_organisations, get_organisation
 from app.common.data.interfaces.user import upsert_user_by_email
 from app.common.data.types import RoleEnum, SubmissionModeEnum
-from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import (
     SubmissionHelper,
@@ -535,10 +534,26 @@ def eligible_to_apply_user_name(grant_slug: str, collection_slug: str) -> Respon
 @access_grant_funding_blueprint.route(
     "/grant/<string:grant_slug>/<string:collection_slug>/eligibility/<uuid:question_id>", methods=["GET", "POST"]
 )
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligibility/<uuid:question_id>/<any('clear'):action>",
+    methods=["GET", "POST"],
+)
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligibility/<uuid:question_id>/<int:add_another_index>",
+    methods=["GET", "POST"],
+)
+@access_grant_funding_blueprint.route(
+    "/grant/<string:grant_slug>/<string:collection_slug>/eligibility/<uuid:question_id>/<int:add_another_index>/<any('remove', 'clear'):action>",  # noqa: E501
+    methods=["GET", "POST"],
+)
 @is_signing_up
 @auto_commit_after_request
 def public_sign_up_eligibility_question(
-    grant_slug: str, collection_slug: str, question_id: UUID
+    grant_slug: str,
+    collection_slug: str,
+    question_id: UUID,
+    add_another_index: int | None = None,
+    action: str | None = None,
 ) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
@@ -549,11 +564,20 @@ def public_sign_up_eligibility_question(
     user = interfaces.user.get_current_user()
     is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
     submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
+    check_entries = request.args.get("check_entries", type=int)
 
     submission_helper = get_or_create_unclaimed_submission(user, collection, submission_mode)
-    question = submission_helper.get_question(question_id)
 
-    if not submission_helper.is_component_visible(question, submission_helper.cached_evaluation_context):
+    runner = EligibilityFormRunner.load(
+        submission_id=submission_helper.id,
+        question_id=question_id,
+        add_another_index=add_another_index,
+        is_removing=action == "remove",
+        is_clearing=action == "clear",
+        check_entries=check_entries,
+    )
+
+    if not runner.validate_can_show_question_page():
         # If question is not visible, e.g. after changing the answer to an earlier
         # conditional question. Redirect the user away.
         return redirect(
@@ -564,65 +588,37 @@ def public_sign_up_eligibility_question(
             )
         )
 
-    form_cls = build_question_form(
-        [question], submission_helper.cached_evaluation_context, submission_helper.cached_interpolation_context
-    )
-    form = form_cls(data=submission_helper.form_data())
+    if (
+        runner.question_with_add_another_summary_form
+        and runner.question_with_add_another_summary_form.validate_on_submit()
+    ):
+        success = True
+        if runner.is_removing:
+            success = runner.save_add_another()
+        elif not runner.add_another_summary_context:
+            success = runner.save_question_answer(user)
 
-    if form.validate_on_submit():
-        submission_helper.submit_answer_for_question(question.id, form, user)
-        submission_helper.clear_caches()
-
-        eligibility_expression = question.eligibility
-        if eligibility_expression and not evaluate(eligibility_expression, submission_helper.cached_evaluation_context):
-            return redirect(
-                url_for(
-                    "access_grant_funding.public_sign_up_ineligible",
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                    question_id=question.id,
+        if success:
+            ineligible_answer = runner.submission.find_first_ineligible_answer(collection.eligibility_form)
+            if ineligible_answer:
+                ineligible_question, ineligible_add_another_index = ineligible_answer
+                return redirect(
+                    url_for(
+                        "access_grant_funding.public_sign_up_ineligible",
+                        grant_slug=grant_slug,
+                        collection_slug=collection_slug,
+                        question_id=ineligible_question.id,
+                        add_another_index=ineligible_add_another_index,
+                    )
                 )
-            )
 
-        next_question = submission_helper.get_next_question(question.id)
-        if next_question:
-            return redirect(
-                url_for(
-                    "access_grant_funding.public_sign_up_eligibility_question",
-                    grant_slug=grant_slug,
-                    collection_slug=collection_slug,
-                    question_id=next_question.id,
-                )
-            )
-
-        return redirect(
-            url_for(
-                "access_grant_funding.eligible_to_apply",
-                grant_slug=grant_slug,
-                collection_slug=collection_slug,
-            )
-        )
-
-    previous_question = submission_helper.get_previous_question(question.id)
-    back_url = (
-        url_for(
-            "access_grant_funding.public_sign_up_eligibility_question",
-            grant_slug=grant_slug,
-            collection_slug=collection_slug,
-            question_id=previous_question.id,
-        )
-        if previous_question
-        else None
-    )
+            return redirect(runner.next_url)
 
     return render_template(
         "access_grant_funding/public_sign_up_eligibility_question.html",
         grant=grant,
         collection=collection,
-        form=form,
-        question=question,
-        back_url=back_url,
-        interpolator=SubmissionHelper.get_interpolator(collection, submission_helper),
+        runner=runner,
     )
 
 
@@ -633,6 +629,7 @@ def public_sign_up_eligibility_question(
 def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id: UUID) -> ResponseReturnValue:
     grant = get_grant_by_slug(grant_slug)
     collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
+    add_another_index = request.args.get("add_another_index", type=int)
 
     user = interfaces.user.get_current_user()
     modes = get_sign_up_modes(user)
@@ -655,7 +652,7 @@ def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id
     except ValueError:
         abort(404)
 
-    answer = submission_helper.cached_get_answer_for_question(question.id)
+    answer = submission_helper.cached_get_answer_for_question(question.id, add_another_index=add_another_index)
 
     # If the answer is None, it means the user has not answered the question yet
     # we redirect them back to the question page
@@ -666,6 +663,7 @@ def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id
                 grant_slug=grant_slug,
                 collection_slug=collection_slug,
                 question_id=question.id,
+                add_another_index=add_another_index,
             )
         )
 
@@ -677,4 +675,5 @@ def public_sign_up_ineligible(grant_slug: str, collection_slug: str, question_id
         collection=collection,
         question=question,
         answer=answer,
+        add_another_index=add_another_index,
     )
