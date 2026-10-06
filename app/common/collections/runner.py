@@ -771,3 +771,51 @@ class AGFFormRunner(FormRunner):
             )
 
         return form_runner
+
+
+class EligibilityFormRunner(FormRunner):
+    @property
+    def can_edit(self) -> bool:
+        # Eligibility questions are answered against an unclaimed submission with no grant_recipient yet, so
+        # the base class's org/grant_recipient permission check doesn't apply here.
+        if self.submission.in_answers_locked_state:
+            return False
+        return True
+
+    url_map: ClassVar[TRunnerUrlMap] = {
+        FormRunnerState.QUESTION: (
+            lambda runner, question, _form, _source, add_another_index, action, check_entries: url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=runner.submission.collection.grant.slug,
+                collection_slug=runner.submission.collection.slug,
+                question_id=question.id if question else None,
+                add_another_index=add_another_index,
+                action=action if action else None,
+                check_entries=check_entries,
+            )
+        ),
+        # Should not be hit, but if it is, redirect to the public sign up router
+        FormRunnerState.TASKLIST: (
+            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=runner.submission.collection.grant.slug,
+                collection_slug=runner.submission.collection.slug,
+            )
+        ),
+        # next_url falls back to this state once all eligibility questions have been answered
+        FormRunnerState.CHECK_YOUR_ANSWERS: (
+            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
+                "access_grant_funding.eligible_to_apply",
+                grant_slug=runner.submission.collection.grant.slug,
+                collection_slug=runner.submission.collection.slug,
+            )
+        ),
+        # Should not be hit, but if it is, redirect to the public sign up router
+        FormRunnerState.VIEW_REPORT_PAGE: (
+            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
+                "access_grant_funding.public_sign_up_router",
+                grant_slug=runner.submission.collection.grant.slug,
+                collection_slug=runner.submission.collection.slug,
+            )
+        ),
+    }
