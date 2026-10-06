@@ -7,7 +7,7 @@
   {{
     govukBackLink({
       "text": "Back",
-      "href": url_for("access_grant_funding.public_sign_up_eligibility_question", grant_slug=grant.slug, collection_slug=collection.slug, question_id=question.id),
+      "href": url_for("access_grant_funding.public_sign_up_eligibility_question", grant_slug=grant.slug, collection_slug=collection.slug, question_id=question.id, add_another_index=add_another_index),
     })
   }}
 {% endblock %}
