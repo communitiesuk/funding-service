@@ -1,29 +1,25 @@
 {% extends "access_grant_funding/base.html" %}
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
-{% from "common/macros/collections.html" import collection_render_single_question with context %}
+{% from "common/macros/collections.html" import collection_question_with_add_another_summary_page with context %}
+{% from "common/macros/ask-a-question-error-summary.html" import formRunnerErrorSummary with context %}
 
-{% set page_title = question.text ~ " - " ~ grant.name %}
+{% set page_title = runner.interpolate(runner.component.text) ~ " - " ~ grant.name %}
+
+{% set form = runner.question_with_add_another_summary_form %}
+{% set previous_question = runner.submission.get_previous_question(runner.linked_question.id) %}
 
 {% block beforeContent %}
-  {% if back_url %}
-    {{ govukBackLink({ "href": back_url, "text": "Back" }) }}
+  {% if previous_question %}
+    {{ govukBackLink({ "text": "Back", "href": runner.back_url }) }}
   {% endif %}
 {% endblock beforeContent %}
 
+{% block errorSummary %}
+  {{ formRunnerErrorSummary(form, runner) }}
+{% endblock errorSummary %}
+
 {% block content %}
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
-      <form method="post" novalidate>
-        {{ form.csrf_token }}
-
-        <span class="govuk-caption-l">{{ question.form.title }}</span>
-        {% if question.guidance_body %}
-          {{ interpolator(question.guidance_body) | govuk_markdown | safe }}
-        {% endif %}
-        {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
-
-        {{ form.submit(params={"text": "Continue"}) }}
-      </form>
-    </div>
+    <div class="govuk-grid-column-two-thirds">{{ collection_question_with_add_another_summary_page(runner) }}</div>
   </div>
 {% endblock content %}
