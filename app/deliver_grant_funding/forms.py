@@ -29,6 +29,7 @@ from wtforms.validators import URL, DataRequired, Email, Optional, Regexp, StopV
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.collections.types import DecimalAnswer, IntegerAnswer
 from app.common.data.interfaces.collections import (
+    get_all_submissions_with_mode_for_collection,
     group_name_exists,
 )
 from app.common.data.interfaces.grants import grant_code_exists, grant_name_exists
@@ -46,6 +47,7 @@ from app.common.data.types import (
     NumberInputWidths,
     NumberTypeEnum,
     QuestionDataType,
+    SubmissionModeEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
@@ -996,14 +998,31 @@ class TestGrantRecipientJourneyForm(FlaskForm):
         widget=MHCLGAccessibleAutocomplete(),
     )
 
-    def __init__(self, *args: Any, users_test_grant_recipients: list[GrantRecipient], **kwargs: Any):
+    def __init__(
+        self,
+        *args: Any,
+        test_grant_recipients: Sequence[GrantRecipient],
+        collection: "Collection",
+        **kwargs: Any,
+    ):
         super().__init__(*args, **kwargs)
+        already_testing_grant_recipient_ids = {
+            submission.grant_recipient_id
+            for submission in get_all_submissions_with_mode_for_collection(
+                collection_id=collection.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
+            )
+            if submission.grant_recipient_id
+        }
         self.organisation.choices = [("", "")] + [
-            (str(grant_recipient.id), grant_recipient.organisation.name)
-            for grant_recipient in users_test_grant_recipients
+            (
+                str(grant_recipient.id),
+                grant_recipient.organisation.name
+                + (" (Already testing)" if grant_recipient.id in already_testing_grant_recipient_ids else ""),
+            )
+            for grant_recipient in test_grant_recipients
         ]
-        if len(users_test_grant_recipients) == 1:
-            self.organisation.default = str(users_test_grant_recipients[0].id)
+        if len(test_grant_recipients) == 1:
+            self.organisation.default = str(test_grant_recipients[0].id)
 
     submit = SubmitField("Start test submission journey", widget=GovSubmitInput())
 

@@ -612,25 +612,9 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                 mode=GrantRecipientModeEnum.TEST,
             )
 
-            # Set up grant team members as data providers/certifiers for the test grant recipients
-            current_user = get_current_user()
-            for test_organisation in test_organisations:
-                for grant_team_member in grant.grant_team_users:
-                    add_permissions_to_user(
-                        grant_team_member,
-                        permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
-                        organisation=test_organisation,
-                        grant=grant,
-                        by_user=current_user,
-                    )
             recipients_count = len(form.recipients.data or [])
             flash(
-                (
-                    f"Created {recipients_count} grant recipients"
-                    f" and {recipients_count} test grant recipients. "
-                    f"All existing grant team members have been"
-                    f" set up as data providers/certifiers for the test grant recipients."
-                ),
+                f"Created {recipients_count} grant recipients and {recipients_count} test grant recipients.",
                 "success",
             )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))

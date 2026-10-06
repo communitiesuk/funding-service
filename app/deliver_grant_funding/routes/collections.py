@@ -221,27 +221,28 @@ def start_test_grant_recipient_journey(
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=False)
 
     user = get_current_user()
-    test_grant_recipients = [
+    test_grant_recipients = interfaces.grant_recipients.get_grant_recipients(
+        grant, mode=GrantRecipientModeEnum.TEST, with_organisations=True
+    )
+
+    # Lets us give direct links back into Access
+    users_existing_grant_recipients = [
         grant_recipient
         for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
         if grant_recipient.mode == GrantRecipientModeEnum.TEST
     ]
-    test_grant_organisations = [gr.organisation for gr in test_grant_recipients]
 
-    # todo: currently checks for the existence of test submissions but could
-    #       set nice submission events when inviting data provider users initially and be specific here
-    existing_submissions = [
-        submission
-        for submission in get_all_submissions_with_mode_for_collection(
-            collection_id=collection.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
-        )
-        if submission.grant_recipient and submission.grant_recipient.organisation in test_grant_organisations
-    ]
-
-    form = TestGrantRecipientJourneyForm(users_test_grant_recipients=test_grant_recipients)
+    form = TestGrantRecipientJourneyForm(test_grant_recipients=test_grant_recipients, collection=collection)
 
     if form.validate_on_submit():
         grant_recipient = next(gr for gr in test_grant_recipients if str(gr.id) == form.organisation.data)
+        interfaces.user.add_permissions_to_user(
+            user,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
+            organisation=grant_recipient.organisation,
+            grant=grant_recipient.grant,
+            by_user=user,
+        )
         notification_service.send_access_report_opened(
             email_address=user.email,
             collection=collection,
@@ -267,7 +268,7 @@ def start_test_grant_recipient_journey(
         collection=collection,
         form=form,
         test_grant_recipients=test_grant_recipients,
-        existing_submissions=existing_submissions,
+        users_existing_grant_recipients=users_existing_grant_recipients,
     )
 
 
