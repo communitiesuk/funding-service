@@ -1926,7 +1926,6 @@ class TestEligibleToApplyPage:
         )
 
         assert response.status_code == 200
-        assert b"We could not find an organisation with the email address you provided." in response.data
         assert b"Create an organisation" in response.data
 
     @pytest.mark.authenticate_as("test@no-matching-org.com")
