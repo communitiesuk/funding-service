@@ -46,8 +46,7 @@ COLLECTION_NAME = f"Public sign up round {uuid.uuid4()}"
 APPLICATION_SECTION_NAME = "Section 1"
 ELIGIBILITY_SECTION_NAME = "Eligibility questions"
 
-# Fixed, reusable, non-internal user for public sign up tests
-USER_1_EMAIL = "fs-e2e-public-sign-up-1@levellingup.gov.uk"
+USER_1_EMAIL = "fs-e2e-public-sign-up-1@funding-service-e2e.gov.uk"
 
 application_question: QuestionDict = QuestionDict(
     {
