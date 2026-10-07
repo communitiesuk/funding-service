@@ -31,10 +31,11 @@ jobs:
           PULLPREVIEW_GOVUK_NOTIFY_API_KEY: ${{ secrets.PULLPREVIEW_GOVUK_NOTIFY_API_KEY }}
         run: |
           echo "GOVUK_NOTIFY_API_KEY=$PULLPREVIEW_GOVUK_NOTIFY_API_KEY" >> .env
-      - uses: pullpreview/action@179f963326f568dc1665707c796aaac590667632  # v6.2.0
+          # pullpreview v6 stats compose bind mounts on the runner before syncing; the real file is generated on the instance by the pre_script
+          touch .pullpreview/Caddyfile
+      - uses: pullpreview/action@7ef9914ea29854d3e9cd60a0cec35ce3f060855a  # v6.2.1
         with:
-          admins: 'samuelhwilliams,srh-sloan,sfount,gidsg,marcusher,nuwan-samarasinghe'
-          always_on: 'main'
+          admins: 'samuelhwilliams,srh-sloan,sfount,marcusher'
           compose_files: docker-compose.pullpreview.yml
           instance_type: micro
           ttl: 1h
