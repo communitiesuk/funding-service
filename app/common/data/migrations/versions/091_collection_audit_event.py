@@ -1,4 +1,4 @@
-"""empty message
+"""Add COLLECTION_CONFIGURATION to audit event type
 
 Revision ID: 091_collection_audit_event
 Revises: 090_add_unclaimed_sub_constraint
