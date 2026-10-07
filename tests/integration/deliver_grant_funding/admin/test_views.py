@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 from unittest.mock import patch
+from urllib.parse import quote
 
 import pytest
 from bs4 import BeautifulSoup
@@ -61,7 +62,7 @@ class TestFlaskAdminAccess:
         "client_fixture, expected_code",
         [
             ("authenticated_platform_admin_client", 200),
-            ("authenticated_platform_grant_lifecycle_manager_client", 403),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
             ("authenticated_platform_data_analyst_client", 403),
             ("authenticated_platform_member_client", 403),
             ("authenticated_grant_admin_client", 403),
@@ -70,10 +71,39 @@ class TestFlaskAdminAccess:
             ("anonymous_client", 302),
         ],
     )
-    def test_admin_user_list_denied_for_non_platform_admin(self, client_fixture, expected_code, request):
+    def test_admin_user_list_allowed_for_grant_lifecycle_managers(self, client_fixture, expected_code, request):
         client = request.getfixturevalue(client_fixture)
         response = client.get("/deliver/admin/user/")
         assert response.status_code == expected_code
+
+    @pytest.mark.parametrize(
+        "client_fixture, expected_code",
+        [
+            ("authenticated_platform_admin_client", 200),
+            ("authenticated_platform_grant_lifecycle_manager_client", 200),
+            ("authenticated_platform_data_analyst_client", 403),
+            ("authenticated_platform_member_client", 403),
+            ("authenticated_grant_admin_client", 403),
+            ("authenticated_grant_member_client", 403),
+            ("authenticated_no_role_client", 403),
+            ("anonymous_client", 302),
+        ],
+    )
+    def test_admin_user_detail_allowed_for_grant_lifecycle_managers(
+        self, client_fixture, expected_code, request, factories, db_session
+    ):
+        client = request.getfixturevalue(client_fixture)
+        user = factories.user.create()
+
+        response = client.get(f"/deliver/admin/user/details/?id={user.id}", follow_redirects=False)
+        assert response.status_code == expected_code
+
+    def test_admin_user_view_itself_is_read_only(self, authenticated_platform_admin_client, factories, db_session):
+        user = factories.user.create()
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/user/edit/?id={user.id}")
+        assert response.status_code == 302
+        assert response.location == "/deliver/admin/user/"
 
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
@@ -88,13 +118,13 @@ class TestFlaskAdminAccess:
             ("anonymous_client", 302),
         ],
     )
-    def test_admin_user_detail_denied_for_non_platform_admin(
+    def test_admin_user_edit_allowed_for_platform_admins_only(
         self, client_fixture, expected_code, request, factories, db_session
     ):
         client = request.getfixturevalue(client_fixture)
         user = factories.user.create()
 
-        response = client.get(f"/deliver/admin/user/details/?id={user.id}", follow_redirects=False)
+        response = client.get(f"/deliver/admin/user-edit/edit/?id={user.id}", follow_redirects=False)
         assert response.status_code == expected_code
 
     @pytest.mark.parametrize(
@@ -123,6 +153,313 @@ class TestFlaskAdminAccess:
 
         response = authenticated_platform_admin_client.get("/deliver/admin/", follow_redirects=False)
         assert response.status_code == 403
+
+
+class TestPlatformAdminUserView:
+    @staticmethod
+    def _table(soup, caption):
+        return next(
+            (t for t in soup.find_all("table") if t.caption and t.caption.get_text(strip=True) == caption), None
+        )
+
+    @classmethod
+    def _grant_access_rows(cls, soup, caption):
+        table = cls._table(soup, caption)
+        if table is None:
+            return None
+        return [[cell.get_text(strip=True) for cell in row.find_all(["th", "td"])] for row in table.find("tbody")("tr")]
+
+    def test_list_links_to_user_details_and_not_to_editing(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/user/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        hrefs = [link["href"] for link in soup.find_all("a", href=True)]
+        assert any(f"/deliver/admin/user/details/?id={user.id}" in href for href in hrefs)
+        assert not any("/deliver/admin/user/edit/" in href for href in hrefs)
+
+    def test_edit_view_has_no_menu_entry_of_its_own(self, authenticated_platform_admin_client, factories, db_session):
+        response = authenticated_platform_admin_client.get("/deliver/admin/user/")
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        navigation = soup.find("nav")
+        assert navigation is not None
+        assert [link["href"] for link in navigation.find_all("a", href=True) if "user-edit" in link["href"]] == []
+
+    def test_details_offers_editing_to_platform_admins_only(self, request, factories, db_session):
+        user = factories.user.create()
+
+        def get_edit_links(client_fixture):
+            client = request.getfixturevalue(client_fixture)
+            response = client.get(f"/deliver/admin/user/details/?id={user.id}")
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.data, "html.parser")
+            return [link["href"] for link in soup.find_all("a", href=True) if "/user-edit/edit/" in link["href"]]
+
+        assert get_edit_links("authenticated_platform_grant_lifecycle_manager_client") == []
+
+        edit_links = get_edit_links("authenticated_platform_admin_client")
+        assert len(edit_links) == 1
+        assert f"id={user.id}" in edit_links[0]
+
+    def test_editing_a_user_returns_to_their_details_page(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        user = factories.user.create(name="Original Name", email="original@communities.gov.uk")
+        details_url = f"/deliver/admin/user/details/?id={user.id}"
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/user-edit/edit/?id={user.id}&url={quote(details_url)}",
+            data={"name": "Updated Name", "email": " updated@communities.gov.uk "},
+        )
+        assert response.status_code == 302
+        assert response.location == details_url
+
+        assert user.name == "Updated Name"
+        assert user.email == "updated@communities.gov.uk"
+
+    def test_details_shows_grants_the_user_can_access(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+
+        grant_with_direct_role = factories.grant.create(name="Alpha Grant", status=GrantStatusEnum.LIVE)
+        factories.user_role.create(user=user, grant=grant_with_direct_role, permissions=[RoleEnum.MEMBER])
+
+        grant_with_org_role = factories.grant.create(name="Beta Grant", status=GrantStatusEnum.LIVE)
+        recipient_organisation = factories.organisation.create(name="Beta Council", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant_with_org_role, organisation=recipient_organisation)
+        factories.user_role.create(
+            user=user,
+            organisation=recipient_organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.CERTIFIER],
+        )
+        factories.collection.create(grant=grant_with_org_role, name="Beta Report", status=CollectionStatusEnum.OPEN)
+
+        factories.grant.create(name="Gamma Grant")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert self._grant_access_rows(soup, "Deliver grant funding") == [
+            ["Alpha Grant", _get_grant_managing_organisation().name, "member", "This grant only"],
+        ]
+        assert self._grant_access_rows(soup, "Access grant funding") == [
+            ["Beta Grant", "Beta Council", "certifier, member", "Whole organisation", "Beta Report"],
+        ]
+
+    def test_details_shows_all_grants_for_an_organisation_wide_deliver_role(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+        managing_organisation = _get_grant_managing_organisation()
+        factories.grant.create(name="Alpha Grant", status=GrantStatusEnum.LIVE)
+        factories.grant.create(name="Beta Grant", status=GrantStatusEnum.LIVE)
+        factories.user_role.create(
+            user=user, organisation=managing_organisation, grant=None, permissions=[RoleEnum.MEMBER]
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert self._grant_access_rows(soup, "Deliver grant funding") == [
+            ["Alpha Grant", managing_organisation.name, "member", "Whole organisation"],
+            ["Beta Grant", managing_organisation.name, "member", "Whole organisation"],
+        ]
+        assert self._grant_access_rows(soup, "Access grant funding") is None
+
+    def test_deliver_and_access_roles_on_the_same_grant_are_shown_separately(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        # A deliver grant team member is also set up with data provider/certifier roles on the grant's test recipients;
+        # each role must be attributed to the table for its own organisation, not merged onto the deliver row.
+        user = factories.user.create()
+        managing_organisation = _get_grant_managing_organisation()
+        grant = factories.grant.create(name="Alpha Grant", status=GrantStatusEnum.LIVE)
+        factories.user_role.create(
+            user=user, organisation=managing_organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+
+        recipient_organisation = factories.organisation.create(name="Recipient Council", can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_organisation)
+        factories.user_role.create(
+            user=user,
+            organisation=recipient_organisation,
+            grant=grant,
+            permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER, RoleEnum.MEMBER],
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert self._grant_access_rows(soup, "Deliver grant funding") == [
+            ["Alpha Grant", managing_organisation.name, "member", "This grant only"],
+        ]
+        assert self._grant_access_rows(soup, "Access grant funding") == [
+            ["Alpha Grant", "Recipient Council", "certifier, data-provider, member", "This grant only", ""],
+        ]
+
+    def test_details_notes_platform_level_roles(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+        factories.user_role.create(
+            user=user, organisation=None, grant=None, permissions=[RoleEnum.ADMIN, RoleEnum.MEMBER]
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        inset_text = soup.find("div", class_="govuk-inset-text").get_text(strip=True)
+        assert inset_text == "This user has a platform-level role (admin, member) so can see every grant."
+        assert self._grant_access_rows(soup, "Deliver grant funding") is None
+        assert self._grant_access_rows(soup, "Access grant funding") is None
+
+    def test_details_when_the_user_has_no_grant_access(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+        factories.grant.create(name="Alpha Grant")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert self._grant_access_rows(soup, "Deliver grant funding") is None
+        assert self._grant_access_rows(soup, "Access grant funding") is None
+        assert "This user has no roles that give them access to a grant." in soup.get_text()
+
+    def test_details_excludes_draft_grants(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+        live_grant = factories.grant.create(name="Live Grant", status=GrantStatusEnum.LIVE)
+        draft_grant = factories.grant.create(name="Draft Grant", status=GrantStatusEnum.DRAFT)
+        factories.user_role.create(user=user, grant=live_grant, permissions=[RoleEnum.MEMBER])
+        factories.user_role.create(user=user, grant=draft_grant, permissions=[RoleEnum.MEMBER])
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert self._grant_access_rows(soup, "Deliver grant funding") == [
+            ["Live Grant", _get_grant_managing_organisation().name, "member", "This grant only"],
+        ]
+
+    def test_deliver_grant_names_link_to_the_grant(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+        grant = factories.grant.create(name="Alpha Grant", status=GrantStatusEnum.LIVE)
+        factories.user_role.create(user=user, grant=grant, permissions=[RoleEnum.MEMBER])
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        table = self._table(soup, "Deliver grant funding")
+        grant_link = table.find("tbody").find("a")
+        assert grant_link.get_text(strip=True) == "Alpha Grant"
+        assert grant_link["href"] == f"/deliver/{grant.id}/index"
+
+    def test_access_grant_collections_link_to_their_lifecycle_page_when_open_or_closed(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        user = factories.user.create()
+        grant = factories.grant.create(name="Beta Grant", status=GrantStatusEnum.LIVE)
+        recipient_organisation = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_organisation)
+        factories.user_role.create(
+            user=user, organisation=recipient_organisation, grant=None, permissions=[RoleEnum.MEMBER]
+        )
+
+        open_collection = factories.collection.create(grant=grant, name="Open Report", status=CollectionStatusEnum.OPEN)
+        closed_collection = factories.collection.create(
+            grant=grant, name="Closed Report", status=CollectionStatusEnum.CLOSED
+        )
+        factories.collection.create(grant=grant, name="Draft Report", status=CollectionStatusEnum.DRAFT)
+        factories.collection.create(grant=grant, name="Scheduled Report", status=CollectionStatusEnum.SCHEDULED)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/details/?id={user.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        collections_cell = self._table(soup, "Access grant funding").find("tbody").find("tr").find_all("td")[-1]
+        links = {link.get_text(strip=True): link["href"] for link in collections_cell.find_all("a")}
+        assert links == {
+            "Open Report": f"/deliver/admin/collection-lifecycle/{grant.id}/{open_collection.id}",
+            "Closed Report": f"/deliver/admin/collection-lifecycle/{grant.id}/{closed_collection.id}",
+        }
+
+    def test_filter_list_by_grant_access(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Alpha Grant")
+        other_grant = factories.grant.create(name="Beta Grant")
+
+        user_with_direct_role = factories.user.create(email="direct-role@communities.gov.uk")
+        factories.user_role.create(user=user_with_direct_role, grant=grant, permissions=[RoleEnum.MEMBER])
+
+        recipient_organisation = factories.organisation.create(can_manage_grants=False)
+        factories.grant_recipient.create(grant=grant, organisation=recipient_organisation)
+        user_with_org_role = factories.user.create(email="org-role@example.com")
+        factories.user_role.create(
+            user=user_with_org_role,
+            organisation=recipient_organisation,
+            grant=None,
+            permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+        )
+
+        user_on_another_grant = factories.user.create(email="another-grant@communities.gov.uk")
+        factories.user_role.create(user=user_on_another_grant, grant=other_grant, permissions=[RoleEnum.MEMBER])
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get("/deliver/admin/user/")
+        assert response.status_code == 200
+
+        # The filter's query string parameter is generated by flask-admin, so find it via the grant it lists
+        soup = BeautifulSoup(response.data, "html.parser")
+        grant_filters = [
+            select["name"]
+            for select in soup.find_all("select")
+            if any(option.get("value") == str(grant.id) for option in select.find_all("option"))
+        ]
+        assert len(grant_filters) == 1
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/user/?{grant_filters[0]}={grant.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        # The first cell links to the user's details, with a visually hidden suffix after the email itself
+        emails = {row.find("td").find("a").find(string=True).strip() for row in soup.find("table").find("tbody")("tr")}
+        assert emails == {user_with_direct_role.email, user_with_org_role.email}
 
 
 class TestCollectionLifecycleSelectGrant:
@@ -1174,6 +1511,31 @@ class TestCollectionLifecycleTasklist:
         else:
             assert link is None
 
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_grant_recipient_tasks_are_hidden_with_public_sign_up(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, allow_public_sign_up
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant, allow_public_sign_up=allow_public_sign_up)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        grant_task_titles = [
+            item.find("div", {"class": "govuk-task-list__name-and-hint"}).get_text(strip=True)
+            for item in soup.find("ul", {"id": "grant-tasks"}).find_all("li", {"class": "govuk-task-list__item"})
+        ]
+
+        for task_title in [
+            "Set up grant recipients",
+            "Set up grant recipient data providers",
+            "Override certifiers for this grant",
+        ]:
+            assert (task_title in grant_task_titles) is not allow_public_sign_up
+
     def test_invite_and_overdue_email_tasks_are_hidden_with_public_sign_up(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
@@ -1409,6 +1771,45 @@ class TestSendEmailsToRecipients:
             f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
         )
         assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "email_type, collection_status",
+        [
+            (CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionStatusEnum.OPEN),
+            (CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_send_emails_to_recipients_shows_public_sign_up_recipients_message(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        email_type,
+        collection_status,
+        allow_public_sign_up,
+    ):
+        grant = factories.grant.create()
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            type=CollectionType.APPLICATION,
+            status=collection_status,
+            allow_public_sign_up=allow_public_sign_up,
+            submission_period_end_date=datetime.date(2025, 10, 1),
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/{email_type.value}"
+        )
+
+        assert response.status_code == 200
+        message = (
+            "This form allows public sign up, so these emails will only be sent to organisations that have started "
+            "but not yet submitted a submission."
+        )
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert (message in soup.get_text(" ", strip=True)) is allow_public_sign_up
 
     @pytest.mark.parametrize(
         "email_type",
@@ -1851,6 +2252,70 @@ class TestSendEmailsToRecipients:
         rows = list(csv.DictReader(io.StringIO(response.text)))
         assert len(rows) == 1
         assert rows[0]["submission_deadline"] == "Wednesday 30 April 2025 at 2pm"
+
+    @pytest.mark.parametrize(
+        "email_type, collection_status",
+        [
+            (CollectionAdminEmailTypeEnum.DEADLINE_REMINDER, CollectionStatusEnum.OPEN),
+            (CollectionAdminEmailTypeEnum.COLLECTION_CLOSED_NOTIFICATION, CollectionStatusEnum.CLOSED),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, expected_emails",
+        [
+            # Only grant recipients that have started (but not submitted) a submission, regardless of status
+            (True, {"awarded-started@example.com", "applicant-started@example.com"}),
+            # All non-applicant grant recipients that haven't submitted, whether or not they've started
+            (False, {"awarded-started@example.com", "awarded-not-started@example.com"}),
+        ],
+    )
+    def test_download_csv_public_sign_up_only_includes_grant_recipients_with_unsubmitted_submissions(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        email_type,
+        collection_status,
+        allow_public_sign_up,
+        expected_emails,
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Q1 Report",
+            status=collection_status,
+            submission_period_end_date=datetime.date(2025, 4, 30),
+            allow_public_sign_up=allow_public_sign_up,
+        )
+        for email, status, submission_status in [
+            ("awarded-not-started@example.com", GrantRecipientStatusEnum.AWARDED, None),
+            ("awarded-started@example.com", GrantRecipientStatusEnum.AWARDED, SubmissionStatusEnum.IN_PROGRESS),
+            ("awarded-submitted@example.com", GrantRecipientStatusEnum.AWARDED, SubmissionStatusEnum.SUBMITTED),
+            ("applicant-not-started@example.com", GrantRecipientStatusEnum.APPLYING, None),
+            ("applicant-started@example.com", GrantRecipientStatusEnum.APPLYING, SubmissionStatusEnum.IN_PROGRESS),
+            ("applicant-submitted@example.com", GrantRecipientStatusEnum.APPLYING, SubmissionStatusEnum.SUBMITTED),
+        ]:
+            organisation = factories.organisation.create(can_manage_grants=False)
+            grant_recipient = factories.grant_recipient.create(grant=grant, organisation=organisation, status=status)
+            factories.user_role.create(
+                user=factories.user.create(email=email),
+                organisation=organisation,
+                grant=grant,
+                permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER],
+            )
+            if submission_status:
+                submission = factories.submission.create(
+                    grant_recipient=grant_recipient, collection=collection, mode=SubmissionModeEnum.LIVE
+                )
+                submission.status = submission_status
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/send-emails-to-data-providers/download-csv/{email_type.value}"
+        )
+
+        assert response.status_code == 200
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        assert {row["email_address"] for row in rows} == expected_emails
 
     def test_download_csv_format_and_content_report_closed(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
