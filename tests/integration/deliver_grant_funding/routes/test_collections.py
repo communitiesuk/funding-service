@@ -574,7 +574,10 @@ class TestManageCollection:
 
     def test_shows_prospectus_link_row_when_not_set(self, authenticated_grant_admin_client, factories):
         collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant, type=CollectionType.APPLICATION, prospectus_url=None
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            prospectus_url=None,
+            allow_public_sign_up=True,
         )
 
         response = authenticated_grant_admin_client.get(
@@ -597,6 +600,7 @@ class TestManageCollection:
             grant=authenticated_grant_admin_client.grant,
             type=CollectionType.APPLICATION,
             prospectus_url="https://www.gov.uk/prospectus",
+            allow_public_sign_up=True,
         )
 
         response = authenticated_grant_admin_client.get(
@@ -613,7 +617,8 @@ class TestManageCollection:
         prospectus_row = next(row for row in soup.select(".govuk-summary-list__row") if "Prospectus link" in row.text)
         assert "https://www.gov.uk/prospectus" in prospectus_row.select_one(".govuk-summary-list__value").text
 
-    def test_hides_prospectus_link_row_for_non_pre_award_collection(self, authenticated_grant_admin_client, factories):
+    def test_hides_public_form_settings_for_reports(self, authenticated_grant_admin_client, factories):
+
         collection = factories.collection.create(
             grant=authenticated_grant_admin_client.grant, type=CollectionType.MONITORING_REPORT
         )
@@ -629,11 +634,20 @@ class TestManageCollection:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert not any("Prospectus link" in row.text for row in soup.select(".govuk-summary-list__row"))
+        summary_rows = soup.select(".govuk-summary-list__row")
+        assert not any("Allow any organisation" in row.text for row in summary_rows)
+        assert not any("Public form link" in row.text for row in summary_rows)
+        assert not any("Allow viewing submissions before" in row.text for row in summary_rows)
+        assert not any("Prospectus link" in row.text for row in summary_rows)
 
-    def test_shows_public_sign_up_row_for_pre_award_collection(self, authenticated_grant_admin_client, factories):
+    @pytest.mark.parametrize("allow_public_sign_up", [True, False])
+    def test_shows_public_form_settings_for_pre_award_collection(
+        self, authenticated_grant_admin_client, factories, allow_public_sign_up
+    ):
         collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant, type=CollectionType.APPLICATION, allow_public_sign_up=True
+            grant=authenticated_grant_admin_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=allow_public_sign_up,
         )
 
         response = authenticated_grant_admin_client.get(
@@ -647,29 +661,19 @@ class TestManageCollection:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        sign_up_row = next(
-            row for row in soup.select(".govuk-summary-list__row") if "Allow any organisation" in row.text
-        )
-        assert "Yes" in sign_up_row.select_one(".govuk-summary-list__value").text
+        summary_rows = soup.select(".govuk-summary-list__row")
+        sign_up_row = next(row for row in summary_rows if "Allow any organisation" in row.text)
         assert "Change" in sign_up_row.find("a").text
-
-    def test_hides_public_sign_up_row_for_non_pre_award_collection(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(
-            grant=authenticated_grant_admin_client.grant, type=CollectionType.MONITORING_REPORT
-        )
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.collection_settings",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                collection_type=CollectionType.MONITORING_REPORT,
-                collection_id=collection.id,
-            )
-        )
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.data, "html.parser")
-        assert not any("Allow any organisation" in row.text for row in soup.select(".govuk-summary-list__row"))
+        if allow_public_sign_up:
+            assert "Yes" in sign_up_row.select_one(".govuk-summary-list__value").text
+            assert any("Public form link" in row.text for row in summary_rows)
+            assert any("Allow viewing submissions before" in row.text for row in summary_rows)
+            assert any("Prospectus link" in row.text for row in summary_rows)
+        else:
+            assert "No" in sign_up_row.select_one(".govuk-summary-list__value").text
+            assert not any("Public form link" in row.text for row in summary_rows)
+            assert not any("Allow viewing submissions before" in row.text for row in summary_rows)
+            assert not any("Prospectus link" in row.text for row in summary_rows)
 
     @pytest.mark.parametrize(
         "allow_multiple_submissions, managed_by_service, expected_naming_value",
