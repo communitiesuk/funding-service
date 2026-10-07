@@ -26,7 +26,6 @@ from wtforms.validators import Email
 from xgovuk_flask_admin import XGovukModelView
 
 from app.common.audit import (
-    create_collection_status_change,
     create_database_model_change_for_create,
     create_database_model_change_for_delete,
     create_database_model_change_for_update,
@@ -38,6 +37,7 @@ from app.common.data.interfaces.collections import (
     delete_all_collection_preview_submissions,
     delete_collection,
     get_collection,
+    track_collection_status_change,
 )
 from app.common.data.interfaces.grant_recipients import delete_grant_recipients
 from app.common.data.interfaces.grants import get_all_grants
@@ -376,18 +376,13 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
             if status_change := audit_event.changes.get("status"):
                 emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
-
-                if status_change["old"] is not None and status_change["new"] is not None:
-                    user = get_current_user()
-                    status_event = create_collection_status_change(
-                        model,
-                        user,
-                        CollectionStatusEnum[status_change["old"]],
-                        CollectionStatusEnum[status_change["new"]],
-                    )
-                    if status_event:
-                        track_audit_event(status_event, get_current_user())
-            super().after_model_change(form, model, is_created)
+                track_collection_status_change(
+                    model,
+                    get_current_user(),
+                    CollectionStatusEnum[status_change["old"]],
+                    CollectionStatusEnum[status_change["new"]],
+                )
+        super().after_model_change(form, model, is_created)
 
     @action(
         "delete_preview_submissions",

@@ -369,9 +369,10 @@ def get_collections_with_dates_near_today_excluding_draft_grants(
     return db.session.scalars(statement).unique().all()
 
 
-def _track_collection_status_change(
+def track_collection_status_change(
     collection: Collection, by_user: User, old_status: CollectionStatusEnum, new_status: CollectionStatusEnum
 ) -> None:
+    """Public so the platform-admin can track collection status changes in the admin interface."""
     track_audit_event(
         CollectionStatusChanged(
             user_id=by_user.id,
@@ -669,7 +670,7 @@ def update_collection(  # noqa: C901
             },
         )
         collection.status = status
-        _track_collection_status_change(collection, by_user, old_status, status)
+        track_collection_status_change(collection, by_user, old_status, status)
 
     return collection
 

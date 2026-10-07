@@ -13,7 +13,7 @@ from app.common.data.models_user import User
 from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection
+    pass
 
 
 class AuditEvent(BaseModel):
@@ -285,23 +285,4 @@ def create_system_event_for_delete(
         action="delete",
         changes=snapshot,
         context=context,
-    )
-
-
-def create_collection_status_change(
-    collection: "Collection",
-    user: User,
-    old_status: CollectionStatusEnum,
-    new_status: CollectionStatusEnum,
-) -> CollectionStatusChanged | None:
-    if old_status == new_status:
-        return None
-
-    return CollectionStatusChanged(
-        user_id=user.id,
-        organisation_id=collection.grant.organisation_id,
-        grant_id=collection.grant_id,
-        collection_id=collection.id,
-        old_status=old_status,
-        new_status=new_status,
     )
