@@ -5061,8 +5061,8 @@ class TestScheduleReport:
         assert collection.status == CollectionStatusEnum.SCHEDULED
         audit_event = db_session.query(AuditEvent).filter_by(event_type=AuditEventType.COLLECTION_CONFIGURATION).one()
         assert audit_event.user_id == authenticated_platform_grant_lifecycle_manager_client.user.id
-        assert audit_event.data["old_status"] == CollectionStatusEnum.DRAFT.name
-        assert audit_event.data["new_status"] == CollectionStatusEnum.SCHEDULED.name
+        assert audit_event.data["old_status"] == CollectionStatusEnum.DRAFT.value
+        assert audit_event.data["new_status"] == CollectionStatusEnum.SCHEDULED._value_
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now locked")
@@ -6148,8 +6148,8 @@ class TestMakeReportLive:
         assert collection.status == CollectionStatusEnum.OPEN
         audit_event = db_session.query(AuditEvent).filter_by(event_type=AuditEventType.COLLECTION_CONFIGURATION).one()
         assert audit_event.user_id == authenticated_platform_grant_lifecycle_manager_client.user.id
-        assert audit_event.data["old_status"] == CollectionStatusEnum.SCHEDULED.name
-        assert audit_event.data["new_status"] == CollectionStatusEnum.OPEN.name
+        assert audit_event.data["old_status"] == CollectionStatusEnum.SCHEDULED.value
+        assert audit_event.data["new_status"] == CollectionStatusEnum.OPEN.value
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now live and grant recipients can start making submissions")
@@ -6770,8 +6770,8 @@ class TestCloseReport:
         assert collection.status == CollectionStatusEnum.CLOSED
         audit_event = db_session.query(AuditEvent).filter_by(event_type=AuditEventType.COLLECTION_CONFIGURATION).one()
         assert audit_event.user_id == authenticated_platform_grant_lifecycle_manager_client.user.id
-        assert audit_event.data["old_status"] == CollectionStatusEnum.OPEN.name
-        assert audit_event.data["new_status"] == CollectionStatusEnum.CLOSED.name
+        assert audit_event.data["old_status"] == CollectionStatusEnum.OPEN.value
+        assert audit_event.data["new_status"] == CollectionStatusEnum.CLOSED.value
 
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_flash(soup, "Q1 Report is now closed and grant recipients can make no more changes")

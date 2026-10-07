@@ -274,26 +274,11 @@ class TestParseAuditEvent:
         data = event.model_dump(mode="json")
         parsed = parse_audit_event(AuditEventType.COLLECTION_CONFIGURATION, data)
 
-        assert data["old_status"] == "DRAFT"
-        assert data["new_status"] == "SCHEDULED"
+        assert data["old_status"] == "Draft"
+        assert data["new_status"] == "Scheduled to open"
         assert parsed == event
         assert parsed.action == "collection_status_changed"
-
-    def test_parses_collection_status_change_stored_by_value(self):
-        event = CollectionStatusChanged(
-            user_id=uuid4(),
-            organisation_id=uuid4(),
-            collection_id=uuid4(),
-            grant_id=uuid4(),
-            old_status=CollectionStatusEnum.DRAFT,
-            new_status=CollectionStatusEnum.SCHEDULED,
-        )
-        data = event.model_dump(mode="json") | {
-            "old_status": CollectionStatusEnum.DRAFT.value,
-            "new_status": CollectionStatusEnum.SCHEDULED.value,
-        }
-
-        assert parse_audit_event(AuditEventType.COLLECTION_CONFIGURATION, data) == event
+        assert parsed.action == "collection_status_changed"
 
     def test_parses_permissions_added_event(self, factories):
         user = factories.user.build()
