@@ -4,7 +4,7 @@ from collections import ChainMap
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, TypeAdapter, field_serializer, field_validator
+from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import inspect
 from sqlalchemy.orm import RelationshipDirection
 
@@ -126,18 +126,6 @@ class CollectionStatusChanged(AuditEvent):
     grant_id: UUID | None
     old_status: CollectionStatusEnum
     new_status: CollectionStatusEnum
-
-    # statuses are stored by enum name because enum values can change
-    @field_validator("old_status", "new_status", mode="before")
-    @classmethod
-    def _parse_status_name(cls, value: Any) -> Any:
-        if isinstance(value, str) and value in CollectionStatusEnum.__members__:
-            return CollectionStatusEnum[value]
-        return value
-
-    @field_serializer("old_status", "new_status", when_used="json")
-    def _serialize_status_name(self, status: CollectionStatusEnum) -> str:
-        return _serialize_value(status)
 
 
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {

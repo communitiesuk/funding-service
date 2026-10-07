@@ -12,7 +12,7 @@ from sqlalchemy import and_, delete, func, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.common.audit import create_collection_status_change
+from app.common.audit import CollectionStatusChanged
 from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -369,6 +369,22 @@ def get_collections_with_dates_near_today_excluding_draft_grants(
     return db.session.scalars(statement).unique().all()
 
 
+def _track_collection_status_change(
+    collection: Collection, by_user: User, old_status: CollectionStatusEnum, new_status: CollectionStatusEnum
+) -> None:
+    track_audit_event(
+        CollectionStatusChanged(
+            user_id=by_user.id,
+            collection_id=collection.id,
+            organisation_id=collection.grant.organisation.id,
+            grant_id=collection.grant.id,
+            old_status=old_status,
+            new_status=new_status,
+        ),
+        by_user,
+    )
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_collection(  # noqa: C901
     collection: Collection,
@@ -653,8 +669,7 @@ def update_collection(  # noqa: C901
             },
         )
         collection.status = status
-        if event := create_collection_status_change(collection, by_user, old_status, status):
-            track_audit_event(event, by_user)
+        _track_collection_status_change(collection, by_user, old_status, status)
 
     return collection
 
