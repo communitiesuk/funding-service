@@ -529,6 +529,19 @@ class TestGetGrantRecipientsWithSubmissionsForCollection:
             grant, collection_id=collection.id, submission_mode=SubmissionModeEnum.TEST
         ) == [test]
 
+    def test_only_returns_grant_recipients_matching_submission_mode(self, factories, db_session):
+        grant = factories.grant.create()
+        collection = factories.collection.create(grant=grant)
+
+        live = factories.grant_recipient.create(grant=grant)
+        test = factories.grant_recipient.create(grant=grant, mode=GrantRecipientModeEnum.TEST)
+
+        factories.submission.create(grant_recipient=live, collection=collection, mode=SubmissionModeEnum.LIVE)
+        factories.submission.create(grant_recipient=test, collection=collection, mode=SubmissionModeEnum.TEST)
+        factories.submission.create(grant_recipient=test, collection=collection, mode=SubmissionModeEnum.LIVE)
+
+        assert get_grant_recipients_with_submissions_for_collection(grant, collection_id=collection.id) == [live]
+
     def test_returns_grant_recipient_once_with_multiple_submissions(self, factories, db_session):
         grant = factories.grant.create()
         collection = factories.collection.create(grant=grant)
