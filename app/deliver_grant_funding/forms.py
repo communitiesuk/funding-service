@@ -46,6 +46,7 @@ from app.common.data.types import (
     NumberInputWidths,
     NumberTypeEnum,
     QuestionDataType,
+    SubmissionVisibilityEnum,
 )
 from app.common.expressions import ExpressionContext
 from app.common.expressions.references import ExpressionReference
@@ -1101,6 +1102,20 @@ class ProspectusLinkSettingsForm(FlaskForm):
         widget=GovTextInput(),
     )
     submit = SubmitField("Update prospectus", widget=GovSubmitInput())
+
+
+class SubmissionVisibilitySettingsForm(FlaskForm):
+    submission_visibility = RadioField(
+        label="When should submission responses be shown?",
+        choices=[
+            (SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION.value, "After the submission closing date (advised)"),
+            (SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS.value, "Before the submission closing date"),
+        ],
+        validators=[DataRequired()],
+        widget=GovRadioInput(),
+        coerce=SubmissionVisibilityEnum,
+    )
+    submit = SubmitField("Save setting", widget=GovSubmitInput())
 
 
 class ReopeningSettingsForm(FlaskForm):

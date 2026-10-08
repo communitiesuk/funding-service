@@ -2,6 +2,7 @@ import csv
 import datetime
 import os
 import zipfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, Any, Literal, Sequence, TypedDict, cast
@@ -10,11 +11,12 @@ from zoneinfo import ZoneInfo
 
 import boto3
 import markupsafe
-from flask import abort, current_app, flash, make_response, redirect, send_file, url_for
+from flask import Response, abort, current_app, flash, make_response, redirect, send_file, stream_with_context, url_for
 from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
+from app.common.audit import UserPermissionsEventContextSource
 from app.common.data.interfaces.collections import (
     get_collection,
     get_collections_by_status_excluding_draft_grants,
@@ -22,7 +24,11 @@ from app.common.data.interfaces.collections import (
     get_overdue_open_collections_excluding_draft_grants,
     update_collection,
 )
-from app.common.data.interfaces.data_analysis import get_unique_users_count_for_live_grant_recipients
+from app.common.data.interfaces.data_analysis import (
+    UserManagementEventCsvRow,
+    get_unique_users_count_for_live_grant_recipients,
+    get_user_management_event_csv_rows,
+)
 from app.common.data.interfaces.data_sets import get_referenced_grant_recipient_data_sources_for_collection
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
@@ -753,6 +759,7 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
                     organisation=organisation,
                     grant=grant,
                     by_user=current_user,
+                    audit_context={"source": UserPermissionsEventContextSource.GRANT_SETUP},
                 )
 
             noun = "data provider" if len(users_data) == 1 else "data providers"
@@ -1383,6 +1390,28 @@ class PlatformAdminDataAnalysisView(FlaskAdminPlatformAdminDataAnalystAccessible
             mimetype="text/csv",
             as_attachment=True,
             download_name="certification-events.csv",
+        )
+
+    @expose("/user-management-events.csv")
+    def download_user_management_events_csv(self) -> Any:
+        def generate_csv() -> Iterator[str]:
+            csv_output = StringIO()
+            # Include a UTF-8 BOM so spreadsheet applications detect the file encoding correctly.
+            csv_output.write("\ufeff")
+            csv_writer = csv.writer(csv_output)
+            csv_writer.writerow(UserManagementEventCsvRow.csv_headers())
+            yield csv_output.getvalue()
+
+            for row in get_user_management_event_csv_rows():
+                csv_output.seek(0)
+                csv_output.truncate(0)
+                csv_writer.writerow(row.as_csv_row())
+                yield csv_output.getvalue()
+
+        return Response(
+            stream_with_context(generate_csv()),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=user-management-events.csv"},
         )
 
 

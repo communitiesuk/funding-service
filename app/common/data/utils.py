@@ -1,9 +1,22 @@
+import datetime
 import random
 import re
 from collections.abc import Sequence
 
 from app.common.data.models import Collection
 from app.common.data.types import CollectionType
+from app.common.filters import DEFAULT_DISPLAY_TZ, coerce_timezone
+
+
+def format_datetime_for_internal_export(value: datetime.datetime | None) -> str:
+    """Format a UTC datetime in Europe/London time for internal data exports.
+
+    Public Access and Deliver pages should use the display formatters in ``app.common.filters`` instead.
+    """
+    if value is None:
+        return ""
+
+    return coerce_timezone(value, DEFAULT_DISPLAY_TZ).strftime("%d/%m/%Y %H:%M:%S")
 
 
 def generate_grant_code(name: str) -> str:

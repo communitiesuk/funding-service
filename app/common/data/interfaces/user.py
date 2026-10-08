@@ -2,7 +2,7 @@ import datetime
 import uuid
 from collections.abc import Sequence
 from itertools import groupby
-from typing import cast
+from typing import Any, cast
 
 from flask import current_app
 from flask_login import current_user
@@ -11,7 +11,12 @@ from sqlalchemy.dialects.postgresql import insert as postgresql_upsert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import delete, select
 
-from app.common.audit import UserInvitationCancelled, UserInvited, UserPermissionsAdded, UserPermissionsRemoved
+from app.common.audit import (
+    UserInvitationCancelled,
+    UserInvited,
+    UserPermissionsAdded,
+    UserPermissionsRemoved,
+)
 from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import InvalidUserRoleError, flush_and_rollback_on_exceptions
 from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none, get_grant_recipients
@@ -245,6 +250,7 @@ def _track_user_permissions_change(
     grant: Grant | None,
     by_user: User,
     invitation: Invitation | None = None,
+    context: dict[str, Any] | None = None,
 ) -> None:
     track_audit_event(
         event_class(
@@ -256,6 +262,7 @@ def _track_user_permissions_change(
             invitation_id=invitation.id if invitation else None,
             permissions=permissions_changed,
             resulting_permissions=resulting_permissions,
+            context=context or {},
         ),
         by_user,
     )
@@ -270,9 +277,11 @@ def add_permissions_to_user(
     *,
     by_user: User,
     invitation: Invitation | None = None,
+    audit_context: dict[str, Any] | None = None,
 ) -> UserRole:
     """Grant `permissions` to `user`; `by_user` is the user making the change, recorded on the audit event tracked
-    when this changes the user's role. Pass `invitation` when the permissions come from `user` claiming it."""
+    when this changes the user's role. Pass `invitation` when the permissions come from `user` claiming it, and
+    `audit_context` when the change is part of a wider workflow."""
     # We're make sure that the MEMBER role is always explicitly included (this is effectively the 'view' permission)
     # NOTE: we could infer view access from the presence of a UserRole at all, so MEMBER could be considered redundant
     #       and is up for removal in the future.
@@ -298,6 +307,7 @@ def add_permissions_to_user(
             grant=grant,
             by_user=by_user,
             invitation=invitation,
+            context=audit_context,
         )
 
     return user_role

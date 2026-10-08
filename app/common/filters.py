@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 DEFAULT_DISPLAY_TZ = ZoneInfo("Europe/London")
 
 
-def _coerce_tz[T: date | datetime](value: T, tz: ZoneInfo | None) -> T:
+def coerce_timezone[T: date | datetime](value: T, tz: ZoneInfo | None) -> T:
+    """Convert datetimes to `tz`, treating unset values as UTC, leave dates unchanged."""
     if tz is None or not isinstance(value, datetime):
         return value
     if value.tzinfo is None:
@@ -29,7 +30,7 @@ def format_date(value: date | datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY_TZ
 
     > Friday 16 May 2025
     """
-    return _coerce_tz(value, tz).strftime("%A %-d %B %-Y")
+    return coerce_timezone(value, tz).strftime("%A %-d %B %-Y")
 
 
 def format_date_short(value: date | datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY_TZ) -> str:
@@ -37,7 +38,7 @@ def format_date_short(value: date | datetime, tz: ZoneInfo | None = DEFAULT_DISP
 
     > 16 May 2025
     """
-    return _coerce_tz(value, tz).strftime("%-d %B %-Y")
+    return coerce_timezone(value, tz).strftime("%-d %B %-Y")
 
 
 def format_collection_submission_deadline(collection: Collection, missing_text: str = "Dates to be confirmed") -> str:
@@ -69,7 +70,7 @@ def format_date_approximate(value: date | datetime, tz: ZoneInfo | None = DEFAUL
 
     > May 2025
     """
-    return _coerce_tz(value, tz).strftime("%B %-Y")
+    return coerce_timezone(value, tz).strftime("%B %-Y")
 
 
 def format_datetime(value: datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY_TZ) -> str:
@@ -81,7 +82,7 @@ def format_datetime(value: datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY_TZ) -
 
     > 10am on Friday 16 May 2025
     """
-    value = _coerce_tz(value, tz)
+    value = coerce_timezone(value, tz)
     fmt = "%-I:%M%p on %A %-d %B %-Y"
 
     if value.minute == 0:
@@ -102,7 +103,7 @@ def format_datetime_short(value: datetime, tz: ZoneInfo | None = DEFAULT_DISPLAY
 
     > 22 Feb 2026 at 3pm
     """
-    value = _coerce_tz(value, tz)
+    value = coerce_timezone(value, tz)
     fmt = "%-d %b %-Y at %-I:%M%p"
 
     if value.minute == 0:
