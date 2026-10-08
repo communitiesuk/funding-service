@@ -13,6 +13,7 @@ from app.common.audit import (
     SystemEvent,
     UserInvitationCancelled,
     UserPermissionsAdded,
+    UserPermissionsEventContextSource,
     UserPermissionsRemoved,
     _audit_event_adapters,
     _serialize_value,
@@ -209,6 +210,22 @@ class TestUserPermissionsAddedModel:
         assert json_data["invitation_id"] == str(invitation_id)
         assert json_data["action"] == "permissions_added"
         assert json_data["event_type"] == "user-management"
+
+    def test_grant_setup_permissions_use_permissions_added_action_with_context(self, factories):
+        event = UserPermissionsAdded(
+            user_id=factories.user.build().id,
+            grant_recipient_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=uuid4(),
+            target_user_id=uuid4(),
+            permissions=[RoleEnum.DATA_PROVIDER],
+            resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            context={"source": UserPermissionsEventContextSource.GRANT_SETUP},
+        )
+
+        assert event.event_type == AuditEventType.USER_MANAGEMENT
+        assert event.action == "permissions_added"
+        assert event.model_dump(mode="json")["context"] == {"source": "grant_setup"}
 
 
 class TestUserPermissionsRemovedModel:

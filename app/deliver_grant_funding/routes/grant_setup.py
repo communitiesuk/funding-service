@@ -1,6 +1,7 @@
 from flask import redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 
+from app.common.audit import UserPermissionsEventContextSource
 from app.common.auth.authorisation_helper import AuthorisationHelper
 from app.common.auth.decorators import is_deliver_org_member
 from app.common.data import interfaces
@@ -228,6 +229,7 @@ def grant_setup_check_your_answers() -> ResponseReturnValue:
                 organisation=grant.organisation,
                 grant=grant,
                 by_user=user,
+                audit_context={"source": UserPermissionsEventContextSource.GRANT_SETUP},
             )
 
         return redirect(url_for("deliver_grant_funding.grant_details", grant_id=grant.id))

@@ -55,6 +55,10 @@ class SystemEvent(DatabaseModelChange):
     context: dict[str, Any]
 
 
+class UserPermissionsEventContextSource(enum.StrEnum):
+    GRANT_SETUP = "grant_setup"
+
+
 class UserPermissionsEvent(AuditEvent):
     """`permissions` are those added to or removed from the target user's role by this action:
 
@@ -63,6 +67,7 @@ class UserPermissionsEvent(AuditEvent):
     `grant_id` is None for organisation-wide roles, and
     `grant_recipient_id` is only set for Access grant funding roles on a grant.
     `invitation_id` is set when the permissions were granted by the target user claiming an invitation.
+    `context` identifies a wider workflow that caused the permission change, when relevant.
     """
 
     event_type: AuditEventType = AuditEventType.USER_MANAGEMENT
@@ -73,6 +78,7 @@ class UserPermissionsEvent(AuditEvent):
     invitation_id: UUID | None = None
     permissions: list[RoleEnum]
     resulting_permissions: list[RoleEnum]
+    context: dict[str, Any] = Field(default_factory=dict)
 
     _extra_related_entities: ClassVar[dict[str, str]] = {"target_user_id": "User"}
 
@@ -115,20 +121,23 @@ class UserInvitationCancelled(AuditEvent):
     permissions: list[RoleEnum]
 
 
+type UserManagementAuditEvent = UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled
+
+_user_management_audit_event_adapter = TypeAdapter(Annotated[UserManagementAuditEvent, Field(discriminator="action")])
+
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
     AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
     AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
-    AuditEventType.USER_MANAGEMENT: TypeAdapter(
-        Annotated[
-            UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled,
-            Field(discriminator="action"),
-        ]
-    ),
+    AuditEventType.USER_MANAGEMENT: _user_management_audit_event_adapter,
 }
 
 
 def parse_audit_event(event_type: AuditEventType, data: dict[str, Any]) -> AuditEvent:
     return _audit_event_adapters[event_type].validate_python(data)
+
+
+def parse_user_management_audit_event(data: dict[str, Any]) -> UserManagementAuditEvent:
+    return _user_management_audit_event_adapter.validate_python(data)
 
 
 def _serialize_value(value: Any) -> Any:
