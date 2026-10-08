@@ -72,7 +72,6 @@ from app.common.expressions.managed import AnyOf, GreaterThan, IsAfter, IsNo, Is
 from app.common.expressions.references import EvaluationStatement, ExpressionReference, InterpolationStatement
 from app.common.forms import GenericConfirmDeletionForm, GenericSubmitForm
 from app.common.helpers.collections import SubmissionHelper
-from app.common.helpers.feature_flags import FeatureFlags
 from app.constants import (
     DATA_SET_EXTERNAL_ID_COLUMN_HEADER,
     DATA_SET_GRANT_RECIPIENT_COLUMN_HEADER,
@@ -115,7 +114,6 @@ from tests.integration.utils import build_file_upload_form_data
 from tests.models import ALL_COLUMN_TYPE_HEADERS_STR, FactoryAnswer
 from tests.utils import (
     AnyStringMatching,
-    enable_session_feature_flag,
     get_form_data,
     get_h1_text,
     get_h2_text,
@@ -10650,7 +10648,6 @@ class TestListSubmissions:
             collection=collection, mode=SubmissionModeEnum.LIVE, grant_recipient=grant_recipient
         )
 
-        enable_session_feature_flag(authenticated_grant_member_client, FeatureFlags.SORTABLE_SUBMISSIONS)
         response = authenticated_grant_member_client.get(
             url_for(
                 "deliver_grant_funding.list_submissions",
