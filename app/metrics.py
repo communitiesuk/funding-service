@@ -43,6 +43,9 @@ class MetricAttributeName(StrEnum):
 
     ORGANISATION_IDENTIFIED_BY = "organisation-identified-by"
 
+    COMPANIES_HOUSE_HTTP_REQUEST_ENDPOINT = "companies-house-http-request-endpoint"
+    COMPANIES_HOUSE_HTTP_RESPONSE_CODE = "companies-house-http-response-code"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
@@ -98,6 +101,8 @@ class MetricEventName(StrEnum):
     PUBLIC_SIGN_UP_MATCHED_ORGANISATION_APPLICATION_CREATED = "public-sign-up-matched-organisation-application-created"
     PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public-sign-up-already-has-access"
     PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN = "public-sign-up-local-authority-support-shown"
+
+    COMPANIES_HOUSE_API_CALL = "companies-house-api-call"
 
 
 def _get_event_attributes(
