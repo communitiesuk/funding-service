@@ -133,6 +133,7 @@ class CollectionStatusChanged(AuditEvent):
     old_status: CollectionStatusEnum
     new_status: CollectionStatusEnum
 
+
 type UserManagementAuditEvent = UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled
 
 _user_management_audit_event_adapter = TypeAdapter(Annotated[UserManagementAuditEvent, Field(discriminator="action")])
