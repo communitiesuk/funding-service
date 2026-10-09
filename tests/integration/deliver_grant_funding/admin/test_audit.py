@@ -457,6 +457,35 @@ class TestAdminAuditTracking:
         final_audit_count = db_session.query(AuditEvent).count()
         assert final_audit_count == initial_audit_count
 
+    def test_changing_collection_status_creates_audit_event(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        collection = factories.collection.create(status=CollectionStatusEnum.DRAFT)
+        db_session.commit()
+
+        initial_audit_count = db_session.query(AuditEvent).count()
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/collection/edit/?id={collection.id}",
+            data={
+                "name": collection.name,
+                "slug": collection.slug,
+                "type": collection.type.name,
+                "status": CollectionStatusEnum.SCHEDULED.name,
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        final_audit_count = db_session.query(AuditEvent).count()
+        assert final_audit_count == initial_audit_count + 2
+
+        audit_event = db_session.query(AuditEvent).filter_by(event_type=AuditEventType.COLLECTION_CONFIGURATION).one()
+        assert audit_event.event_type == AuditEventType.COLLECTION_CONFIGURATION
+        assert audit_event.data["action"] == "collection_status_changed"
+        assert audit_event.data["changes"]["status"]["old"] == CollectionStatusEnum.DRAFT.value
+        assert audit_event.data["changes"]["status"]["new"] == CollectionStatusEnum.SCHEDULED.value
+
     def test_audit_event_records_user_who_made_change(self, authenticated_platform_admin_client, factories, db_session):
         user = factories.user.create(name="Test User")
         db_session.commit()
