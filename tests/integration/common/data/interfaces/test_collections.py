@@ -707,18 +707,26 @@ class TestUpdateCollection:
         with pytest.raises(ValueError, match="allow_public_sign_up can only be set on collections of type APPLICATION"):
             update_collection(collection, allow_public_sign_up=True)
 
-    def test_update_collection_set_submission_visibility(self, factories):
+    @pytest.mark.parametrize(
+        "collection_type, allow_public_sign_up, submission_visibility",
+        [
+            (CollectionType.APPLICATION, False, SubmissionVisibilityEnum.ALWAYS_VISIBLE),
+            (CollectionType.APPLICATION, True, SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION),
+            (CollectionType.APPLICATION, True, SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS),
+            (CollectionType.MONITORING_REPORT, False, SubmissionVisibilityEnum.ALWAYS_VISIBLE),
+        ],
+    )
+    def test_update_collection_set_submission_visibility_does_not_raise(
+        self, factories, collection_type, allow_public_sign_up, submission_visibility
+    ):
         collection = factories.collection.create(
-            type=CollectionType.APPLICATION,
-            allow_public_sign_up=True,
-            submission_visibility=SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION,
+            type=collection_type,
+            allow_public_sign_up=allow_public_sign_up,
         )
 
-        updated = update_collection(
-            collection, submission_visibility=SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
-        )
+        updated = update_collection(collection, submission_visibility=submission_visibility)
 
-        assert updated.submission_visibility == SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
+        assert updated.submission_visibility == submission_visibility
 
     def test_update_collection_set_submission_visibility_takes_precedent(self, factories):
         collection = factories.collection.create(
@@ -736,6 +744,30 @@ class TestUpdateCollection:
         )
 
         assert updated.submission_visibility == SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS
+
+    @pytest.mark.parametrize(
+        "collection_type, allow_public_sign_up, submission_visibility",
+        [
+            (CollectionType.APPLICATION, True, SubmissionVisibilityEnum.ALWAYS_VISIBLE),
+            (CollectionType.APPLICATION, False, SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION),
+            (CollectionType.APPLICATION, False, SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS),
+            (CollectionType.MONITORING_REPORT, False, SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION),
+            (CollectionType.MONITORING_REPORT, False, SubmissionVisibilityEnum.REQUIRES_SUBMITTED_STATUS),
+        ],
+    )
+    def test_update_collection_set_submission_visibility_raises(
+        self, factories, collection_type, allow_public_sign_up, submission_visibility
+    ):
+        collection = factories.collection.create(
+            type=collection_type,
+            allow_public_sign_up=allow_public_sign_up,
+        )
+
+        with pytest.raises(ValueError):
+            update_collection(
+                collection,
+                submission_visibility=submission_visibility,
+            )
 
     def test_update_collection_set_prospectus_url(self, factories):
         collection = factories.collection.create(type=CollectionType.APPLICATION, prospectus_url=None)

@@ -534,6 +534,20 @@ def update_collection(  # noqa: C901
         collection.allow_public_sign_up = allow_public_sign_up
 
     if submission_visibility is not NOT_PROVIDED:
+        if (
+            (collection.type == CollectionType.MONITORING_REPORT)
+            or (collection.type == CollectionType.APPLICATION and collection.allow_public_sign_up is False)
+        ) and submission_visibility != SubmissionVisibilityEnum.ALWAYS_VISIBLE:
+            raise ValueError("Submission_visibility must be ALWAYS_VISIBLE")
+        if (
+            collection.type == CollectionType.APPLICATION
+            and collection.allow_public_sign_up is True
+            and submission_visibility == SubmissionVisibilityEnum.ALWAYS_VISIBLE
+        ):
+            raise ValueError(
+                "submission_visibility cannot be set to ALWAYS_VISIBLE on collections of type APPLICATION "
+                "where allow_public_sign_up is True"
+            )
         collection.submission_visibility = submission_visibility
 
     if prospectus_url is not NOT_PROVIDED:
