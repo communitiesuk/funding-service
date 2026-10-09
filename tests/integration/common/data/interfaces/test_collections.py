@@ -1045,8 +1045,8 @@ class TestUpdateCollection:
         assert audit_event.data["organisation_id"] == str(grant.organisation.id)
         assert audit_event.data["grant_id"] == str(grant.id)
         assert audit_event.data["collection_id"] == str(collection.id)
-        assert audit_event.data["old_status"] == from_status.value
-        assert audit_event.data["new_status"] == to_status.value
+        assert audit_event.data["changes"]["status"]["old"] == from_status.value
+        assert audit_event.data["changes"]["status"]["new"] == to_status.value
 
     def test_unchanged_status_does_not_create_audit_event(self, db_session, factories):
         collection = factories.collection.create(status=CollectionStatusEnum.DRAFT)

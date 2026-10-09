@@ -1,7 +1,7 @@
 import datetime
 import enum
 from collections import ChainMap
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, TypeAdapter
@@ -11,9 +11,6 @@ from sqlalchemy.orm import RelationshipDirection
 from app.common.data.base import BaseModel as SQLAlchemyBaseModel
 from app.common.data.models_user import User
 from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
-
-if TYPE_CHECKING:
-    pass
 
 
 class AuditEvent(BaseModel):
@@ -130,8 +127,7 @@ class CollectionStatusChanged(AuditEvent):
     collection_id: UUID
     organisation_id: UUID | None
     grant_id: UUID | None
-    old_status: CollectionStatusEnum
-    new_status: CollectionStatusEnum
+    changes: dict[Literal["status"], dict[Literal["old", "new"], CollectionStatusEnum]]
 
 
 type UserManagementAuditEvent = UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled

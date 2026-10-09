@@ -25,8 +25,7 @@ class TestPlatformAdminAuditEventView:
             organisation_id=collection.grant.organisation.id,
             grant_id=collection.grant.id,
             collection_id=collection.id,
-            old_status=CollectionStatusEnum.DRAFT,
-            new_status=CollectionStatusEnum.SCHEDULED,
+            changes={"status": {"old": CollectionStatusEnum.DRAFT, "new": CollectionStatusEnum.SCHEDULED}},
         )
         audit_event = factories.audit_event.create(
             user=actor, event_type=AuditEventType.COLLECTION_CONFIGURATION, data=event.model_dump(mode="json")
@@ -35,8 +34,7 @@ class TestPlatformAdminAuditEventView:
         response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert get_summary_list_value_by_key(soup, "Old status").get_text(strip=True) == "Draft"
-        assert get_summary_list_value_by_key(soup, "New status").get_text(strip=True) == "Scheduled to open"
+        assert get_summary_list_value_by_key(soup, "Status").get_text(strip=True) == "Draft → Scheduled to open"
         assert soup.find("a", href=f"/deliver/admin/collection/details/?id={collection.id}") is not None
 
     @pytest.mark.parametrize(

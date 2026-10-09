@@ -379,8 +379,7 @@ def track_collection_status_change(
             collection_id=collection.id,
             organisation_id=collection.grant.organisation.id,
             grant_id=collection.grant.id,
-            old_status=old_status,
-            new_status=new_status,
+            changes={"status": {"old": old_status, "new": new_status}},
         ),
         by_user,
     )

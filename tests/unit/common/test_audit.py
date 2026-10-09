@@ -284,15 +284,14 @@ class TestParseAuditEvent:
             organisation_id=uuid4(),
             collection_id=uuid4(),
             grant_id=uuid4(),
-            old_status=CollectionStatusEnum.DRAFT,
-            new_status=CollectionStatusEnum.SCHEDULED,
+            changes={"status": {"old": CollectionStatusEnum.DRAFT, "new": CollectionStatusEnum.SCHEDULED}},
         )
 
         data = event.model_dump(mode="json")
         parsed = parse_audit_event(AuditEventType.COLLECTION_CONFIGURATION, data)
 
-        assert data["old_status"] == "Draft"
-        assert data["new_status"] == "Scheduled to open"
+        assert data["changes"]["status"]["old"] == "Draft"
+        assert data["changes"]["status"]["new"] == "Scheduled to open"
         assert parsed == event
         assert parsed.action == "collection_status_changed"
         assert parsed.action == "collection_status_changed"
