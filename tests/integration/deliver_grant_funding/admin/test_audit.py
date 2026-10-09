@@ -4,6 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app.common.audit import (
+    CollectionStatusChanged,
     DatabaseModelChange,
     UserPermissionsAdded,
     create_database_model_change_for_create,
@@ -11,11 +12,31 @@ from app.common.audit import (
     create_system_event_for_delete,
 )
 from app.common.data.models_audit import AuditEvent
-from app.common.data.types import AuditEventType, RoleEnum
+from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
 from tests.utils import get_h1_text, get_summary_list_value_by_key
 
 
 class TestPlatformAdminAuditEventView:
+    def test_displays_collection_status_change_event(self, authenticated_platform_admin_client, factories, db_session):
+        actor = factories.user.create()
+        collection = factories.collection.create()
+        event = CollectionStatusChanged(
+            user_id=actor.id,
+            organisation_id=collection.grant.organisation.id,
+            grant_id=collection.grant.id,
+            collection_id=collection.id,
+            changes={"status": {"old": CollectionStatusEnum.DRAFT, "new": CollectionStatusEnum.SCHEDULED}},
+        )
+        audit_event = factories.audit_event.create(
+            user=actor, event_type=AuditEventType.COLLECTION_CONFIGURATION, data=event.model_dump(mode="json")
+        )
+
+        response = authenticated_platform_admin_client.get(f"/deliver/admin/auditevent/details/?id={audit_event.id}")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Status").get_text(strip=True) == "Draft → Scheduled to open"
+        assert soup.find("a", href=f"/deliver/admin/collection/details/?id={collection.id}") is not None
+
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
         [
@@ -435,6 +456,35 @@ class TestAdminAuditTracking:
 
         final_audit_count = db_session.query(AuditEvent).count()
         assert final_audit_count == initial_audit_count
+
+    def test_changing_collection_status_creates_audit_event(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        collection = factories.collection.create(status=CollectionStatusEnum.DRAFT)
+        db_session.commit()
+
+        initial_audit_count = db_session.query(AuditEvent).count()
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/collection/edit/?id={collection.id}",
+            data={
+                "name": collection.name,
+                "slug": collection.slug,
+                "type": collection.type.name,
+                "status": CollectionStatusEnum.SCHEDULED.name,
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        final_audit_count = db_session.query(AuditEvent).count()
+        assert final_audit_count == initial_audit_count + 2
+
+        audit_event = db_session.query(AuditEvent).filter_by(event_type=AuditEventType.COLLECTION_CONFIGURATION).one()
+        assert audit_event.event_type == AuditEventType.COLLECTION_CONFIGURATION
+        assert audit_event.data["action"] == "collection_status_changed"
+        assert audit_event.data["changes"]["status"]["old"] == CollectionStatusEnum.DRAFT.value
+        assert audit_event.data["changes"]["status"]["new"] == CollectionStatusEnum.SCHEDULED.value
 
     def test_audit_event_records_user_who_made_change(self, authenticated_platform_admin_client, factories, db_session):
         user = factories.user.create(name="Test User")

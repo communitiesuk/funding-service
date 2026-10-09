@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from app.common.audit import (
     AuditEvent,
+    CollectionStatusChanged,
     DatabaseModelChange,
     SystemEvent,
     UserInvitationCancelled,
@@ -19,7 +20,7 @@ from app.common.audit import (
     _serialize_value,
     parse_audit_event,
 )
-from app.common.data.types import AuditEventType, RoleEnum
+from app.common.data.types import AuditEventType, CollectionStatusEnum, RoleEnum
 
 
 def _all_subclasses(cls: type[AuditEvent]) -> Iterator[type[AuditEvent]]:
@@ -277,6 +278,24 @@ class TestUserPermissionsRemovedModel:
 
 
 class TestParseAuditEvent:
+    def test_parses_collection_status_change(self):
+        event = CollectionStatusChanged(
+            user_id=uuid4(),
+            organisation_id=uuid4(),
+            collection_id=uuid4(),
+            grant_id=uuid4(),
+            changes={"status": {"old": CollectionStatusEnum.DRAFT, "new": CollectionStatusEnum.SCHEDULED}},
+        )
+
+        data = event.model_dump(mode="json")
+        parsed = parse_audit_event(AuditEventType.COLLECTION_CONFIGURATION, data)
+
+        assert data["changes"]["status"]["old"] == "Draft"
+        assert data["changes"]["status"]["new"] == "Scheduled to open"
+        assert parsed == event
+        assert parsed.action == "collection_status_changed"
+        assert parsed.action == "collection_status_changed"
+
     def test_parses_permissions_added_event(self, factories):
         user = factories.user.build()
         event = UserPermissionsAdded(

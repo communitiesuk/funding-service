@@ -37,6 +37,7 @@ from app.common.data.interfaces.collections import (
     delete_all_collection_preview_submissions,
     delete_collection,
     get_collection,
+    track_collection_status_change,
 )
 from app.common.data.interfaces.grant_recipients import delete_grant_recipients
 from app.common.data.interfaces.grants import get_all_grants
@@ -55,6 +56,7 @@ from app.common.data.models_audit import AuditEvent
 from app.common.data.models_user import Invitation, User, UserRole
 from app.common.data.types import (
     AuditEventType,
+    CollectionStatusEnum,
     GrantRecipientStatusEnum,
     OrganisationType,
     RoleEnum,
@@ -372,9 +374,14 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
 
     def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
-            if "status" in audit_event.changes:
+            if status_change := audit_event.changes.get("status"):
                 emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
-
+                track_collection_status_change(
+                    model,
+                    get_current_user(),
+                    CollectionStatusEnum[status_change["old"]],
+                    CollectionStatusEnum[status_change["new"]],
+                )
         super().after_model_change(form, model, is_created)
 
     @action(
