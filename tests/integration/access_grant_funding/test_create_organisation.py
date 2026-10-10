@@ -9,6 +9,7 @@ from flask_login import login_user
 from sqlalchemy import select
 
 from app.access_grant_funding.session_models import (
+    CharityRegulator,
     CreateOrganisationSession,
     OrganisationIdentification,
     OrganisationMatch,
@@ -40,8 +41,11 @@ from app.services.companies_house import (
 )
 from tests.utils import (
     AnyStringMatching,
+    get_checked_radio_value,
     get_h1_text,
+    get_input_prefix,
     get_input_value,
+    get_radio_labels,
     get_summary_list_value_by_key,
     get_table_row_by_first_column_value,
     page_has_button,
@@ -135,6 +139,24 @@ def _company_number_url(collection, **params):
     )
 
 
+def _charity_regulator_url(collection, **params):
+    return url_for(
+        "access_grant_funding.create_organisation_charity_regulator",
+        grant_slug=collection.grant.slug,
+        collection_slug=collection.slug,
+        **params,
+    )
+
+
+def _charity_number_url(collection, **params):
+    return url_for(
+        "access_grant_funding.create_organisation_charity_number",
+        grant_slug=collection.grant.slug,
+        collection_slug=collection.slug,
+        **params,
+    )
+
+
 def _unavailable_url(collection, **params):
     return url_for(
         "access_grant_funding.create_organisation_company_search_unavailable",
@@ -216,7 +238,7 @@ class TestCreateOrganisationType:
         assert response.location == _sign_up_router_url(sign_up_collection)
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
-    def test_post_saves_choice_and_continues_to_name(self, authenticated_no_role_client, sign_up_collection):
+    def test_post_charity_goes_to_the_charity_regulator_page(self, authenticated_no_role_client, sign_up_collection):
         _seed_session(
             authenticated_no_role_client,
             sign_up_collection,
@@ -233,6 +255,28 @@ class TestCreateOrganisationType:
         )
 
         assert response.status_code == 302
+        assert response.location == _charity_regulator_url(sign_up_collection)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_saves_choice_and_continues_to_name(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            _create_organisation_session(sign_up_collection.id),
+        )
+
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.create_organisation_type",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            ),
+            data={"organisation_type": SignUpOrganisationType.OTHER.value, "submit": "y"},
+        )
+
+        assert response.status_code == 302
         assert response.location == url_for(
             "access_grant_funding.create_organisation_name",
             grant_slug=sign_up_collection.grant.slug,
@@ -240,7 +284,7 @@ class TestCreateOrganisationType:
         )
 
         with authenticated_no_role_client.session_transaction() as flask_session:
-            assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
+            assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.OTHER.value
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_registered_company_goes_to_the_company_search_page(
@@ -335,7 +379,7 @@ class TestCreateOrganisationType:
                 collection_slug=sign_up_collection.slug,
                 source="check-your-answers",
             ),
-            data={"organisation_type": SignUpOrganisationType.CHARITY.value, "submit": "y"},
+            data={"organisation_type": SignUpOrganisationType.OTHER.value, "submit": "y"},
         )
 
         assert response.status_code == 302
@@ -369,13 +413,13 @@ class TestCreateOrganisationType:
                 grant_slug=sign_up_collection.grant.slug,
                 collection_slug=sign_up_collection.slug,
             ),
-            data={"organisation_type": SignUpOrganisationType.CHARITY.value, "submit": "y"},
+            data={"organisation_type": SignUpOrganisationType.OTHER.value, "submit": "y"},
         )
 
         assert response.status_code == 302
         assert response.location == _name_url(sign_up_collection)
         with authenticated_no_role_client.session_transaction() as flask_session:
-            assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.CHARITY.value
+            assert flask_session["create_organisation"]["organisation_type"] == SignUpOrganisationType.OTHER.value
             assert "name" not in flask_session["create_organisation"]
             assert "external_id" not in flask_session["create_organisation"]
 
@@ -1349,7 +1393,7 @@ class TestCreateOrganisationCompanyNumber:
         )
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["external_id"] == "AB123456"
-            assert flask_session["create_organisation"]["already_exists_matched_on"] == OrganisationMatch.COMPANY_NUMBER
+            assert flask_session["create_organisation"]["already_exists_matched_on"] == OrganisationMatch.NUMBER
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_a_number_already_registered_from_check_your_answers_keeps_the_source(
@@ -1449,6 +1493,483 @@ class TestCreateOrganisationCompanyNumber:
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["external_id"] == "CD654321"
             assert flask_session["create_organisation"]["name"] == "Test Company Ltd"
+
+
+class TestCreateOrganisationCharityRegulator:
+    def _seed_charity_session(self, client, collection, **answers) -> None:
+        _seed_company_session(client, collection, organisation_type=SignUpOrganisationType.CHARITY, **answers)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_renders_the_question(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(_charity_regulator_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Where is your charity registered?" in get_h1_text(soup)
+        assert get_radio_labels(soup, "charity_regulator") == [
+            "Charity Commission for England and Wales",
+            "Scottish Charity Regulator",
+            "The Charity Commission for Northern Ireland",
+            "My charity is not registered",
+        ]
+        assert page_has_button(soup, "Continue")
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == url_for(
+            "access_grant_funding.create_organisation_type",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_preselects_the_regulator_already_in_the_session(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_charity_session(
+            authenticated_no_role_client, sign_up_collection, charity_regulator=CharityRegulator.SCOTLAND
+        )
+
+        response = authenticated_no_role_client.get(_charity_regulator_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_checked_radio_value(soup, "charity_regulator") == CharityRegulator.SCOTLAND.value
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(_charity_regulator_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.COMPANY, SignUpOrganisationType.OTHER])
+    def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
+        self, authenticated_no_role_client, sign_up_collection, organisation_type
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=organisation_type,
+            identified_by=OrganisationIdentification.MANUAL,
+        )
+
+        response = authenticated_no_role_client.get(_charity_regulator_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_type",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize(
+        "charity_regulator",
+        [CharityRegulator.ENGLAND_AND_WALES, CharityRegulator.SCOTLAND, CharityRegulator.NORTHERN_IRELAND],
+    )
+    def test_post_a_regulator_stores_it_and_continues_to_the_charity_number_page(
+        self, authenticated_no_role_client, sign_up_collection, charity_regulator
+    ):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _charity_regulator_url(sign_up_collection),
+            data={"charity_regulator": charity_regulator.value, "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == _charity_number_url(sign_up_collection)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["charity_regulator"] == charity_regulator.value
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_not_registered_continues_to_the_name_page(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _charity_regulator_url(sign_up_collection),
+            data={"charity_regulator": CharityRegulator.NOT_REGISTERED.value, "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["charity_regulator"] == CharityRegulator.NOT_REGISTERED.value
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_without_a_choice_shows_an_error(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(_charity_regulator_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select where your charity is registered")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_different_regulator_forgets_the_number_given_for_the_other(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_charity_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+            name="Test Charity",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(
+            _charity_regulator_url(sign_up_collection, source="check-your-answers"),
+            data={"charity_regulator": CharityRegulator.SCOTLAND.value, "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == _charity_number_url(sign_up_collection, source="check-your-answers")
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["charity_regulator"] == CharityRegulator.SCOTLAND.value
+            assert "external_id" not in flask_session["create_organisation"]
+            assert flask_session["create_organisation"]["name"] == "Test Charity"
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_the_same_regulator_from_check_your_answers_returns_there(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_charity_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+            name="Test Charity",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(
+            _charity_regulator_url(sign_up_collection, source="check-your-answers"),
+            data={"charity_regulator": CharityRegulator.ENGLAND_AND_WALES.value, "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_check_your_answers",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == "1234567"
+
+
+class TestCreateOrganisationCharityNumber:
+    def _seed_charity_session(
+        self, client, collection, charity_regulator=CharityRegulator.ENGLAND_AND_WALES, **answers
+    ) -> None:
+        _seed_company_session(
+            client,
+            collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=charity_regulator,
+            **answers,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize(
+        "charity_regulator, hint, register_link_text, register_url",
+        [
+            (
+                CharityRegulator.ENGLAND_AND_WALES,
+                "This is 6 or 7 numbers.",
+                "Charity Commission for England and Wales (opens in new tab)",
+                "https://register-of-charities.charitycommission.gov.uk/en/charity-search",
+            ),
+            (
+                CharityRegulator.SCOTLAND,
+                "This is 8 characters in total and starts with SC0, for example, SC012345.",
+                "Scottish Charity Regulator (opens in new tab)",
+                "https://www.oscr.org.uk/about-charities/search-the-register/",
+            ),
+            (
+                CharityRegulator.NORTHERN_IRELAND,
+                "This is NIC followed by 6 numbers, for example, NIC123456.",
+                "The Charity Commission for Northern Ireland (opens in new tab)",
+                "https://www.charitycommissionni.org.uk/charity-search/",
+            ),
+        ],
+    )
+    def test_get_renders_the_question_for_the_regulator(
+        self,
+        authenticated_no_role_client,
+        sign_up_collection,
+        charity_regulator,
+        hint,
+        register_link_text,
+        register_url,
+    ):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection, charity_regulator)
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "What is your charity number?" in get_h1_text(soup)
+        assert hint in soup.text
+        register_link = page_has_link(soup, register_link_text)
+        assert register_link is not None
+        assert register_link.attrs["href"] == register_url
+        assert page_has_button(soup, "Continue")
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == _charity_regulator_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize(
+        "charity_regulator, prefix",
+        [
+            (CharityRegulator.ENGLAND_AND_WALES, None),
+            (CharityRegulator.SCOTLAND, None),
+            (CharityRegulator.NORTHERN_IRELAND, "NIC"),
+        ],
+    )
+    def test_get_shows_the_prefix_shared_by_every_number_on_the_register(
+        self, authenticated_no_role_client, sign_up_collection, charity_regulator, prefix
+    ):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection, charity_regulator)
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_input_prefix(soup, "charity_number") == prefix
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize(
+        "charity_regulator, external_id, prefilled",
+        [
+            (CharityRegulator.ENGLAND_AND_WALES, "1234567", "1234567"),
+            (CharityRegulator.SCOTLAND, "SC012345", "SC012345"),
+            (CharityRegulator.NORTHERN_IRELAND, "NIC123456", "123456"),
+        ],
+    )
+    def test_get_prefills_a_number_already_in_the_session(
+        self, authenticated_no_role_client, sign_up_collection, charity_regulator, external_id, prefilled
+    ):
+        self._seed_charity_session(
+            authenticated_no_role_client, sign_up_collection, charity_regulator, external_id=external_id
+        )
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_input_value(soup, "charity_number") == prefilled
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_without_session_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_before_the_regulator_is_chosen_redirects(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection, charity_regulator=None)
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_charity_that_is_not_registered_redirects_to_the_name_page(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        self._seed_charity_session(
+            authenticated_no_role_client, sign_up_collection, charity_regulator=CharityRegulator.NOT_REGISTERED
+        )
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize("organisation_type", [SignUpOrganisationType.COMPANY, SignUpOrganisationType.OTHER])
+    def test_get_with_another_organisation_type_redirects_back_to_the_type_page(
+        self, authenticated_no_role_client, sign_up_collection, organisation_type
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=organisation_type,
+            identified_by=OrganisationIdentification.MANUAL,
+        )
+
+        response = authenticated_no_role_client.get(_charity_number_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_type",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize(
+        "charity_regulator, charity_number, stored",
+        [
+            (CharityRegulator.ENGLAND_AND_WALES, " 1234567 ", "1234567"),
+            (CharityRegulator.ENGLAND_AND_WALES, "123456", "123456"),
+            (CharityRegulator.SCOTLAND, "SC012345", "SC012345"),
+            (CharityRegulator.SCOTLAND, "sc012345", "SC012345"),
+            (CharityRegulator.SCOTLAND, "SCO12345", "SC012345"),
+            (CharityRegulator.SCOTLAND, "sco12345", "SC012345"),
+            (CharityRegulator.NORTHERN_IRELAND, "123456", "NIC123456"),
+            (CharityRegulator.NORTHERN_IRELAND, "NIC123456", "NIC123456"),
+            (CharityRegulator.NORTHERN_IRELAND, "nic123456", "NIC123456"),
+        ],
+    )
+    def test_post_stores_the_number_and_continues_to_the_name_page(
+        self, authenticated_no_role_client, sign_up_collection, charity_regulator, charity_number, stored
+    ):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection, charity_regulator)
+
+        response = authenticated_no_role_client.post(
+            _charity_number_url(sign_up_collection), data={"charity_number": charity_number, "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == stored
+            assert "name" not in flask_session["create_organisation"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_without_a_number_shows_an_error(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _charity_number_url(sign_up_collection), data={"charity_number": "", "submit": "y"}
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Enter your charity number")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    @pytest.mark.parametrize(
+        "charity_regulator, charity_number, error",
+        [
+            *[
+                (
+                    CharityRegulator.ENGLAND_AND_WALES,
+                    charity_number,
+                    "Charity number must be 6 or 7 numbers, for example, 123456 or 1234567",
+                )
+                for charity_number in ["12345", "12345678", "123456A", "1234567-12", "SC012345"]
+            ],
+            *[
+                (
+                    CharityRegulator.SCOTLAND,
+                    charity_number,
+                    "Charity number must be 8 characters starting with SC0, for example, SC012345",
+                )
+                for charity_number in ["12345", "SC12345", "SC0123456", "SC112345", "SCO1234A", "1234567"]
+            ],
+            *[
+                (
+                    CharityRegulator.NORTHERN_IRELAND,
+                    charity_number,
+                    "Charity number must be 6 numbers, for example, 123456",
+                )
+                for charity_number in ["12345", "1234567", "12345A", "NI123456", "NIC12345", "NIC1234567"]
+            ],
+        ],
+    )
+    def test_post_a_number_in_the_wrong_format_shows_an_error(
+        self, authenticated_no_role_client, sign_up_collection, charity_regulator, charity_number, error
+    ):
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection, charity_regulator)
+
+        response = authenticated_no_role_client.post(
+            _charity_number_url(sign_up_collection), data={"charity_number": charity_number, "submit": "y"}
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, error)
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert "external_id" not in flask_session["create_organisation"]
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_number_already_registered_goes_to_the_already_exists_page(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.CHARITY, external_id="CC-1234567", name="Other Test Org")
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _charity_number_url(sign_up_collection), data={"charity_number": "1234567", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_already_exists",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == "1234567"
+            assert flask_session["create_organisation"]["already_exists_matched_on"] == OrganisationMatch.NUMBER
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_a_number_only_taken_in_test_mode_continues(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(
+            type=OrganisationType.CHARITY,
+            external_id="CC-1234567",
+            name="Other Test Org (test)",
+            mode=OrganisationModeEnum.TEST,
+        )
+        self._seed_charity_session(authenticated_no_role_client, sign_up_collection)
+
+        response = authenticated_no_role_client.post(
+            _charity_number_url(sign_up_collection), data={"charity_number": "1234567", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == _name_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_from_check_your_answers_returns_there(self, authenticated_no_role_client, sign_up_collection):
+        self._seed_charity_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            name="Test Charity",
+            external_id="1234567",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(
+            _charity_number_url(sign_up_collection, source="check-your-answers"),
+            data={"charity_number": "123456", "submit": "y"},
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_check_your_answers",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["external_id"] == "123456"
+            assert flask_session["create_organisation"]["name"] == "Test Charity"
 
 
 class TestCreateOrganisationName:
@@ -1643,6 +2164,71 @@ class TestCreateOrganisationName:
         with authenticated_no_role_client.session_transaction() as flask_session:
             assert flask_session["create_organisation"]["name"] == "Test Company Ltd"
             assert flask_session["create_organisation"]["external_id"] == "AB123456"
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_charity_before_its_number_redirects(self, authenticated_no_role_client, sign_up_collection):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+        )
+
+        response = authenticated_no_role_client.get(_name_url(sign_up_collection))
+
+        assert response.status_code == 302
+        assert response.location == _sign_up_router_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_for_a_charity_keeps_its_number_as_the_external_id(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+        )
+
+        response = authenticated_no_role_client.post(
+            _name_url(sign_up_collection), data={"name": "Test Charity", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["name"] == "Test Charity"
+            assert flask_session["create_organisation"]["external_id"] == "1234567"
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_for_a_charity_that_is_not_registered_generates_the_external_id(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.NOT_REGISTERED,
+        )
+
+        response = authenticated_no_role_client.post(
+            _name_url(sign_up_collection), data={"name": "Test Charity", "submit": "y"}
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.create_organisation_allow_team_members",
+            grant_slug=sign_up_collection.grant.slug,
+            collection_slug=sign_up_collection.slug,
+        )
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            assert flask_session["create_organisation"]["name"] == "Test Charity"
+            assert flask_session["create_organisation"]["external_id"]
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_does_not_check_the_company_number_again(
@@ -1927,7 +2513,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             name="TEST COMPANY LIMITED",
             external_id="00000001",
-            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
+            already_exists_matched_on=OrganisationMatch.NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -1960,7 +2546,7 @@ class TestCreateOrganisationAlreadyExists:
             identified_by=OrganisationIdentification.MANUAL,
             name="Test Company Ltd",
             external_id="AB123456",
-            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
+            already_exists_matched_on=OrganisationMatch.NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -1989,7 +2575,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             identified_by=OrganisationIdentification.MANUAL,
             external_id="AB123456",
-            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
+            already_exists_matched_on=OrganisationMatch.NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -2017,7 +2603,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             identified_by=OrganisationIdentification.MANUAL,
             external_id="AB123456",
-            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
+            already_exists_matched_on=OrganisationMatch.NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -2036,6 +2622,35 @@ class TestCreateOrganisationAlreadyExists:
         assert back_link.attrs["href"] == _company_number_url(sign_up_collection, source="check-your-answers")
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_for_a_charity_number_before_a_name_says_so_and_links_back_to_the_charity_number_page(
+        self, authenticated_no_role_client, sign_up_collection, factories
+    ):
+        factories.organisation.create(type=OrganisationType.CHARITY, external_id="CC-1234567", name="Other Test Org")
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.ENGLAND_AND_WALES,
+            external_id="1234567",
+            already_exists_matched_on=OrganisationMatch.NUMBER,
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.create_organisation_already_exists",
+                grant_slug=sign_up_collection.grant.slug,
+                collection_slug=sign_up_collection.slug,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "An organisation with the charity number 1234567 is already an existing organisation" in soup.text
+        back_link = page_has_link(soup, "Back")
+        assert back_link is not None
+        assert back_link.attrs["href"] == _charity_number_url(sign_up_collection)
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_for_a_company_number_that_is_not_taken_redirects_back_to_the_number_page(
         self, authenticated_no_role_client, sign_up_collection
     ):
@@ -2044,7 +2659,7 @@ class TestCreateOrganisationAlreadyExists:
             sign_up_collection,
             identified_by=OrganisationIdentification.MANUAL,
             external_id="AB123456",
-            already_exists_matched_on=OrganisationMatch.COMPANY_NUMBER,
+            already_exists_matched_on=OrganisationMatch.NUMBER,
         )
 
         response = authenticated_no_role_client.get(
@@ -2435,6 +3050,7 @@ class TestCreateOrganisationCheckYourAnswers:
             _create_organisation_session(
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.CHARITY,
+                charity_regulator=CharityRegulator.NOT_REGISTERED,
                 name="Acme Ltd",
                 external_id="000111222",
                 allow_team_members=False,
@@ -2556,6 +3172,56 @@ class TestCreateOrganisationCheckYourAnswers:
         change_number = page_has_link(soup, "Change company number")
         assert change_number
         assert change_number.attrs["href"] == _company_number_url(sign_up_collection, source="check-your-answers")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_shows_a_charity_regulator_and_number_with_change_links(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.SCOTLAND,
+            name="Test Charity",
+            external_id="SC012345",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Charity register").text.strip() == "Scottish Charity Regulator"
+        change_regulator = page_has_link(soup, "Change charity register")
+        assert change_regulator
+        assert change_regulator.attrs["href"] == _charity_regulator_url(sign_up_collection, source="check-your-answers")
+        assert get_summary_list_value_by_key(soup, "Charity number").text.strip() == "SC012345"
+        assert get_summary_list_value_by_key(soup, "Company number") is None
+        change_number = page_has_link(soup, "Change charity number")
+        assert change_number
+        assert change_number.attrs["href"] == _charity_number_url(sign_up_collection, source="check-your-answers")
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_get_omits_the_charity_number_row_for_a_charity_that_is_not_registered(
+        self, authenticated_no_role_client, sign_up_collection
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.NOT_REGISTERED,
+            name="Test Charity",
+            external_id="000111222",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.get(self._cya_url(sign_up_collection))
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_summary_list_value_by_key(soup, "Charity register").text.strip() == "My charity is not registered"
+        assert get_summary_list_value_by_key(soup, "Charity number") is None
+        assert get_summary_list_value_by_key(soup, "Company number") is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_get_omits_the_company_number_row_for_other_organisation_types(
@@ -2709,10 +3375,58 @@ class TestCreateOrganisationCheckYourAnswers:
         assert organisation.custom_code is None
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_with_a_charity_creates_a_charity_organisation(
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.SCOTLAND,
+            name="Test Charity",
+            external_id="SC012345",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "CC-SC012345")).one()
+        assert organisation.name == "Test Charity"
+        assert organisation.type == OrganisationType.CHARITY
+        assert organisation.charity_commission_number == "SC012345"
+        assert organisation.companies_house_number is None
+        assert organisation.custom_code is None
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
+    def test_post_with_a_charity_that_is_not_registered_creates_an_other_organisation(
+        self, authenticated_no_role_client, sign_up_collection, db_session, mock_notification_service_calls
+    ):
+        _seed_company_session(
+            authenticated_no_role_client,
+            sign_up_collection,
+            organisation_type=SignUpOrganisationType.CHARITY,
+            charity_regulator=CharityRegulator.NOT_REGISTERED,
+            name="Test Charity",
+            external_id="000111222",
+            allow_team_members=False,
+        )
+
+        response = authenticated_no_role_client.post(self._cya_url(sign_up_collection), data={"submit": "y"})
+
+        assert response.status_code == 302
+        organisation = db_session.scalars(select(Organisation).where(Organisation.external_id == "FS-000111222")).one()
+        assert organisation.name == "Test Charity"
+        assert organisation.type == OrganisationType.OTHER
+        assert organisation.custom_code == "000111222"
+        assert organisation.charity_commission_number is None
+
+    @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_with_a_company_number_taken_in_the_meantime_redirects_to_already_exists(
-        self, authenticated_no_role_client, sign_up_collection, factories
+        self, authenticated_no_role_client, sign_up_collection, factories, db_session
     ):
         factories.organisation.create(type=OrganisationType.COMPANY, external_id="CH-AB123456", name="Other Test Org")
+        db_session.commit()
         _seed_company_session(
             authenticated_no_role_client,
             sign_up_collection,
@@ -2731,6 +3445,12 @@ class TestCreateOrganisationCheckYourAnswers:
             collection_slug=sign_up_collection.slug,
             source="check-your-answers",
         )
+
+        already_exists_response = authenticated_no_role_client.get(response.location)
+
+        assert already_exists_response.status_code == 200
+        soup = BeautifulSoup(already_exists_response.data, "html.parser")
+        assert "An organisation with the company number AB123456 is already an existing organisation" in soup.text
 
     @pytest.mark.authenticate_as("applicant@no-org.com")
     def test_post_creates_the_organisation_grant_recipient_and_data_provider_role(
@@ -2854,6 +3574,7 @@ class TestCreateOrganisationCheckYourAnswers:
             _create_organisation_session(
                 sign_up_collection.id,
                 organisation_type=SignUpOrganisationType.CHARITY,
+                charity_regulator=CharityRegulator.NOT_REGISTERED,
                 name="Acme Ltd",
                 external_id="000111222",
                 allow_team_members=False,
