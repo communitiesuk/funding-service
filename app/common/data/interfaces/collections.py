@@ -2173,37 +2173,39 @@ def _add_submission_event(
 
     match event_type:
         case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
-            emit_metric_count(MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_SUBMITTED:
-            emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission, user=user)
 
         case SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS:
-            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS, submission=submission)
+            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS, submission=submission, user=user)
 
         case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
-            emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
+            emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission, user=user)
 
         case SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER:
-            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER, submission=submission)
+            emit_metric_count(
+                MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER, submission=submission, user=user
+            )
 
         case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
-            emit_metric_count(MetricEventName.SUBMISSION_CERTIFIED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFIED, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
-            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_REOPENED:
-            emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
-            emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission, user=user)
 
         case SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED:
-            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_APPROVED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_APPROVED, submission=submission, user=user)
 
         case SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED:
-            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_REJECTED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_REJECTED, submission=submission, user=user)
 
         case _:
             current_app.logger.error(
