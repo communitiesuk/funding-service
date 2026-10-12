@@ -147,6 +147,41 @@ class TestEmitMetricCount:
         )
 
     @patch("app.metrics.metrics.count")
+    def test_emission_with_user(self, mock_count, factories):
+        user = factories.user.build()
+
+        emit_metric_count(MetricEventName.SUBMISSION_CREATED, user=user)
+
+        mock_count.assert_called_once_with(
+            MetricEventName.SUBMISSION_CREATED,
+            1,
+            attributes={
+                "user-id": str(user.id),
+            },
+        )
+
+    @patch("app.metrics.metrics.count")
+    def test_emission_with_section(self, mock_count, factories):
+        form = factories.form.build()
+
+        emit_metric_count(MetricEventName.SUBMISSION_QUESTION_ANSWERED, section=form)
+
+        mock_count.assert_called_once_with(
+            MetricEventName.SUBMISSION_QUESTION_ANSWERED,
+            1,
+            attributes={
+                "section": form.title,
+                "section-id": str(form.id),
+                "collection": form.collection.name,
+                "collection-id": str(form.collection.id),
+                "collection-type": "monitoring report",
+                "collection-public-sign-up": str(form.collection.allow_public_sign_up),
+                "grant": form.collection.grant.name,
+                "grant-id": str(form.collection.grant.id),
+            },
+        )
+
+    @patch("app.metrics.metrics.count")
     def test_emission_with_managed_expression(self, mock_count):
         managed_expression = Mock()
         managed_expression.name = "TestExpression"
