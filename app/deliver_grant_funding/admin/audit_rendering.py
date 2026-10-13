@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from flask import url_for
 from markupsafe import Markup, escape
 
-from app.common.audit import AuditEvent, DatabaseModelChange
+from app.common.audit import AuditEvent, CollectionStatusChanged, DatabaseModelChange
 
 if TYPE_CHECKING:
     from app.common.data.models_audit import AuditEvent as AuditEventModel
@@ -56,6 +56,8 @@ class AuditEventDetailsRenderer:
     def _render_field(self, event: AuditEvent, field_name: str) -> Markup:
         if isinstance(event, DatabaseModelChange) and field_name == "changes":
             return self._render_changes(event)
+        if isinstance(event, CollectionStatusChanged) and field_name == "changes":
+            return self._render_status_changes(event)
         if field_name == "context":
             return self._render_context(getattr(event, field_name))
 
@@ -83,6 +85,18 @@ class AuditEventDetailsRenderer:
                 new=self._render_column_value(event, column, value["new"]),
             )
         return self._render_column_value(event, column, value)
+
+    def _render_status_changes(
+        self,
+        event: CollectionStatusChanged,
+    ) -> Markup:
+        return _summary_list(
+            (
+                (_field_label(field), _render_transition(_render_value(change["old"]), _render_value(change["new"])))
+                for field, change in event.changes.items()
+            ),
+            nested=True,
+        )
 
     def _render_column_value(self, event: DatabaseModelChange, column: str, value: Any) -> Markup:
         # Column values come straight from the stored JSON, so entity ids are already strings.
@@ -113,6 +127,10 @@ class AuditEventDetailsRenderer:
 
 def _field_label(field_name: str) -> str:
     return field_name.removesuffix("_id").strip("_").replace("_", " ").capitalize()
+
+
+def _render_transition(old: Markup, new: Markup) -> Markup:
+    return Markup("{old} → {new}").format(old=old, new=new)
 
 
 def _summary_list(rows: Iterable[tuple[str, Markup]], *, nested: bool) -> Markup:

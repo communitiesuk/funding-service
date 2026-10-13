@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from app.common.audit import (
     AuditEvent,
+    CollectionStatusChanged,
     DatabaseModelChange,
     SystemEvent,
     UserInvitationCancelled,
@@ -277,6 +278,24 @@ class TestUserPermissionsRemovedModel:
 
 
 class TestParseAuditEvent:
+    def test_parses_collection_status_change(self):
+        event = CollectionStatusChanged(
+            user_id=uuid4(),
+            organisation_id=uuid4(),
+            collection_id=uuid4(),
+            grant_id=uuid4(),
+            changes={"status": {"old": "DRAFT", "new": "SCHEDULED"}},
+        )
+
+        data = event.model_dump(mode="json")
+        parsed = parse_audit_event(AuditEventType.COLLECTION_CONFIGURATION, data)
+
+        assert data["changes"]["status"]["old"] == "DRAFT"
+        assert data["changes"]["status"]["new"] == "SCHEDULED"
+        assert parsed == event
+        assert parsed.action == "collection_status_changed"
+        assert parsed.action == "collection_status_changed"
+
     def test_parses_permissions_added_event(self, factories):
         user = factories.user.build()
         event = UserPermissionsAdded(

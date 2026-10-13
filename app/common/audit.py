@@ -121,6 +121,15 @@ class UserInvitationCancelled(AuditEvent):
     permissions: list[RoleEnum]
 
 
+class CollectionStatusChanged(AuditEvent):
+    event_type: AuditEventType = AuditEventType.COLLECTION_CONFIGURATION
+    action: Literal["collection_status_changed"] = "collection_status_changed"
+    collection_id: UUID
+    organisation_id: UUID | None
+    grant_id: UUID | None
+    changes: dict[Literal["status"], dict[Literal["old", "new"], str]]
+
+
 type UserManagementAuditEvent = UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled
 
 _user_management_audit_event_adapter = TypeAdapter(Annotated[UserManagementAuditEvent, Field(discriminator="action")])
@@ -128,6 +137,13 @@ _user_management_audit_event_adapter = TypeAdapter(Annotated[UserManagementAudit
 _audit_event_adapters: dict[AuditEventType, TypeAdapter[Any]] = {
     AuditEventType.PLATFORM_ADMIN_DB_EVENT: TypeAdapter(DatabaseModelChange),
     AuditEventType.SYSTEM: TypeAdapter(SystemEvent),
+    AuditEventType.USER_MANAGEMENT: TypeAdapter(
+        Annotated[
+            UserPermissionsAdded | UserPermissionsRemoved | UserInvited | UserInvitationCancelled,
+            Field(discriminator="action"),
+        ]
+    ),
+    AuditEventType.COLLECTION_CONFIGURATION: TypeAdapter(CollectionStatusChanged),
     AuditEventType.USER_MANAGEMENT: _user_management_audit_event_adapter,
 }
 

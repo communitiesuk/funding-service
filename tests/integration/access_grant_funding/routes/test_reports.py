@@ -1457,6 +1457,7 @@ class TestDeclineSignOff:
             submission_period_start_date=datetime.date.today() - datetime.timedelta(days=2),
             submission_period_end_date=datetime.date.today() - datetime.timedelta(days=1),
             status=CollectionStatusEnum.CLOSED,
+            by_user=authenticated_grant_recipient_certifier_client.user,
         )
         helper = SubmissionHelper(submission_awaiting_sign_off)
         assert not helper.is_awaiting_sign_off
