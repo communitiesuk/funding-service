@@ -40,6 +40,7 @@ from app.common.data.interfaces.grant_recipients import (
     create_grant_recipients,
     get_grant_recipient_data_providers,
     get_grant_recipient_data_providers_count,
+    get_grant_recipient_or_none,
     get_grant_recipients,
     get_grant_recipients_count,
     get_grant_recipients_with_outstanding_submissions_for_collection,
@@ -714,19 +715,56 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = PlatformAdminMatchApplicantToOrganisationForm(organisations=organisations)
         if form.validate_on_submit():
             organisation = next(org for org in organisations if str(org.id) == form.organisation.data)
+            email_address = cast(str, form.email_address.data)
+            user = get_user_by_email(email_address)
+            grant_recipient = get_grant_recipient_or_none(grant_id=grant.id, organisation_id=organisation.id)
+            applicant = markupsafe.escape(form.full_name.data)
+            org_name = markupsafe.escape(organisation.name)
+            sign_in_url = url_for("auth.request_a_link_to_sign_in", _external=True)
+            sign_in_link = (
+                "<p class='govuk-body'>Send them this link to request a link to sign in<br />"
+                f"<a class='govuk-notification-banner__link' href='{sign_in_url}'>{sign_in_url}</a></p>"
+            )
 
-            create_invitation(
-                email=form.email_address.data,
-                permissions=[RoleEnum.DATA_PROVIDER],
-                grant=grant,
-                organisation=organisation,
-                name=form.full_name.data,
-                by_user=get_current_user(),
-            )
-            flash(
-                f"Successfully matched {form.full_name.data} to {organisation.name} for public sign up.",
-                "success",
-            )
+            if user and grant_recipient:
+                add_permissions_to_user(
+                    user,
+                    permissions=[RoleEnum.DATA_PROVIDER],
+                    organisation=organisation,
+                    grant=grant,
+                    by_user=get_current_user(),
+                )
+                flash(
+                    f"<p class='govuk-body'><strong>{applicant}</strong> has been given access to "
+                    f"<strong>{org_name}</strong>'s existing application.</p>" + sign_in_link,
+                    "success",
+                )
+            else:
+                create_invitation(
+                    email=email_address,
+                    permissions=[RoleEnum.DATA_PROVIDER],
+                    grant=grant,
+                    organisation=organisation,
+                    name=form.full_name.data,
+                    by_user=get_current_user(),
+                )
+                if grant_recipient:
+                    flash(
+                        f"<p class='govuk-body'><strong>{applicant}</strong> has been matched to "
+                        f"<strong>{org_name}</strong>'s existing application.</p>"
+                        "<p class='govuk-body'>When they sign in to the service as normal they will accept "
+                        "the invitation and have access. (They have 7 days to do this)</p>" + sign_in_link,
+                        "success",
+                    )
+                else:
+                    flash(
+                        f"<p class='govuk-body'><strong>{applicant}</strong> has been matched to "
+                        f"<strong>{org_name}</strong> and can proceed with sign up.</p>"
+                        "<p class='govuk-body'>Send them this link to the public sign up page<br />"
+                        f"<a class='govuk-notification-banner__link' href='{collection.public_sign_up}'>"
+                        f"{collection.public_sign_up}</a></p>",
+                        "success",
+                    )
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
         return self.render(
