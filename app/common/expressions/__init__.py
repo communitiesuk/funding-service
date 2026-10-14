@@ -635,7 +635,7 @@ def run_evaluation(evaluator: simpleeval.SimpleEval, statement: str) -> Any:
     except simpleeval.NameNotDefined as e:
         raise UndefinedVariableInExpression(e.message, e.name) from e
     except simpleeval.FunctionNotDefined as e:
-        raise UndefinedFunctionInExpression(e.message, e.func_name) from e  # ty:ignore[unresolved-attribute]
+        raise UndefinedFunctionInExpression(e.message, e.func_name) from e
     except (SyntaxError, simpleeval.FeatureNotAvailable, KeyError) as e:
         raise DisallowedExpression("Expression is using unsafe/unsupported features") from e
     except simpleeval.OperatorNotDefined as e:
