@@ -17,6 +17,8 @@ from pydantic import (
 )
 from requests.adapters import HTTPAdapter
 
+from app.metrics import MetricAttributeName, MetricEventName, emit_metric_count
+
 
 def normalize_company_number(company_number: str) -> str:
     company_number = company_number.strip()
@@ -151,16 +153,48 @@ class CompaniesHouseService:
                 "restrictions": self.search_restrictions,
             },
         )
-        results = self._parse(
-            CompanySearchResults, data, status_code=status_code, context={"max_results": self.max_search_results}
-        )
-        if results.items_per_page != self.items_per_page or results.start_index != start_index:
-            raise CompaniesHouseError("invalid_payload", status_code=status_code)
+
+        try:
+            results = self._parse(
+                CompanySearchResults, data, status_code=status_code, context={"max_results": self.max_search_results}
+            )
+            result_status_code = 200
+            if results.items_per_page != self.items_per_page or results.start_index != start_index:
+                raise CompaniesHouseError("invalid_payload", status_code=status_code)
+
+        except CompaniesHouseError as e:
+            result_status_code = e.status_code
+            raise e
+
+        finally:
+            emit_metric_count(
+                MetricEventName.COMPANIES_HOUSE_API_CALL,
+                custom_attributes={
+                    MetricAttributeName.COMPANIES_HOUSE_HTTP_REQUEST_ENDPOINT: "search-companies",
+                    MetricAttributeName.COMPANIES_HOUSE_HTTP_RESPONSE_CODE: result_status_code,
+                },
+            )
+
         return results
 
     def get_company(self, company_number: str) -> CompanyProfile:
         company_number = normalize_company_number(company_number)
-        data, status_code = self._get_json(f"/company/{quote(company_number, safe='')}")
+        try:
+            data, status_code = self._get_json(f"/company/{quote(company_number, safe='')}")
+
+        except CompaniesHouseError as e:
+            status_code = e.status_code
+            raise e
+
+        finally:
+            emit_metric_count(
+                MetricEventName.COMPANIES_HOUSE_API_CALL,
+                custom_attributes={
+                    MetricAttributeName.COMPANIES_HOUSE_HTTP_REQUEST_ENDPOINT: "get-company",
+                    MetricAttributeName.COMPANIES_HOUSE_HTTP_RESPONSE_CODE: status_code,
+                },
+            )
+
         profile = self._parse(CompanyProfile, data, status_code=status_code)
 
         if profile.company_number != company_number:

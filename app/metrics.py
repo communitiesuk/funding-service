@@ -9,7 +9,7 @@ from sentry_sdk import metrics
 from app.common.expressions import EvaluatableExpression
 
 if TYPE_CHECKING:
-    from app.common.data.models import Collection, Grant, GrantRecipient, Submission
+    from app.common.data.models import Collection, Form, Grant, GrantRecipient, Submission, User
 
 
 class MetricAttributeName(StrEnum):
@@ -20,6 +20,8 @@ class MetricAttributeName(StrEnum):
     GRANT_RECIPIENT_MODE = "grant-recipient-mode"
     GRANT = "grant"
     GRANT_ID = "grant-id"
+    SECTION = "section"
+    SECTION_ID = "section-id"
     COLLECTION = "collection"
     COLLECTION_ID = "collection-id"
     COLLECTION_TYPE = "collection-type"
@@ -43,6 +45,9 @@ class MetricAttributeName(StrEnum):
 
     ORGANISATION_IDENTIFIED_BY = "organisation-identified-by"
 
+    COMPANIES_HOUSE_HTTP_REQUEST_ENDPOINT = "companies-house-http-request-endpoint"
+    COMPANIES_HOUSE_HTTP_RESPONSE_CODE = "companies-house-http-response-code"
+
 
 class MetricEventName(StrEnum):
     SECTION_MARKED_COMPLETE = "section-marked-as-complete"
@@ -50,6 +55,7 @@ class MetricEventName(StrEnum):
     SECTION_RESET_TO_IN_PROGRESS = "section-reset-to-in-progress"
 
     SUBMISSION_CREATED = "submission-created"
+    SUBMISSION_QUESTION_ANSWERED = "submission-question-answered"
     SUBMISSION_SENT_FOR_CERTIFICATION = "submission-sent-for-certification"
     SUBMISSION_CERTIFIED = "submission-certified"
     SUBMISSION_CERTIFICATION_DECLINED = "submission-certification-declined"
@@ -99,12 +105,16 @@ class MetricEventName(StrEnum):
     PUBLIC_SIGN_UP_ALREADY_HAS_ACCESS = "public-sign-up-already-has-access"
     PUBLIC_SIGN_UP_LOCAL_AUTHORITY_SUPPORT_SHOWN = "public-sign-up-local-authority-support-shown"
 
+    COMPANIES_HOUSE_API_CALL = "companies-house-api-call"
 
-def _get_event_attributes(
+
+def _get_event_attributes(  # noqa: C901
     grant_recipient: GrantRecipient | None = None,
     submission: Submission | None = None,
     collection: Collection | None = None,
     grant: Grant | None = None,
+    section: Form | None = None,
+    user: User | None = None,
     evaluatable_expression: EvaluatableExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> dict[str, str | int | UUID]:
@@ -121,6 +131,13 @@ def _get_event_attributes(
 
         if not grant_recipient:
             grant_recipient = submission.grant_recipient
+
+    if section:
+        attributes[str(MetricAttributeName.SECTION)] = section.title
+        attributes[str(MetricAttributeName.SECTION_ID)] = str(section.id)
+
+        if not collection:
+            collection = section.collection
 
     if collection:
         attributes[str(MetricAttributeName.COLLECTION)] = collection.name
@@ -143,6 +160,9 @@ def _get_event_attributes(
         attributes[str(MetricAttributeName.GRANT)] = grant.name
         attributes[str(MetricAttributeName.GRANT_ID)] = str(grant.id)
 
+    if user:
+        attributes[str(MetricAttributeName.USER_ID)] = str(user.id)
+
     if evaluatable_expression:
         attributes[str(MetricAttributeName.MANAGED_EXPRESSION_NAME)] = evaluatable_expression.name
 
@@ -156,6 +176,8 @@ def emit_metric_count(
     submission: Submission | None = None,
     collection: Collection | None = None,
     grant: Grant | None = None,
+    section: Form | None = None,
+    user: User | None = None,
     evaluatable_expression: EvaluatableExpression | None = None,
     custom_attributes: Mapping[MetricAttributeName, str | int | UUID] | None = None,
 ) -> None:
@@ -164,6 +186,8 @@ def emit_metric_count(
         submission=submission,
         collection=collection,
         grant=grant,
+        section=section,
+        user=user,
         evaluatable_expression=evaluatable_expression,
         custom_attributes=custom_attributes,
     )

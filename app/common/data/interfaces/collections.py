@@ -12,6 +12,8 @@ from sqlalchemy import and_, delete, func, null, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.common.audit import CollectionStatusChanged
+from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.interfaces.exceptions import (
     CollectionChronologyError,
     DuplicateValueError,
@@ -367,10 +369,25 @@ def get_collections_with_dates_near_today_excluding_draft_grants(
     return db.session.scalars(statement).unique().all()
 
 
+def track_collection_status_change(collection: Collection, by_user: User, old_status: str, new_status: str) -> None:
+    """Public so the platform-admin can track collection status changes in the admin interface."""
+    track_audit_event(
+        CollectionStatusChanged(
+            user_id=by_user.id,
+            collection_id=collection.id,
+            organisation_id=collection.grant.organisation.id,
+            grant_id=collection.grant.id,
+            changes={"status": {"old": old_status, "new": new_status}},
+        ),
+        by_user,
+    )
+
+
 @flush_and_rollback_on_exceptions(coerce_exceptions=[(IntegrityError, DuplicateValueError)])
 def update_collection(  # noqa: C901
     collection: Collection,
     *,
+    by_user: User | None = None,
     name: str | TNotProvided = NOT_PROVIDED,
     status: CollectionStatusEnum | TNotProvided = NOT_PROVIDED,
     reporting_period_start_date: datetime.date | None | TNotProvided = NOT_PROVIDED,
@@ -534,6 +551,20 @@ def update_collection(  # noqa: C901
         collection.allow_public_sign_up = allow_public_sign_up
 
     if submission_visibility is not NOT_PROVIDED:
+        if (
+            (collection.type == CollectionType.MONITORING_REPORT)
+            or (collection.type == CollectionType.APPLICATION and collection.allow_public_sign_up is False)
+        ) and submission_visibility != SubmissionVisibilityEnum.ALWAYS_VISIBLE:
+            raise ValueError("Submission_visibility must be ALWAYS_VISIBLE")
+        if (
+            collection.type == CollectionType.APPLICATION
+            and collection.allow_public_sign_up is True
+            and submission_visibility == SubmissionVisibilityEnum.ALWAYS_VISIBLE
+        ):
+            raise ValueError(
+                "submission_visibility cannot be set to ALWAYS_VISIBLE on collections of type APPLICATION "
+                "where allow_public_sign_up is True"
+            )
         collection.submission_visibility = submission_visibility
 
     if prospectus_url is not NOT_PROVIDED:
@@ -560,6 +591,9 @@ def update_collection(  # noqa: C901
         collection.allow_edits_after_submission_deadline = allow_edits_after_submission_deadline
 
     if status is not NOT_PROVIDED and collection.status != status:
+        if by_user is None:
+            raise ValueError("by_user must be provided when changing collection status")
+        old_status = collection.status
         match (collection.status, status):
             case (CollectionStatusEnum.DRAFT, CollectionStatusEnum.SCHEDULED) | (
                 CollectionStatusEnum.SCHEDULED,
@@ -642,11 +676,12 @@ def update_collection(  # noqa: C901
             MetricEventName.COLLECTION_STATUS_CHANGED,
             collection=collection,
             custom_attributes={
-                MetricAttributeName.FROM_STATUS: str(collection.status),
+                MetricAttributeName.FROM_STATUS: str(old_status),
                 MetricAttributeName.TO_STATUS: str(status),
             },
         )
         collection.status = status
+        track_collection_status_change(collection, by_user, old_status.name, status.name)
 
     return collection
 
@@ -2159,37 +2194,39 @@ def _add_submission_event(
 
     match event_type:
         case SubmissionEventType.SUBMISSION_SENT_FOR_CERTIFICATION:
-            emit_metric_count(MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_SENT_FOR_CERTIFICATION, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_SUBMITTED:
-            emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_SUBMITTED, submission=submission, user=user)
 
         case SubmissionEventType.FORM_RUNNER_FORM_RESET_TO_IN_PROGRESS:
-            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS, submission=submission)
+            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS, submission=submission, user=user)
 
         case SubmissionEventType.FORM_RUNNER_FORM_COMPLETED:
-            emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission)
+            emit_metric_count(MetricEventName.SECTION_MARKED_COMPLETE, submission=submission, user=user)
 
         case SubmissionEventType.FORM_RUNNER_FORM_RESET_BY_CERTIFIER:
-            emit_metric_count(MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER, submission=submission)
+            emit_metric_count(
+                MetricEventName.SECTION_RESET_TO_IN_PROGRESS_BY_CERTIFIER, submission=submission, user=user
+            )
 
         case SubmissionEventType.SUBMISSION_APPROVED_BY_CERTIFIER:
-            emit_metric_count(MetricEventName.SUBMISSION_CERTIFIED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFIED, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_DECLINED_BY_CERTIFIER:
-            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_CERTIFICATION_DECLINED, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_REOPENED:
-            emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_REOPENED, submission=submission, user=user)
 
         case SubmissionEventType.SUBMISSION_CHANGES_REQUESTED:
-            emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_CHANGES_REQUESTED, submission=submission, user=user)
 
         case SubmissionEventType.ASSESSOR_MARKED_AS_APPROVED:
-            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_APPROVED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_APPROVED, submission=submission, user=user)
 
         case SubmissionEventType.ASSESSOR_MARKED_AS_REJECTED:
-            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_REJECTED, submission=submission)
+            emit_metric_count(MetricEventName.SUBMISSION_ASSESSOR_MARKED_AS_REJECTED, submission=submission, user=user)
 
         case _:
             current_app.logger.error(

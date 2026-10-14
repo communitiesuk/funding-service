@@ -85,6 +85,7 @@ from app.common.expressions.references import InterpolationStatement
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.common.helpers.timeline import TimelineEvent, build_timeline_events
 from app.extensions import db, notification_service, s3_service
+from app.metrics import MetricEventName, emit_metric_count
 
 if TYPE_CHECKING:
     from app.common.data.models import (
@@ -1149,6 +1150,13 @@ class SubmissionHelper:
             data.key = key
 
         self.submission.data_manager.set(question, data, add_another_index=add_another_index)
+        if self.submission.mode == SubmissionModeEnum.LIVE:
+            emit_metric_count(
+                event=MetricEventName.SUBMISSION_QUESTION_ANSWERED,
+                submission=self.submission,
+                section=current_form,
+                user=user,
+            )
         self._sync_submission_data_and_status()
 
         self._emit_submission_events_for_forms_reset_to_in_progress(current_form, current_form_statuses, user)

@@ -628,6 +628,7 @@ class AuditEventType(enum.Enum):
     PLATFORM_ADMIN_DB_EVENT = "platform-admin-db-event"
     SYSTEM = "system"
     USER_MANAGEMENT = "user-management"
+    COLLECTION_CONFIGURATION = "collection-configuration"
 
 
 class DataSourceType(enum.StrEnum):

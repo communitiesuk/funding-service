@@ -1665,13 +1665,6 @@
           "mode": "live",
           "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
           "status": "awarded"
-        },
-        {
-          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
-          "id": "7e80aa77-910e-457c-954d-17c9561c510c",
-          "mode": "test",
-          "organisation_id": "325939be-05ed-4d6d-a0a3-2eb22d7eb89f",
-          "status": "applying"
         }
       ],
       "questions": [
@@ -2964,17 +2957,6 @@
     },
     {
       "can_manage_grants": false,
-      "companies_house_number": "15424886",
-      "domains": [],
-      "external_id": "CH-15424886",
-      "id": "325939be-05ed-4d6d-a0a3-2eb22d7eb89f",
-      "mode": "test",
-      "name": "DEVELOPMENT ON DEMAND LTD (test)",
-      "status": "active",
-      "type": "Company"
-    },
-    {
-      "can_manage_grants": false,
       "domains": [],
       "external_id": "T0001",
       "id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
@@ -3041,16 +3023,6 @@
         "certifier",
         "member",
         "data-provider"
-      ],
-      "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
-    },
-    {
-      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
-      "id": "7028da52-5ae8-4620-adeb-51ec4c936aea",
-      "organisation_id": "325939be-05ed-4d6d-a0a3-2eb22d7eb89f",
-      "permissions": [
-        "data-provider",
-        "member"
       ],
       "user_id": "838de5cd-2874-4612-85de-43f7a485b3ff"
     },

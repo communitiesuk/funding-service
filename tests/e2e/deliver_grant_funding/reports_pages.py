@@ -442,6 +442,12 @@ class GrantPreAwardFormsPage(ReportsBasePage):
         expect(submissions_list_page.heading).to_be_visible()
         return submissions_list_page
 
+    def click_manage_settings(self, form_name: str) -> ManageCollectionPage:
+        self.page.get_by_role("link", name=f"Manage settings for {form_name}").click()
+        manage_collection_page = ManageCollectionPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(manage_collection_page.heading).to_be_visible()
+        return manage_collection_page
+
 
 class ChooseCollectionCreationMethodPage(ReportsBasePage):
     def __init__(self, page: Page, domain: str, grant_name: str) -> None:
@@ -515,6 +521,50 @@ class AddPreAwardFormPage(ReportsBasePage):
         forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=grant_name)
         expect(forms_page.heading).to_be_visible()
         return forms_page
+
+
+class ManageCollectionPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name=re.compile("^(Form|Report) settings$")),
+        )
+        self.public_sign_up_change_link = page.get_by_role("link", name="public sign up setting")
+
+    def click_change_public_sign_up(self) -> PublicSignUpSettingsPage:
+        self.public_sign_up_change_link.click()
+        public_sign_up_page = PublicSignUpSettingsPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(public_sign_up_page.heading).to_be_visible()
+        return public_sign_up_page
+
+
+class PublicSignUpSettingsPage(ReportsBasePage):
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Public sign up and access"),
+        )
+        self.save_button = page.get_by_role("button", name="Save setting")
+
+    def get_public_sign_up_url(self) -> str:
+        link = self.page.locator(f'a[href^="{self.domain}"]')
+        href = link.get_attribute("href")
+        assert href
+        return href
+
+    def select_allow_public_sign_up(self, allow: bool) -> None:
+        radio_name = re.compile("^Yes, any organisation") if allow else re.compile("^No, only specific organisations")
+        self.page.get_by_role("radio", name=radio_name).click()
+
+    def click_save(self) -> ManageCollectionPage:
+        self.save_button.click()
+        manage_collection_page = ManageCollectionPage(self.page, self.domain, grant_name=self.grant_name)
+        expect(manage_collection_page.heading).to_be_visible()
+        return manage_collection_page
 
 
 class ChangeReportNamePage(ReportsBasePage):
@@ -890,6 +940,20 @@ class EditQuestionPage(ReportsBasePage):
         self.add_condition_button = self.page.get_by_role("button", name="Add condition")
         self.add_guidance_button = self.page.get_by_role("link", name="Add guidance")
         self.change_guidance_link = self.page.get_by_role("link", name="Change  page heading")
+        self.set_eligibility_condition_button = self.page.get_by_role("button", name="Set eligibility condition")
+
+    def click_set_eligibility_condition(self) -> AddEligibilityPage:
+        self.set_eligibility_condition_button.click()
+        add_eligibility_page = AddEligibilityPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            question_name=self.question_name,
+        )
+        expect(add_eligibility_page.heading).to_be_visible()
+        return add_eligibility_page
 
     def click_add_validation(self) -> AddValidationPage:
         self.add_validation_button.click()
@@ -989,6 +1053,38 @@ class EditQuestionPage(ReportsBasePage):
         )
         expect(add_guidance_page.heading).to_be_visible()
         return add_guidance_page
+
+
+class AddEligibilityPage(ReportsBasePage):
+    def __init__(
+        self, page: Page, domain: str, grant_name: str, report_name: str, section_name: str, question_name: str
+    ) -> None:
+        super().__init__(
+            page,
+            domain,
+            grant_name=grant_name,
+            heading=page.get_by_role("heading", name="Set eligibility condition"),
+        )
+        self.report_name = report_name
+        self.section_name = section_name
+        self.question_name = question_name
+        self.save_button = page.get_by_role("button", name="Save eligibility condition")
+
+    def click_eligible_answer(self, answer: str) -> None:
+        self.page.get_by_role("radio", name=answer, exact=True).click()
+
+    def click_save(self) -> EditQuestionPage:
+        self.save_button.click()
+        edit_question_page = EditQuestionPage(
+            self.page,
+            self.domain,
+            grant_name=self.grant_name,
+            report_name=self.report_name,
+            section_name=self.section_name,
+            question_name=self.question_name,
+        )
+        expect(edit_question_page.heading).to_be_visible()
+        return edit_question_page
 
 
 class SelectConditionCalculationPage(ReportsBasePage):

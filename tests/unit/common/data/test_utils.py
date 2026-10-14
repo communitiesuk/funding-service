@@ -1,7 +1,15 @@
+import datetime
+
 import pytest
 
 from app.common.data.types import CollectionType
-from app.common.data.utils import generate_submission_reference
+from app.common.data.utils import format_datetime_for_internal_export, generate_submission_reference
+
+
+def test_format_datetime_for_internal_export():
+    assert format_datetime_for_internal_export(datetime.datetime(2025, 1, 1, 9, 1, 2)) == "01/01/2025 09:01:02"
+    assert format_datetime_for_internal_export(datetime.datetime(2025, 6, 1, 9, 1, 2)) == "01/06/2025 10:01:02"
+    assert format_datetime_for_internal_export(None) == ""
 
 
 class TestGenerateSubmissionReference:

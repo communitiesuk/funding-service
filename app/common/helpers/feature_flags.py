@@ -91,13 +91,8 @@ class NewContextSourcesFeatureFlag(StaticFeatureFlag):
         return AuthorisationHelper.is_platform_member(get_current_user())
 
 
-class SortableSubmissionsFeatureFlag(SessionFeatureFlag):
-    description = "Show sortable submissions table in Deliver"
-
-
 class FeatureFlags:
     NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
-    SORTABLE_SUBMISSIONS = SortableSubmissionsFeatureFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:

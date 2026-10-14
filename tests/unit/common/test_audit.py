@@ -9,10 +9,12 @@ from pydantic import ValidationError
 
 from app.common.audit import (
     AuditEvent,
+    CollectionStatusChanged,
     DatabaseModelChange,
     SystemEvent,
     UserInvitationCancelled,
     UserPermissionsAdded,
+    UserPermissionsEventContextSource,
     UserPermissionsRemoved,
     _audit_event_adapters,
     _serialize_value,
@@ -210,6 +212,22 @@ class TestUserPermissionsAddedModel:
         assert json_data["action"] == "permissions_added"
         assert json_data["event_type"] == "user-management"
 
+    def test_grant_setup_permissions_use_permissions_added_action_with_context(self, factories):
+        event = UserPermissionsAdded(
+            user_id=factories.user.build().id,
+            grant_recipient_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=uuid4(),
+            target_user_id=uuid4(),
+            permissions=[RoleEnum.DATA_PROVIDER],
+            resulting_permissions=[RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER],
+            context={"source": UserPermissionsEventContextSource.GRANT_SETUP},
+        )
+
+        assert event.event_type == AuditEventType.USER_MANAGEMENT
+        assert event.action == "permissions_added"
+        assert event.model_dump(mode="json")["context"] == {"source": "grant_setup"}
+
 
 class TestUserPermissionsRemovedModel:
     def test_has_correct_event_type_and_action(self, factories):
@@ -260,6 +278,24 @@ class TestUserPermissionsRemovedModel:
 
 
 class TestParseAuditEvent:
+    def test_parses_collection_status_change(self):
+        event = CollectionStatusChanged(
+            user_id=uuid4(),
+            organisation_id=uuid4(),
+            collection_id=uuid4(),
+            grant_id=uuid4(),
+            changes={"status": {"old": "DRAFT", "new": "SCHEDULED"}},
+        )
+
+        data = event.model_dump(mode="json")
+        parsed = parse_audit_event(AuditEventType.COLLECTION_CONFIGURATION, data)
+
+        assert data["changes"]["status"]["old"] == "DRAFT"
+        assert data["changes"]["status"]["new"] == "SCHEDULED"
+        assert parsed == event
+        assert parsed.action == "collection_status_changed"
+        assert parsed.action == "collection_status_changed"
+
     def test_parses_permissions_added_event(self, factories):
         user = factories.user.build()
         event = UserPermissionsAdded(
