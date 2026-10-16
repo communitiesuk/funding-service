@@ -17,7 +17,6 @@ from app.common.audit import (
     UserPermissionsRemoved,
 )
 from app.common.collections.types import TextSingleLineAnswer
-from app.common.data.interfaces.grant_recipients import get_grant_recipient_or_none
 from app.common.data.interfaces.organisations import get_organisation_count, get_organisations
 from app.common.data.interfaces.user import get_usable_invitation, get_user, get_user_by_email
 from app.common.data.models import Grant, Organisation
@@ -1500,7 +1499,7 @@ class TestCollectionLifecycleTasklist:
             (
                 item
                 for item in soup.find("ul", {"id": "grant-tasks"}).find_all("li", {"class": "govuk-task-list__item"})
-                if "Match applicant to organisation for public sign up" in item.get_text()
+                if "Add data provider or match applicant to organisation for public sign up" in item.get_text()
             ),
             None,
         )
@@ -4173,7 +4172,7 @@ class TestMatchApplicantToOrganisation:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "Match applicant to organisation for public sign up" in get_h1_text(soup)
+        assert "Add data provider or match applicant to organisation for public sign up" in get_h1_text(soup)
 
         options = soup.find("select", {"id": "organisation"}).find_all("option")
         assert [option.get_text(strip=True) for option in options] == ["", "Company", "Local Authority"]
@@ -4184,11 +4183,19 @@ class TestMatchApplicantToOrganisation:
             ["Local Authority", "la.gov.uk, la2.gov.uk"]
         ]
 
-    def test_post_creates_invitation(
-        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
+    @pytest.mark.parametrize("user_exists", [True, False])
+    def test_post_invites_to_sign_up_when_no_grant_recipient(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        open_public_collection,
+        user_exists,
     ):
         grant = open_public_collection.grant
         org = factories.organisation.create(name="Local Authority")
+        if user_exists:
+            factories.user.create(email="john@example.com")
 
         response = authenticated_platform_grant_lifecycle_manager_client.post(
             f"/deliver/admin/collection-lifecycle/{grant.id}/{open_public_collection.id}/match-applicant-to-organisation",
@@ -4203,16 +4210,86 @@ class TestMatchApplicantToOrganisation:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_flash(soup, "Successfully matched John Doe to Local Authority for public sign up.")
+        banner = page_has_flash(soup, "John Doe has been matched to Local Authority and can proceed with sign up.")
+        assert banner is not None
+        assert [strong.get_text() for strong in banner.find_all("strong")] == ["John Doe", "Local Authority"]
+        link = banner.find("a")
+        assert link["href"] == open_public_collection.public_sign_up
+        assert link.get_text(strip=True) == open_public_collection.public_sign_up
 
         invitation = get_usable_invitation("john@example.com", grant=grant, organisation=org)
         assert invitation is not None
         assert invitation.name == "John Doe"
         assert set(invitation.permissions) == {RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER}
 
-        # The user signs themselves up through public sign up, which is what creates these
-        assert get_grant_recipient_or_none(grant.id, org.id) is None
-        assert get_user_by_email("john@example.com") is None
+    def test_post_invites_to_sign_in_when_grant_recipient_but_no_user(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
+    ):
+        grant = open_public_collection.grant
+        org = factories.organisation.create(name="Local Authority")
+        factories.grant_recipient.create(grant=grant, organisation=org)
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{open_public_collection.id}/match-applicant-to-organisation",
+            data={
+                "organisation": str(org.id),
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        banner = page_has_flash(soup, "John Doe has been matched to Local Authority's existing application.")
+        assert banner is not None
+        assert "When they sign in to the service as normal they will accept the invitation and have access." in (
+            banner.get_text()
+        )
+        assert [strong.get_text() for strong in banner.find_all("strong")] == ["John Doe", "Local Authority"]
+        link = banner.find("a")
+        assert link["href"].endswith("/request-a-link-to-sign-in")
+        assert link.get_text(strip=True) == link["href"]
+
+        invitation = get_usable_invitation("john@example.com", grant=grant, organisation=org)
+        assert invitation is not None
+        assert set(invitation.permissions) == {RoleEnum.DATA_PROVIDER, RoleEnum.MEMBER}
+
+    def test_post_adds_data_provider_directly_when_user_and_grant_recipient_exist(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, open_public_collection
+    ):
+        grant = open_public_collection.grant
+        org = factories.organisation.create(name="Local Authority")
+        factories.grant_recipient.create(grant=grant, organisation=org)
+        factories.user.create(email="john@example.com", name="John Doe")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{open_public_collection.id}/match-applicant-to-organisation",
+            data={
+                "organisation": str(org.id),
+                "full_name": "John Doe",
+                "email_address": "john@example.com",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        soup = BeautifulSoup(response.data, "html.parser")
+        banner = page_has_flash(soup, "John Doe has been given access to Local Authority's existing application.")
+        assert banner is not None
+        assert [strong.get_text() for strong in banner.find_all("strong")] == ["John Doe", "Local Authority"]
+        link = banner.find("a")
+        assert link["href"].endswith("/request-a-link-to-sign-in")
+        assert link.get_text(strip=True) == link["href"]
+
+        assert get_usable_invitation("john@example.com", grant=grant, organisation=org) is None
+        user = get_user_by_email("john@example.com")
+        assert any(
+            RoleEnum.DATA_PROVIDER in role.permissions and role.organisation_id == org.id and role.grant_id == grant.id
+            for role in user.roles
+        )
 
 
 class TestAddBulkDataProviders:
