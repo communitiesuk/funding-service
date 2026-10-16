@@ -42,17 +42,38 @@
         }
         ]
       %}
-      {% if org_session.organisation_type == organisation_types.COMPANY %}
+      {% if org_session.organisation_type == organisation_types.CHARITY %}
         {%
           set rows = rows + [
             {
-              "key": {"text": "Company number"},
+              "key": {"text": "Charity register"},
+              "value": {"text": org_session.charity_regulator.label},
+              "actions": {"items": [{
+                "href": org_session.page_url(pages.CHARITY_REGULATOR, from_check_your_answers=True),
+                "classes": "govuk-link--no-visited-state",
+                "text": "Change",
+                "visuallyHiddenText": "charity register"
+              }]}
+            }
+          ]
+        %}
+      {% endif %}
+      {% if org_session.organisation_type == organisation_types.COMPANY %}
+        {% set registration_number_label = "Company number" %}
+      {% elif org_session.registered_charity %}
+        {% set registration_number_label = "Charity number" %}
+      {% endif %}
+      {% if registration_number_label %}
+        {%
+          set rows = rows + [
+            {
+              "key": {"text": registration_number_label},
               "value": {"text": org_session.external_id},
               "actions": {"items": [{
                 "href": org_session.page_url(org_session.identification_page, from_check_your_answers=True),
                 "classes": "govuk-link--no-visited-state",
                 "text": "Change",
-                "visuallyHiddenText": "company number"
+                "visuallyHiddenText": registration_number_label | lower
               }]}
             }
           ]

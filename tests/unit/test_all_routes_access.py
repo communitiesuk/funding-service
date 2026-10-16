@@ -191,6 +191,8 @@ routes_with_expected_requires_passed_eligibility_access = [
     "access_grant_funding.create_organisation_company_search",
     "access_grant_funding.create_organisation_company_search_unavailable",
     "access_grant_funding.create_organisation_company_number",
+    "access_grant_funding.create_organisation_charity_regulator",
+    "access_grant_funding.create_organisation_charity_number",
     "access_grant_funding.create_organisation_name",
     "access_grant_funding.create_organisation_already_exists",
     "access_grant_funding.create_organisation_allow_team_members",

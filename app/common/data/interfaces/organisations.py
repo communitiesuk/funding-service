@@ -100,11 +100,12 @@ def organisation_name_exists(name: str, mode: OrganisationModeEnum = Organisatio
     return db.session.scalar(statement) is not None
 
 
-def organisation_companies_house_number_exists(
-    companies_house_number: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+def organisation_typed_id_exists(
+    type_: OrganisationType, typed_id: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> bool:
+    """Check for an organisation by the identifier its type is registered under, within a single mode."""
     statement = select(Organisation).where(
-        Organisation.companies_house_number == companies_house_number, Organisation.mode == mode
+        getattr(Organisation, type_.typed_id_field) == typed_id, Organisation.mode == mode
     )
     return db.session.scalar(statement) is not None
 
