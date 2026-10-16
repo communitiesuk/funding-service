@@ -328,6 +328,7 @@ def export_grants(  # noqa: C901
     _sort_export_data_in_place(export_data)
 
     export_json = current_app.json.dumps(export_data, indent=2, sort_keys=True)
+    db.session.close()
     match output:
         case "file":
             with open(export_path, "w") as outfile:
