@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from app.config import UnitTestConfig
 from app.logging import (
+    ContextualLevelFilter,
     CorrelatingClickCLIContext,
     CorrelationMiddleware,
     JSONFormatter,
@@ -154,6 +155,22 @@ class TestLogRecordCorrelation:
 
         assert bound["user_id"] == user_id
         assert "user_id" not in after
+
+
+class TestContextualLevelFilter:
+    def test_applies_configured_level_by_default(self):
+        level_filter = ContextualLevelFilter("INFO")
+
+        assert level_filter.filter(_make_record(logging.INFO)) is True
+        assert level_filter.filter(_make_record(logging.DEBUG)) is False
+
+    def test_allows_debug_records_when_unit_of_work_has_debug_logging(self):
+        level_filter = ContextualLevelFilter("INFO")
+
+        with correlation.request_context({}, alb_trace_id=None, cloudfront_request_id=None, debug_logging=True):
+            debug_record = _make_record(logging.DEBUG)
+
+        assert level_filter.filter(debug_record) is True
 
 
 class TestFormatters:
