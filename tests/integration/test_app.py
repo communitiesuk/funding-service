@@ -132,3 +132,14 @@ class TestAppErrorHandlers:
         assert "You do not have permission to access this page" in soup.text
         assert app.config[service_desk_url] in get_link_hrefs(soup)
         assert service_name == get_service_name_text(soup)
+
+
+class TestSentryUserContext:
+    def test_user_loader_sends_only_the_user_id_to_sentry(self, app, factories, mocker) -> None:
+        set_user = mocker.patch("app.sentry_sdk.set_user")
+        user = factories.user.create(email="test@local.gov.uk", name="Test User")
+
+        loaded_user = app.login_manager._user_callback(str(user.id))
+
+        assert loaded_user == user
+        set_user.assert_called_once_with({"id": str(user.id)})
