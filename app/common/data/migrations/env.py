@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Iterable
-from logging.config import fileConfig
 from pathlib import Path
 from typing import cast
 
@@ -15,6 +14,8 @@ from alembic_utils.replaceable_entity import register_entities
 from flask import current_app
 from sqlalchemy import Engine, text
 
+from app.logging import route_loggers_through_app
+
 citext_extension = PGExtension(schema="public", signature="citext")
 register_entities([citext_extension])
 
@@ -22,9 +23,10 @@ register_entities([citext_extension])
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name)  # ty: ignore[invalid-argument-type]
+# Send alembic's log lines through the application's handlers, so `flask db ...` output shares the app's format (JSON
+# in deployed environments) and correlation fields. Using alembic.ini's `fileConfig` here would reconfigure logging and
+# disable the app's loggers for the rest of the command.
+route_loggers_through_app(current_app, ["alembic", "flask_migrate"])
 logger = logging.getLogger("alembic.env")
 
 

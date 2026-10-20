@@ -282,7 +282,7 @@ def decline_submission(
     if not submission_helper.is_awaiting_sign_off:
         current_app.logger.warning(
             "Decline certification loaded incorrectly by %(user_id)s for submission %(submission_id)s",
-            extra={"user_id": user.id, "submission_id": submission_id},
+            {"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
             url_for(
@@ -351,7 +351,7 @@ def confirm_submission_with_certify(
     if not submission_helper.is_awaiting_sign_off:
         current_app.logger.warning(
             "Confirm certify and submit loaded incorrectly by %(user_id)s for submission %(submission_id)s",
-            extra={"user_id": user.id, "submission_id": submission_id},
+            {"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
             url_for(
@@ -426,7 +426,7 @@ def confirm_submission_direct_submission(
     if not submission_helper.status == SubmissionStatusEnum.READY_TO_SUBMIT:
         current_app.logger.warning(
             "Confirm submit loaded incorrectly by %(user_id)s for submission %(submission_id)s",
-            extra={"user_id": user.id, "submission_id": submission_id},
+            {"user_id": user.id, "submission_id": submission_id},
         )
         return redirect(
             url_for("access_grant_funding.list_collections", organisation_id=organisation_id, grant_id=grant_id)
