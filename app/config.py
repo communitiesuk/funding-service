@@ -128,6 +128,7 @@ class _SharedConfig(_BaseConfig):
     # Consumed by wsgi.py (the gunicorn entrypoint) — ProxyFix is not applied under `flask run` (local dev)
     PROXY_FIX_PROTO: int = 1  # CloudFront for AWS environments; Caddy for PullPreview
     PROXY_FIX_HOST: int = 1  # We inject X-Forwarded-For using Cloudfront custom headings
+    PROXY_FIX_FOR: int = 2  # CloudFront then the ALB each append to X-Forwarded-For; the client is 2nd from the right
     SERVER_NAME: str
     SEND_FILE_MAX_AGE_DEFAULT: int = 31536000
 
@@ -420,6 +421,7 @@ class LocalConfig(_SharedConfig):
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
     PROXY_FIX_PROTO: int = 0  # Unused: local dev serves via `flask run`, which never goes through wsgi.py/ProxyFix
     PROXY_FIX_HOST: int = 0
+    PROXY_FIX_FOR: int = 0
     SERVER_NAME: str = "funding.communities.gov.localhost:8080"
 
     # The LocalConfig needs default values for these AZURE_AD variables so that the Check DB Migrations job
@@ -504,6 +506,7 @@ class PullPreviewConfig(_SharedConfig):
     DEBUG_TB_ENABLED: bool = False
     PROXY_FIX_PROTO: int = 1
     PROXY_FIX_HOST: int = 1
+    PROXY_FIX_FOR: int = 1  # Caddy is the only proxy, appending one hop to X-Forwarded-For
 
     # Azure Active Directory Config
     # NB - this won't allow SSO to work yet on pull-previews, but will at least allow pull preview envs to start up

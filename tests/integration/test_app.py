@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Generator
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from testcontainers.community.postgres import PostgresContainer
 
 from app import create_app
+from tests.smoke.conftest import CLIENT_PATH
 from tests.utils import build_db_config, get_link_hrefs, get_service_name_text
 
 
@@ -143,3 +145,91 @@ class TestSentryUserContext:
 
         assert loaded_user == user
         set_user.assert_called_once_with({"id": str(user.id)})
+
+
+class TestClientHealthcheck:
+    @pytest.mark.parametrize(
+        "forwarded_for, expected_forwarded_for_matches_config",
+        [
+            (None, True),
+            ("198.51.100.1", False),
+            ("198.51.100.1, 198.51.100.2,198.51.100.3", False),
+            (" , ", True),
+        ],
+    )
+    def test_reports_whether_forwarded_for_matches_config(
+        self, app, anonymous_client, forwarded_for, expected_forwarded_for_matches_config
+    ):
+        headers = {"X-Forwarded-For": forwarded_for} if forwarded_for is not None else {}
+
+        response = anonymous_client.get(
+            url_for("healthcheck.client_healthcheck"),
+            headers=headers,
+            environ_overrides={"REMOTE_ADDR": "1.2.3.4", "wsgi.url_scheme": "https"},
+        )
+
+        assert app.config["PROXY_FIX_FOR"] == 0
+        assert response.status_code == 200
+        assert response.json == {
+            "remote_addr": "1.2.3.4",
+            "scheme": "https",
+            "host_is_canonical": True,
+            "forwarded_for_matches_config": expected_forwarded_for_matches_config,
+        }
+
+    @pytest.mark.parametrize("forwarded_for", ["198.51.100.1, 198.51.100.2", " 198.51.100.1 , 198.51.100.2 "])
+    def test_logs_a_warning_when_forwarded_for_does_not_match_config(
+        self, app, anonymous_client, caplog, forwarded_for
+    ):
+        with caplog.at_level(logging.WARNING, logger=app.logger.name):
+            anonymous_client.get(url_for("healthcheck.client_healthcheck"), headers={"X-Forwarded-For": forwarded_for})
+
+        warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert "2 X-Forwarded-For entries (PROXY_FIX_FOR is 0)" in warnings[0].getMessage()
+        assert f"SERVER_NAME is {app.config['SERVER_NAME']}" in warnings[0].getMessage()
+        assert "198.51.100.1" not in warnings[0].getMessage()
+
+    def test_logs_nothing_when_forwarded_for_matches_config(self, app, anonymous_client, caplog):
+        with caplog.at_level(logging.WARNING, logger=app.logger.name):
+            anonymous_client.get(url_for("healthcheck.client_healthcheck"))
+
+        assert [record for record in caplog.records if record.levelno >= logging.WARNING] == []
+
+    def test_smoke_tests_target_this_route(self, app):
+        assert url_for("healthcheck.client_healthcheck") == CLIENT_PATH
+
+    @pytest.mark.parametrize(
+        "remote_addr, expected_remote_addr",
+        [
+            ("1.2.3.4", "1.2.3.4"),
+            ("2606:4700::1", "2606:4700::1"),
+            ("10.0.0.5", "non-public"),
+            ("172.16.0.1", "non-public"),
+            ("127.0.0.1", "non-public"),
+            ("100.64.0.1", "non-public"),
+            ("203.0.113.9", "non-public"),
+            ("fe80::1", "non-public"),
+            ("not-an-ip-address", "non-public"),
+        ],
+    )
+    def test_reports_only_public_remote_addresses(self, anonymous_client, remote_addr, expected_remote_addr):
+        response = anonymous_client.get(
+            url_for("healthcheck.client_healthcheck"), environ_overrides={"REMOTE_ADDR": remote_addr}
+        )
+
+        assert response.status_code == 200
+        assert response.json["remote_addr"] == expected_remote_addr
+
+    def test_is_not_cacheable(self, anonymous_client):
+        response = anonymous_client.get(url_for("healthcheck.client_healthcheck"))
+
+        assert response.headers["Cache-Control"] == "no-store"
+
+    def test_is_exempt_from_basic_auth(self, app_with_basic_auth):
+        with app_with_basic_auth.test_client() as client:
+            client_response = client.get(url_for("healthcheck.client_healthcheck"), buffered=True)
+            db_response = client.get(url_for("healthcheck.db_healthcheck_current_revision"), buffered=True)
+
+        assert client_response.status_code == 200
+        assert db_response.status_code == 401
