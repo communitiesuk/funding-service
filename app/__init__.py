@@ -14,6 +14,7 @@ from flask_wtf.csrf import generate_csrf
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound, ProgrammingError
+from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import BaseConverter, ValidationError
 from xgovuk_flask_admin import XGovukFlaskAdmin
 from xgovuk_flask_admin.theme import XGovukFrontendTheme
@@ -141,8 +142,11 @@ def _register_global_error_handlers(app: Flask) -> None:
         ), 404
 
     @app.errorhandler(500)
-    def handle_500(error: Literal[500]) -> ResponseReturnValue:
-        current_app.logger.error("Internal server error", exc_info=True)
+    def handle_500(error: InternalServerError) -> ResponseReturnValue:
+        # Unhandled exceptions have already been logged once, with their traceback, by Flask's `handle_exception`.
+        # Only an explicit `abort(500)` reaches here without an original exception, so only log in that case.
+        if error.original_exception is None:
+            current_app.logger.error("Internal server error", exc_info=True)
         service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
 
         return render_template(

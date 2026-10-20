@@ -20,10 +20,11 @@ def track_audit_event(event: AuditEvent, user: User) -> None:
         "audit_event: %(event_type)s by %(user_email)s",
         {"event_type": event.event_type, "user_email": user.email},
         extra={
-            "audit": True,
-            "event_type": event.event_type,
-            "user_id": str(event.user_id),
-            "user_email": user.email,
-            "event_data": event.model_dump(mode="json"),
+            "audit": {
+                "event_type": event.event_type,
+                "user_id": str(event.user_id),
+                "user_email": user.email,
+                "event_data": event.model_dump(mode="json"),
+            }
         },
     )
