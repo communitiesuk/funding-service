@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from flask import Flask, Request, Response, abort, template_rendered
+from flask import Flask, Request, Response, abort, current_app, stream_with_context, template_rendered
 from flask.sessions import SessionMixin
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
@@ -91,7 +91,7 @@ def db(setup_db_container: PostgresContainer, app: Flask) -> Generator[SQLAlchem
 
 
 @pytest.fixture(scope="session")
-def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
+def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:  # noqa: C901
     with patch.dict(
         os.environ,
         build_db_config(setup_db_container),
@@ -125,6 +125,15 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     @app.route("/_testing/unhandled-exception")
     def raise_unhandled_exception() -> ResponseReturnValue:
         raise RuntimeError("Unhandled test exception")
+
+    @app.route("/_testing/streamed-response")
+    def streamed_response() -> ResponseReturnValue:
+        def generate_body() -> Generator[str, None, None]:
+            yield "first chunk\n"
+            current_app.logger.info("Generating streamed response body")
+            yield "second chunk\n"
+
+        return Response(stream_with_context(generate_body()), mimetype="text/plain")
 
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:

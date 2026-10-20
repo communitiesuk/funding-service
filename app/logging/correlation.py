@@ -114,8 +114,9 @@ def get_log_fields() -> dict[str, LogFieldValue]:
 
     Sentry's `trace_id` is stable for the whole unit of work and is the field to join on in Sentry. `span_id` is the
     active span's id while one is open, and otherwise the scope's propagation span id. For a request the active span is
-    the HTTP transaction, which Sentry's WSGI middleware finishes only after the response body has been sent, so it
-    outlives the request's unit of work (which ends when `Flask.wsgi_app` returns)."""
+    the HTTP transaction, which Sentry's WSGI middleware finishes before the response body is iterated and closed, so
+    the "Request finished" line and lines logged while streaming a body can carry a different `span_id` from the lines
+    logged during the handler."""
     context = _current_context.get()
     if context is None:
         return {}
