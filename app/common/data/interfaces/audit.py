@@ -25,6 +25,6 @@ def track_audit_event(event: AuditEvent, user: User) -> None:
                 "user_id": str(event.user_id),
                 "user_email": user.email,
                 "event_data": event.model_dump(mode="json"),
-            }
+            },
         },
     )
