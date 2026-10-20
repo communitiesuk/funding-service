@@ -204,6 +204,7 @@ class TestRequestLogging:
         first_finish = _correlations(_request_records(caplog))[1]
         assert uuid.UUID(first["request_id"])
         assert first["request_id"] == first_finish["request_id"]
+        assert "run_id" not in first
         assert first["request_id"] != second["request_id"]
         assert first["trace_id"] == first_finish["trace_id"]
         assert first["trace_id"] != second["trace_id"]

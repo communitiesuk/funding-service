@@ -425,4 +425,5 @@ def create_app() -> Flask:  # noqa: C901
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
+    logging.use_correlating_cli_contexts(app)
     return app
