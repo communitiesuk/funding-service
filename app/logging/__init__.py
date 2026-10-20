@@ -8,7 +8,8 @@ from logging import LogRecord
 from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
-from flask import Flask, g, request, session
+import click
+from flask import Flask, appcontext_pushed, g, request, session
 from flask_login import user_loaded_from_cookie, user_logged_in, user_logged_out
 from pythonjsonlogger.core import RESERVED_ATTRS
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
@@ -112,6 +113,7 @@ def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
     user_logged_in.connect(_bind_logged_in_user, app)
     user_loaded_from_cookie.connect(_bind_logged_in_user, app)
     user_logged_out.connect(_unbind_logged_out_user, app)
+    appcontext_pushed.connect(_enter_cli_context, app)
 
 
 def route_loggers_through_app(app: Flask, logger_names: Iterable[str], level: int = logging.INFO) -> None:
@@ -365,6 +367,18 @@ def _unbind_logged_out_user(sender: Flask, **kwargs: Any) -> None:
     correlation.bind(user_id=None)
 
 
+def _enter_cli_context(sender: Flask, **kwargs: Any) -> None:
+    """Every Flask CLI command (and `create_app` when loaded by the CLI) pushes an app context while a click context is
+    active; the first such push enters a CLI unit of work that lasts until the whole click invocation finishes.
+    """
+    click_ctx = click.get_current_context(silent=True)
+    if click_ctx is None:
+        return
+
+    if correlation.get_current_context() is None:
+        click_ctx.find_root().with_resource(correlation.cli_context(click_ctx.command_path))
+
+
 class RejectMutableDataStructuresFilter(logging.Filter):
     def filter(self, record: LogRecord) -> LogRecord:
         # The policy applies to our own code. Third-party loggers routed through the app's handlers (eg alembic during
@@ -414,10 +428,10 @@ class JSONFormatter(BaseJSONFormatter):
 
 
 class PlaintextFormatter(logging.Formatter):
-    """Human-readable local format. By default (`LOG_FORMATTER=plaintext`) a line in a request ends with a short tag,
-    the first 8 characters of its `request_id`, so the lines of one request can be told apart. With `full_context`
-    (`LOG_FORMATTER=plaintext-full`) every correlation field is appended instead, so behaviour can be verified
-    locally."""
+    """Human-readable local format. By default (`LOG_FORMATTER=plaintext`) a line in a unit of work ends with a short
+    tag, the first 8 characters of its `request_id` or `run_id` (the first one set), so the lines of one request/CLI
+    command can be told apart. With `full_context` (`LOG_FORMATTER=plaintext-full`) every correlation
+    field is appended instead, so behaviour can be verified locally."""
 
     def __init__(self, *args: Any, full_context: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -433,7 +447,7 @@ class PlaintextFormatter(logging.Formatter):
             return line
         if self.full_context:
             return f"{line} [{' '.join(f'{key}={value}' for key, value in fields.items())}]"
-        tag = next((fields[key] for key in ("request_id",) if key in fields), None)
+        tag = next((fields[key] for key in ("request_id", "run_id") if key in fields), None)
         if tag is None:
             return line
         return f"{line} [{str(tag)[:8]}]"

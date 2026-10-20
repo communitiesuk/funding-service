@@ -413,7 +413,7 @@ def create_app() -> Flask:  # noqa: C901
     _register_global_error_handlers(app)
 
     if app.config["SEED_SYSTEM_DATA"]:
-        with app.app_context():
+        with app.app_context(), logging.correlation.startup_context("seed_system_data"):
             try:
                 seed_system_data(app)
             except ProgrammingError as e:

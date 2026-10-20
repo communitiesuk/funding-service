@@ -1,14 +1,36 @@
 """
-Correlation context for every HTTP request this codebase handles.
+Correlation context for every "unit of work" this codebase runs: an HTTP request, a CLI command, or the startup work
+done in `create_app`.
 
-Every request enters exactly one `CorrelationContext`. It lives in a `ContextVar`, so it is isolated per greenlet
+Every unit of work enters exactly one `CorrelationContext`. It lives in a `ContextVar`, so it is isolated per greenlet
 (gunicorn/gevent) and per thread (`flask run`). Every log record reads it at creation time (see
 `CorrelatingLogRecordFactory`) and every Sentry event/transaction/log reads it from the Sentry isolation scope
-tags/attributes that we set when the request starts.
+tags/attributes that we set when the unit of work starts.
 
-Every request starts a new Sentry trace, whose `trace_id` is on every log line alongside the `request_id` and `user_id`.
-Incoming trace headers (`sentry-trace`, `baggage`, `traceparent`, `tracestate`) are ignored, so a client cannot choose
-the `trace_id` (see `app.sentry.IgnoreIncomingTraceHeaders` for the deployed path).
+Every request and every CLI command starts a new Sentry trace, whose `trace_id` is on every log line alongside the
+`request_id` (requests) or `run_id` (CLI commands and startup work) and the `user_id`. Incoming trace headers
+(`sentry-trace`, `baggage`, `traceparent`, `tracestate`) are ignored, so a client cannot choose the `trace_id` (see
+`app.sentry.IgnoreIncomingTraceHeaders` for the deployed path). A unit of work nested inside another in the same
+process (eg `seed_system_data` startup work inside a CLI command) gets its own `run_id` and Sentry isolation scope but
+continues the enclosing unit of work's Sentry trace, so it shares the `trace_id` and has its own `span_id` (see
+https://docs.sentry.io/platforms/python/tracing/distributed-tracing/custom-instrumentation/ and
+https://develop.sentry.dev/sdk/miscellaneous/hub_and_scope_refactoring/).
+
+Background jobs (not yet implemented): a job should be its own unit of work with its own `job_id`, never inheriting the
+`request_id` or `run_id` of the unit of work that enqueued it. The producer should put `sentry_sdk.get_traceparent()`
+and `sentry_sdk.get_baggage()`, plus `user_id` and `debug_logging`, into the job message; the consumer should enter a
+forked isolation scope, call `sentry_sdk.continue_trace(headers)` and start a `queue.process` transaction, validating
+every inherited value (bounded strings, a UUID for `user_id`) because the message is data, not trusted context (see
+https://docs.sentry.io/platforms/python/tracing/instrumentation/custom-instrumentation/queues-module/).
+
+Application fields (not yet implemented): a unit of work could later carry application identifiers such as
+`grant_id`, `organisation_id` and `collection_id`, so that every later line of the request and its Sentry events are
+filterable by them. The shape would be `bind(grant_id=...)` to set a field until the unit of work exits, and a
+`bound(...)` context manager to set fields for a block and restore the previous values on exit. Values must be scalars
+(`SCALAR_LOG_VALUE_TYPES`) and must not reuse a correlation field name; the fields should be mirrored onto the Sentry
+isolation scope as tags/attributes like the fixed fields are, and never inherited by nested or background units of
+work. The natural place to bind them is where the object is loaded for the request (the grant-role decorators or the
+data interfaces), which should be agreed before the mechanism is added.
 """
 
 import datetime
@@ -24,6 +46,7 @@ from dataclasses import fields as dataclass_fields
 from enum import StrEnum
 from typing import Any
 
+import click
 import sentry_sdk
 
 CORRELATION_RECORD_ATTR = "_correlation"
@@ -41,6 +64,9 @@ type LogFieldValue = str | int | float | bool
 _SENTRY_FIELDS = (
     "context_type",
     "request_id",
+    "run_id",
+    "cli_command",
+    "startup_task",
     "user_id",
     "alb_trace_id",
     "cloudfront_request_id",
@@ -49,6 +75,8 @@ _SENTRY_FIELDS = (
 
 class ContextType(StrEnum):
     REQUEST = "request"
+    CLI = "cli"
+    STARTUP = "startup"
     # Carried by gunicorn's own log lines (see `gunicorn.conf.py`, which cannot import this module); the application
     # never enters a unit of work of this type.
     SERVER = "server"
@@ -58,6 +86,10 @@ class ContextType(StrEnum):
 class CorrelationContext:
     context_type: ContextType
     request_id: str | None = None
+    # Identifies a CLI command or startup unit of work; requests have `request_id`.
+    run_id: str | None = None
+    cli_command: str | None = None
+    startup_task: str | None = None
     user_id: str | None = None
     method: str | None = None
     path: str | None = None
@@ -83,7 +115,7 @@ class CorrelationContext:
 
 
 # The `CorrelationContext` fields that `bind` may update; every other one identifies the unit of work and is fixed.
-_BINDABLE_CONTEXT_FIELDS = frozenset({"user_id", "method", "path", "endpoint"})
+_BINDABLE_CONTEXT_FIELDS = frozenset({"user_id", "cli_command", "method", "path", "endpoint"})
 
 
 _current_context: ContextVar[CorrelationContext | None] = ContextVar("correlation_context", default=None)
@@ -123,6 +155,8 @@ def get_log_fields() -> dict[str, LogFieldValue]:
     context = _current_context.get()
     if context is None:
         return {}
+    if context.context_type is ContextType.CLI:
+        context = _refresh_cli_command(context)
 
     fields = context.log_fields()
     traceparent = sentry_sdk.get_traceparent()
@@ -132,6 +166,22 @@ def get_log_fields() -> dict[str, LogFieldValue]:
         if span_id := rest.partition("-")[0]:
             fields["span_id"] = span_id
     return fields
+
+
+def _refresh_cli_command(context: CorrelationContext) -> CorrelationContext:
+    """Update a CLI unit of work's `cli_command`.
+
+    Flask CLI commands push an appcontext as soon as the `flask` bit of any CLI command is processed, so if we don't
+    do this lazily then we'd end up just locking in `flask` as the command, instead of the full command like `flask
+    developers seed-grants`."""
+    click_ctx = click.get_current_context(silent=True)
+    if click_ctx is None:
+        return context
+    command_path = click_ctx.command_path
+    if context.cli_command is None or command_path.startswith(f"{context.cli_command} "):
+        bind(cli_command=command_path)
+        return _current_context.get() or context
+    return context
 
 
 def get_record_correlation(record: logging.LogRecord) -> Mapping[str, LogFieldValue]:
@@ -188,6 +238,19 @@ def as_uuid_str(value: Any) -> str | None:
         return None
 
 
+def _current_trace_headers() -> dict[str, str]:
+    """The Sentry trace of the current unit of work, for a nested unit of work in this process to continue. Empty
+    outside a unit of work, so a top-level unit of work starts a new trace."""
+    if _current_context.get() is None:
+        return {}
+    headers = {}
+    if traceparent := sentry_sdk.get_traceparent():
+        headers["sentry-trace"] = traceparent
+    if baggage := sentry_sdk.get_baggage():
+        headers["baggage"] = baggage
+    return headers
+
+
 def _apply_to_sentry_scope(context: CorrelationContext) -> None:
     scope = sentry_sdk.get_isolation_scope()
     for key in _SENTRY_FIELDS:
@@ -222,11 +285,15 @@ def _restore_sentry_scope(previous: CorrelationContext | None) -> None:
 
 
 @contextmanager
-def _enter(context: CorrelationContext, *, fork_sentry_scope: bool) -> Generator[CorrelationContext]:
+def _enter(
+    context: CorrelationContext, *, fork_sentry_scope: bool, sentry_headers: Mapping[str, str] | None = None
+) -> Generator[CorrelationContext]:
     with ExitStack() as stack:
         if fork_sentry_scope:
+            # Each unit of work is its own isolation boundary, like an incoming HTTP request; see
+            # https://develop.sentry.dev/sdk/miscellaneous/hub_and_scope_refactoring/
             stack.enter_context(sentry_sdk.isolation_scope())
-            sentry_sdk.continue_trace({})
+            sentry_sdk.continue_trace(dict(sentry_headers or {}))
 
         previous = _current_context.get()
         token = _current_context.set(context)
@@ -264,4 +331,26 @@ def request_context(
     )
     fork_sentry_scope = not sentry_sdk.get_client().is_active()
     with _enter(context, fork_sentry_scope=fork_sentry_scope):
+        yield context
+
+
+@contextmanager
+def cli_context(command: str | None) -> Generator[CorrelationContext]:
+    context = CorrelationContext(
+        context_type=ContextType.CLI,
+        run_id=new_id(),
+        cli_command=command,
+    )
+    with _enter(context, fork_sentry_scope=True, sentry_headers=_current_trace_headers()):
+        yield context
+
+
+@contextmanager
+def startup_context(name: str) -> Generator[CorrelationContext]:
+    context = CorrelationContext(
+        context_type=ContextType.STARTUP,
+        run_id=new_id(),
+        startup_task=name,
+    )
+    with _enter(context, fork_sentry_scope=True, sentry_headers=_current_trace_headers()):
         yield context
