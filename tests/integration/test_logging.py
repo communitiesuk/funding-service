@@ -1,9 +1,11 @@
 import datetime
 import logging
+import re
 import uuid
 from typing import Any
 
 import pytest
+from bs4 import BeautifulSoup
 from flask import url_for
 
 from app.common.data import interfaces
@@ -398,3 +400,17 @@ class TestErrorLogging:
 
         assert _request_records(caplog)[-1].status == 500
         assert get_current_context() is None
+
+    @pytest.mark.parametrize("path", ["/_testing/unhandled-exception", "/_testing/500"])
+    def test_error_page_shows_trace_id_from_log_records(self, app, anonymous_client, caplog, monkeypatch, path) -> None:
+        monkeypatch.setitem(app.config, "PROPAGATE_EXCEPTIONS", False)
+
+        response = anonymous_client.get(path)
+
+        trace_ids_on_log_records = {fields["trace_id"] for fields in _correlations(_request_records(caplog))}
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert response.status_code == 500
+        assert len(trace_ids_on_log_records) == 1
+        trace_id = trace_ids_on_log_records.pop()
+        assert re.fullmatch(r"[0-9a-f]{32}", trace_id)
+        assert trace_id in soup.text
