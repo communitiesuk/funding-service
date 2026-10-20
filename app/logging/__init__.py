@@ -1,37 +1,41 @@
 import datetime
-import enum
 import logging
 import time
 from collections.abc import Iterable
 from logging import LogRecord
 from logging.config import dictConfig
-from os import getpid
-from threading import get_ident as get_thread_ident
-from typing import Any, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, cast
 
-from flask import Flask, Response, current_app, request
-from pythonjsonlogger.core import LogData
+from flask import Flask, Response, g, request, session
+from flask_login import user_loaded_from_cookie, user_logged_in, user_logged_out
+from pythonjsonlogger.core import RESERVED_ATTRS
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
 
+from app.logging import correlation
+from app.logging.correlation import (
+    CORRELATION_FIELD_NAMES,
+    CORRELATION_RECORD_ATTR,
+    SCALAR_LOG_VALUE_TYPES,
+    ContextType,
+    get_record_correlation,
+)
 
-def _common_request_extra_log_context() -> dict[str, Any]:
-    return {
-        "method": request.method,
-        "url": request.url,
-        "endpoint": request.endpoint,
-        # pid and thread ident are both available on LogRecord by default,
-        # as `process` and `thread` respectively, but I don't see a
-        # straightforward way of selectively including them only in certain
-        # log messages - they are designed to be included when the formatter
-        # is being configured. This is why I'm manually grabbing them and
-        # putting them in as `extra` here, avoiding the existing parameter
-        # names to prevent LogRecord from complaining
-        "process_": getpid(),
-        # stringifying this as it could potentially be a long that json is
-        # unable to represent accurately
-        "thread_": str(get_thread_ident()),
-    }
+if TYPE_CHECKING:
+    from _typeshed.wsgi import StartResponse, WSGIApplication, WSGIEnvironment
+
+request_logger = logging.getLogger("app.request")
+
+# Flat, snake_case names: CloudWatch Logs Insights discovers top-level JSON keys automatically, and keys without dots or
+# hyphens can be used in `filter`/`stats`/`display` without backtick-quoting.
+JSON_RENAME_FIELDS = {
+    "levelname": "level",
+    "name": "logger",
+    "funcName": "function",
+    "pathname": "file",
+    "lineno": "line",
+}
+JSON_FORMAT = "%(levelname)s %(name)s %(message)s %(funcName)s %(pathname)s %(lineno)d %(process)d"
+PLAINTEXT_FORMAT = "%(asctime)s %(levelname)s - %(message)s - from %(funcName)s() in %(filename)s:%(lineno)d"
 
 
 def get_default_logging_config(app: Flask) -> dict[str, Any]:
@@ -45,15 +49,24 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
             "reject_mutable_data_structures": {
                 "()": "app.logging.RejectMutableDataStructuresFilter",
             },
+            "reject_reserved_log_fields": {
+                "()": "app.logging.RejectReservedLogFieldsFilter",
+            },
         },
         "formatters": {
             "plaintext": {
-                "()": "logging.Formatter",
-                "fmt": "%(asctime)s %(levelname)s - %(message)s - from %(funcName)s() in %(filename)s:%(lineno)d",
+                "()": "app.logging.PlaintextFormatter",
+                "fmt": PLAINTEXT_FORMAT,
+                "full_context": False,
+            },
+            "plaintext-full": {
+                "()": "app.logging.PlaintextFormatter",
+                "fmt": PLAINTEXT_FORMAT,
+                "full_context": True,
             },
             "json": {
                 "()": "app.logging.JSONFormatter",
-                "fmt": "%(name)s %(levelname)s - %(message)s - from %(funcName)s in %(pathname)s:%(lineno)d",
+                "fmt": JSON_FORMAT,
             },
         },
         "handlers": {
@@ -62,21 +75,14 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
             },
             "sentry": {
                 "class": "sentry_sdk.integrations.logging.SentryLogsHandler",
-                # These filters do not actually affect what ends up in Sentry - request_extra_context is not actually
-                # used in this codebase as of 22/04/25, and even if it _was_ used, the SentryLogsHandler would not
-                # include that extra info in the log shipped to sentry. We'd need to inject a `before_send_logs`
-                # handler in sentry directly (this is currently experimental). Leaving for the future, if we need it.
-                # "filters": ["request_extra_context", "reject_mutable_data_structures"],
-                #
-                # ---
-                #
-                # Likewise, the formatter doesn't affect what gets sent to Sentry as of 22/04/25 - it reads the message
-                # template directly rather than the interpolated string. So passing this through a JSON formatter
-                # does not actually mean we send JSON logs to Sentry.
-                # "formatter": formatter,
+                # Correlation fields reach Sentry Logs as isolation-scope attributes (see `app.logging.correlation`),
+                # not through a formatter: SentryLogsHandler reads the message template and record extras directly.
+                # `reject_reserved_log_fields` rejects extras named like correlation fields, so the scope attributes
+                # are the only source of those names.
+                "filters": ["reject_reserved_log_fields"],
             },
             "default": {
-                "filters": ["reject_mutable_data_structures"],
+                "filters": ["reject_mutable_data_structures", "reject_reserved_log_fields"],
                 "formatter": formatter,
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stdout",
@@ -98,9 +104,16 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
 
 
 def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
+    correlation.install_log_record_factory()
     log_config = log_config or get_default_logging_config(app)
     dictConfig(log_config)
+
+    app.wsgi_app = CorrelationMiddleware(app, app.wsgi_app)  # ty: ignore[invalid-assignment]
     attach_request_loggers(app)
+
+    user_logged_in.connect(_bind_logged_in_user, app)
+    user_loaded_from_cookie.connect(_bind_logged_in_user, app)
+    user_logged_out.connect(_unbind_logged_out_user, app)
 
 
 def route_loggers_through_app(app: Flask, logger_names: Iterable[str], level: int = logging.INFO) -> None:
@@ -114,44 +127,74 @@ def route_loggers_through_app(app: Flask, logger_names: Iterable[str], level: in
         third_party_logger.disabled = False
 
 
+class CorrelationMiddleware:
+    """Wraps `Flask.wsgi_app`, so it runs inside Sentry's WSGI middleware (which forks the Sentry scope and continues
+    the trace) and around everything Flask does for the request, including error handlers and teardown.
+
+    It enters the request's unit of work, which every line logged while Flask handles the request is correlated with."""
+
+    def __init__(self, app: Flask, wsgi_app: WSGIApplication) -> None:
+        self.app = app
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
+        with correlation.request_context(
+            environ,
+            alb_trace_id=correlation.parse_alb_trace_id(environ.get("HTTP_X_AMZN_TRACE_ID")),
+            cloudfront_request_id=correlation.parse_cloudfront_request_id(environ.get("HTTP_X_AMZ_CF_ID")),
+            debug_logging=False,
+        ):
+            return self.wsgi_app(environ, start_response)
+
+
 def attach_request_loggers(app: Flask) -> None:
     @app.before_request
-    def before_request() -> None:
-        # annotating these onto request instead of flask.g as they probably
-        # shouldn't be inheritable from a request-less application context
+    def bind_request_and_log_start() -> None:
+        # annotating this onto request instead of flask.g as it probably shouldn't be inheritable from a request-less
+        # application context
         request.before_request_real_time = time.perf_counter()  # ty: ignore[unresolved-attribute]
-        request.before_request_process_time = time.process_time()  # ty: ignore[unresolved-attribute]
 
+        correlation.bind(
+            method=request.method,
+            path=request.path,
+            endpoint=request.endpoint,
+            user_id=_current_user_id(),
+        )
         if request.path != "/healthcheck":
-            current_app.logger.info(
-                "--- %(method)s %(url)s",
-                _common_request_extra_log_context(),
-                extra=_common_request_extra_log_context(),
-            )
+            request_logger.info("Request started %(method)s %(path)s", {"method": request.method, "path": request.path})
 
     @app.after_request
-    def after_request(response: Response) -> Response:
+    def log_request_finished(response: Response) -> Response:
         if request.path != "/healthcheck":
-            log_data = {
-                "status": response.status_code,
-                "duration_real": (
-                    (time.perf_counter() - cast(float, request.before_request_real_time))
-                    if hasattr(request, "before_request_real_time")
-                    else None
-                ),
-                "duration_process": (
-                    (time.process_time() - cast(float, request.before_request_process_time))
-                    if hasattr(request, "before_request_process_time")
-                    else None
-                ),
-                **_common_request_extra_log_context(),
-            }
-            current_app.logger.info(
-                "%(status)s %(method)s %(url)s - [real:%(duration_real).2fs] [process:%(duration_process).2fs]",
-                log_data,
-                extra=log_data,
+            duration_ms = (
+                round((time.perf_counter() - cast(float, request.before_request_real_time)) * 1000, 2)
+                if hasattr(request, "before_request_real_time")
+                else None
+            )
+            status = response.status_code
+            request_logger.info(
+                "Request finished %(method)s %(path)s %(status)s in %(duration_ms)sms",
+                {"method": request.method, "path": request.path, "status": status, "duration_ms": duration_ms},
+                extra={"status": status, "duration_ms": duration_ms},
             )
         return response
+
+
+def _current_user_id() -> str | None:
+    # Use the user Flask-Login has already loaded for this app context, if any; otherwise read Flask-Login's user id
+    # from the (signed) session, so that we never hit the database just to produce a log line.
+    if "_login_user" in g:
+        user = g._login_user
+        return correlation.as_uuid_str(user.get_id()) if user.is_authenticated else None
+    return correlation.as_uuid_str(session.get("_user_id"))
+
+
+def _bind_logged_in_user(sender: Flask, user: Any, **kwargs: Any) -> None:
+    correlation.bind(user_id=correlation.as_uuid_str(user.get_id()))
+
+
+def _unbind_logged_out_user(sender: Flask, **kwargs: Any) -> None:
+    correlation.bind(user_id=None)
 
 
 class RejectMutableDataStructuresFilter(logging.Filter):
@@ -171,9 +214,7 @@ class RejectMutableDataStructuresFilter(logging.Filter):
             return record
 
         for _k, v in logging_msg_args.items():
-            if not isinstance(
-                v, str | int | float | bool | UUID | datetime.date | datetime.datetime | enum.Enum | None
-            ):
+            if not isinstance(v, SCALAR_LOG_VALUE_TYPES):
                 # We want to only allow basic data types to be logged. There is a security/data protection risk that
                 # comes with logging more complex types like lists and dicts; it is easier to accidentally include
                 # PII, or to make a change in the future that adds it without realising we'll end up logging it out.
@@ -181,26 +222,81 @@ class RejectMutableDataStructuresFilter(logging.Filter):
         return record
 
 
+class RejectReservedLogFieldsFilter(logging.Filter):
+    """Rejects `extra=` keys that are correlation field names, so a log line can never carry two meanings of
+    `user_id`, `request_id` etc. The names are fixed (`CORRELATION_FIELD_NAMES`) plus any field bound on the
+    current unit of work, so the collision fails at the log call and is caught by tests, instead of one side
+    silently winning in CloudWatch and the other in Sentry Logs. Like the mutable-data policy, this applies to our
+    own loggers only."""
+
+    def filter(self, record: LogRecord) -> bool:
+        if record.name != "app" and not record.name.startswith("app."):
+            return True
+        for key in CORRELATION_FIELD_NAMES | get_record_correlation(record).keys():
+            if key in record.__dict__:
+                raise ValueError(f"Log field `{key}` is a correlation field and cannot be passed as `extra`.")
+        return True
+
+
 class JSONFormatter(BaseJSONFormatter):
+    """One flat JSON object per line. Correlation fields are written last. Application code cannot pass their names as
+    `extra` (`RejectReservedLogFieldsFilter`); for third-party loggers routed through the app's handlers, which that
+    policy does not cover, writing last still stops a line being attributed to another request or user."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if not args:
+            kwargs.setdefault("fmt", JSON_FORMAT)
+        kwargs.setdefault("rename_fields", JSON_RENAME_FIELDS)
+        kwargs.setdefault("static_fields", {"log_type": "application"})
+        kwargs.setdefault("timestamp", True)
+        kwargs.setdefault("reserved_attrs", [*RESERVED_ATTRS, CORRELATION_RECORD_ATTR])
+        super().__init__(*args, **kwargs)
+
+    def add_fields(self, log_data: dict[str, Any], record: LogRecord, message_dict: dict[str, Any]) -> None:
+        super().add_fields(log_data, record, message_dict)
+        # Under gevent's monkey-patching this is the greenlet's identity. Stringified because it can exceed the range
+        # of integers that JSON consumers represent exactly.
+        log_data["thread"] = str(record.thread)
+        if task_name := getattr(record, "taskName", None):
+            log_data["task_name"] = task_name
+        log_data.update(get_record_correlation(record))
+
+
+class PlaintextFormatter(logging.Formatter):
+    """Human-readable local format. By default (`LOG_FORMATTER=plaintext`) a line in a request ends with a short tag,
+    the first 8 characters of its `request_id`, so the lines of one request can be told apart. With `full_context`
+    (`LOG_FORMATTER=plaintext-full`) every correlation field is appended instead, so behaviour can be verified
+    locally."""
+
+    def __init__(self, *args: Any, full_context: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.full_context = full_context
+
     def formatTime(self, record: LogRecord, datefmt: str | None = None) -> str:
-        ct = self.converter(record.created)
-        if datefmt:
-            s = time.strftime(datefmt, ct)
-        else:
-            s = (
-                datetime.datetime.fromtimestamp(record.created, datetime.UTC)
-                .astimezone()
-                .isoformat(sep=" ", timespec="milliseconds")
-            )
-        return s
+        return datetime.datetime.fromtimestamp(record.created, datetime.UTC).isoformat(timespec="milliseconds")
 
-    def process_log_record(self, log_data: LogData) -> LogData:
-        for key, newkey in (("asctime", "time"),):
-            try:
-                log_data[newkey] = log_data.pop(key)
-            except KeyError:
-                pass
+    def formatMessage(self, record: LogRecord) -> str:
+        line = super().formatMessage(record)
+        fields = get_record_correlation(record)
+        if not fields:
+            return line
+        if self.full_context:
+            return f"{line} [{' '.join(f'{key}={value}' for key, value in fields.items())}]"
+        tag = next((fields[key] for key in ("request_id",) if key in fields), None)
+        if tag is None:
+            return line
+        return f"{line} [{str(tag)[:8]}]"
 
-        log_data["log_type"] = "application"
 
-        return log_data
+__all__ = [
+    "ContextType",
+    "CorrelationMiddleware",
+    "JSONFormatter",
+    "PlaintextFormatter",
+    "RejectMutableDataStructuresFilter",
+    "RejectReservedLogFieldsFilter",
+    "correlation",
+    "get_default_logging_config",
+    "init_app",
+    "route_loggers_through_app",
+]
