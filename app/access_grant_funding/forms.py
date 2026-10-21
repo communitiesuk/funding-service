@@ -1,11 +1,12 @@
-from typing import Any
+import re
+from typing import Any, ClassVar
 
 from flask_wtf import FlaskForm
 from govuk_frontend_wtf.wtforms_widgets import GovRadioInput, GovSubmitInput, GovTextArea, GovTextInput
 from wtforms import HiddenField, RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, ValidationError
 
-from app.access_grant_funding.session_models import SignUpOrganisationType
+from app.access_grant_funding.session_models import CharityRegulator, SignUpOrganisationType
 from app.common.data.models import Organisation
 from app.common.forms.fields import MHCLGRadioInput
 from app.common.forms.filters import strip_string_if_not_empty
@@ -132,6 +133,93 @@ class CreateOrganisationCompanyNumberForm(FlaskForm):
             field.data = normalize_company_number(field.data)
         except ValueError as e:
             raise ValidationError("Company number must be 8 characters, made up of letters and numbers") from e
+
+
+class CreateOrganisationCharityRegulatorForm(FlaskForm):
+    charity_regulator = RadioField(
+        "Where is your charity registered?",
+        choices=[(regulator.value, regulator.label) for regulator in CharityRegulator],
+        widget=MHCLGRadioInput(insert_divider_before_last_item=True),
+        validators=[DataRequired("Select where your charity is registered")],
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+
+class CreateOrganisationCharityNumberForm(FlaskForm):
+    """Asks for a charity number in the format of one register; `for_regulator` picks the right subclass."""
+
+    hint: ClassVar[str]
+    input_prefix: ClassVar[str] = ""  # part of every number on the register, so shown in front of the input, not typed
+    _FORMAT_ERROR: ClassVar[str]
+
+    charity_number = StringField(
+        "What is your charity number?",
+        filters=[strip_string_if_not_empty],
+        validators=[DataRequired("Enter your charity number")],
+        widget=GovTextInput(),
+    )
+    submit = SubmitField("Continue", widget=GovSubmitInput())
+
+    @classmethod
+    def for_regulator(
+        cls, regulator: CharityRegulator, charity_number: str | None = None
+    ) -> "CreateOrganisationCharityNumberForm":
+        form_class = _CHARITY_NUMBER_FORMS[regulator]
+        return form_class(
+            charity_number=charity_number.removeprefix(form_class.input_prefix) if charity_number else None
+        )
+
+    def validate_charity_number(self, field: StringField) -> None:
+        assert field.data is not None
+        try:
+            field.data = self._normalise(field.data)
+        except ValueError as e:
+            raise ValidationError(self._FORMAT_ERROR) from e
+
+    def _normalise(self, charity_number: str) -> str:
+        """The number as held on the register, raising ValueError if it is not in the register's format."""
+        raise NotImplementedError
+
+
+class EnglandAndWalesCharityNumberForm(CreateOrganisationCharityNumberForm):
+    hint = "This is 6 or 7 numbers."
+    _FORMAT_ERROR = "Charity number must be 6 or 7 numbers, for example, 123456 or 1234567"
+
+    def _normalise(self, charity_number: str) -> str:
+        if not re.fullmatch(r"\d{6,7}", charity_number):
+            raise ValueError(charity_number)
+        return charity_number
+
+
+class ScotlandCharityNumberForm(CreateOrganisationCharityNumberForm):
+    hint = "This is 8 characters in total and starts with SC0, for example, SC012345."
+    _FORMAT_ERROR = "Charity number must be 8 characters starting with SC0, for example, SC012345"
+
+    def _normalise(self, charity_number: str) -> str:
+        # the zero after SC is often read as the letter O
+        charity_number = re.sub(r"^SCO", "SC0", charity_number.upper())
+        if not re.fullmatch(r"SC0\d{5}", charity_number):
+            raise ValueError(charity_number)
+        return charity_number
+
+
+class NorthernIrelandCharityNumberForm(CreateOrganisationCharityNumberForm):
+    hint = "This is NIC followed by 6 numbers, for example, NIC123456."
+    input_prefix = "NIC"
+    _FORMAT_ERROR = "Charity number must be 6 numbers, for example, 123456"
+
+    def _normalise(self, charity_number: str) -> str:
+        digits = charity_number.upper().removeprefix(self.input_prefix)
+        if not re.fullmatch(r"\d{6}", digits):
+            raise ValueError(charity_number)
+        return self.input_prefix + digits
+
+
+_CHARITY_NUMBER_FORMS: dict[CharityRegulator, type[CreateOrganisationCharityNumberForm]] = {
+    CharityRegulator.ENGLAND_AND_WALES: EnglandAndWalesCharityNumberForm,
+    CharityRegulator.SCOTLAND: ScotlandCharityNumberForm,
+    CharityRegulator.NORTHERN_IRELAND: NorthernIrelandCharityNumberForm,
+}
 
 
 class CreateOrganisationNameForm(FlaskForm):

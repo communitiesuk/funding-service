@@ -369,6 +369,9 @@ class _SharedConfig(_BaseConfig):
     PIPELINE_GRANTS_SCHEME_FORM_URL: str = "https://forms.office.com.mcas.ms/pages/responsepage.aspx?id=EGg0v32c3kOociSi7zmVqBUKhC0CqZtGmIj1YcYa53xUNTFRWkRXQ1ZJUEJMOTg1UllGWEpCNDQ4NSQlQCN0PWcu&route=shorturl"
 
     # External registries
+    CHARITY_COMMISSION_URL: str = "https://register-of-charities.charitycommission.gov.uk/en/charity-search"
+    SCOTTISH_CHARITY_REGULATOR_URL: str = "https://www.oscr.org.uk/about-charities/search-the-register/"
+    CHARITY_COMMISSION_NI_URL: str = "https://www.charitycommissionni.org.uk/charity-search/"
     COMPANIES_HOUSE_URL: str = "https://find-and-update.company-information.service.gov.uk"
     COMPANIES_HOUSE_API_URL: str = "https://api.company-information.service.gov.uk"
     COMPANIES_HOUSE_API_KEY: str = ""
