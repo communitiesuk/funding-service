@@ -74,13 +74,12 @@ dev = [
 ]
 
 [tool.uv]
-required-version = ">=0.12.23"
+required-version = ">=0.13.0"
 add-bounds = "exact"
 exclude-newer = "7 days"  # In line with our renovate spec minimumReleaseAge
 
-# PR 2063
-# Remove exclude-newer-package any time after 29/09/2026
-exclude-newer-package = {flask-admin = false}
+# Added for uv. Remove exclude-newer-package any time after 27/10/2026
+exclude-newer-package = {uv = false}
 
 [tool.ty.terminal]
 error-on-warning = true
