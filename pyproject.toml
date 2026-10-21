@@ -79,7 +79,8 @@ add-bounds = "exact"
 exclude-newer = "7 days"  # In line with our renovate spec minimumReleaseAge
 
 # Added for uv. Remove exclude-newer-package any time after 27/10/2026
-exclude-newer-package = {uv = false}
+# Added for certifi. Remove exclude-newer-package any time after 27/10/2026
+exclude-newer-package = {uv = false, certifi = false}
 
 [tool.ty.terminal]
 error-on-warning = true
