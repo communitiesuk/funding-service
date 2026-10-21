@@ -49,6 +49,9 @@ _SENTRY_FIELDS = (
 
 class ContextType(StrEnum):
     REQUEST = "request"
+    # Carried by gunicorn's own log lines (see `gunicorn.conf.py`, which cannot import this module); the application
+    # never enters a unit of work of this type.
+    SERVER = "server"
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -1,9 +1,5 @@
-import datetime
-import logging
-import re
-
-import pytz
 from gunicorn.glogging import Logger
+from pythonjsonlogger.json import JsonFormatter
 
 # Gunicorn configuration file.
 #
@@ -157,17 +153,32 @@ tmp_upload_dir = None
 #
 
 
-class CustomLogger(Logger):
-    def now(self):
-        return datetime.datetime.now(tz=pytz.timezone("Europe/London")).strftime("%d-%b-%y %H:%M:%S")
+# Gunicorn's own error log (worker spawned, signals, timeouts) is emitted as JSON in the same shape as the application's
+# logs (see `app.logging.JSONFormatter`), so it can be queried alongside them in CloudWatch Logs Insights. We can't
+# import `app.logging` here: importing the `app` package in the gunicorn master would create the Flask app before
+# gevent has monkey-patched the workers. For the same reason, `context_type` here mirrors
+# `app.logging.correlation.ContextType.SERVER` by name rather than importing it.
+#
+# There is deliberately no access log: the application logs the start and end of every request itself (with the
+# user/request correlation fields), so a gunicorn access log would duplicate those lines.
+class JSONErrorLogger(Logger):
+    def setup(self, cfg):
+        super().setup(cfg)
+        formatter = JsonFormatter(
+            "%(levelname)s %(name)s %(message)s %(process)d",
+            rename_fields={"levelname": "level", "name": "logger"},
+            static_fields={"log_type": "gunicorn", "context_type": "server"},
+            timestamp=True,
+        )
+        for handler in self.error_log.handlers:
+            handler.setFormatter(formatter)
 
 
-logger_class = CustomLogger
+logger_class = JSONErrorLogger
 
 errorlog = "-"
 loglevel = "info"
-accesslog = "-"
-access_log_format = '{"logType": "gunicorn-access", "remote_ip":"%({x-forwarded-for}i)s","request_id":"%({X-Amzn-Trace-Id}i)s","response_code":"%(s)s","request_method":"%(m)s","request_path":"%(U)s","request_querystring":"%(q)s","request_timetaken":"%(D)s","response_length":"%(B)s"}'  # noqa
+accesslog = None
 
 #
 # Process naming
@@ -240,21 +251,3 @@ def worker_int(worker):
 
 def worker_abort(worker):
     worker.log.info("worker received SIGABRT signal")
-
-
-class RequestPathFilter(logging.Filter):
-    def __init__(self, *args, path_re, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.path_filter = re.compile(path_re)
-
-    def filter(self, record):
-        req_path = record.args["U"]
-        if req_path:
-            if not self.path_filter.match(req_path):
-                return True  # log this entry
-        # ... additional conditions can be added here ...
-        return False  # do not log this entry
-
-
-def on_starting(server):
-    server.log.access_log.addFilter(RequestPathFilter(path_re=r"^/healthcheck$"))
