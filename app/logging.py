@@ -2,6 +2,7 @@ import datetime
 import enum
 import logging
 import time
+from collections.abc import Iterable
 from logging import LogRecord
 from logging.config import dictConfig
 from os import getpid
@@ -10,7 +11,6 @@ from typing import Any, cast
 from uuid import UUID
 
 from flask import Flask, Response, current_app, request
-from flask.ctx import has_request_context
 from pythonjsonlogger.core import LogData
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
 
@@ -42,9 +42,6 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
         "version": 1,
         "disable_existing_loggers": False,
         "filters": {
-            "request_extra_context": {
-                "()": "app.logging.RequestExtraContextFilter",
-            },
             "reject_mutable_data_structures": {
                 "()": "app.logging.RejectMutableDataStructuresFilter",
             },
@@ -79,7 +76,7 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 # "formatter": formatter,
             },
             "default": {
-                "filters": ["request_extra_context", "reject_mutable_data_structures"],
+                "filters": ["reject_mutable_data_structures"],
                 "formatter": formatter,
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stdout",
@@ -104,6 +101,17 @@ def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
     log_config = log_config or get_default_logging_config(app)
     dictConfig(log_config)
     attach_request_loggers(app)
+
+
+def route_loggers_through_app(app: Flask, logger_names: Iterable[str], level: int = logging.INFO) -> None:
+    """Send third-party loggers (eg alembic during `flask db upgrade`) through the app's handlers, so that their lines
+    share the application's format and correlation fields."""
+    for name in logger_names:
+        third_party_logger = logging.getLogger(name)
+        third_party_logger.handlers = list(app.logger.handlers)
+        third_party_logger.setLevel(level)
+        third_party_logger.propagate = False
+        third_party_logger.disabled = False
 
 
 def attach_request_loggers(app: Flask) -> None:
@@ -146,25 +154,13 @@ def attach_request_loggers(app: Flask) -> None:
         return response
 
 
-class RequestExtraContextFilter(logging.Filter):
-    """
-    Filter which will pull extra context from
-    the current request's `get_extra_log_context` method
-    (if present) and make this available on log records
-    """
-
-    def filter(self, record: LogRecord) -> LogRecord:
-        if has_request_context():
-            get_extra_log_context = getattr(request, "get_extra_log_context", None)
-            if callable(get_extra_log_context):
-                for key, value in get_extra_log_context().items():
-                    setattr(record, key, value)
-
-        return record
-
-
 class RejectMutableDataStructuresFilter(logging.Filter):
     def filter(self, record: LogRecord) -> LogRecord:
+        # The policy applies to our own code. Third-party loggers routed through the app's handlers (eg alembic during
+        # `flask db upgrade`) use positional args with their own objects, and must not be able to break a migration.
+        if record.name != "app" and not record.name.startswith("app."):
+            return record
+
         logging_msg_args: dict[str, Any] | None
         if isinstance(record.args, tuple):
             logging_msg_args = record.args[0] if len(record.args) > 0 else None  # ty: ignore[invalid-assignment]
@@ -199,15 +195,12 @@ class JSONFormatter(BaseJSONFormatter):
         return s
 
     def process_log_record(self, log_data: LogData) -> LogData:
-        for key, newkey in (
-            ("asctime", "time"),
-            ("trace_id", "requestId"),
-        ):
+        for key, newkey in (("asctime", "time"),):
             try:
                 log_data[newkey] = log_data.pop(key)
             except KeyError:
                 pass
 
-        log_data["logType"] = "application"
+        log_data["log_type"] = "application"
 
         return log_data
