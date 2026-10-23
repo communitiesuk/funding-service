@@ -14,7 +14,12 @@ flask_app = create_app()
 # would record the ALB URL rather than the public CloudFront URL.
 # NB: Flask CLI auto-discovery (used where FLASK_APP is unset, eg `flask db upgrade` in deployed
 # containers) still works because `flask_app` is the only Flask instance in this module.
-app = ProxyFix(flask_app, x_proto=flask_app.config["PROXY_FIX_PROTO"], x_host=flask_app.config["PROXY_FIX_HOST"])
+app = ProxyFix(
+    flask_app,
+    x_for=flask_app.config["PROXY_FIX_FOR"],
+    x_proto=flask_app.config["PROXY_FIX_PROTO"],
+    x_host=flask_app.config["PROXY_FIX_HOST"],
+)
 
 if __name__ == "__main__":
     flask_app.run()

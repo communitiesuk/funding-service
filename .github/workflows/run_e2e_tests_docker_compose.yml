@@ -92,6 +92,9 @@ jobs:
            ASSETS_VITE_LIVE_ENABLED: false
         run: docker compose -f docker-compose.yml up -d --wait
 
+      - name: Smoke tests against docker compose
+        run: uv run --frozen pytest tests/smoke --confcutdir=tests/smoke --smoke-env local -v
+
       - name: run e2e tests
         run: |
           uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -vv --durations=999 tests/e2e
