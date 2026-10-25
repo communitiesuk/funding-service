@@ -60,13 +60,15 @@ def delete_grant_through_admin(page: Page, domain: str, search: str) -> None:
     page.locator("button:has-text('Confirm delete')").click()
 
 
-def delete_organisation_through_admin(page: Page, domain: str, search: str) -> None:
+def delete_organisation_through_admin(
+    page: Page, domain: str, search: str, expected_organisations_matching_search: int = 1
+) -> None:
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/organisation/?{query}")
 
-    assert len(page.get_by_role("cell", name=re.compile(search)).all()) == 1
+    assert len(page.get_by_role("cell", name=re.compile(search)).all()) == expected_organisations_matching_search
 
     page.check("#select-all")
     page.locator("button:has-text('Actions')").click()
-    page.locator("button:has-text('Delete (1 selected)')").click()
+    page.locator(f"button:has-text('Delete ({expected_organisations_matching_search} selected)')").click()
     page.locator("button:has-text('Confirm delete')").click()

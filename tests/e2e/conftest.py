@@ -1,6 +1,7 @@
 import enum
 import os
-from typing import Generator, cast
+import uuid
+from typing import Callable, Generator, cast
 from unittest.mock import patch
 
 import pytest
@@ -16,9 +17,28 @@ from app.common.data.types import AuthMethodEnum
 from tests.conftest import create_test_app
 from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
-from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig
-from tests.e2e.deliver_grant_funding.pages import SSOSignInPage, StubSSOEmailLoginPage
-from tests.e2e.helpers import retrieve_magic_link
+from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig, GrantScenario, GrantScenarioHandle
+from tests.e2e.deliver_grant_funding.helpers import (
+    create_collection,
+    create_grant,
+    create_grant_recipient,
+    create_organisation,
+    extract_uuid_from_url,
+    invite_data_providers,
+    mark_as_onboarding,
+    override_certifiers,
+    set_grant_and_collection_live,
+    set_privacy_policy,
+    set_reporting_and_submission_dates,
+)
+from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, SSOSignInPage, StubSSOEmailLoginPage
+from tests.e2e.deliver_grant_funding.reports_pages import AdminCollectionLifecycleTasklistPage
+from tests.e2e.helpers import (
+    delete_grant_recipient_through_admin,
+    delete_grant_through_admin,
+    delete_organisation_through_admin,
+    retrieve_magic_link,
+)
 from tests.utils import build_db_config
 
 
@@ -197,3 +217,96 @@ def authenticated_browser_sso(
         return login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
     else:
         raise ValueError(f"Unknown e2e_env: {e2e_test_secrets.E2E_ENV}. Cannot authenticate browser with SSO.")
+
+
+@pytest.fixture()
+def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simple, opt-in steps; see helpers above
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    authenticated_browser_sso: E2ETestUser,
+    email: str,
+) -> Generator[Callable[..., GrantScenarioHandle], None, None]:
+    """Factory fixture: builds a grant + collection + organisation + recipient(s) from a `GrantScenario` spec, and
+    tears down everything it built (regardless of which scenarios were requested) once the test finishes.
+
+    Teardown re-authenticates as platform admin before cleaning up, since the test body is free to sign out and/or
+    switch to a different identity (e.g. to drive a magic-link/recipient journey) after calling this fixture."""
+    created_handles: list[GrantScenarioHandle] = []
+
+    def _build(scenario: GrantScenario, *, sign_out_after: bool = False) -> GrantScenarioHandle:
+        grant_name_uuid = str(uuid.uuid4())
+        grant_name = f"E2E {grant_name_uuid}"
+
+        all_grants_page = AllGrantsPage(page, domain)
+        all_grants_page.navigate()
+        grant_dashboard_page = create_grant(grant_name, grant_name_uuid, all_grants_page)
+        grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
+
+        collection_id: str | None = None
+        tasklist_page: AdminCollectionLifecycleTasklistPage | None = None
+
+        if scenario.collection_name:
+            collection_id, tasklist_page = create_collection(
+                page, domain, grant_id, grant_name, scenario.collection_name, grant_dashboard_page
+            )
+
+        if scenario.org_name:
+            assert collection_id is not None
+            create_organisation(page, domain, grant_id, collection_id, scenario)
+            create_grant_recipient(page, domain, grant_id, collection_id, scenario)
+
+            if scenario.recipients:
+                invite_data_providers(page, domain, grant_id, collection_id, scenario)
+
+            if scenario.set_certifiers and scenario.recipients:
+                assert tasklist_page is not None
+                override_certifiers(page, domain, grant_id, collection_id, tasklist_page, scenario)
+
+        if collection_id is not None and tasklist_page is not None:
+            if scenario.set_dates:
+                assert scenario.collection_name is not None
+                set_reporting_and_submission_dates(
+                    page, domain, grant_id, collection_id, scenario.collection_name, tasklist_page
+                )
+
+            if scenario.mark_onboarding:
+                mark_as_onboarding(page, domain, grant_id, collection_id, tasklist_page)
+
+            if scenario.set_privacy_policy:
+                set_privacy_policy(page, domain, grant_id, collection_id, tasklist_page)
+
+            if scenario.set_live:
+                set_grant_and_collection_live(page, domain, grant_id, collection_id)
+
+        handle = GrantScenarioHandle(
+            grant_id=grant_id,
+            grant_name=grant_name,
+            grant_name_uuid=grant_name_uuid,
+            collection_id=collection_id,
+            report_name=scenario.collection_name,
+            org_name=scenario.org_name,
+        )
+        created_handles.append(handle)
+
+        if sign_out_after:
+            page.goto(f"{domain}/sign-out")
+
+        return handle
+
+    yield _build
+
+    if created_handles:
+        page.goto(f"{domain}/sign-out")
+        if e2e_test_secrets.E2E_ENV == "local":
+            login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+        else:
+            login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+
+    for handle in created_handles:
+        if handle.org_name is not None:
+            delete_grant_recipient_through_admin(
+                page, domain, handle.grant_name_uuid, expected_grant_recipients_matching_search=2
+            )
+            delete_organisation_through_admin(page, domain, handle.org_name, expected_organisations_matching_search=2)
+        delete_grant_through_admin(page, domain, handle.grant_name_uuid)
