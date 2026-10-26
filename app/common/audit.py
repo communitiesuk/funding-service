@@ -4,7 +4,7 @@ from collections import ChainMap
 from typing import Annotated, Any, ClassVar, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from sqlalchemy import inspect
 from sqlalchemy.orm import RelationshipDirection
 
@@ -14,6 +14,9 @@ from app.common.data.types import AuditEventType, RoleEnum
 
 
 class AuditEvent(BaseModel):
+    # Events are immutable once built, which also lets subclasses narrow `action` to a literal
+    model_config = ConfigDict(frozen=True)
+
     event_type: AuditEventType
     timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.UTC))
     user_id: UUID
