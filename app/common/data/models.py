@@ -1200,7 +1200,7 @@ class Question(Component, SafeQidMixin):
     if TYPE_CHECKING:
         # database constraints ensure the question component will have a data_type
         # we reflect that its required on the question component but don't hook in a competing migration
-        data_type: QuestionDataType
+        data_type: QuestionDataType  # ty: ignore[invalid-mutable-override]
 
     @property
     def question_id(self) -> uuid.UUID:
@@ -1327,7 +1327,7 @@ class Group(Component):
 
     if TYPE_CHECKING:
         # reflect that groups will never have a data type but don't hook in a competing migration
-        data_type: None
+        data_type: None  # ty: ignore[invalid-mutable-override]
 
     def clear_caches(self):
         for attr, value in self.__class__.__dict__.items():

@@ -9,8 +9,10 @@ from app.common.utils import slugify
 
 
 class SafeQidMixin:
-    # This attribute must be defined on the inheriting class
-    question_id: uuid.UUID
+    # Inheriting classes must provide this, eg as a mapped column or property
+    @property
+    def question_id(self) -> uuid.UUID:
+        raise NotImplementedError
 
     @property
     def safe_qid(self) -> str:
@@ -29,8 +31,10 @@ class SafeQidMixin:
 
 
 class SafeDidMixin:
-    # This attribute must be defined on the inheriting class
-    data_source_id: uuid.UUID
+    # Inheriting classes must provide this, eg as a mapped column or property
+    @property
+    def data_source_id(self) -> uuid.UUID:
+        raise NotImplementedError
 
     @property
     def safe_did(self) -> str:

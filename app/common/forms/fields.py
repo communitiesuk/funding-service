@@ -271,7 +271,7 @@ class MHCLGApproximateDateInput(GovFormBase):
 
 class EvaluationStatementField(StringField):
     # Narrows the inherited `data: str | None` for static type checkers
-    data: EvaluationStatement | None
+    data: EvaluationStatement | None  # ty: ignore[invalid-mutable-override]
 
     def process_formdata(self, valuelist: list[str]) -> None:
         if valuelist:
@@ -285,7 +285,7 @@ class EvaluationStatementField(StringField):
 
 class InterpolationStatementField(StringField):
     # Narrows the inherited `data: str | None` for static type checkers
-    data: InterpolationStatement | None
+    data: InterpolationStatement | None  # ty: ignore[invalid-mutable-override]
 
     def process_formdata(self, valuelist: list[str]) -> None:
         if valuelist:

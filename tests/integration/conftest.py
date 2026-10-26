@@ -202,7 +202,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
             return response
 
         @contextmanager
-        def session_transaction(self, *args: t.Any, **kwargs: t.Any) -> t.Iterator[SessionMixin]:
+        def session_transaction(self, *args: t.Any, **kwargs: t.Any) -> Generator[SessionMixin]:
             kwargs.setdefault("headers", {})
             kwargs["headers"].setdefault("Host", "funding.communities.gov.localhost:8080")
 

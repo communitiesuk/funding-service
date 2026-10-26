@@ -56,17 +56,17 @@ def _condition_date(subject_reference: ExpressionReference, value: datetime.date
 
 
 class ManagedExpression(EvaluatableExpression):
-    name: ClassVar[ManagedExpressionsEnum]
+    name: ClassVar[ManagedExpressionsEnum]  # ty: ignore[invalid-mutable-override]
 
     # This is the 'center' of the managed expression:
     # For managed conditions, the value that should be compared against
     # For managed validations, the question that is to be validated
-    subject_reference: ExpressionReference
+    subject_reference: ExpressionReference  # ty: ignore[invalid-mutable-override]
 
     supported_condition_data_types: ClassVar[set[QuestionDataType]]
     supported_validator_data_types: ClassVar[set[QuestionDataType]]
     managed_expression_form_template: ClassVar[str | None]
-    _key: ManagedExpressionsEnum
+    _key: ManagedExpressionsEnum  # ty: ignore[invalid-mutable-override]
 
     def condition_description(self, subject: str) -> InterpolationStatement:
         raise NotImplementedError(

@@ -245,7 +245,9 @@ class PlatformAdminUserEditView(FlaskAdminPlatformAdminAccessibleMixin, Platform
 
     form_columns = ["email", "name"]
 
-    form_args = {
+    # flask-admin's TypedDict for form_args is narrower than what it accepts at runtime (eg non-Input widgets and
+    # QuerySelectField's get_label/query_factory), so widen the annotation it would otherwise inherit.
+    form_args: dict[str, Any] | None = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
     }
 
@@ -365,7 +367,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         "send_overdue_emails",
     ]
 
-    form_args = {
+    form_args: dict[str, Any] | None = {
         "submission_guidance": {
             "widget": GovTextArea(),
         },
@@ -460,7 +462,7 @@ class PlatformAdminUserRoleView(FlaskAdminPlatformAdminAccessibleMixin, Platform
 
     form_columns = ["user", "organisation", "grant", "permissions"]
 
-    form_args = {
+    form_args: dict[str, Any] | None = {
         "user": {"get_label": "email"},
         "organisation": {"get_label": "name"},
         "grant": {"get_label": "name"},
@@ -496,7 +498,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
         "privacy_policy_markdown",
     ]
 
-    form_args = {
+    form_args: dict[str, Any] | None = {
         "organisation": {
             "get_label": "name",
             "query_factory": lambda: db.session.query(Organisation).filter_by(can_manage_grants=True),
@@ -578,7 +580,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
     ]
     form_columns = ["email", "name", "organisation", "grant", "permissions"]
 
-    form_args = {
+    form_args: dict[str, Any] | None = {
         "email": {"validators": [Email()], "filters": [lambda val: val.strip() if isinstance(val, str) else val]},
         "name": {"filters": [lambda val: val.strip() if isinstance(val, str) else val]},
         "user": {"get_label": "email"},
@@ -706,7 +708,7 @@ class PlatformAdminGrantRecipientView(FlaskAdminPlatformAdminAccessibleMixin, Pl
 
     form_columns = ["grant", "organisation", "mode", "status"]
 
-    form_args = {
+    form_args: dict[str, Any] | None = {
         "grant": {
             "get_label": "name",
         },
@@ -1017,13 +1019,13 @@ class PlatformAdminReleaseNoteView(FlaskAdminPlatformAdminGrantLifecycleManagerA
         "is_published",
     ]
 
-    form_args = {
+    form_args: dict[str, Any] | None = {
         "content": {
             "widget": GovTextArea(),
         },
     }
 
-    form_widget_args = {
+    form_widget_args: dict[str, Any] | None = {
         "title": {
             "attributes": {"data-preview-title-source": ""},
         },
