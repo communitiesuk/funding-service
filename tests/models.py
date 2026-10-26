@@ -127,7 +127,7 @@ def _get_grant_managing_organisation() -> Organisation:
 
 
 class _GrantFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Grant
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -146,7 +146,7 @@ class _GrantFactory(SQLAlchemyModelFactory):
 
 
 class _UserFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = User
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -182,7 +182,7 @@ def _generate_base_id(org_type: OrganisationType, n: int) -> str:
 
 
 class _OrganisationFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Organisation
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         exclude = ["_seq"]
@@ -237,7 +237,7 @@ class _OrganisationFactory(SQLAlchemyModelFactory):
 
 
 class _GrantRecipientFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = GrantRecipient
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -253,7 +253,7 @@ class _GrantRecipientFactory(SQLAlchemyModelFactory):
 
 
 class _UserRoleFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = UserRole
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -292,7 +292,7 @@ class _UserRoleFactory(SQLAlchemyModelFactory):
 
 
 class _MagicLinkFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = MagicLink
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -310,7 +310,7 @@ class _MagicLinkFactory(SQLAlchemyModelFactory):
 
 
 class _CollectionFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Collection
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -847,7 +847,7 @@ class FactoryAnswer:
 
 
 class _SubmissionFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Submission
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -895,7 +895,7 @@ class _SubmissionFactory(SQLAlchemyModelFactory):
 
 
 class _FormFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Form
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -910,7 +910,7 @@ class _FormFactory(SQLAlchemyModelFactory):
 
 
 class _DataSourceOrganisationItemFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = DataSourceOrganisationItem
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -924,7 +924,7 @@ class _DataSourceOrganisationItemFactory(SQLAlchemyModelFactory):
 
 
 class _DataSourceItemFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = DataSourceItem
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1001,7 +1001,7 @@ _GRANT_RECIPIENT_SCHEMA_WITH_COLUMN_OF_EACH_TYPE = DataSourceSchema.model_valida
 
 
 class _DataSourceFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = DataSource
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1080,7 +1080,7 @@ class _DataSourceFactory(SQLAlchemyModelFactory):
 
 
 class _QuestionFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Question
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1163,7 +1163,7 @@ class _QuestionFactory(SQLAlchemyModelFactory):
 
 
 class _GroupFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Group
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1233,7 +1233,7 @@ class _GroupFactory(SQLAlchemyModelFactory):
 
 
 class _SubmissionEventFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = SubmissionEvent
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1252,7 +1252,7 @@ class _SubmissionEventFactory(SQLAlchemyModelFactory):
 
 
 class _ExpressionFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Expression
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1276,7 +1276,7 @@ class _ExpressionFactory(SQLAlchemyModelFactory):
 
 
 class _InvitationFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = Invitation
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1321,7 +1321,7 @@ class _InvitationFactory(SQLAlchemyModelFactory):
 
 
 class _AuditEventFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = AuditEvent
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
@@ -1338,7 +1338,7 @@ class _AuditEventFactory(SQLAlchemyModelFactory):
 
 
 class _ReleaseNoteFactory(SQLAlchemyModelFactory):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         model = ReleaseNote
         sqlalchemy_session_factory = lambda: db.session  # noqa: E731
         sqlalchemy_session_persistence = "commit"
