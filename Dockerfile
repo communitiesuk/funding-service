@@ -1,4 +1,4 @@
-FROM python:3.14.8
+FROM python:3.14.9
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | P
 COPY .nvmrc .nvmrc
 RUN nvm install
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /uvx /bin/
 
 # Install the project's dependencies using the lockfile and settings
 RUN --mount=type=cache,target=/root/.cache/uv \
