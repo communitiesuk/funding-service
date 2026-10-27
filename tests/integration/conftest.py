@@ -123,6 +123,10 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     def raise_deliver_500() -> ResponseReturnValue:
         return abort(500)
 
+    @app.route("/_testing/unhandled-exception")
+    def raise_unhandled_exception() -> ResponseReturnValue:
+        raise RuntimeError("Unhandled test exception")
+
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
         # get a thing that doesn't exist
