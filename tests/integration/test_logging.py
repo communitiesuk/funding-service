@@ -11,6 +11,7 @@ from app.common.data import interfaces
 from app.logging.correlation import get_current_context, get_record_correlation
 
 ALB_ROOT = "1-5759e988-bd862e3fe1be46a994272793"
+INCOMING_TRACE_ID = "0af7651916cd43dd8448eb211c80319c"
 
 
 def _request_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
@@ -141,6 +142,20 @@ class TestRequestLogging:
         for fields in _correlations(_request_records(caplog)):
             assert fields.get("alb_trace_id") == expected_alb_trace_id
             assert fields.get("cloudfront_request_id") == expected_cloudfront_request_id
+
+    def test_incoming_sentry_trace_headers_are_not_continued(self, anonymous_client, caplog) -> None:
+        anonymous_client.get(
+            "/custom-cache-control",
+            headers={
+                "sentry-trace": f"{INCOMING_TRACE_ID}-b7ad6b7169203331-1",
+                "baggage": f"sentry-trace_id={INCOMING_TRACE_ID}",
+            },
+        )
+
+        trace_ids = {fields.get("trace_id") for fields in _correlations(_request_records(caplog))}
+        assert len(trace_ids) == 1
+        assert None not in trace_ids
+        assert INCOMING_TRACE_ID not in trace_ids
 
     def test_user_id_present_from_first_line_for_signed_in_user(
         self, authenticated_platform_admin_client, caplog

@@ -6,8 +6,9 @@ Every request enters exactly one `CorrelationContext`. It lives in a `ContextVar
 `CorrelatingLogRecordFactory`) and every Sentry event/transaction/log reads it from the Sentry isolation scope
 tags/attributes that we set when the request starts.
 
-Sentry's own trace propagation (`sentry-trace` + `baggage`) gives every request a `trace_id`, which is on every log line
-alongside the `request_id` and `user_id`.
+Every request starts a new Sentry trace, whose `trace_id` is on every log line alongside the `request_id` and `user_id`.
+Incoming trace headers (`sentry-trace`, `baggage`, `traceparent`, `tracestate`) are ignored, so a client cannot choose
+the `trace_id` (see `app.sentry.IgnoreIncomingTraceHeaders` for the deployed path).
 """
 
 import datetime
@@ -29,8 +30,6 @@ CORRELATION_RECORD_ATTR = "_correlation"
 
 _ALB_TRACE_ROOT_RE = re.compile(r"1-[0-9a-f]{8}-[0-9a-f]{24}")
 _CLOUDFRONT_REQUEST_ID_RE = re.compile(r"[A-Za-z0-9_=-]{1,128}")
-_MAX_SENTRY_TRACE_LENGTH = 128
-_MAX_BAGGAGE_LENGTH = 8192  # In line with W3C/OpenTelemtry max baggage size
 
 # The value types that may be logged (see `app.logging.RejectMutableDataStructuresFilter`).
 SCALAR_LOG_VALUE_TYPES = (str, int, float, bool, uuid.UUID, datetime.date, datetime.datetime, enum.Enum, type(None))
@@ -193,21 +192,6 @@ def as_uuid_str(value: Any) -> str | None:
         return None
 
 
-def _bounded_str(value: Any, max_length: int) -> str | None:
-    if not isinstance(value, str) or not value or len(value) > max_length:
-        return None
-    return value
-
-
-def _sentry_headers(carrier: Mapping[str, Any]) -> dict[str, str]:
-    headers = {}
-    if sentry_trace := _bounded_str(carrier.get("sentry-trace"), _MAX_SENTRY_TRACE_LENGTH):
-        headers["sentry-trace"] = sentry_trace
-    if baggage := _bounded_str(carrier.get("baggage"), _MAX_BAGGAGE_LENGTH):
-        headers["baggage"] = baggage
-    return headers
-
-
 def _apply_to_sentry_scope(context: CorrelationContext) -> None:
     scope = sentry_sdk.get_isolation_scope()
     for key in _SENTRY_FIELDS:
@@ -236,16 +220,11 @@ def _restore_sentry_scope(previous: CorrelationContext | None) -> None:
 
 
 @contextmanager
-def _enter(
-    context: CorrelationContext,
-    *,
-    fork_sentry_scope: bool,
-    sentry_headers: Mapping[str, str] | None = None,
-) -> Generator[CorrelationContext]:
+def _enter(context: CorrelationContext, *, fork_sentry_scope: bool) -> Generator[CorrelationContext]:
     with ExitStack() as stack:
         if fork_sentry_scope:
             stack.enter_context(sentry_sdk.isolation_scope())
-            sentry_sdk.continue_trace(dict(sentry_headers or {}))
+            sentry_sdk.continue_trace({})
 
         previous = _current_context.get()
         token = _current_context.set(context)
@@ -272,9 +251,11 @@ def request_context(
 ) -> Generator[CorrelationContext]:
     """Entered by `app.logging.CorrelationMiddleware` for every HTTP request.
 
-    When Sentry is active its WSGI middleware has already forked an isolation scope and continued the trace for this
+    When Sentry is active its WSGI middleware has already forked an isolation scope and started a new trace for this
     request, so we only decorate that scope, and undo the decoration on exit. When it is not (local dev, tests), we
-    do the same thing ourselves so that every request still gets its own `trace_id`."""
+    do the same thing ourselves so that every request still gets its own `trace_id`. Either way a request always starts
+    a new trace: incoming trace headers are ignored (see `app.sentry.IgnoreIncomingTraceHeaders` for the deployed
+    path)."""
     context = CorrelationContext(
         context_type=ContextType.REQUEST,
         request_id=new_id(),
@@ -284,11 +265,5 @@ def request_context(
         debug_logging=debug_logging,
     )
     fork_sentry_scope = not sentry_sdk.get_client().is_active()
-    with _enter(context, fork_sentry_scope=fork_sentry_scope, sentry_headers=_sentry_headers_from_environ(environ)):
+    with _enter(context, fork_sentry_scope=fork_sentry_scope):
         yield context
-
-
-def _sentry_headers_from_environ(environ: Mapping[str, Any]) -> dict[str, str]:
-    return _sentry_headers(
-        {"sentry-trace": environ.get("HTTP_SENTRY_TRACE"), "baggage": environ.get("HTTP_BAGGAGE")},
-    )

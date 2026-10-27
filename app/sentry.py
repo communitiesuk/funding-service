@@ -1,4 +1,6 @@
 import os
+from collections.abc import Iterable
+from typing import Any
 
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
@@ -9,6 +11,23 @@ from app.common.helpers.request_tracing import get_tracing_levels_from_environ
 from app.config import Environment
 
 _secret_key: str | None = None
+
+INCOMING_TRACE_HEADER_ENVIRON_KEYS = ("HTTP_SENTRY_TRACE", "HTTP_BAGGAGE", "HTTP_TRACEPARENT", "HTTP_TRACESTATE")
+
+
+class IgnoreIncomingTraceHeaders:
+    """WSGI middleware that drops incoming distributed-tracing headers so every request starts a new trace.
+
+    Clients (browsers) are outside our trust boundary and we do not run the Sentry browser SDK, so these headers have no
+    legitimate source; honouring them would let a client choose the `trace_id` that our logs and Sentry events carry."""
+
+    def __init__(self, wsgi_app: Any) -> None:
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ: dict[str, Any], start_response: Any) -> Iterable[bytes]:
+        for key in INCOMING_TRACE_HEADER_ENVIRON_KEYS:
+            environ.pop(key, None)
+        return self.wsgi_app(environ, start_response)
 
 
 def errors_sampler(event: Event, sampling_context: Hint) -> float:
