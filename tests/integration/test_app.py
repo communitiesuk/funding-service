@@ -10,6 +10,7 @@ from flask_sqlalchemy_lite import SQLAlchemy
 from testcontainers.community.postgres import PostgresContainer
 
 from app import create_app
+from tests.conftest import create_test_app
 from tests.smoke.conftest import CLIENT_PATH
 from tests.utils import build_db_config, get_link_hrefs, get_service_name_text, recording_sentry_scope
 
@@ -26,9 +27,8 @@ def app_with_basic_auth(setup_db_container: PostgresContainer, db: SQLAlchemy) -
             **build_db_config(setup_db_container),
         },
     ):
-        app = create_app()
+        app = create_test_app()
 
-    app.config.update({"TESTING": True})
     yield app
 
 
@@ -226,8 +226,8 @@ class TestClientHealthcheck:
 
     def test_is_exempt_from_basic_auth(self, app_with_basic_auth):
         with app_with_basic_auth.test_client() as client:
-            client_response = client.get(url_for("healthcheck.client_healthcheck"), buffered=True)
-            db_response = client.get(url_for("healthcheck.db_healthcheck_current_revision"), buffered=True)
+            client_response = client.get(url_for("healthcheck.client_healthcheck"))
+            db_response = client.get(url_for("healthcheck.db_healthcheck_current_revision"))
 
         assert client_response.status_code == 200
         assert db_response.status_code == 401

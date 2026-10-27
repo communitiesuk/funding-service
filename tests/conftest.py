@@ -120,17 +120,21 @@ class FundingServiceTestClient(FlaskClient):
     organisation: Organisation | None = None
     grant_recipient: GrantRecipient | None = None
 
+    # Buffered, so that the client consumes the response body and then closes the response iterable, as a WSGI server
+    # does. An unbuffered test response is only closed by an explicit `response.close()`, so anything the app does when
+    # the response is closed (closing a sent file, middleware finishing its work for the request) would otherwise never
+    # happen.
     def open(
         self,
         *args: t.Any,
-        buffered: bool = False,
+        buffered: bool = True,
         follow_redirects: bool = False,
         **kwargs: t.Any,
     ) -> TestResponse:
         response = super().open(*args, buffered=buffered, follow_redirects=follow_redirects, **kwargs)
 
         # Validate that our HTML is well-structured.
-        if response.content_type.startswith("text/html"):
+        if response.content_type.startswith("text/html") and response.data:
             html = response.data.decode()
             html5parser.parse(html)
 
@@ -143,13 +147,16 @@ class FundingServiceTestClient(FlaskClient):
         return response
 
 
-@pytest.fixture(scope="session")
-def app() -> Generator[Flask, None, None]:
+def create_test_app() -> Flask:
     app = create_app()
     app.test_client_class = FundingServiceTestClient
     app.config.update({"TESTING": True})
+    return app
 
-    yield app
+
+@pytest.fixture(scope="session")
+def app() -> Generator[Flask, None, None]:
+    yield create_test_app()
 
 
 def _precompile_templates(app: Flask) -> None:
