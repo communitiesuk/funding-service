@@ -4,11 +4,11 @@ import uuid
 from typing import Any
 
 import pytest
-import sentry_sdk
 from flask import url_for
 
 from app.common.data import interfaces
 from app.logging.correlation import get_current_context, get_record_correlation
+from tests.utils import recording_sentry_scope
 
 ALB_ROOT = "1-5759e988-bd862e3fe1be46a994272793"
 INCOMING_TRACE_ID = "0af7651916cd43dd8448eb211c80319c"
@@ -20,15 +20,6 @@ def _request_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord
 
 def _correlations(records: list[logging.LogRecord]) -> list[dict[str, Any]]:
     return [dict(get_record_correlation(record)) for record in records]
-
-
-class SentryTagRecorder(logging.Handler):
-    def __init__(self) -> None:
-        super().__init__()
-        self.tags: list[dict[str, str]] = []
-
-    def emit(self, record: logging.LogRecord) -> None:
-        self.tags.append(dict(sentry_sdk.get_isolation_scope()._tags))
 
 
 class TestLogging:
@@ -193,24 +184,32 @@ class TestRequestLogging:
         assert started["user_id"] == str(authenticated_platform_admin_client.user.id)
         assert "user_id" not in finished
 
-    def test_correlation_fields_are_set_as_sentry_tags(self, app, authenticated_platform_admin_client, caplog) -> None:
-        recorder = SentryTagRecorder()
-        logging.getLogger("app.request").addHandler(recorder)
-        try:
+    def test_correlation_fields_are_set_as_sentry_tags_and_attributes(
+        self, app, authenticated_platform_admin_client, caplog
+    ) -> None:
+        with recording_sentry_scope() as recorder:
             authenticated_platform_admin_client.get(
                 "/custom-cache-control", headers={"X-Amzn-Trace-Id": f"Root={ALB_ROOT}", "X-Amz-Cf-Id": "abc"}
             )
-        finally:
-            logging.getLogger("app.request").removeHandler(recorder)
 
         started = _correlations(_request_records(caplog))[0]
-        assert recorder.tags[0] == {
+        expected_fields = {
             "context_type": "request",
             "request_id": started["request_id"],
             "user_id": str(authenticated_platform_admin_client.user.id),
             "alb_trace_id": ALB_ROOT,
             "cloudfront_request_id": "abc",
         }
+        assert recorder.tags[0] == expected_fields
+        assert recorder.attributes[0] == expected_fields
+
+    def test_sentry_user_is_cleared_after_logout_within_request(self, authenticated_platform_admin_client) -> None:
+        with recording_sentry_scope() as recorder:
+            authenticated_platform_admin_client.get(url_for("auth.sign_out"))
+
+        assert recorder.users[-1] is None
+        assert "user_id" not in recorder.tags[-1]
+        assert "user_id" not in recorder.attributes[-1]
 
 
 class TestErrorLogging:

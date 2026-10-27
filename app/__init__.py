@@ -282,11 +282,7 @@ def create_app() -> Flask:  # noqa: C901
 
     @login_manager.user_loader
     def load_user(user_id: str) -> User | None:
-        user = interfaces.user.get_user(user_id)
-        if user:
-            # Only the ID: our user attribution policy for logs and Sentry alike is the user UUID, never name or email.
-            sentry_sdk.set_user({"id": user_id})
-        return user
+        return interfaces.user.get_user(user_id)
 
     # Configure templates
     app.jinja_loader = ChoiceLoader(

@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from logging.config import DictConfigurator
 
 import pytest
@@ -67,14 +68,34 @@ class TestLogRecordCorrelation:
         assert get_record_correlation(_make_record()) == {}
 
     def test_unforked_sentry_scope_is_cleaned_up_on_exit(self):
-        context = CorrelationContext(context_type=ContextType.REQUEST, request_id=correlation.new_id())
+        user_id = str(uuid.uuid4())
+        context = CorrelationContext(context_type=ContextType.REQUEST, request_id=correlation.new_id(), user_id=user_id)
 
         with correlation._enter(context, fork_sentry_scope=False):
-            tags_inside = dict(sentry_sdk.get_isolation_scope()._tags)
-        tags_after = dict(sentry_sdk.get_isolation_scope()._tags)
+            scope_inside = sentry_sdk.get_isolation_scope()
+            tags_inside = dict(scope_inside._tags)
+            attributes_inside = dict(scope_inside._attributes)
+            user_inside = scope_inside._user
+        scope_after = sentry_sdk.get_isolation_scope()
 
-        assert tags_inside["request_id"] == context.request_id
-        assert "request_id" not in tags_after
+        assert tags_inside["request_id"] == attributes_inside["request_id"] == context.request_id
+        assert tags_inside["user_id"] == attributes_inside["user_id"] == user_id
+        assert user_inside == {"id": user_id}
+        assert "request_id" not in scope_after._tags
+        assert "request_id" not in scope_after._attributes
+        assert "user_id" not in scope_after._tags
+        assert "user_id" not in scope_after._attributes
+        assert scope_after._user is None
+
+    def test_request_context_binds_method_and_path_from_the_environ(self):
+        with correlation.request_context(
+            {"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path"},
+            alb_trace_id=None,
+            cloudfront_request_id=None,
+            debug_logging=False,
+        ) as context:
+            assert context.method == "GET"
+            assert context.path == "/test-path"
 
 
 class TestFormatters:
@@ -99,6 +120,16 @@ class TestFormatters:
         assert isinstance(output["thread"], str)
         assert "_correlation" not in output
 
+    def test_json_formatter_correlation_fields_win_over_extra(self):
+        with correlation.request_context(
+            {"REQUEST_METHOD": "GET"}, alb_trace_id=None, cloudfront_request_id=None, debug_logging=False
+        ) as context:
+            record = _make_record(request_id="spoofed")
+
+        output = json.loads(JSONFormatter().format(record))
+
+        assert output["request_id"] == context.request_id
+
     @pytest.mark.parametrize("full_context", [False, True])
     def test_plaintext_formatter_without_context_is_unchanged(self, full_context):
         output = PlaintextFormatter("%(levelname)s - %(message)s", full_context=full_context).format(_make_record())
@@ -114,6 +145,24 @@ class TestFormatters:
         output = PlaintextFormatter("%(levelname)s - %(message)s").format(record)
 
         assert output == f"INFO - test message [{context.request_id[:8]}]"
+
+    def test_full_plaintext_formatter_shows_every_correlation_field(self):
+        with correlation.request_context(
+            {"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path"},
+            alb_trace_id=ALB_ROOT,
+            cloudfront_request_id=None,
+            debug_logging=False,
+        ) as context:
+            record = _make_record()
+
+        output = PlaintextFormatter("%(asctime)s %(levelname)s - %(message)s", full_context=True).format(record)
+
+        assert "INFO - test message [context_type=request " in output
+        assert f"request_id={context.request_id}" in output
+        assert "method=GET" in output
+        assert "path=/test-path" in output
+        assert f"alb_trace_id={ALB_ROOT}" in output
+        assert output.endswith("]")
 
 
 class TestLogFormatterConfig:

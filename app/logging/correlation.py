@@ -79,13 +79,6 @@ class CorrelationContext:
         }
 
 
-# Every name a correlation field can have on a log line; they come from the unit of work, and `JSONFormatter` writes
-# them last so they win over any `extra=` key of the same name.
-CORRELATION_FIELD_NAMES = frozenset(context_field.name for context_field in dataclass_fields(CorrelationContext)) | {
-    "trace_id",
-    "span_id",
-}
-
 # The `CorrelationContext` fields that `bind` may update; every other one identifies the unit of work and is fixed.
 _BINDABLE_CONTEXT_FIELDS = frozenset({"user_id", "method", "path", "endpoint"})
 
@@ -121,9 +114,8 @@ def get_log_fields() -> dict[str, LogFieldValue]:
 
     Sentry's `trace_id` is stable for the whole unit of work and is the field to join on in Sentry. `span_id` is the
     active span's id while one is open, and otherwise the scope's propagation span id. For a request the active span is
-    the HTTP transaction, which Sentry's WSGI middleware finishes before the response body is iterated and closed, so
-    the "Request finished" line and lines logged while streaming a body can carry a different `span_id` from the lines
-    logged during the handler."""
+    the HTTP transaction, which Sentry's WSGI middleware finishes only after the response body has been sent, so it
+    outlives the request's unit of work (which ends when `Flask.wsgi_app` returns)."""
     context = _current_context.get()
     if context is None:
         return {}
@@ -201,6 +193,10 @@ def _apply_to_sentry_scope(context: CorrelationContext) -> None:
         else:
             scope.set_tag(key, str(value))
             scope.set_attribute(key, str(value))
+            if key == "user_id":
+                # The Sentry user is only ever the user's id: like our logs, Sentry attributes events to the user UUID,
+                # never to a name or email address.
+                scope.set_user({"id": str(value)})
 
 
 def _remove_from_sentry_scope(keys: Iterable[str]) -> None:
@@ -208,6 +204,8 @@ def _remove_from_sentry_scope(keys: Iterable[str]) -> None:
     for key in keys:
         scope.remove_tag(key)
         scope.remove_attribute(key)
+        if key == "user_id":
+            scope.set_user(None)
 
 
 def _restore_sentry_scope(previous: CorrelationContext | None) -> None:
@@ -237,12 +235,7 @@ def _enter(context: CorrelationContext, *, fork_sentry_scope: bool) -> Generator
 
 
 def _reset_current_context(token: Token[CorrelationContext | None]) -> None:
-    try:
-        _current_context.reset(token)
-    except ValueError:
-        # The token was created in a different `contextvars.Context`, eg if a WSGI server closed a response iterable
-        # (which exits the request's unit of work) in a context other than the one the request was handled in.
-        _current_context.set(None)
+    _current_context.reset(token)
 
 
 @contextmanager
@@ -260,6 +253,7 @@ def request_context(
         context_type=ContextType.REQUEST,
         request_id=new_id(),
         method=environ.get("REQUEST_METHOD"),
+        path=environ.get("PATH_INFO"),
         alb_trace_id=alb_trace_id,
         cloudfront_request_id=cloudfront_request_id,
         debug_logging=debug_logging,
