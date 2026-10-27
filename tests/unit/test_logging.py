@@ -2,6 +2,7 @@ import contextvars
 import json
 import logging
 import uuid
+import warnings
 from collections.abc import Iterator
 from contextlib import closing
 from logging.config import DictConfigurator
@@ -442,6 +443,24 @@ class TestUnloggedPaths:
 
         for path in UNLOGGED_PATHS:
             url_adapter.match(path)
+
+
+class TestWarningsCapture:
+    def test_py_warnings_logger_is_routed_through_the_app_handlers(self, app):
+        py_warnings_logger = logging.getLogger("py.warnings")
+
+        assert all(handler in py_warnings_logger.handlers for handler in app.logger.handlers)
+        assert py_warnings_logger.level == logging.WARNING
+        assert py_warnings_logger.propagate is False
+
+    def test_warnings_are_logged_to_the_py_warnings_logger(self, app, caplog):
+        with caplog.at_level(logging.WARNING, logger="py.warnings"), warnings.catch_warnings():
+            warnings.simplefilter("default")
+            logging.captureWarnings(False)
+            logging.captureWarnings(True)
+            warnings.warn("test warning", stacklevel=1)
+
+        assert any(record.name == "py.warnings" and "test warning" in record.getMessage() for record in caplog.records)
 
 
 class TestParseRequestSize:

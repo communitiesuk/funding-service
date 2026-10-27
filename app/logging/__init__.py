@@ -119,6 +119,12 @@ def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
     log_config = log_config or get_default_logging_config(app)
     dictConfig(log_config)
 
+    # Python warnings otherwise go to stderr via `warnings.showwarning` and bypass logging entirely, so they were not
+    # JSON in deployed logs (eg SQLAlchemy's SAWarning during `flask db upgrade`/`check`). Under pytest,
+    # `filterwarnings = error` turns warnings into exceptions before they reach this logger, which is intended.
+    logging.captureWarnings(True)
+    route_loggers_through_app(app, ["py.warnings"], level=logging.WARNING)
+
     app.wsgi_app = CorrelationMiddleware(app, app.wsgi_app)  # ty: ignore[invalid-assignment]
     attach_request_loggers(app)
 
