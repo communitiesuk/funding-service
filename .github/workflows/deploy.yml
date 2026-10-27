@@ -130,9 +130,32 @@ jobs:
       SERVICE_ACCOUNT_USERNAME: ${{ secrets.SERVICE_ACCOUNT_USERNAME }}
       SERVICE_ACCOUNT_PASSWORD: ${{ secrets.SERVICE_ACCOUNT_PASSWORD }}
 
+  smoke_test:
+    name: Post-deploy smoke tests
+    needs: [ deploy ]
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.14.9
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.13.5"
+          enable-cache: true
+
+      - name: Check ProxyFix sees the client through CloudFront and the ALB
+        run: uv run --frozen pytest tests/smoke --confcutdir=tests/smoke --smoke-env "${{ inputs.environment }}" -v
+
   notify_slack:
-    needs: [ deploy, e2e_tests ]
-    if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure') && github.ref_name == 'main' }}
+    needs: [ deploy, e2e_tests, smoke_test ]
+    if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure' || needs.smoke_test.result == 'failure') && github.ref_name == 'main' }}
     uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@d4a4c7d63b1d5c82a8c1fe57edea8ef529a60d04  # PR #313
     with:
       app_name: FS Deploy CI ECR

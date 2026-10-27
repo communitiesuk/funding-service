@@ -371,6 +371,7 @@ def create_app() -> Flask:  # noqa: C901
     #       otherwise publicly accessible; we can then do basic auth through something like a cloudfront edge function
     #       rather than application code.
     if app.config["BASIC_AUTH_ENABLED"]:
+        basic_auth_exempt_endpoints = frozenset({"healthcheck.healthcheck", "healthcheck.client_healthcheck"})
 
         @app.before_request
         def basic_auth() -> ResponseReturnValue | None:
@@ -378,7 +379,7 @@ def create_app() -> Flask:  # noqa: C901
 
             unauth_response = Response(status=401, headers={"WWW-Authenticate": "Basic"})
 
-            if request.endpoint == "healthcheck.healthcheck":
+            if request.endpoint in basic_auth_exempt_endpoints:
                 return None
 
             auth = request.authorization
