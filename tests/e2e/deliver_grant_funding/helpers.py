@@ -3,10 +3,13 @@ import re
 from playwright.sync_api import Page
 
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
-from tests.e2e.dataclasses import GrantScenario
+from tests.e2e.config import EndToEndTestSecrets
+from tests.e2e.dataclasses import GrantScenario, SectionDict
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     AdminCollectionLifecycleTasklistPage,
+    GrantPreAwardFormsPage,
+    GrantReportsPage,
     MarkAsOnboardingWithFundingServicePage,
     OrganisationSetupRow,
     OverrideGrantRecipientCertifiersPage,
@@ -75,20 +78,58 @@ def navigate_to_pre_award_sections_page(
     return form_sections_page
 
 
+def _add_sections(
+    page: Page,
+    domain: str,
+    sections: list[SectionDict],
+    grant_name: str,
+    collection_name: str,
+    list_page: GrantReportsPage | GrantPreAwardFormsPage,
+) -> None:
+    # Local import to avoid a circular import: test_create_preview_collection.py imports from this module.
+    from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
+
+    is_report = isinstance(list_page, GrantReportsPage)
+
+    for i, section in enumerate(sections):
+        if i == 0:
+            add_section_page = list_page.click_add_section(collection_name, grant_name)
+        else:
+            sections_page = (
+                navigate_to_report_sections_page(page, domain, grant_name, collection_name)
+                if is_report
+                else navigate_to_pre_award_sections_page(page, domain, grant_name, collection_name)
+            )
+            add_section_page = sections_page.click_add_section()
+        add_section_page.fill_in_section_name(section["name"])
+        sections_page = add_section_page.click_add_section()
+        manage_section_page = sections_page.click_manage_section(section["name"])
+        for component in section["components"]:
+            create_question_or_group(component, manage_section_page)
+
+
 def create_collection(
     page: Page,
     domain: str,
     grant_id: str,
     grant_name: str,
-    collection_name: str,
+    scenario: GrantScenario,
     grant_dashboard_page: GrantDashboardPage,
 ) -> tuple[str, AdminCollectionLifecycleTasklistPage]:
+    assert scenario.collection_name
+
     grant_reports_page = grant_dashboard_page.click_reports(grant_name)
     choose_method_page = grant_reports_page.click_add_report()
     add_report_page = choose_method_page.click_create_new()
-    add_report_page.fill_in_report_name(collection_name)
+    add_report_page.fill_in_report_name(scenario.collection_name)
     grant_reports_page = add_report_page.click_submit(grant_name)
-    grant_reports_page.check_report_exists(collection_name)
+    grant_reports_page.check_report_exists(scenario.collection_name)
+
+    if scenario.sections:
+        _add_sections(page, domain, scenario.sections, grant_name, scenario.collection_name, grant_reports_page)
+        grant_reports_page = navigate_to_report_sections_page(
+            page, domain, grant_name, scenario.collection_name
+        ).click_reports_breadcrumb()
 
     page.get_by_role("link", name="0 data sets").click()
     collection_id = extract_uuid_from_url(page.url, r"/reports/(?P<uuid>[a-f0-9-]+)")
@@ -196,3 +237,95 @@ def set_grant_and_collection_live(page: Page, domain: str, grant_id: str, collec
     report_settings_page.navigate()
     report_settings_page.select_collection_status(CollectionStatusEnum.OPEN)
     report_settings_page.click_save()
+
+
+def configure_report_settings(page: Page, domain: str, collection_id: str, scenario: GrantScenario) -> None:
+    report_settings_page = PlatformAdminReportSettingsPage(page, domain, collection_id)
+    report_settings_page.navigate()
+    if scenario.allow_validation:
+        report_settings_page.click_allow_validation()
+    if scenario.turn_off_requires_certification:
+        report_settings_page.click_turn_off_requires_certification()
+    report_settings_page.click_save()
+
+
+def invite_and_claim_grant_team_member(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    email: str,
+    grant_dashboard_page: GrantDashboardPage,
+    scenario: GrantScenario,
+) -> None:
+    # Local import to avoid a circular import: conftest.py imports from this module.
+    from tests.e2e.conftest import DeliverGrantFundingUserType, login_with_session_cookie, login_with_stub_sso
+
+    assert scenario.grant_team_member_email
+
+    grant_team_page = grant_dashboard_page.click_grant_team()
+    add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
+    add_grant_team_member_page.fill_in_user_email(scenario.grant_team_member_email)
+    add_grant_team_member_page.click_continue()
+
+    grant_dashboard_page.click_sign_out()
+    if e2e_test_secrets.E2E_ENV == "local":
+        login_with_stub_sso(
+            domain, page, scenario.grant_team_member_email, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER
+        )
+    else:
+        login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER)
+
+    page.goto(f"{domain}/sign-out")
+    if e2e_test_secrets.E2E_ENV == "local":
+        login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+    else:
+        login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+
+
+def create_application_collection(
+    page: Page, domain: str, grant_id: str, grant_name: str, scenario: GrantScenario
+) -> tuple[str, AdminCollectionLifecycleTasklistPage]:
+    assert scenario.collection_name
+
+    pre_award_forms_page = GrantPreAwardFormsPage(page, domain, grant_name)
+    pre_award_forms_page.navigate(grant_id)
+    method_page = pre_award_forms_page.click_add_form()
+    add_form_page = method_page.click_create_new()
+    add_form_page.fill_in_form_name(scenario.collection_name)
+    pre_award_forms_page = add_form_page.click_submit(grant_name)
+
+    if scenario.sections:
+        _add_sections(page, domain, scenario.sections, grant_name, scenario.collection_name, pre_award_forms_page)
+
+    pre_award_forms_page.navigate(grant_id)
+    pre_award_forms_page.click_manage_settings(scenario.collection_name)
+    collection_id = extract_uuid_from_url(page.url, r"/applications/(?P<uuid>[a-f0-9-]+)")
+    tasklist_page = AdminCollectionLifecycleTasklistPage(page, domain, grant_id, collection_id)
+    return collection_id, tasklist_page
+
+
+def enable_public_sign_up(page: Page, domain: str, grant_id: str, grant_name: str, scenario: GrantScenario) -> str:
+    # Local import to avoid a circular import: test_create_preview_collection.py imports from this module.
+    from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
+
+    assert scenario.collection_name and scenario.eligibility_question and scenario.eligibility_qualifying_answer
+
+    pre_award_forms_page = GrantPreAwardFormsPage(page, domain, grant_name)
+    pre_award_forms_page.navigate(grant_id)
+    manage_collection_page = pre_award_forms_page.click_manage_settings(scenario.collection_name)
+    public_sign_up_settings_page = manage_collection_page.click_change_public_sign_up()
+    public_sign_up_url = public_sign_up_settings_page.get_public_sign_up_url()
+    public_sign_up_settings_page.select_allow_public_sign_up(True)
+    public_sign_up_settings_page.click_save()
+
+    # Turning on public sign up auto-creates an "Eligibility questions" section.
+    form_sections_page = navigate_to_pre_award_sections_page(page, domain, grant_name, scenario.collection_name)
+    manage_section_page = form_sections_page.click_manage_section("Eligibility questions")
+    create_question_or_group(scenario.eligibility_question, manage_section_page)
+
+    edit_question_page = manage_section_page.click_edit_question(scenario.eligibility_question["text"])
+    add_eligibility_page = edit_question_page.click_set_eligibility_condition()
+    add_eligibility_page.click_eligible_answer(scenario.eligibility_qualifying_answer)
+    add_eligibility_page.click_save()
+
+    return public_sign_up_url

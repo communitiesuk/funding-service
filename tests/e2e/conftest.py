@@ -19,11 +19,15 @@ from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig, GrantScenario, GrantScenarioHandle
 from tests.e2e.deliver_grant_funding.helpers import (
+    configure_report_settings,
+    create_application_collection,
     create_collection,
     create_grant,
     create_grant_recipient,
     create_organisation,
+    enable_public_sign_up,
     extract_uuid_from_url,
+    invite_and_claim_grant_team_member,
     invite_data_providers,
     mark_as_onboarding,
     override_certifiers,
@@ -234,7 +238,9 @@ def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simpl
     switch to a different identity (e.g. to drive a magic-link/recipient journey) after calling this fixture."""
     created_handles: list[GrantScenarioHandle] = []
 
-    def _build(scenario: GrantScenario, *, sign_out_after: bool = False) -> GrantScenarioHandle:
+    def _build(  # noqa: C901 -- orchestrates many independently-simple, opt-in steps; see helpers module
+        scenario: GrantScenario, *, sign_out_after: bool = False
+    ) -> GrantScenarioHandle:
         grant_name_uuid = str(uuid.uuid4())
         grant_name = f"E2E {grant_name_uuid}"
 
@@ -245,11 +251,24 @@ def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simpl
 
         collection_id: str | None = None
         tasklist_page: AdminCollectionLifecycleTasklistPage | None = None
+        public_sign_up_url: str | None = None
 
         if scenario.collection_name:
-            collection_id, tasklist_page = create_collection(
-                page, domain, grant_id, grant_name, scenario.collection_name, grant_dashboard_page
-            )
+            if scenario.collection_type == "application":
+                collection_id, tasklist_page = create_application_collection(
+                    page, domain, grant_id, grant_name, scenario
+                )
+            else:
+                collection_id, tasklist_page = create_collection(
+                    page, domain, grant_id, grant_name, scenario, grant_dashboard_page
+                )
+
+        if scenario.enable_public_sign_up:
+            assert collection_id is not None
+            public_sign_up_url = enable_public_sign_up(page, domain, grant_id, grant_name, scenario)
+
+        if scenario.grant_team_member_email:
+            invite_and_claim_grant_team_member(page, domain, e2e_test_secrets, email, grant_dashboard_page, scenario)
 
         if scenario.org_name:
             assert collection_id is not None
@@ -264,6 +283,9 @@ def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simpl
                 override_certifiers(page, domain, grant_id, collection_id, tasklist_page, scenario)
 
         if collection_id is not None and tasklist_page is not None:
+            if scenario.allow_validation or scenario.turn_off_requires_certification:
+                configure_report_settings(page, domain, collection_id, scenario)
+
             if scenario.set_dates:
                 assert scenario.collection_name is not None
                 set_reporting_and_submission_dates(
@@ -286,6 +308,7 @@ def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simpl
             collection_id=collection_id,
             report_name=scenario.collection_name,
             org_name=scenario.org_name,
+            public_sign_up_url=public_sign_up_url,
         )
         created_handles.append(handle)
 

@@ -306,7 +306,7 @@ class GrantDashboardBasePage(TopNavMixin, BasePage):
         return grant_forms_page
 
     def click_grant_team(self) -> GrantTeamPage:
-        self.reports_nav.click()
+        self.grant_team_nav.click()
         grant_team_page = GrantTeamPage(self.page, self.domain)
         expect(grant_team_page.title).to_be_visible()
         return grant_team_page

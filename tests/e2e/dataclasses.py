@@ -127,6 +127,11 @@ class GrantScenario:
     of this and shouldn't pay for the rest."""
 
     collection_name: str | None = None
+    collection_type: Literal["report", "application"] = "report"
+    sections: list[SectionDict] | None = None
+    enable_public_sign_up: bool = False
+    eligibility_question: QuestionDict | None = None
+    eligibility_qualifying_answer: str | None = None
     org_name: str | None = None
     org_external_id: str | None = None
     recipients: list[RecipientConfig] = dataclasses.field(default_factory=list)
@@ -136,18 +141,38 @@ class GrantScenario:
     mark_onboarding: bool = False
     set_privacy_policy: bool = False
     set_live: bool = False
+    grant_team_member_email: str | None = None
+    allow_validation: bool = False
+    turn_off_requires_certification: bool = False
 
     def __post_init__(self) -> None:
         if bool(self.org_name) != bool(self.org_external_id):
             raise ValueError("org_name and org_external_id must be provided together")
 
         needs_collection = (
-            self.org_name or self.set_dates or self.mark_onboarding or self.set_privacy_policy or self.set_live
+            self.org_name
+            or self.set_dates
+            or self.mark_onboarding
+            or self.set_privacy_policy
+            or self.set_live
+            or self.collection_type == "application"
+            or bool(self.sections)
+            or self.allow_validation
+            or self.turn_off_requires_certification
         )
         if needs_collection and not self.collection_name:
             raise ValueError(
-                "org_name/set_dates/mark_onboarding/set_privacy_policy/set_live all require collection_name to be set"
+                "org_name/set_dates/mark_onboarding/set_privacy_policy/set_live/collection_type='application'/"
+                "sections/allow_validation/turn_off_requires_certification all require collection_name to be set"
             )
+
+        if self.enable_public_sign_up:
+            if self.collection_type != "application":
+                raise ValueError("enable_public_sign_up requires collection_type='application'")
+            if not (self.eligibility_question and self.eligibility_qualifying_answer):
+                raise ValueError(
+                    "enable_public_sign_up requires eligibility_question and eligibility_qualifying_answer"
+                )
 
 
 @dataclasses.dataclass
@@ -158,3 +183,4 @@ class GrantScenarioHandle:
     collection_id: str | None
     report_name: str | None
     org_name: str | None
+    public_sign_up_url: str | None = None
