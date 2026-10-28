@@ -2,7 +2,7 @@ from collections import namedtuple
 from enum import Enum, StrEnum
 from typing import Literal, TypedDict
 
-LogFormats = Literal["plaintext", "json"]
+LogFormats = Literal["plaintext", "plaintext-full", "json"]
 LogLevels = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
 

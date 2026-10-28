@@ -1,10 +1,14 @@
 import json
+import logging
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from functools import lru_cache
 from re import Pattern
 from types import MappingProxyType
 from typing import Any, Callable, Dict, Mapping, cast
 
+import sentry_sdk
 from bs4 import BeautifulSoup, Tag
 from flask_wtf import FlaskForm
 from testcontainers.community.postgres import PostgresContainer
@@ -234,3 +238,27 @@ def get_test_flashes(client: FundingServiceTestClient, category: str | None = No
     with client.session_transaction() as sess:
         flashes = sess["_flashes"]
         return [msg for cat, msg in flashes if category is None or category == cat]
+
+
+class SentryScopeRecorder(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.tags: list[dict[str, str]] = []
+        self.attributes: list[dict[str, Any]] = []
+        self.users: list[dict[str, Any] | None] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        scope = sentry_sdk.get_isolation_scope()
+        self.tags.append(dict(scope._tags))
+        self.attributes.append(dict(scope._attributes))
+        self.users.append(dict(scope._user) if scope._user is not None else None)
+
+
+@contextmanager
+def recording_sentry_scope(logger_name: str = "app.request") -> Generator[SentryScopeRecorder]:
+    recorder = SentryScopeRecorder()
+    logging.getLogger(logger_name).addHandler(recorder)
+    try:
+        yield recorder
+    finally:
+        logging.getLogger(logger_name).removeHandler(recorder)

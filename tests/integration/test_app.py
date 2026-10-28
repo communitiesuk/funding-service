@@ -11,7 +11,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from app import create_app
 from tests.smoke.conftest import CLIENT_PATH
-from tests.utils import build_db_config, get_link_hrefs, get_service_name_text
+from tests.utils import build_db_config, get_link_hrefs, get_service_name_text, recording_sentry_scope
 
 
 @pytest.fixture(scope="session")
@@ -137,14 +137,12 @@ class TestAppErrorHandlers:
 
 
 class TestSentryUserContext:
-    def test_user_loader_sends_only_the_user_id_to_sentry(self, app, factories, mocker) -> None:
-        set_user = mocker.patch("app.sentry_sdk.set_user")
-        user = factories.user.create(email="test@local.gov.uk", name="Test User")
+    def test_sentry_user_is_only_the_signed_in_users_id(self, authenticated_platform_admin_client) -> None:
+        with recording_sentry_scope() as recorder:
+            authenticated_platform_admin_client.get("/custom-cache-control")
 
-        loaded_user = app.login_manager._user_callback(str(user.id))
-
-        assert loaded_user == user
-        set_user.assert_called_once_with({"id": str(user.id)})
+        user_id = str(authenticated_platform_admin_client.user.id)
+        assert recorder.users[-1] == {"id": user_id}
 
 
 class TestClientHealthcheck:
