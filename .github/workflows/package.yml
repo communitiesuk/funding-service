@@ -64,7 +64,7 @@ jobs:
           echo "::add-mask::$ECR_IMAGE_URI"
 
           pack config registry-mirrors add index.docker.io --mirror "mirror.gcr.io"
-          pack build "$ECR_IMAGE_URI" --builder heroku/builder:26 --publish
+          pack build "$ECR_IMAGE_URI" --builder heroku/builder:26 --run-image heroku/heroku:26.nightly --publish
 
 
   notify_slack:
