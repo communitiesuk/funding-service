@@ -3,7 +3,8 @@ CI.
 
 They call /healthcheck/client and prove that the app resolves the caller's address, uses the public scheme and the
 canonical host, sees exactly the number of X-Forwarded-For entries its PROXY_FIX_FOR config expects, and that none of
-this can be spoofed by request headers. They use plain `requests` and need no browser, database or AWS access.
+this can be spoofed by request headers. They also prove that a client cannot pick the trace id our logs and Sentry
+events carry by sending trace headers. They use plain `requests` and need no browser, database or AWS access.
 
 Against docker compose the app runs under `flask run` with no proxy in front and PROXY_FIX_* all 0, so ProxyFix is not
 in the request path: that run only proves the /healthcheck/client contract and that this suite still works before a
@@ -85,5 +86,11 @@ def smoke_get(smoke_env: SmokeEnvironment) -> Generator[SmokeGet, None, None]:
 @pytest.fixture(scope="session")
 def baseline(smoke_get: SmokeGet) -> dict[str, Any]:
     response = smoke_get(CLIENT_PATH)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def client_view(smoke_get: SmokeGet, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    response = smoke_get(CLIENT_PATH, headers)
     assert response.status_code == 200, response.text
     return response.json()

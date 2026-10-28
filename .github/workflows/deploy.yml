@@ -150,7 +150,7 @@ jobs:
           version: "0.13.6"
           enable-cache: true
 
-      - name: Check ProxyFix sees the client through CloudFront and the ALB
+      - name: Check ProxyFix and trace isolation through CloudFront and the ALB
         run: uv run --frozen pytest tests/smoke --confcutdir=tests/smoke --smoke-env "${{ inputs.environment }}" -v
 
   notify_slack:
