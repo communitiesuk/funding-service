@@ -265,10 +265,12 @@ class _LoggedResponse:
             "response_size": self.response_size,
             "response_streamed": self.response_streamed,
         }
-        if user_agent := self._environ.get("HTTP_USER_AGENT"):
-            extra["user_agent"] = user_agent[:_MAX_USER_AGENT_LENGTH]
-        if client_ip := _client_ip(self._environ):
-            extra["client_ip"] = client_ip
+
+        # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+        # if user_agent := self._environ.get("HTTP_USER_AGENT"):
+        #     extra["user_agent"] = user_agent[:_MAX_USER_AGENT_LENGTH]
+        # if client_ip := _client_ip(self._environ):
+        #     extra["client_ip"] = client_ip
 
         request_logger.log(
             logging.WARNING if status is not None and status >= 500 else logging.INFO,

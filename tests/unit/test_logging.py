@@ -317,12 +317,13 @@ class TestCorrelationMiddleware:
         assert len(self._streaming_records(caplog)) == 1
         assert self._finish_records(caplog)[0].status == 500
 
-    def test_finish_line_logs_remote_addr_as_client_ip(self, app, caplog):
-        middleware = self._middleware(app, _TestBody([b"body"]))
-
-        self._serve(middleware, {"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path", "REMOTE_ADDR": "198.51.100.2"})
-
-        assert self._finish_records(caplog)[0].client_ip == "198.51.100.2"
+    # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+    # def test_finish_line_logs_remote_addr_as_client_ip(self, app, caplog):
+    #     middleware = self._middleware(app, _TestBody([b"body"]))
+    #
+    #     self._serve(middleware, {"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path", "REMOTE_ADDR": "198.51.100.2"})
+    #
+    #     assert self._finish_records(caplog)[0].client_ip == "198.51.100.2"
 
     def test_finish_line_omits_client_ip_that_is_not_an_address(self, app, caplog):
         middleware = self._middleware(app, _TestBody([b"body"]))

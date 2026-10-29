@@ -117,14 +117,17 @@ class TestRequestLogging:
         assert finished.request_size == len("test request body")
         assert finished.response_size == 0
         assert finished.response_streamed is False
-        assert finished.user_agent == "test-user-agent/1.0"
-        assert finished.client_ip == "198.51.100.2"
 
-    def test_finish_line_client_ip_is_the_test_client_remote_address(self, anonymous_client, caplog) -> None:
-        response = anonymous_client.get("/custom-cache-control")
+        # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+        # assert finished.user_agent == "test-user-agent/1.0"
+        # assert finished.client_ip == "198.51.100.2"
 
-        finished = _request_records(caplog)[-1]
-        assert finished.client_ip == response.request.remote_addr
+    # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+    # def test_finish_line_client_ip_is_the_test_client_remote_address(self, anonymous_client, caplog) -> None:
+    #     response = anonymous_client.get("/custom-cache-control")
+    #
+    #     finished = _request_records(caplog)[-1]
+    #     assert finished.client_ip == response.request.remote_addr
 
     def test_finish_line_omits_absent_client_details(self, anonymous_client, caplog) -> None:
         anonymous_client.get("/custom-cache-control", headers={"User-Agent": ""})
