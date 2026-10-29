@@ -9,6 +9,7 @@ from sentry_sdk.types import Event, Hint
 from app.common.data.types import TraceLevelEnum
 from app.common.helpers.request_tracing import get_tracing_levels_from_environ
 from app.config import Environment
+from app.logging.unlogged import is_unlogged_path
 
 _secret_key: str | None = None
 
@@ -45,9 +46,11 @@ def _tracing_levels_from_context(sampling_context: Hint) -> list[TraceLevelEnum]
     return get_tracing_levels_from_environ(wsgi_environ, _secret_key)
 
 
+# The unlogged paths are a module constant so the samplers, which are configured before any app exists, can read them
+# without an app in hand.
 def traces_sampler(sampling_context: Hint) -> float:
     wsgi_environ = sampling_context.get("wsgi_environ")
-    if wsgi_environ and wsgi_environ.get("PATH_INFO") == "/healthcheck":
+    if wsgi_environ and is_unlogged_path(wsgi_environ.get("PATH_INFO", "")):
         return 0
 
     if TraceLevelEnum.TRACE in _tracing_levels_from_context(sampling_context):
@@ -58,7 +61,7 @@ def traces_sampler(sampling_context: Hint) -> float:
 
 def profiles_sampler(sampling_context: Hint) -> float:
     wsgi_environ = sampling_context.get("wsgi_environ")
-    if wsgi_environ and wsgi_environ.get("PATH_INFO") == "/healthcheck":
+    if wsgi_environ and is_unlogged_path(wsgi_environ.get("PATH_INFO", "")):
         return 0
 
     if TraceLevelEnum.PROFILE in _tracing_levels_from_context(sampling_context):
@@ -93,7 +96,6 @@ def init_sentry(secret_key: str) -> None:
             ],
         )
 
-        # We disable the werkzeug logger in app/logging.py because we inject our own request+response log lines. This
-        # should stay in sync with the logging config we use for the app. This may need to change when we add a proper
-        # WSGI server (eg gunicorn) in front of Flask.
+        # We disable the werkzeug logger in app/logging because we inject our own request+response log lines. This
+        # should stay in sync with the logging config we use for the app.
         ignore_logger("werkzeug")

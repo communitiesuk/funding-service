@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from flask import Flask, Request, Response, abort, template_rendered
+from flask import Flask, Request, Response, abort, current_app, stream_with_context, template_rendered
 from flask.sessions import SessionMixin
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
@@ -26,7 +26,6 @@ from sqlalchemy_utils import create_database, database_exists
 from testcontainers.community.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
-from app import create_app
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import update_submission_data
 from app.common.data.interfaces.system import seed_system_data
@@ -45,7 +44,7 @@ from app.common.data.types import (
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
-from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
+from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates, create_test_app
 from tests.integration.utils import TimeFreezer
 from tests.models import FactoryAnswer
 from tests.types import TemplateRenderRecord, TTemplatesRendered
@@ -92,12 +91,12 @@ def db(setup_db_container: PostgresContainer, app: Flask) -> Generator[SQLAlchem
 
 
 @pytest.fixture(scope="session")
-def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
+def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:  # noqa: C901
     with patch.dict(
         os.environ,
         build_db_config(setup_db_container),
     ):
-        app = create_app()
+        app = create_test_app()
 
     @app.route("/_testing/403")
     def raise_403() -> ResponseReturnValue:
@@ -126,6 +125,15 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     @app.route("/_testing/unhandled-exception")
     def raise_unhandled_exception() -> ResponseReturnValue:
         raise RuntimeError("Unhandled test exception")
+
+    @app.route("/_testing/streamed-response")
+    def streamed_response() -> ResponseReturnValue:
+        def generate_body() -> Generator[str, None, None]:
+            yield "first chunk\n"
+            current_app.logger.info("Generating streamed response body")
+            yield "second chunk\n"
+
+        return Response(stream_with_context(generate_body()), mimetype="text/plain")
 
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
@@ -213,9 +221,7 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
             with super().session_transaction(*args, **kwargs) as sess:
                 yield sess
 
-    app.test_client_class = CustomClient
-    client = app.test_client()
-    return t.cast(CustomClient, client)
+    return CustomClient(app, app.response_class, use_cookies=True)
 
 
 @pytest.fixture(scope="session", autouse=True)

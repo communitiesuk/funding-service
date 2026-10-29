@@ -39,9 +39,6 @@ class TestCacheControl:
 
             response = anonymous_client.get(url_for("static", filename="test.txt"))
 
-            _ = response.get_data()
-            response.close()
-
             assert response.headers["Cache-Control"] == "public, max-age=31536000"
 
     def test_custom_cache_control(self, anonymous_client: FundingServiceTestClient) -> None:

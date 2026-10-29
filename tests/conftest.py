@@ -18,6 +18,7 @@ from werkzeug.test import TestResponse
 from app import create_app
 from app.common.data.models import Grant, GrantRecipient, Organisation
 from app.common.data.models_user import User
+from app.logging import correlation
 from app.services.notify import Notification
 from tests import SlowTestWarning
 from tests.models import (
@@ -62,6 +63,22 @@ def pytest_runtest_makereport(
         report.outcome = "passed"
         report.longrepr = None
     return report
+
+
+@pytest.fixture(autouse=True)
+def _clear_correlation_context() -> Generator[None, None, None]:
+    # The test clients are buffered, so every request's correlation context is exited when the response is closed and
+    # nothing should be left behind. This fixture is the alarm if that stops being true: it still clears the context so
+    # a single leak fails only the test that caused it, instead of cascading into every later request in the worker.
+    yield
+    leaked = correlation._current_context.get()
+    correlation._current_context.set(None)
+    assert leaked is None, (
+        f"A correlation context leaked out of this test: {leaked!r}. The context is exited when the response iterable "
+        "is closed, so pass `buffered=True` to the test client (FundingServiceTestClient does this by default) or call "
+        "`response.close()`; if the test calls the WSGI app or `correlation.request_context` directly, close the "
+        "iterable or exit the context manager."
+    )
 
 
 def pytest_addoption(parser: Parser) -> None:
@@ -120,17 +137,21 @@ class FundingServiceTestClient(FlaskClient):
     organisation: Organisation | None = None
     grant_recipient: GrantRecipient | None = None
 
+    # Buffered, so that the client consumes the response body and then closes the response iterable, as a WSGI server
+    # does. An unbuffered test response is only closed by an explicit `response.close()`, so anything the app does when
+    # the response is closed (closing a sent file, middleware finishing its work for the request) would otherwise never
+    # happen.
     def open(
         self,
         *args: t.Any,
-        buffered: bool = False,
+        buffered: bool = True,
         follow_redirects: bool = False,
         **kwargs: t.Any,
     ) -> TestResponse:
         response = super().open(*args, buffered=buffered, follow_redirects=follow_redirects, **kwargs)
 
         # Validate that our HTML is well-structured.
-        if response.content_type.startswith("text/html"):
+        if response.content_type.startswith("text/html") and response.data:
             html = response.data.decode()
             html5parser.parse(html)
 
@@ -143,13 +164,16 @@ class FundingServiceTestClient(FlaskClient):
         return response
 
 
-@pytest.fixture(scope="session")
-def app() -> Generator[Flask, None, None]:
+def create_test_app() -> Flask:
     app = create_app()
     app.test_client_class = FundingServiceTestClient
     app.config.update({"TESTING": True})
+    return app
 
-    yield app
+
+@pytest.fixture(scope="session")
+def app() -> Generator[Flask, None, None]:
+    yield create_test_app()
 
 
 def _precompile_templates(app: Flask) -> None:

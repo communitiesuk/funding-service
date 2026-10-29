@@ -22,6 +22,10 @@ def _correlations(records: list[logging.LogRecord]) -> list[dict[str, Any]]:
     return [dict(get_record_correlation(record)) for record in records]
 
 
+def _records_for_request(caplog: pytest.LogCaptureFixture, request_id: str) -> list[logging.LogRecord]:
+    return [record for record in caplog.records if get_record_correlation(record).get("request_id") == request_id]
+
+
 class TestLogging:
     def test_basic_log_message(self, app, caplog) -> None:
         with app.app_context():
@@ -61,6 +65,8 @@ class TestLogging:
 
 class TestRequestLogging:
     def test_logs_start_and_finish_of_request(self, anonymous_client, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
         response = anonymous_client.get("/custom-cache-control")
 
         records = _request_records(caplog)
@@ -68,11 +74,110 @@ class TestRequestLogging:
             "Request started GET /custom-cache-control",
             f"Request finished GET /custom-cache-control 200 in {records[1].duration_ms}ms",
         ]
-        assert [record.levelno for record in records] == [logging.INFO, logging.INFO]
+        assert [record.levelno for record in records] == [logging.DEBUG, logging.INFO]
         assert response.status_code == records[1].status == 200
         assert records[1].duration_ms >= 0
 
+    def test_start_line_is_not_logged_at_info(self, anonymous_client, caplog) -> None:
+        caplog.set_level(logging.INFO, logger="app")
+
+        anonymous_client.get("/custom-cache-control")
+
+        assert [record.getMessage().split(" in ")[0] for record in _request_records(caplog)] == [
+            "Request finished GET /custom-cache-control 200"
+        ]
+
+    @pytest.mark.parametrize(
+        "path, expected_status, expected_level",
+        [
+            ("/_testing/500", 500, logging.WARNING),
+            ("/_testing/does-not-exist", 404, logging.INFO),
+            ("/custom-cache-control", 200, logging.INFO),
+        ],
+    )
+    def test_finish_line_level_depends_on_status(
+        self, anonymous_client, caplog, path, expected_status, expected_level
+    ) -> None:
+        anonymous_client.get(path)
+
+        finished = _request_records(caplog)[-1]
+        assert finished.getMessage().startswith("Request finished")
+        assert finished.status == expected_status
+        assert finished.levelno == expected_level
+
+    def test_finish_line_carries_request_and_response_details(self, anonymous_client, caplog) -> None:
+        anonymous_client.get(
+            "/custom-cache-control",
+            data="test request body",
+            headers={"User-Agent": "test-user-agent/1.0"},
+            environ_base={"REMOTE_ADDR": "198.51.100.2"},
+        )
+
+        finished = _request_records(caplog)[-1]
+        assert finished.request_size == len("test request body")
+        assert finished.response_size == 0
+        assert finished.response_streamed is False
+
+        # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+        # assert finished.user_agent == "test-user-agent/1.0"
+        # assert finished.client_ip == "198.51.100.2"
+
+    # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+    # def test_finish_line_client_ip_is_the_test_client_remote_address(self, anonymous_client, caplog) -> None:
+    #     response = anonymous_client.get("/custom-cache-control")
+    #
+    #     finished = _request_records(caplog)[-1]
+    #     assert finished.client_ip == response.request.remote_addr
+
+    def test_finish_line_omits_absent_client_details(self, anonymous_client, caplog) -> None:
+        anonymous_client.get("/custom-cache-control", headers={"User-Agent": ""})
+
+        finished = _request_records(caplog)[-1]
+        assert finished.request_size == 0
+        assert not hasattr(finished, "user_agent")
+
+    def test_streamed_csv_export_finish_line_covers_the_body(self, authenticated_platform_admin_client, caplog) -> None:
+        response = authenticated_platform_admin_client.get(url_for("data_analysis.download_user_management_events_csv"))
+
+        finished = _request_records(caplog)[-1]
+        assert response.status_code == 200
+        assert finished.getMessage().startswith("Request finished GET /deliver/admin/data-analysis/")
+        assert finished.response_streamed is True
+        assert finished.response_size == len(response.data)
+        assert get_current_context() is None
+
+    def test_lines_logged_while_streaming_a_response_share_the_request_id(self, anonymous_client, caplog) -> None:
+        response = anonymous_client.get("/_testing/streamed-response")
+
+        streaming_record = next(r for r in caplog.records if r.getMessage() == "Generating streamed response body")
+        finished = _request_records(caplog)[-1]
+        request_id = get_record_correlation(finished)["request_id"]
+        assert response.data == b"first chunk\nsecond chunk\n"
+        assert get_record_correlation(streaming_record)["request_id"] == request_id
+        assert get_record_correlation(streaming_record)["path"] == "/_testing/streamed-response"
+        assert _records_for_request(caplog, request_id)[-1] is finished
+        assert finished.response_streamed is True
+        assert finished.response_size == len(response.data)
+        assert get_current_context() is None
+
+    def test_streamed_response_logs_streaming_line_between_start_and_body(self, anonymous_client, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
+        anonymous_client.get("/_testing/streamed-response")
+
+        finished = _request_records(caplog)[-1]
+        request_records = _records_for_request(caplog, get_record_correlation(finished)["request_id"])
+        assert [record.getMessage().split(" in ")[0] for record in request_records] == [
+            "Request started GET /_testing/streamed-response",
+            "Response streaming GET /_testing/streamed-response 200",
+            "Generating streamed response body",
+            "Request finished GET /_testing/streamed-response 200",
+        ]
+        assert request_records[1].levelno == logging.DEBUG
+
     def test_every_line_in_a_request_shares_a_generated_request_id(self, anonymous_client, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
         anonymous_client.get("/custom-cache-control", headers={"X-Request-Id": "client-supplied"})
         anonymous_client.get("/custom-cache-control")
 
@@ -87,6 +192,19 @@ class TestRequestLogging:
         assert first["method"] == "GET"
         assert first["path"] == "/custom-cache-control"
         assert first["endpoint"] == "custom_cache_control"
+
+    def test_healthcheck_is_not_logged(self, anonymous_client, caplog) -> None:
+        response = anonymous_client.get(url_for("healthcheck.healthcheck"))
+
+        assert response.status_code == 200
+        assert _request_records(caplog) == []
+
+    def test_unknown_path_under_the_healthcheck_prefix_is_logged(self, anonymous_client, caplog) -> None:
+        anonymous_client.get("/healthcheck/nope")
+
+        finished = _request_records(caplog)[-1]
+        assert finished.getMessage().startswith("Request finished GET /healthcheck/nope 404")
+        assert finished.status == 404
 
     def test_context_is_cleared_after_request(self, anonymous_client) -> None:
         anonymous_client.get("/custom-cache-control")
@@ -151,12 +269,16 @@ class TestRequestLogging:
     def test_user_id_present_from_first_line_for_signed_in_user(
         self, authenticated_platform_admin_client, caplog
     ) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
         authenticated_platform_admin_client.get("/custom-cache-control")
 
         user_id = str(authenticated_platform_admin_client.user.id)
         assert [fields.get("user_id") for fields in _correlations(_request_records(caplog))] == [user_id, user_id]
 
     def test_user_id_read_from_session_without_loading_user(self, anonymous_client, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
         user_id = str(uuid.uuid4())
         with anonymous_client.session_transaction() as session:
             session["_user_id"] = user_id
@@ -166,6 +288,8 @@ class TestRequestLogging:
         assert [fields.get("user_id") for fields in _correlations(_request_records(caplog))] == [user_id, user_id]
 
     def test_user_id_reflects_login_within_request(self, anonymous_client, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
         magic_link = interfaces.magic_link.create_magic_link(email="test@local.gov.uk", user=None, redirect_to_path="/")
 
         anonymous_client.post(url_for("auth.claim_magic_link", magic_link_code=magic_link.code), json={"submit": "yes"})
@@ -178,6 +302,8 @@ class TestRequestLogging:
         assert finished["user_id"] == user_id
 
     def test_user_id_reflects_logout_within_request(self, authenticated_platform_admin_client, caplog) -> None:
+        caplog.set_level(logging.DEBUG, logger="app")
+
         authenticated_platform_admin_client.get(url_for("auth.sign_out"))
 
         started, finished = _correlations(_request_records(caplog))
@@ -232,3 +358,10 @@ class TestErrorLogging:
         error_records = [record for record in caplog.records if record.levelno >= logging.ERROR]
         assert response.status_code == 500
         assert [record.getMessage() for record in error_records] == ["Internal server error"]
+
+    def test_finish_line_logged_when_exception_propagates(self, anonymous_client, caplog) -> None:
+        with pytest.raises(RuntimeError):
+            anonymous_client.get("/_testing/unhandled-exception")
+
+        assert _request_records(caplog)[-1].status == 500
+        assert get_current_context() is None

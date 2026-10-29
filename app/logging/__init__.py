@@ -1,12 +1,14 @@
 import datetime
+import ipaddress
 import logging
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import ExitStack
 from logging import LogRecord
 from logging.config import dictConfig
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-from flask import Flask, Response, g, request, session
+from flask import Flask, g, request, session
 from flask_login import user_loaded_from_cookie, user_logged_in, user_logged_out
 from pythonjsonlogger.core import RESERVED_ATTRS
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
@@ -18,9 +20,12 @@ from app.logging.correlation import (
     ContextType,
     get_record_correlation,
 )
+from app.logging.unlogged import is_unlogged_path
 
 if TYPE_CHECKING:
     from _typeshed.wsgi import StartResponse, WSGIApplication, WSGIEnvironment
+
+_MAX_USER_AGENT_LENGTH = 256
 
 request_logger = logging.getLogger("app.request")
 
@@ -124,53 +129,191 @@ class CorrelationMiddleware:
     """Wraps `Flask.wsgi_app`, so it runs inside Sentry's WSGI middleware (which forks the Sentry scope and continues
     the trace) and around everything Flask does for the request, including error handlers and teardown.
 
-    It enters the request's unit of work, which every line logged while Flask handles the request is correlated with."""
+    It enters the request's unit of work and logs the single "Request finished" line per response. That line is logged
+    here rather than in `after_request` so that it is also emitted when an exception propagates out of Flask (eg
+    `PROPAGATE_EXCEPTIONS` in debug mode). For a streamed response (one without a Content-Length header) it also logs a
+    DEBUG "Response streaming" line when the headers are sent, before the body is generated.
+
+    The unit of work stays entered until the WSGI server closes the response iterable, which it does after sending the
+    whole body (gunicorn, werkzeug's dev server and its test client all do). So lines logged while a streamed response
+    body is generated (eg `stream_with_context`) are correlated with the request, and the finish line's `duration_ms`
+    and `response_size` cover the whole response."""
 
     def __init__(self, app: Flask, wsgi_app: WSGIApplication) -> None:
         self.app = app
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
-        with correlation.request_context(
-            environ,
-            alb_trace_id=correlation.parse_alb_trace_id(environ.get("HTTP_X_AMZN_TRACE_ID")),
-            cloudfront_request_id=correlation.parse_cloudfront_request_id(environ.get("HTTP_X_AMZ_CF_ID")),
-            debug_logging=False,
-        ):
-            return self.wsgi_app(environ, start_response)
+        exit_stack = ExitStack()
+        exit_stack.enter_context(
+            correlation.request_context(
+                environ,
+                alb_trace_id=correlation.parse_alb_trace_id(environ.get("HTTP_X_AMZN_TRACE_ID")),
+                cloudfront_request_id=correlation.parse_cloudfront_request_id(environ.get("HTTP_X_AMZ_CF_ID")),
+                debug_logging=False,
+            )
+        )
+        response = _LoggedResponse(environ, exit_stack)
+
+        try:
+            iterable = self.wsgi_app(environ, response.wrap_start_response(start_response))
+        except BaseException:
+            response.status = response.status or 500
+            response.close()
+            raise
+
+        response.wrap_iterable(iterable)
+        return response
+
+
+class _LoggedResponse:
+    """The response iterable returned to the WSGI server: forwards the wrapped iterable's chunks, counting their bytes,
+    and on `close()` logs the "Request finished" line and exits the request's unit of work. A streamed response also
+    gets a DEBUG "Response streaming" line, logged at most once, when its headers are sent."""
+
+    def __init__(self, environ: WSGIEnvironment, exit_stack: ExitStack) -> None:
+        self._environ = environ
+        self._exit_stack = exit_stack
+        self._started_at = time.perf_counter()
+        self._iterable: Iterable[bytes] = ()
+        self._iterator: Iterator[bytes] = iter(())
+        self._closed = False
+        self.status: int | None = None
+        self.response_streamed = False
+        self.response_size = 0
+        self.iteration_failed = False
+        self._streaming_logged = False
+
+    @property
+    def _is_logged(self) -> bool:
+        return not is_unlogged_path(self._environ.get("PATH_INFO", ""))
+
+    def _method_and_path(self) -> tuple[str | None, str | None]:
+        context = correlation.get_current_context()
+        path = (context.path if context else None) or self._environ.get("PATH_INFO")
+        return self._environ.get("REQUEST_METHOD"), path
+
+    def wrap_start_response(self, start_response: StartResponse) -> StartResponse:
+        def _start_response(status_line: str, headers: Any, exc_info: Any = None) -> Any:
+            self.status = int(status_line.split(" ", 1)[0])
+            self.response_streamed = not any(name.lower() == "content-length" for name, _ in headers)
+            if self.response_streamed and not self._streaming_logged and self._is_logged:
+                self._streaming_logged = True
+                self._log_streaming()
+            return start_response(status_line, headers, exc_info)
+
+        return _start_response
+
+    def wrap_iterable(self, iterable: Iterable[bytes]) -> None:
+        self._iterable = iterable
+        self._iterator = iter(iterable)
+
+    def __iter__(self) -> Iterator[bytes]:
+        return self
+
+    def __next__(self) -> bytes:
+        try:
+            chunk = next(self._iterator)
+        except StopIteration:
+            raise
+        except BaseException:
+            self.iteration_failed = True
+            raise
+        self.response_size += len(chunk)
+        return chunk
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+
+        # The wrapped iterable is closed first so that anything it logs on close (eg request teardown for a
+        # `stream_with_context` response) comes before the finish line.
+        try:
+            close_wrapped = getattr(self._iterable, "close", None)
+            if close_wrapped is not None:
+                close_wrapped()
+        finally:
+            try:
+                if self._is_logged:
+                    self._log_finished()
+            finally:
+                self._exit_stack.close()
+
+    def _log_streaming(self) -> None:
+        method, path = self._method_and_path()
+        request_logger.debug(
+            "Response streaming %(method)s %(path)s %(status)s",
+            {"method": method, "path": path, "status": self.status},
+            extra={"status": self.status},
+        )
+
+    def _log_finished(self) -> None:
+        status = 500 if self.status is None and self.iteration_failed else self.status
+        method, path = self._method_and_path()
+        duration_ms = round((time.perf_counter() - self._started_at) * 1000, 2)
+        log_args = {
+            "method": method,
+            "path": path,
+            "status": status,
+            "duration_ms": duration_ms,
+        }
+        extra: dict[str, Any] = {
+            "status": status,
+            "duration_ms": duration_ms,
+            "request_size": parse_request_size(self._environ.get("CONTENT_LENGTH")),
+            "response_size": self.response_size,
+            "response_streamed": self.response_streamed,
+        }
+
+        # TODO[FSPT-1805]: discussion TBD around logging User-Agent/IP and privacy policy re sending to Sentry
+        # if user_agent := self._environ.get("HTTP_USER_AGENT"):
+        #     extra["user_agent"] = user_agent[:_MAX_USER_AGENT_LENGTH]
+        # if client_ip := _client_ip(self._environ):
+        #     extra["client_ip"] = client_ip
+
+        request_logger.log(
+            logging.WARNING if status is not None and status >= 500 else logging.INFO,
+            "Request finished %(method)s %(path)s %(status)s in %(duration_ms)sms",
+            log_args,
+            extra=extra,
+        )
+
+
+def _client_ip(environ: WSGIEnvironment) -> str | None:
+    # ProxyFix (in wsgi.py, wrapping the whole app) has already set `REMOTE_ADDR` from `X-Forwarded-For` using the
+    # per-environment `PROXY_FIX_FOR` hop count. A value that is not an address can only come from a misconfigured hop
+    # count, and is not logged.
+    remote_addr = environ.get("REMOTE_ADDR")
+    if not remote_addr:
+        return None
+    try:
+        ipaddress.ip_address(remote_addr)
+    except ValueError:
+        return None
+    return remote_addr
+
+
+def parse_request_size(content_length: str | None) -> int:
+    try:
+        return int(content_length or 0)
+    except ValueError:
+        return 0
 
 
 def attach_request_loggers(app: Flask) -> None:
     @app.before_request
     def bind_request_and_log_start() -> None:
-        # annotating this onto request instead of flask.g as it probably shouldn't be inheritable from a request-less
-        # application context
-        request.before_request_real_time = time.perf_counter()  # ty: ignore[unresolved-attribute]
-
         correlation.bind(
             method=request.method,
             path=request.path,
             endpoint=request.endpoint,
             user_id=_current_user_id(),
         )
-        if request.path != "/healthcheck":
-            request_logger.info("Request started %(method)s %(path)s", {"method": request.method, "path": request.path})
-
-    @app.after_request
-    def log_request_finished(response: Response) -> Response:
-        if request.path != "/healthcheck":
-            duration_ms = (
-                round((time.perf_counter() - cast(float, request.before_request_real_time)) * 1000, 2)
-                if hasattr(request, "before_request_real_time")
-                else None
+        if not is_unlogged_path(request.path):
+            request_logger.debug(
+                "Request started %(method)s %(path)s", {"method": request.method, "path": request.path}
             )
-            status = response.status_code
-            request_logger.info(
-                "Request finished %(method)s %(path)s %(status)s in %(duration_ms)sms",
-                {"method": request.method, "path": request.path, "status": status, "duration_ms": duration_ms},
-                extra={"status": status, "duration_ms": duration_ms},
-            )
-        return response
 
 
 def _current_user_id() -> str | None:
@@ -273,5 +416,7 @@ __all__ = [
     "correlation",
     "get_default_logging_config",
     "init_app",
+    "is_unlogged_path",
+    "parse_request_size",
     "route_loggers_through_app",
 ]
