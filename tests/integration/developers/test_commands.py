@@ -73,7 +73,7 @@ def system_user(factories):
 
 class TestCreateMultiSubmissions:
     def test_creates_submissions_from_csv(
-        self, db_session, factories, collection_with_submission_name, system_user, capsys, mocker
+        self, db_session, factories, collection_with_submission_name, system_user, caplog, mocker
     ):
         collection = collection_with_submission_name
         org = factories.organisation.create(external_id="E06000001")
@@ -95,7 +95,7 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
 
         submissions = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
@@ -110,7 +110,7 @@ class TestCreateMultiSubmissions:
         commit_spy.assert_called()
 
     def test_skips_duplicate_submission_names(
-        self, db_session, factories, collection_with_submission_name, system_user, capsys
+        self, db_session, factories, collection_with_submission_name, system_user, caplog
     ):
         collection = collection_with_submission_name
         question = collection.submission_name_question
@@ -137,7 +137,7 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
 
         submissions = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
@@ -148,7 +148,7 @@ class TestCreateMultiSubmissions:
         assert "Created submission 'beta'" in output
 
     def test_dry_run_does_not_commit(
-        self, db_session, factories, collection_with_submission_name, system_user, capsys, mocker
+        self, db_session, factories, collection_with_submission_name, system_user, caplog, mocker
     ):
         collection = collection_with_submission_name
         org = factories.organisation.create(external_id="E06000001")
@@ -170,14 +170,14 @@ class TestCreateMultiSubmissions:
             commit=False,
         )
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
 
         commit_spy.assert_not_called()
         assert "Dry run:" in output
         assert "Would create 1 submissions, would skip 0." in output
 
     def test_warns_about_missing_and_extra_orgs(
-        self, db_session, factories, collection_with_submission_name, system_user, capsys
+        self, db_session, factories, collection_with_submission_name, system_user, caplog
     ):
         collection = collection_with_submission_name
         org1 = factories.organisation.create(external_id="E06000001")
@@ -203,7 +203,7 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
 
         assert "E06000002" in output
         assert "not in CSV" in output
@@ -216,7 +216,7 @@ class TestCreateMultiSubmissions:
         submission_names = {SubmissionHelper(s).submission_name for s in submissions}
         assert submission_names == {"Alpha"}
 
-    def test_aborts_when_no_submission_name_question(self, db_session, factories, system_user, capsys):
+    def test_aborts_when_no_submission_name_question(self, db_session, factories, system_user, caplog):
         collection = factories.collection.create(allow_multiple_submissions=True)
 
         csv_file = _make_csv([("E06000001", "Alpha")])
@@ -229,10 +229,10 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
-        assert "ERROR: Collection does not have a submission name question configured." in output
+        output = "\n".join(caplog.messages)
+        assert "Collection does not have a submission name question configured." in output
 
-    def test_aborts_when_user_not_found(self, db_session, factories, collection_with_submission_name, capsys):
+    def test_aborts_when_user_not_found(self, db_session, factories, collection_with_submission_name, caplog):
         collection = collection_with_submission_name
 
         csv_file = _make_csv([("E06000001", "Alpha")])
@@ -245,10 +245,10 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
-        assert "ERROR: Could not find user" in output
+        output = "\n".join(caplog.messages)
+        assert "Could not find a user with the given email address" in output
 
-    def test_handles_multiple_orgs(self, db_session, factories, collection_with_submission_name, system_user, capsys):
+    def test_handles_multiple_orgs(self, db_session, factories, collection_with_submission_name, system_user, caplog):
         collection = collection_with_submission_name
         org1 = factories.organisation.create(external_id="E06000001")
         org2 = factories.organisation.create(external_id="E06000002")
@@ -279,7 +279,7 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
 
         submissions = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().all()
@@ -417,7 +417,7 @@ class TestCreateMultiSubmissions:
         assert helper.get_status_for_form(question.form) != TasklistSectionStatusEnum.COMPLETED
 
     def test_matches_submission_names_containing_non_breaking_spaces(
-        self, db_session, factories, collection_with_submission_name, system_user, capsys
+        self, db_session, factories, collection_with_submission_name, system_user, caplog
     ):
         collection = collection_with_submission_name
         question = collection.submission_name_question
@@ -443,7 +443,7 @@ class TestCreateMultiSubmissions:
             commit=True,
         )
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
 
         submission = (
             db_session.execute(select(Submission).where(Submission.collection_id == collection.id)).scalars().one()
@@ -535,7 +535,7 @@ class TestExportGrants:
         assert grant_data["collections"][0]["created_by_id"] == "00000000-0000-0000-0000-000000000001"
 
     def test_production_forces_exclude_users_and_warns_on_opt_out(
-        self, app, monkeypatch, db_session, factories, capsys
+        self, app, monkeypatch, db_session, factories, capsys, caplog
     ):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant
@@ -544,13 +544,13 @@ class TestExportGrants:
         _export_grants(grant_ids=[grant.id], output="stdout", email_address=None, exclude_users=False)
 
         captured = capsys.readouterr().out
-        assert "--no-exclude-users is ignored in production" in captured
+        assert "--no-exclude-users is ignored in production; user data will be stripped." in caplog.messages
 
         payload = _extract_stdout_json(captured)
         assert [u["id"] for u in payload["users"]] == ["00000000-0000-0000-0000-000000000001"]
         assert payload["grants"][0]["collections"][0]["created_by_id"] == "00000000-0000-0000-0000-000000000001"
 
-    def test_email_output_sends_export(self, db_session, factories, mock_notification_service_calls, capsys):
+    def test_email_output_sends_export(self, db_session, factories, mock_notification_service_calls, caplog):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
         grant = question.form.collection.grant
 
@@ -565,7 +565,7 @@ class TestExportGrants:
         call = mock_notification_service_calls[0]
         assert call.args[0] == "dev@test.communities.gov.uk"
         assert call.kwargs["personalisation"]["link_to_file"]["filename"] == "grants.json"
-        assert "Emailed 1 grants to dev@test.communities.gov.uk" in capsys.readouterr().out
+        assert "Emailed 1 grants to the given email address" in caplog.messages
 
     def test_cannot_export_to_external_email(self, factories):
         question = factories.question.create(data_type=QuestionDataType.TEXT_SINGLE_LINE)
@@ -612,12 +612,12 @@ class TestSyncComponentReferences:
             ).all()
         )
 
-    def test_commit_applies_delta(self, db_session, out_of_sync_questions, capsys):
+    def test_commit_applies_delta(self, db_session, out_of_sync_questions, caplog):
         q1, q2, q3 = out_of_sync_questions
 
         _sync_component_references(commit=True)
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
         assert "There are 1 component references in the database." in output
         assert "+ 'Second question' depends on 'First question'" in output
         assert "- 'First question' depends on 'Third question'" in output
@@ -625,13 +625,13 @@ class TestSyncComponentReferences:
 
         assert self._get_refs(db_session, [q1.id, q2.id, q3.id]) == {(q2.id, q1.id)}
 
-    def test_dry_run_reports_delta_without_committing(self, db_session, out_of_sync_questions, capsys, mocker):
+    def test_dry_run_reports_delta_without_committing(self, db_session, out_of_sync_questions, caplog, mocker):
         q1, q2, q3 = out_of_sync_questions
         commit_spy = mocker.spy(db.session, "commit")
 
         _sync_component_references(commit=False)
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
         assert "Dry run:" in output
         assert "+ 'Second question' depends on 'First question'" in output
         assert "- 'First question' depends on 'Third question'" in output
@@ -640,14 +640,14 @@ class TestSyncComponentReferences:
         commit_spy.assert_not_called()
         assert self._get_refs(db_session, [q1.id, q2.id, q3.id]) == {(q1.id, q3.id)}
 
-    def test_no_changes_when_in_sync(self, db_session, factories, capsys):
+    def test_no_changes_when_in_sync(self, db_session, factories, caplog):
         q1 = factories.question.create(name="First question")
         factories.question.create(form=q1.form, text=f"Reference to (({q1.safe_qid}))", name="Second question")
         db_session.commit()
 
         _sync_component_references(commit=True)
 
-        output = capsys.readouterr().out
+        output = "\n".join(caplog.messages)
         assert "+" not in output
         assert "Done. Added 0 and deleted 0 component references (1 -> 1 in total)." in output
 

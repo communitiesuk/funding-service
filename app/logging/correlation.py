@@ -173,10 +173,8 @@ def _refresh_cli_command(context: CorrelationContext) -> CorrelationContext:
     `flask db upgrade`), returning the up-to-date context.
 
     This is done lazily, as records are created, because the unit of work starts while `create_app` runs, before click
-    has resolved the subcommand, and Flask then keeps one app context active for the whole invocation: the subcommand
-    pushes no further app context, so there is no later push to hook. The path is only ever refined deeper, never
-    replaced by a shorter or different one: once the subcommand's click context exits the root context (`flask`) is
-    current again, and lines logged then still belong to the subcommand."""
+    has resolved the subcommand, and Flask then keeps one app context active for the whole invocation. The path is only
+    ever refined deeper, never replaced by a shorter or different one."""
     click_ctx = click.get_current_context(silent=True)
     if click_ctx is None:
         return context
