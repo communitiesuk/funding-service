@@ -22,6 +22,7 @@ from app.logging import (
     get_default_logging_config,
     parse_request_size,
 )
+from app.logging.cli_output import LoggingStream
 from app.logging.correlation import ContextType, CorrelationContext, get_current_context, get_record_correlation
 from app.logging.unlogged import UNLOGGED_PATHS
 from tests.utils import build_db_config
@@ -364,6 +365,46 @@ class TestCliContext:
     def test_no_cli_unit_of_work_without_a_click_context(self, app):
         with app.app_context():
             assert get_current_context() is None
+
+
+class TestLoggingStream:
+    @pytest.fixture
+    def stream(self, caplog: pytest.LogCaptureFixture) -> LoggingStream:
+        caplog.set_level(logging.INFO, logger="tests.logging_stream")
+        return LoggingStream(logging.getLogger("tests.logging_stream"))
+
+    def test_text_and_newline_written_separately_produce_one_record(self, stream, caplog):
+        stream.write("Rev: abc123 (head)")
+        stream.write("\n")
+
+        assert caplog.messages == ["Rev: abc123 (head)"]
+        assert caplog.records[0].levelno == logging.INFO
+
+    def test_each_line_of_a_multi_line_write_is_its_own_record(self, stream, caplog):
+        written = stream.write("first line\nsecond line\n")
+
+        assert caplog.messages == ["first line", "second line"]
+        assert written == len("first line\nsecond line\n")
+
+    def test_empty_lines_are_skipped(self, stream, caplog):
+        stream.write("\nfirst line\n\n   \nsecond line\n")
+
+        assert caplog.messages == ["first line", "second line"]
+
+    def test_unterminated_text_is_only_logged_on_flush(self, stream, caplog):
+        stream.write("partial line")
+        messages_before_flush = list(caplog.messages)
+        stream.flush()
+
+        assert messages_before_flush == []
+        assert caplog.messages == ["partial line"]
+
+    def test_flush_with_nothing_buffered_logs_nothing(self, stream, caplog):
+        stream.write("complete line\n")
+        stream.flush()
+        stream.flush()
+
+        assert caplog.messages == ["complete line"]
 
 
 class TestUnloggedPaths:
