@@ -2,8 +2,8 @@ import datetime
 import ipaddress
 import logging
 import time
-from collections.abc import Iterable, Iterator
-from contextlib import ExitStack
+from collections.abc import Generator, Iterable, Iterator
+from contextlib import ExitStack, contextmanager
 from logging import LogRecord
 from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 _MAX_USER_AGENT_LENGTH = 256
 
 request_logger = logging.getLogger("app.request")
+cli_logger = logging.getLogger("app.cli")
 
 # Flat, snake_case names: CloudWatch Logs Insights discovers top-level JSON keys automatically, and keys without dots or
 # hyphens can be used in `filter`/`stats`/`display` without backtick-quoting.
@@ -376,7 +377,86 @@ def _enter_cli_context(sender: Flask, **kwargs: Any) -> None:
         return
 
     if correlation.get_current_context() is None:
-        click_ctx.find_root().with_resource(correlation.cli_context(click_ctx.command_path))
+        click_ctx.find_root().with_resource(_cli_unit_of_work(click_ctx.command_path))
+
+
+@contextmanager
+def _cli_unit_of_work(command_path: str) -> Generator[None]:
+    """A CLI unit of work (see `correlation.cli_context`) that logs one line when the command ends, while still inside
+    the unit of work so that the line carries the correlation fields and the Sentry scope tags.
+
+    CLI commands can end with:
+    - a normal exit, or an exit with code 0, logs "Command finished" at INFO;
+    - a non-zero exit code (`Exit`, `ClickException`, `SystemExit`), an `Abort` or a `KeyboardInterrupt` (both treated
+      as exit code 1, with `interrupted`) logs "Command finished ... with exit code" at WARNING;
+    - any other exception logs "Command failed" at ERROR with its traceback, and is re-raised.
+    """
+    with correlation.cli_context(command_path):
+        started_at = time.perf_counter()
+        try:
+            yield
+        except (
+            click.exceptions.Exit,
+            click.exceptions.Abort,
+            click.exceptions.ClickException,
+            SystemExit,
+            KeyboardInterrupt,
+        ) as exc:
+            _log_cli_finished(started_at, exc)
+            raise
+        except BaseException:
+            _log_cli_failed(started_at)
+            raise
+        else:
+            _log_cli_finished(started_at, None)
+
+
+def _cli_exit_code(exc: BaseException | None) -> int:
+    match exc:
+        case None:
+            return 0
+        case click.exceptions.Exit():
+            return exc.exit_code
+        case click.exceptions.ClickException():
+            return exc.exit_code
+        case SystemExit(code=None):
+            return 0
+        case SystemExit(code=int() as code):
+            return code
+        case _:
+            return 1
+
+
+def _cli_log_args(started_at: float) -> tuple[str | None, float]:
+    context = correlation.get_current_context()
+    cli_command = context.cli_command if context else None
+    return cli_command, round((time.perf_counter() - started_at) * 1000, 2)
+
+
+def _log_cli_finished(started_at: float, exc: BaseException | None) -> None:
+    cli_command, duration_ms = _cli_log_args(started_at)
+    exit_code = _cli_exit_code(exc)
+    log_args = {"cli_command": cli_command, "exit_code": exit_code, "duration_ms": duration_ms}
+    extra: dict[str, Any] = {"exit_code": exit_code, "duration_ms": duration_ms}
+
+    if isinstance(exc, click.exceptions.Abort | KeyboardInterrupt):
+        extra["interrupted"] = True
+
+    message = "Command finished %(cli_command)s with exit code %(exit_code)s in %(duration_ms)sms"
+    if exc is None or (isinstance(exc, click.exceptions.Exit) and exit_code == 0):
+        message = "Command finished %(cli_command)s in %(duration_ms)sms"
+
+    cli_logger.log(logging.WARNING if exit_code != 0 else logging.INFO, message, log_args, extra=extra)
+
+
+def _log_cli_failed(started_at: float) -> None:
+    cli_command, duration_ms = _cli_log_args(started_at)
+    cli_logger.error(
+        "Command failed %(cli_command)s in %(duration_ms)sms",
+        {"cli_command": cli_command, "duration_ms": duration_ms},
+        exc_info=True,
+        extra={"exit_code": 1, "duration_ms": duration_ms},
+    )
 
 
 class RejectMutableDataStructuresFilter(logging.Filter):

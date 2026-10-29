@@ -327,6 +327,119 @@ class TestCliContext:
         with app.app_context():
             assert get_current_context() is None
 
+    def _cli_finish_records(self, caplog) -> list[logging.LogRecord]:
+        return [record for record in caplog.records if record.name == "app.cli"]
+
+    def test_normal_exit_logs_command_finished(self, app, caplog):
+        with click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                context = get_current_context()
+
+        (record,) = self._cli_finish_records(caplog)
+        fields = get_record_correlation(record)
+        assert context is not None
+        assert record.levelno == logging.INFO
+        assert record.getMessage().startswith("Command finished flask in ")
+        assert record.exit_code == 0
+        assert isinstance(record.duration_ms, float)
+        assert fields["context_type"] == "cli"
+        assert fields["run_id"] == context.run_id
+
+    def test_exit_with_code_zero_logs_command_finished(self, app, caplog):
+        with pytest.raises(click.exceptions.Exit), click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                pass
+            raise click.exceptions.Exit(0)
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.INFO
+        assert record.getMessage().startswith("Command finished flask in ")
+        assert record.exit_code == 0
+
+    @pytest.mark.parametrize(
+        "exception, expected_exit_code",
+        [
+            (click.exceptions.Exit(3), 3),
+            (SystemExit(1), 1),
+            (SystemExit("test failure message"), 1),
+            (click.ClickException("bad"), 1),
+        ],
+    )
+    def test_non_zero_exit_logs_a_warning_with_the_exit_code(self, app, caplog, exception, expected_exit_code):
+        with pytest.raises(type(exception)), click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                pass
+            raise exception
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.WARNING
+        assert record.getMessage().startswith(f"Command finished flask with exit code {expected_exit_code} in ")
+        assert record.exit_code == expected_exit_code
+        assert not hasattr(record, "interrupted")
+
+    def test_system_exit_with_code_zero_logs_at_info(self, app, caplog):
+        with pytest.raises(SystemExit), click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                pass
+            raise SystemExit(0)
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.INFO
+        assert record.exit_code == 0
+
+    @pytest.mark.parametrize("exception", [click.exceptions.Abort(), KeyboardInterrupt()])
+    def test_interrupted_command_logs_a_warning(self, app, caplog, exception):
+        with pytest.raises(type(exception)), click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                pass
+            raise exception
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.WARNING
+        assert record.exit_code == 1
+        assert record.interrupted is True
+
+    def test_unexpected_exception_logs_command_failed_and_propagates(self, app, caplog):
+        error = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError) as exc_info, click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                pass
+            raise error
+
+        (record,) = self._cli_finish_records(caplog)
+        assert exc_info.value is error
+        assert record.levelno == logging.ERROR
+        assert record.getMessage().startswith("Command failed flask in ")
+        assert record.exc_info is not None
+        assert record.exc_info[0] is RuntimeError
+        assert record.exit_code == 1
+        assert get_record_correlation(record)["context_type"] == "cli"
+
+    def test_finish_line_uses_the_refined_cli_command(self, app, caplog):
+        db_group = click.Group("db")
+        upgrade_command = click.Command("upgrade")
+
+        with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            with (
+                click.Context(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                click.Context(upgrade_command, info_name="upgrade", parent=db_ctx),
+            ):
+                _make_record()
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.getMessage().startswith("Command finished flask db upgrade in ")
+        assert get_record_correlation(record)["cli_command"] == "flask db upgrade"
+
+    def test_unit_of_work_is_exited_after_the_finish_line(self, app, caplog):
+        with click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                pass
+
+        assert len(self._cli_finish_records(caplog)) == 1
+        assert get_current_context() is None
+
 
 class TestUnloggedPaths:
     def test_every_unlogged_path_is_a_real_route(self, app):
