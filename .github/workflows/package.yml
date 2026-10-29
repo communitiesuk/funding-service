@@ -64,14 +64,7 @@ jobs:
           echo "::add-mask::$ECR_IMAGE_URI"
 
           pack config registry-mirrors add index.docker.io --mirror "mirror.gcr.io"
-
-          # Temporary: pin Heroku's 2026-10-28 nightly run image
-          HEROKU_RUN_IMAGE="heroku/heroku:26@sha256:9f310342e0f4138bfac5c6efd7e3368ec178855205007c177f7e20fb0c6a2509"
-
-          # Warm mirror.gcr.io so the export phase can find every layer there (it caches lazily).
-          docker pull "mirror.gcr.io/$HEROKU_RUN_IMAGE"
-
-          pack build "$ECR_IMAGE_URI" --builder heroku/builder:26 --run-image "$HEROKU_RUN_IMAGE" --publish
+          pack build "$ECR_IMAGE_URI" --builder heroku/builder:26 --publish
 
 
   notify_slack:
