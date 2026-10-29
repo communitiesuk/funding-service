@@ -137,7 +137,12 @@ class CorrelationMiddleware:
     The unit of work stays entered until the WSGI server closes the response iterable, which it does after sending the
     whole body (gunicorn, werkzeug's dev server and its test client all do). So lines logged while a streamed response
     body is generated (eg `stream_with_context`) are correlated with the request, and the finish line's `duration_ms`
-    and `response_size` cover the whole response."""
+    and `response_size` cover the whole response.
+
+    If the response body fails after the headers were sent, the failure is logged as its own WARNING "Response body
+    failed" line while the unit of work is still open, and the finish line is logged at WARNING with `iteration_failed`.
+    A client disconnecting fails inside the WSGI server's socket write, not inside `__next__`, so `iteration_failed`
+    only means the application's own body generator raised."""
 
     def __init__(self, app: Flask, wsgi_app: WSGIApplication) -> None:
         self.app = app
@@ -169,7 +174,11 @@ class CorrelationMiddleware:
 class _LoggedResponse:
     """The response iterable returned to the WSGI server: forwards the wrapped iterable's chunks, counting their bytes,
     and on `close()` logs the "Request finished" line and exits the request's unit of work. A streamed response also
-    gets a DEBUG "Response streaming" line, logged at most once, when its headers are sent."""
+    gets a DEBUG "Response streaming" line, logged at most once, when its headers are sent.
+
+    A body failure is logged as its own WARNING line from `__next__`, while the unit of work is still open. A client
+    disconnecting fails inside the server's socket write, not inside `__next__`, so `iteration_failed` only means the
+    application's own body generator raised."""
 
     def __init__(self, environ: WSGIEnvironment, exit_stack: ExitStack) -> None:
         self._environ = environ
@@ -218,6 +227,8 @@ class _LoggedResponse:
             raise
         except BaseException:
             self.iteration_failed = True
+            if self._is_logged:
+                self._log_body_failed()
             raise
         self.response_size += len(chunk)
         return chunk
@@ -248,6 +259,21 @@ class _LoggedResponse:
             extra={"status": self.status},
         )
 
+    def _log_body_failed(self) -> None:
+        method, path = self._method_and_path()
+        # WARNING rather than ERROR: Sentry's WSGI middleware wraps this iterable and already captures the exception, so
+        # an ERROR record would create a duplicate Sentry issue via `LoggingIntegration`.
+        request_logger.warning(
+            "Response body failed %(method)s %(path)s %(status)s after %(response_size)s bytes",
+            {"method": method, "path": path, "status": self.status, "response_size": self.response_size},
+            exc_info=True,
+            extra={
+                "status": self.status,
+                "response_size": self.response_size,
+                "response_streamed": self.response_streamed,
+            },
+        )
+
     def _log_finished(self) -> None:
         status = 500 if self.status is None and self.iteration_failed else self.status
         method, path = self._method_and_path()
@@ -272,9 +298,15 @@ class _LoggedResponse:
         # if client_ip := _client_ip(self._environ):
         #     extra["client_ip"] = client_ip
 
+        message = "Request finished %(method)s %(path)s %(status)s in %(duration_ms)sms"
+        if self.iteration_failed:
+            extra["iteration_failed"] = True
+            message += " but the response body failed"
+
+        is_server_error = status is not None and status >= 500
         request_logger.log(
-            logging.WARNING if status is not None and status >= 500 else logging.INFO,
-            "Request finished %(method)s %(path)s %(status)s in %(duration_ms)sms",
+            logging.WARNING if is_server_error or self.iteration_failed else logging.INFO,
+            message,
             log_args,
             extra=extra,
         )

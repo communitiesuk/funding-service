@@ -160,6 +160,25 @@ class TestRequestLogging:
         assert finished.response_size == len(response.data)
         assert get_current_context() is None
 
+    def test_streamed_response_body_failure_is_logged_with_the_request_id(self, anonymous_client, caplog) -> None:
+        with pytest.raises(RuntimeError, match="streamed body failed"):
+            anonymous_client.get("/_testing/streamed-response-failure")
+
+        body_failed = next(r for r in _request_records(caplog) if r.getMessage().startswith("Response body failed"))
+        finished = _request_records(caplog)[-1]
+        request_id = get_record_correlation(finished)["request_id"]
+
+        assert body_failed.levelno == logging.WARNING
+        assert body_failed.exc_info is not None
+        assert body_failed.status == 200
+        assert get_record_correlation(body_failed)["request_id"] == request_id
+
+        assert finished.getMessage().startswith("Request finished GET /_testing/streamed-response-failure 200")
+        assert finished.levelno == logging.WARNING
+        assert finished.iteration_failed is True
+        assert finished.response_streamed is True
+        assert _records_for_request(caplog, request_id)[-1] is finished
+
     def test_streamed_response_logs_streaming_line_between_start_and_body(self, anonymous_client, caplog) -> None:
         caplog.set_level(logging.DEBUG, logger="app")
 

@@ -135,6 +135,14 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]: 
 
         return Response(stream_with_context(generate_body()), mimetype="text/plain")
 
+    @app.route("/_testing/streamed-response-failure")
+    def streamed_response_failure() -> ResponseReturnValue:
+        def generate_body() -> Generator[str, None, None]:
+            yield "first chunk\n"
+            raise RuntimeError("streamed body failed")
+
+        return Response(stream_with_context(generate_body()), mimetype="text/plain")
+
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
         # get a thing that doesn't exist

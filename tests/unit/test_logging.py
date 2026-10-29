@@ -250,6 +250,9 @@ class TestCorrelationMiddleware:
     def _finish_records(self, caplog) -> list[logging.LogRecord]:
         return [record for record in caplog.records if record.getMessage().startswith("Request finished")]
 
+    def _body_failed_records(self, caplog) -> list[logging.LogRecord]:
+        return [record for record in caplog.records if record.getMessage().startswith("Response body failed")]
+
     def _streaming_records(self, caplog) -> list[logging.LogRecord]:
         return [record for record in caplog.records if record.getMessage().startswith("Response streaming")]
 
@@ -276,6 +279,8 @@ class TestCorrelationMiddleware:
         assert get_record_correlation(finished[0])["request_id"] == context_while_streaming.request_id
         assert finished[0].response_size == len(b"firstsecond")
         assert finished[0].response_streamed is True
+        assert not hasattr(finished[0], "iteration_failed")
+        assert finished[0].levelno == logging.INFO
         assert body.close_calls == 1
         assert get_current_context() is None
 
@@ -350,7 +355,44 @@ class TestCorrelationMiddleware:
                 list(response)
 
         finished = self._finish_records(caplog)
+        body_failed = self._body_failed_records(caplog)
         assert [(record.status, record.levelno) for record in finished] == [(500, logging.WARNING)]
+        assert finished[0].iteration_failed is True
+        assert [(record.status, record.levelno) for record in body_failed] == [(None, logging.WARNING)]
+        assert body_failed[0].exc_info is not None
+        assert get_current_context() is None
+
+    def test_body_failing_after_the_status_is_sent_logs_the_failure_and_a_warning_finish_line(self, app, caplog):
+        first_chunk = b"first"
+        middleware = self._middleware(app, _TestBody([first_chunk], fail_after_chunks=True))
+
+        with closing(middleware({"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path"}, _start_response)) as response:
+            request_context = get_current_context()
+            with pytest.raises(RuntimeError):
+                list(response)
+
+        body_failed = self._body_failed_records(caplog)
+        finished = self._finish_records(caplog)
+
+        assert request_context is not None
+        assert len(body_failed) == 1
+        assert len(finished) == 1
+        assert body_failed[0].getMessage() == f"Response body failed GET /test-path 200 after {len(first_chunk)} bytes"
+        assert body_failed[0].levelno == logging.WARNING
+        assert body_failed[0].exc_info is not None
+        assert body_failed[0].exc_info[0] is RuntimeError
+        assert body_failed[0].status == 200
+        assert body_failed[0].response_size == len(first_chunk)
+        assert body_failed[0].response_streamed is True
+        assert get_record_correlation(body_failed[0])["request_id"] == request_context.request_id
+
+        assert finished[0].levelno == logging.WARNING
+        assert finished[0].status == 200
+        assert finished[0].iteration_failed is True
+        assert finished[0].response_size == len(first_chunk)
+        assert finished[0].getMessage().endswith("but the response body failed")
+        assert get_record_correlation(finished[0])["request_id"] == request_context.request_id
+        assert caplog.records.index(body_failed[0]) < caplog.records.index(finished[0])
         assert get_current_context() is None
 
     def test_unlogged_path_is_not_logged_but_exits_the_unit_of_work(self, app, caplog):
@@ -361,6 +403,17 @@ class TestCorrelationMiddleware:
 
         assert self._finish_records(caplog) == []
         assert self._streaming_records(caplog) == []
+        assert get_current_context() is None
+
+    def test_unlogged_path_body_failure_is_not_logged(self, app, caplog):
+        caplog.set_level(logging.DEBUG, logger="app.request")
+        middleware = self._middleware(app, _TestBody([b"OK"], fail_after_chunks=True))
+
+        with closing(middleware({"REQUEST_METHOD": "GET", "PATH_INFO": "/healthcheck"}, _start_response)) as response:
+            with pytest.raises(RuntimeError):
+                list(response)
+
+        assert [record for record in caplog.records if record.name == "app.request"] == []
         assert get_current_context() is None
 
     def test_concurrent_requests_are_isolated(self, app, caplog):
