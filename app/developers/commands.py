@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import json
+import logging
 import uuid
 from collections import defaultdict
 from difflib import SequenceMatcher
@@ -68,6 +69,8 @@ from app.common.utils import slugify, to_dict
 from app.developers import developers_blueprint
 from app.extensions import db, notification_service, s3_service
 from app.services.notify import NotificationError
+
+logger = logging.getLogger(__name__)
 
 export_path = Path.cwd() / "app" / "developers" / "data" / "grants.json"
 
@@ -185,7 +188,7 @@ def export_grants(  # noqa: C901
 
     if current_app.config["IS_PRODUCTION"]:
         if exclude_users is False:
-            click.echo("Warning: --no-exclude-users is ignored in production; user data will be stripped.")
+            logger.warning("--no-exclude-users is ignored in production; user data will be stripped.")
         exclude_users = True
     else:
         exclude_users = bool(exclude_users)
@@ -202,16 +205,16 @@ def export_grants(  # noqa: C901
         with open(export_path) as infile:
             previous_export_data = json.load(infile)
         grant_ids = [uuid.UUID(grant_data["grant"]["id"]) for grant_data in previous_export_data["grants"]]
-        click.echo(
-            f"No grant IDs provided. "
-            f"Refreshing export data for previously exported grants: {','.join(str(g) for g in grant_ids)}\n"
+        logger.info(
+            "No grant IDs provided. Refreshing export data for previously exported grants: %(grant_ids)s",
+            {"grant_ids": ",".join(str(g) for g in grant_ids)},
         )
 
     all_grants = get_all_grants()
     grants = [grant for grant in all_grants if grant.id in grant_ids]
     missing_grants = [str(grant_id) for grant_id in grant_ids if grant_id not in [grant.id for grant in grants]]
     if missing_grants:
-        click.echo(f"Could not find the following grant(s): {','.join(missing_grants)}")
+        logger.warning("Could not find the following grant(s): %(grant_ids)s", {"grant_ids": ",".join(missing_grants)})
         exit(1)
 
     export_data: ExportData = {
@@ -333,14 +336,14 @@ def export_grants(  # noqa: C901
             with open(export_path, "w") as outfile:
                 outfile.write(export_json + "\n")
 
-            click.echo(f"Written {len(grants)} grants to {export_path}")
+            logger.info("Written %(count)s grants to %(path)s", {"count": len(grants), "path": str(export_path)})
 
         case "stdout":
-            click.echo(f"Writing {len(grants)} grants to stdout")
+            logger.info("Writing %(count)s grants to stdout", {"count": len(grants)})
             click.echo("\n\n\n")
             click.echo(export_json)
             click.echo("\n\n\n")
-            click.echo(f"Written {len(grants)} grants to stdout")
+            logger.info("Written %(count)s grants to stdout", {"count": len(grants)})
 
         case "email":
             assert email_address is not None
@@ -353,7 +356,7 @@ def export_grants(  # noqa: C901
             except (ValueError, NotificationError) as e:
                 raise click.ClickException(f"Failed to send grant export: {e}") from e
 
-            click.echo(f"Emailed {len(grants)} grants to {email_address}")
+            logger.info("Emailed %(count)s grants to the given email address", {"count": len(grants)})
 
 
 @developers_blueprint.cli.command("seed-grants", help="Load exported grants into the database")
@@ -516,7 +519,7 @@ def seed_grants(file: Path, s3_key: str | None = None) -> None:  # noqa: C901
         db.session.refresh(db_role)
 
     db.session.commit()
-    click.echo(f"Loaded/synced {len(export_data['grants'])} grant(s) into the database.")
+    logger.info("Loaded/synced %(count)s grant(s) into the database.", {"count": len(export_data["grants"])})
 
 
 @developers_blueprint.cli.command(
@@ -616,19 +619,19 @@ def _describe_component_reference_key(key: tuple[Any, ...], component_names: dic
 @click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
 def sync_component_references(commit: bool) -> None:
     if not commit:
-        click.echo("Dry run:")
+        logger.info("Dry run:")
 
-    click.echo("Syncing component references, one collection at a time.")
+    logger.info("Syncing component references, one collection at a time.")
 
     total_refs_before = db.session.query(ComponentReference).count()
-    click.echo(f"There are {total_refs_before} component references in the database.")
+    logger.info("There are %(count)s component references in the database.", {"count": total_refs_before})
 
     total_added, total_deleted = 0, 0
     collection_ids = db.session.query(Collection.id).all()
     for collection_id in collection_ids:
         collection = db.session.get(Collection, collection_id)
         if not collection:
-            click.echo(f"Collection {collection_id} does not exist.")
+            logger.warning("Collection %(collection_id)s does not exist.", {"collection_id": collection_id[0]})
             continue
 
         components = db.session.scalars(
@@ -651,11 +654,14 @@ def sync_component_references(commit: bool) -> None:
         deleted = sorted(refs_before - refs_after, key=str)
 
         if added or deleted:
-            click.echo(f"\n{collection.grant.name} / {collection.name}:")
+            logger.info(
+                "%(grant_name)s / %(collection_name)s:",
+                {"grant_name": collection.grant.name, "collection_name": collection.name},
+            )
             for key in added:
-                click.echo(f" + {_describe_component_reference_key(key, component_names)}")
+                logger.info(" + %(reference)s", {"reference": _describe_component_reference_key(key, component_names)})
             for key in deleted:
-                click.echo(f" - {_describe_component_reference_key(key, component_names)}")
+                logger.info(" - %(reference)s", {"reference": _describe_component_reference_key(key, component_names)})
 
         total_added += len(added)
         total_deleted += len(deleted)
@@ -667,14 +673,20 @@ def sync_component_references(commit: bool) -> None:
 
     if commit:
         total_refs_after = db.session.query(ComponentReference).count()
-        click.echo(
-            f"\nDone. Added {total_added} and deleted {total_deleted} component references "
-            f"({total_refs_before} -> {total_refs_after} in total)."
+        logger.info(
+            "Done. Added %(added)s and deleted %(deleted)s component references (%(before)s -> %(after)s in total).",
+            {"added": total_added, "deleted": total_deleted, "before": total_refs_before, "after": total_refs_after},
         )
     else:
-        click.echo(
-            f"\nDry run complete. Would add {total_added} and delete {total_deleted} component references "
-            f"({total_refs_before} -> {total_refs_before + total_added - total_deleted} in total)."
+        logger.info(
+            "Dry run complete. Would add %(added)s and delete %(deleted)s component references "
+            "(%(before)s -> %(after)s in total).",
+            {
+                "added": total_added,
+                "deleted": total_deleted,
+                "before": total_refs_before,
+                "after": total_refs_before + total_added - total_deleted,
+            },
         )
 
 
@@ -685,9 +697,9 @@ def sync_component_references(commit: bool) -> None:
 @click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
 def create_test_organisation_from_live(commit: bool) -> None:
     if not commit:
-        click.echo("Dry run:")
+        logger.info("Dry run:")
 
-    click.echo("Creating test organisations based on all live organisations.")
+    logger.info("Creating test organisations based on all live organisations.")
 
     live_organisations = (
         db.session.query(Organisation)
@@ -713,13 +725,13 @@ def create_test_organisation_from_live(commit: bool) -> None:
                 mode=OrganisationModeEnum.TEST,
             )
         )
-        click.echo(f" -> Created test organisation for {organisation.name}")
+        logger.info(" -> Created test organisation for %(organisation_name)s", {"organisation_name": organisation.name})
 
     if commit:
         db.session.commit()
-        click.echo(f"\nDone. Created {created} test organisations.")
+        logger.info("Done. Created %(created)s test organisations.", {"created": created})
     else:
-        click.echo(f"\nDry run complete. Would create {created} test organisations.")
+        logger.info("Dry run complete. Would create %(created)s test organisations.", {"created": created})
 
 
 @developers_blueprint.cli.command(
@@ -728,24 +740,24 @@ def create_test_organisation_from_live(commit: bool) -> None:
 @click.option("--commit", is_flag=True, help="Actually commit changes proposed by this command; defaults to a dry run")
 def sync_test_grant_recipients(commit: bool) -> None:
     if not commit:
-        click.echo("Dry run:")
+        logger.info("Dry run:")
 
-    click.echo("Syncing test grant recipients for all live grant recipients.")
+    logger.info("Syncing test grant recipients for all live grant recipients.")
 
     system_user = get_or_create_system_user()
     grants = get_all_grants()
     created = 0
     for grant in grants:
-        click.echo(f"\nProcessing {grant.name} ({grant.id})")
+        logger.info("Processing %(grant_name)s (%(grant_id)s)", {"grant_name": grant.name, "grant_id": grant.id})
 
         live_grant_recipients = get_grant_recipients(grant, mode=GrantRecipientModeEnum.LIVE, include_applicants=True)
 
         for live_grant_recipient in live_grant_recipients:
             matching_test_organisation = live_grant_recipient.organisation.matching_test_organisation
             if not matching_test_organisation:
-                click.echo(
-                    f" -> WARNING: No test organisation found for "
-                    f"live organisation {live_grant_recipient.organisation.name}"
+                logger.warning(
+                    "No test organisation found for live organisation %(organisation_name)s",
+                    {"organisation_name": live_grant_recipient.organisation.name},
                 )
                 continue
 
@@ -753,7 +765,10 @@ def sync_test_grant_recipients(commit: bool) -> None:
                 get_grant_recipient(live_grant_recipient.grant_id, matching_test_organisation.id)
 
                 # The test grant recipient already exists; continue
-                click.echo(f" -> Test grant recipient already exists for {live_grant_recipient.organisation.name}")
+                logger.info(
+                    " -> Test grant recipient already exists for %(organisation_name)s",
+                    {"organisation_name": live_grant_recipient.organisation.name},
+                )
                 continue
             except NoResultFound:
                 # We need to create it
@@ -767,8 +782,9 @@ def sync_test_grant_recipients(commit: bool) -> None:
                 mode=GrantRecipientModeEnum.TEST,
             )
 
-            click.echo(
-                f" -> Created test grant recipient for live organisation {live_grant_recipient.organisation.name}"
+            logger.info(
+                " -> Created test grant recipient for live organisation %(organisation_name)s",
+                {"organisation_name": live_grant_recipient.organisation.name},
             )
 
             for grant_team_user in grant.grant_team_users:
@@ -779,13 +795,15 @@ def sync_test_grant_recipients(commit: bool) -> None:
                     permissions=[RoleEnum.MEMBER, RoleEnum.DATA_PROVIDER, RoleEnum.CERTIFIER],
                     by_user=system_user,
                 )
-                click.echo(f" -> Adding test grant recipient permissions for {grant_team_user.email}")
+                logger.info(
+                    " -> Adding test grant recipient permissions for user %(user_id)s", {"user_id": grant_team_user.id}
+                )
 
     if commit:
         db.session.commit()
-        click.echo(f"\nDone. Created {created} test grant recipients.")
+        logger.info("Done. Created %(created)s test grant recipients.", {"created": created})
     else:
-        click.echo(f"\nDry run complete. Would create {created} test grant recipients.")
+        logger.info("Dry run complete. Would create %(created)s test grant recipients.", {"created": created})
 
 
 @developers_blueprint.cli.command(
@@ -826,7 +844,7 @@ def create_multi_submissions(  # noqa: C901
     Existing submissions with the same name will be skipped.
     """
     if not commit:
-        click.echo("Dry run:")
+        logger.info("Dry run:")
 
     # Read and group CSV rows by organisation_external_id
     rows_by_org: dict[str, list[str]] = defaultdict(list)
@@ -836,12 +854,14 @@ def create_multi_submissions(  # noqa: C901
     # Load collection with full schema
     collection = get_collection(collection_id, with_full_schema=True)
     if not collection.allow_multiple_submissions:
-        click.echo(f"ERROR: Collection {collection.name} does not allow multiple submissions.")
+        logger.warning(
+            "Collection %(collection_name)s does not allow multiple submissions.", {"collection_name": collection.name}
+        )
         return
 
     question = collection.submission_name_question
     if not question:
-        click.echo("ERROR: Collection does not have a submission name question configured.")
+        logger.warning("Collection does not have a submission name question configured.")
         return
 
     # Get grant recipients for this collection's grant
@@ -856,15 +876,16 @@ def create_multi_submissions(  # noqa: C901
 
     missing_from_csv = gr_org_ids - csv_org_ids
     if missing_from_csv:
-        click.echo(
-            f"WARNING: {len(missing_from_csv)} grant recipient(s) not in CSV: {', '.join(sorted(missing_from_csv))}"
+        logger.warning(
+            "%(count)s grant recipient(s) not in CSV: %(organisation_external_ids)s",
+            {"count": len(missing_from_csv), "organisation_external_ids": ", ".join(sorted(missing_from_csv))},
         )
 
     extra_in_csv = csv_org_ids - gr_org_ids
     if extra_in_csv:
-        click.echo(
-            f"WARNING: {len(extra_in_csv)} CSV org(s) not matching any grant recipient: "
-            f"{', '.join(sorted(extra_in_csv))}"
+        logger.warning(
+            "%(count)s CSV org(s) not matching any grant recipient: %(organisation_external_ids)s",
+            {"count": len(extra_in_csv), "organisation_external_ids": ", ".join(sorted(extra_in_csv))},
         )
 
     orgs_to_process = csv_org_ids & gr_org_ids
@@ -874,7 +895,7 @@ def create_multi_submissions(  # noqa: C901
     interpolation_context = ExpressionContext.build_expression_context(collection, mode="interpolation")
     user = get_user_by_email(service_user_email_address)
     if not user:
-        click.echo(f"ERROR: Could not find user {service_user_email_address}")
+        logger.warning("Could not find a user with the given email address")
         return
 
     submission_mode = SubmissionModeEnum.from_similar(mode)
@@ -884,7 +905,10 @@ def create_multi_submissions(  # noqa: C901
     skipped = 0
     for org_ext_id in sorted(orgs_to_process):
         grant_recipient = gr_by_org_ext_id[org_ext_id]
-        click.echo(f"\nProcessing {grant_recipient.organisation.name} ({org_ext_id})")
+        logger.info(
+            "Processing %(organisation_name)s (%(organisation_external_id)s)",
+            {"organisation_name": grant_recipient.organisation.name, "organisation_external_id": org_ext_id},
+        )
 
         for raw_answer in rows_by_org[org_ext_id]:
             # Convert to data source item key format for questions that read from a data source.
@@ -905,11 +929,11 @@ def create_multi_submissions(  # noqa: C901
                 form = form_cls(formdata=MultiDict({question.safe_qid: answer}), meta={"csrf": False})
                 SubmissionHelper(submission).submit_answer_for_question(question.id, form, user)
                 created += 1
-                click.echo(f"  -> Created submission '{answer}'")
+                logger.info("  -> Created submission '%(answer)s'", {"answer": answer})
             except SubmissionAnswerConflict:
                 savepoint.rollback()
                 skipped += 1
-                click.echo(f"  -> Skipping '{answer}' (already exists)")
+                logger.info("  -> Skipping '%(answer)s' (already exists)", {"answer": answer})
 
             # Whether or not we created a submission, we may need to 'backfill' section completeness.
             # If the submission name question is the only question in its section, mark it as complete.
@@ -923,9 +947,14 @@ def create_multi_submissions(  # noqa: C901
 
     if commit:
         db.session.commit()
-        click.echo(f"\nDone. Created {created} submissions, skipped {skipped}.")
+        logger.info(
+            "Done. Created %(created)s submissions, skipped %(skipped)s.", {"created": created, "skipped": skipped}
+        )
     else:
-        click.echo(f"\nDry run complete. Would create {created} submissions, would skip {skipped}.")
+        logger.info(
+            "Dry run complete. Would create %(created)s submissions, would skip %(skipped)s.",
+            {"created": created, "skipped": skipped},
+        )
 
 
 def _render_char_diff(stored: str, generated: str) -> tuple[str, str]:
@@ -1018,7 +1047,7 @@ def check_managed_statements(ctx: click.Context, output: str, s3_key: str | None
         )
         s3_service.upload_file(file_storage, key=s3_key)
         bucket = current_app.config["AWS_S3_BUCKET_NAME"]
-        click.echo(f"Report uploaded to s3://{bucket}/{s3_key}")
+        logger.info("Report uploaded to s3://%(bucket)s/%(key)s", {"bucket": bucket, "key": s3_key})
 
     if mismatches or errors:
         raise click.exceptions.Exit(1)
@@ -1035,7 +1064,7 @@ def refresh_status_for_multi_submissions(commit: bool) -> None:
     ).all()
     updated = 0
 
-    click.echo(f"Found {len(submission_ids)} multi-submissions")
+    logger.info("Found %(count)s multi-submissions", {"count": len(submission_ids)})
 
     for submission_id in submission_ids:
         helper = SubmissionHelper.load(submission_id)
@@ -1055,23 +1084,30 @@ def refresh_status_for_multi_submissions(commit: bool) -> None:
         db.session.refresh(submission)
 
         if submission.updated_at_utc != last_updated_at:
-            click.echo(
-                f"Failed to preserve updated_at_utc on submission {submission_id} "
-                f"(was {last_updated_at}, now is {submission.updated_at_utc}; aborting)"
+            logger.warning(
+                "Failed to preserve updated_at_utc on submission %(submission_id)s "
+                "(was %(was)s, now is %(now)s; aborting)",
+                {"submission_id": submission_id, "was": last_updated_at, "now": submission.updated_at_utc},
             )
             db.session.rollback()
             raise click.exceptions.Exit(1)
 
         if commit:
-            click.echo(f"Updated submission {submission.id} from status {from_status} to {submission.status}")
+            logger.info(
+                "Updated submission %(submission_id)s from status %(from_status)s to %(to_status)s",
+                {"submission_id": submission.id, "from_status": from_status, "to_status": submission.status},
+            )
             db.session.commit()
         else:
-            click.echo(f"Would update submission {submission.id} from status {from_status} to {submission.status}")
+            logger.info(
+                "Would update submission %(submission_id)s from status %(from_status)s to %(to_status)s",
+                {"submission_id": submission.id, "from_status": from_status, "to_status": submission.status},
+            )
             db.session.rollback()
 
         updated += 1
 
     if commit:
-        click.echo(f"Updated {updated} submissions with saved statuses")
+        logger.info("Updated %(updated)s submissions with saved statuses", {"updated": updated})
     else:
-        click.echo(f"Would update {updated} submissions with saved statuses")
+        logger.info("Would update %(updated)s submissions with saved statuses", {"updated": updated})
