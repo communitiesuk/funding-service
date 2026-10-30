@@ -36,7 +36,7 @@ dependencies = [
     "xgovuk-flask-admin==0.1.9",
     "flask-admin==2.2.1",
     "playwright==1.64.1",
-    "boto3==1.43.114",
+    "boto3==1.43.118",
     "types-boto3[s3]==1.43.115",
     "alembic==1.19.1",
     "charset-normalizer==3.5.2",
