@@ -327,8 +327,8 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
     edit_template = "deliver_grant_funding/admin/collection-edit.html"
 
     column_list = ["name", "type", "status", "grant.name"]
-    column_filters = ["name", "type", "status"]
-
+    column_filters = ["name", "type", "status", "grant.name"]
+    column_sortable_list = ["name", "type", "status", "grant.name"]
     column_details_list = ["grant.name", "created_by.email", "created_at_utc", "type.value", "name"]
     column_labels = {
         "grant.name": "Grant name",
