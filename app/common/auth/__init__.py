@@ -105,6 +105,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
     link_expired = request.args.get("link_expired", False)
     if form.validate_on_submit():
         email = cast(str, form.email_address.data)
+        email = email.lower()
 
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
         if email.endswith(internal_domains):
