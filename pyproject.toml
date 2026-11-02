@@ -78,11 +78,8 @@ required-version = ">=0.13.6"
 add-bounds = "exact"
 exclude-newer = "7 days"  # In line with our renovate spec minimumReleaseAge
 
-# Added for uv. Remove exclude-newer-package any time after 27/10/2026
-# Added for certifi. Remove exclude-newer-package any time after 27/10/2026
-# Added for virtualenv. Remove exclude-newer-package any time after 24/10/2026
-# Added for playwright. Remove exclude-newer-package any time after 29/10/2026
-exclude-newer-package = {uv = false, certifi = false, virtualenv = false, playwright = false}
+# Added for uv. Remove exclude-newer-package any time after 03/11/2026
+exclude-newer-package = {uv = false}
 
 [tool.ty.terminal]
 error-on-warning = true
