@@ -1,13 +1,13 @@
 import re
 import uuid
 from pathlib import Path
+from typing import Callable
 
 import pytest
 from playwright.sync_api import Page, expect
 
 from app.common.data.types import (
     CollectionStatusEnum,
-    GrantRecipientStatusEnum,
     GrantStatusEnum,
     GroupDisplayOptions,
     NumberTypeEnum,
@@ -27,7 +27,9 @@ from tests.e2e.conftest import (
 from tests.e2e.dataclasses import (
     DataReferenceConfig,
     E2EManagedExpression,
-    E2ETestUser,
+    GrantScenario,
+    GrantScenarioHandle,
+    OrganisationConfig,
     QuestionDict,
     QuestionGroupDict,
     QuestionResponse,
@@ -35,21 +37,16 @@ from tests.e2e.dataclasses import (
     SectionDict,
     TextFieldWithData,
 )
-from tests.e2e.deliver_grant_funding.helpers import create_grant, extract_uuid_from_url
-from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     DeliverTestGrantRecipientJourneyPage,
     GrantReportsPage,
     MarkAsOnboardingWithFundingServicePage,
-    OrganisationSetupRow,
     PlatformAdminGrantSettingsPage,
     PlatformAdminReportSettingsPage,
     RunnerTasklistPage,
     SetPrivacyPolicyPage,
     SetReportingDatesPage,
     SetSubmissionDatesPage,
-    SetUpGrantRecipientsPage,
-    SetUpOrganisationsPage,
     UploadedDataSetsPage,
 )
 from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
@@ -58,83 +55,10 @@ from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
     switch_user,
     task_check_your_answers,
 )
-from tests.e2e.helpers import delete_grant_through_admin
 
 SPACE_COUNT_COLUMN = "Free spaces"
 GROUP_QUESTION_TEXT = "How many spaces should we keep back?"
 GROUP_VALIDATION_ERROR = "Only 100 spaces are free"
-
-
-def _add_grant_team_member(page: Page, domain: str, grant_id: str, grant_name: str, email_address: str) -> None:
-    grant_reports_page = GrantReportsPage(page, domain, grant_name)
-    grant_reports_page.navigate(grant_id)
-    grant_team_page = grant_reports_page.click_nav_grant_team()
-    add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
-    add_grant_team_member_page.fill_in_user_email(email_address)
-    add_grant_team_member_page.click_continue()
-
-
-def _create_report(
-    page: Page, domain: str, grant_dashboard_page: GrantDashboardPage, grant_name: str
-) -> tuple[str, str]:
-    grant_reports_page = grant_dashboard_page.click_reports(grant_name)
-
-    choose_method_page = grant_reports_page.click_add_report()
-    add_report_page = choose_method_page.click_create_new()
-    report_name = f"E2E shelf check report {uuid.uuid4()}"
-    add_report_page.fill_in_report_name(report_name)
-    grant_reports_page = add_report_page.click_submit(grant_name)
-    grant_reports_page.check_report_exists(report_name)
-
-    page.get_by_role("link", name="0 data sets").click()
-    expect(page.get_by_role("heading", name="Uploaded data sets")).to_be_visible()
-    return report_name, extract_uuid_from_url(page.url, r"/reports/(?P<uuid>[a-f0-9-]+)")
-
-
-def _start_grant_with_recipients(
-    page: Page, domain: str, grant_name: str, unique_id: str
-) -> tuple[str, str, str, str, str, str, str]:
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-    grant_dashboard_page = create_grant(grant_name, unique_id, all_grants_page)
-    grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
-    report_name, collection_id = _create_report(page, domain, grant_dashboard_page, grant_name)
-    external_id_1, external_id_2, organisation_1, organisation_2 = _set_up_grant_recipients(
-        page, domain, grant_id, collection_id, unique_id
-    )
-
-    return grant_id, collection_id, report_name, external_id_1, external_id_2, organisation_1, organisation_2
-
-
-def _set_up_grant_recipients(
-    page: Page, domain: str, grant_id: str, collection_id: str, unique_id: str
-) -> tuple[str, str, str, str]:
-    external_id_1 = f"E2E-ANDY-{unique_id[:8].upper()}-1"
-    external_id_2 = f"E2E-BONNIE-{unique_id[:8].upper()}-2"
-    organisation_1 = f"E2E Andy's room {unique_id[:8]}"
-    organisation_2 = f"E2E Bonnie's room {unique_id[:8]}"
-
-    set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
-    set_up_orgs_page.navigate()
-    set_up_orgs_page.fill_organisations(
-        [
-            OrganisationSetupRow(external_id_1, organisation_1, "Unitary Authority"),
-            OrganisationSetupRow(external_id_2, organisation_2, "Unitary Authority"),
-        ]
-    )
-    set_up_orgs_page.click_set_up_organisations(
-        expected_organisations_created=2,
-    )
-
-    set_up_grant_recipients_page = SetUpGrantRecipientsPage(page, domain, grant_id, collection_id)
-    set_up_grant_recipients_page.navigate()
-    set_up_grant_recipients_page.select_organisations([organisation_1, organisation_2])
-    set_up_grant_recipients_page.select_status(GrantRecipientStatusEnum.AWARDED)
-    set_up_grant_recipients_page.click_set_up_grant_recipients(
-        expected_message="Created 2 grant recipients and 2 test grant recipients."
-    )
-
-    return external_id_1, external_id_2, organisation_1, organisation_2
 
 
 def _write_data_set_csv(
@@ -351,43 +275,39 @@ def test_upload_data_set_with_complete_and_missing_data(
     domain: str,
     tmp_path: Path,
     e2e_test_secrets: EndToEndTestSecrets,
-    authenticated_browser_sso: E2ETestUser,
+    email: str,
+    build_grant_scenario: Callable[..., GrantScenarioHandle],
 ):
-    grant_name_uuid = str(uuid.uuid4())
-    grant_name = f"E2E toy shelf upload grant {grant_name_uuid}"
-    grant_id = None
+    organisation_1 = f"E2E Andy's room {uuid.uuid4()}"
+    organisation_2 = f"E2E Bonnie's room {uuid.uuid4()}"
+    external_id_1 = f"E2E-ANDY-{uuid.uuid4().hex[:8].upper()}"
+    external_id_2 = f"E2E-BONNIE-{uuid.uuid4().hex[:8].upper()}"
+    report_name = f"E2E shelf check report {uuid.uuid4()}"
 
-    try:
-        (
-            grant_id,
-            collection_id,
-            _,
-            external_id_1,
-            external_id_2,
-            organisation_1,
-            organisation_2,
-        ) = _start_grant_with_recipients(
-            page,
-            domain,
-            grant_name,
-            grant_name_uuid,
+    scenario = build_grant_scenario(
+        GrantScenario(
+            collection_name=report_name,
+            org_name=organisation_1,
+            org_external_id=external_id_1,
+            org_type="Unitary Authority",
+            additional_organisations=[
+                OrganisationConfig(name=organisation_2, external_id=external_id_2, type="Unitary Authority")
+            ],
         )
+    )
 
-        csv_path = tmp_path / "toy-shelf-data-with-complete-and-missing-data.csv"
-        _write_data_set_csv(
-            csv_path, external_id_1, external_id_2, organisation_1, organisation_2, has_missing_data=True
-        )
+    csv_path = tmp_path / "toy-shelf-data-with-complete-and-missing-data.csv"
+    _write_data_set_csv(csv_path, external_id_1, external_id_2, organisation_1, organisation_2, has_missing_data=True)
 
-        data_set_name = f"E2E toy shelf data {grant_name_uuid[:8]}"
-        _upload_data_set(page, domain, grant_id, collection_id, csv_path, data_set_name, organisation_1, organisation_2)
+    data_set_name = f"E2E toy shelf data {uuid.uuid4().hex[:8]}"
+    _upload_data_set(
+        page, domain, scenario.grant_id, scenario.collection_id, csv_path, data_set_name, organisation_1, organisation_2
+    )
 
-        page.get_by_role("link", name=data_set_name).click()
-        expect(page.get_by_role("heading", name=re.compile(data_set_name))).to_be_visible()
-        expect(page.get_by_text("Marked with a boot")).to_be_visible()
-        expect(page.get_by_text("Data missing").first).to_be_visible()
-    finally:
-        if grant_id:
-            delete_grant_through_admin(page, domain, grant_name_uuid)
+    page.get_by_role("link", name=data_set_name).click()
+    expect(page.get_by_role("heading", name=re.compile(data_set_name))).to_be_visible()
+    expect(page.get_by_text("Marked with a boot")).to_be_visible()
+    expect(page.get_by_text("Data missing").first).to_be_visible()
 
 
 @pytest.mark.skip_in_environments(["prod"])
@@ -396,53 +316,49 @@ def test_replace_data_set_fills_missing_data(
     domain: str,
     tmp_path: Path,
     e2e_test_secrets: EndToEndTestSecrets,
-    authenticated_browser_sso: E2ETestUser,
+    email: str,
+    build_grant_scenario: Callable[..., GrantScenarioHandle],
 ):
-    grant_name_uuid = str(uuid.uuid4())
-    grant_name = f"E2E toy shelf replace grant {grant_name_uuid}"
-    grant_id = None
+    organisation_1 = f"E2E Andy's room {uuid.uuid4()}"
+    organisation_2 = f"E2E Bonnie's room {uuid.uuid4()}"
+    external_id_1 = f"E2E-ANDY-{uuid.uuid4().hex[:8].upper()}"
+    external_id_2 = f"E2E-BONNIE-{uuid.uuid4().hex[:8].upper()}"
+    report_name = f"E2E shelf check report {uuid.uuid4()}"
 
-    try:
-        (
-            grant_id,
-            collection_id,
-            _,
-            external_id_1,
-            external_id_2,
-            organisation_1,
-            organisation_2,
-        ) = _start_grant_with_recipients(
-            page,
-            domain,
-            grant_name,
-            grant_name_uuid,
+    scenario = build_grant_scenario(
+        GrantScenario(
+            collection_name=report_name,
+            org_name=organisation_1,
+            org_external_id=external_id_1,
+            org_type="Unitary Authority",
+            additional_organisations=[
+                OrganisationConfig(name=organisation_2, external_id=external_id_2, type="Unitary Authority")
+            ],
         )
+    )
 
-        csv_path = tmp_path / "toy-shelf-data-with-missing-data.csv"
-        _write_data_set_csv(
-            csv_path, external_id_1, external_id_2, organisation_1, organisation_2, has_missing_data=True
-        )
+    csv_path = tmp_path / "toy-shelf-data-with-missing-data.csv"
+    _write_data_set_csv(csv_path, external_id_1, external_id_2, organisation_1, organisation_2, has_missing_data=True)
 
-        data_set_name = f"E2E toy box count {grant_name_uuid[:8]}"
-        _upload_data_set(page, domain, grant_id, collection_id, csv_path, data_set_name, organisation_1, organisation_2)
+    data_set_name = f"E2E toy box count {uuid.uuid4().hex[:8]}"
+    _upload_data_set(
+        page, domain, scenario.grant_id, scenario.collection_id, csv_path, data_set_name, organisation_1, organisation_2
+    )
 
-        page.get_by_role("link", name=data_set_name).click()
-        expect(page.get_by_role("heading", name=re.compile(data_set_name))).to_be_visible()
-        expect(page.get_by_text("Data missing").first).to_be_visible()
+    page.get_by_role("link", name=data_set_name).click()
+    expect(page.get_by_role("heading", name=re.compile(data_set_name))).to_be_visible()
+    expect(page.get_by_text("Data missing").first).to_be_visible()
 
-        replacement_csv_path = tmp_path / "toy-shelf-data-without-missing-data.csv"
-        _write_data_set_csv(
-            replacement_csv_path,
-            external_id_1,
-            external_id_2,
-            organisation_1,
-            organisation_2,
-            has_missing_data=False,
-        )
-        _replace_data_set(page, data_set_name, replacement_csv_path)
-    finally:
-        if grant_id:
-            delete_grant_through_admin(page, domain, grant_name_uuid)
+    replacement_csv_path = tmp_path / "toy-shelf-data-without-missing-data.csv"
+    _write_data_set_csv(
+        replacement_csv_path,
+        external_id_1,
+        external_id_2,
+        organisation_1,
+        organisation_2,
+        has_missing_data=False,
+    )
+    _replace_data_set(page, data_set_name, replacement_csv_path)
 
 
 @pytest.mark.skip_in_environments(["prod"])
@@ -451,48 +367,60 @@ def test_complete_report_with_data_set_reference(
     domain: str,
     tmp_path: Path,
     e2e_test_secrets: EndToEndTestSecrets,
-    authenticated_browser_sso: E2ETestUser,
-    email,
+    email: str,
+    build_grant_scenario: Callable[..., GrantScenarioHandle],
 ):
-    grant_name_uuid = str(uuid.uuid4())
-    grant_name = f"E2E toy shelf reference grant {grant_name_uuid}"
-    data_set_name = f"E2E room inventory {grant_name_uuid[:8]}"
+    organisation_1 = f"E2E Andy's room {uuid.uuid4()}"
+    organisation_2 = f"E2E Bonnie's room {uuid.uuid4()}"
+    external_id_1 = f"E2E-ANDY-{uuid.uuid4().hex[:8].upper()}"
+    external_id_2 = f"E2E-BONNIE-{uuid.uuid4().hex[:8].upper()}"
+    report_name = f"E2E shelf check report {uuid.uuid4()}"
+    data_set_name = f"E2E room inventory {uuid.uuid4().hex[:8]}"
     csv_path = tmp_path / "toy-shelf-reference-data.csv"
 
-    is_platform_admin = True
-    grant_id = None
-
-    try:
-        (
-            grant_id,
-            collection_id,
-            report_name,
-            external_id_1,
-            external_id_2,
-            organisation_1,
-            organisation_2,
-        ) = _start_grant_with_recipients(
-            page,
-            domain,
-            grant_name,
-            grant_name_uuid,
+    scenario = build_grant_scenario(
+        GrantScenario(
+            collection_name=report_name,
+            org_name=organisation_1,
+            org_external_id=external_id_1,
+            org_type="Unitary Authority",
+            additional_organisations=[
+                OrganisationConfig(name=organisation_2, external_id=external_id_2, type="Unitary Authority")
+            ],
         )
+    )
 
+    is_platform_admin = True
+    try:
         grant_team_email = e2e_user_configs[DeliverGrantFundingUserType.GRANT_TEAM_MEMBER].email
-        _add_grant_team_member(page, domain, grant_id, grant_name, grant_team_email)
+        grant_reports_page = GrantReportsPage(page, domain, scenario.grant_name)
+        grant_reports_page.navigate(scenario.grant_id)
+        grant_team_page = grant_reports_page.click_nav_grant_team()
+        add_grant_team_member_page = grant_team_page.click_add_grant_team_member()
+        add_grant_team_member_page.fill_in_user_email(grant_team_email)
+        add_grant_team_member_page.click_continue()
 
         _write_data_set_csv(
             csv_path, external_id_1, external_id_2, organisation_1, organisation_2, has_missing_data=True
         )
-        _upload_data_set(page, domain, grant_id, collection_id, csv_path, data_set_name, organisation_1, organisation_2)
+        _upload_data_set(
+            page,
+            domain,
+            scenario.grant_id,
+            scenario.collection_id,
+            csv_path,
+            data_set_name,
+            organisation_1,
+            organisation_2,
+        )
 
         section_name = f"E2E shelf check section {uuid.uuid4()}"
         group_name = f"E2E shelf check group {uuid.uuid4()}"
         report = _report_with_data_set_references(report_name, section_name, group_name, data_set_name)
 
-        grant_reports_page = GrantReportsPage(page, domain, grant_name)
-        grant_reports_page.navigate(grant_id)
-        add_section_page = grant_reports_page.click_add_section(report_name=report_name, grant_name=grant_name)
+        grant_reports_page = GrantReportsPage(page, domain, scenario.grant_name)
+        grant_reports_page.navigate(scenario.grant_id)
+        add_section_page = grant_reports_page.click_add_section(report_name=report_name, grant_name=scenario.grant_name)
         add_section_page.fill_in_section_name(section_name)
         report_sections_page = add_section_page.click_add_section()
         manage_section_page = report_sections_page.click_manage_section(section_name)
@@ -502,7 +430,9 @@ def test_complete_report_with_data_set_reference(
 
         section_name = report["sections"][0]["name"]
 
-        _make_report_available_to_test_recipients(page, domain, grant_id, collection_id, grant_name, report_name)
+        _make_report_available_to_test_recipients(
+            page, domain, scenario.grant_id, scenario.collection_id, scenario.grant_name, report_name
+        )
         switch_user(
             page,
             domain,
@@ -512,11 +442,11 @@ def test_complete_report_with_data_set_reference(
         )
         is_platform_admin = False
         tasklist_page = _open_report_for_test_recipient(
-            page, domain, grant_id, collection_id, grant_name, report_name, organisation_1
+            page, domain, scenario.grant_id, scenario.collection_id, scenario.grant_name, report_name, organisation_1
         )
         expect(tasklist_page.page.get_by_role("link", name=section_name)).to_be_visible()
-        complete_task(tasklist_page, section_name, grant_name, report["sections"][0]["components"])
-        task_check_your_answers(tasklist_page, grant_name, report_name, report["sections"][0]["components"])
+        complete_task(tasklist_page, section_name, scenario.grant_name, report["sections"][0]["components"])
+        task_check_your_answers(tasklist_page, scenario.grant_name, report_name, report["sections"][0]["components"])
 
         expect(
             tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Ready to submit"))
@@ -524,5 +454,3 @@ def test_complete_report_with_data_set_reference(
     finally:
         if not is_platform_admin:
             switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
-        if grant_id:
-            delete_grant_through_admin(page, domain, grant_name_uuid)

@@ -308,6 +308,7 @@ def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simpl
             collection_id=collection_id,
             report_name=scenario.collection_name,
             org_name=scenario.org_name,
+            additional_organisation_names=[o.name for o in scenario.additional_organisations],
             public_sign_up_url=public_sign_up_url,
         )
         created_handles.append(handle)
@@ -328,8 +329,10 @@ def build_grant_scenario(  # noqa: C901 -- orchestrates many independently-simpl
 
     for handle in created_handles:
         if handle.org_name is not None:
+            all_org_names = [handle.org_name, *handle.additional_organisation_names]
             delete_grant_recipient_through_admin(
-                page, domain, handle.grant_name_uuid, expected_grant_recipients_matching_search=2
+                page, domain, handle.grant_name_uuid, expected_grant_recipients_matching_search=2 * len(all_org_names)
             )
-            delete_organisation_through_admin(page, domain, handle.org_name, expected_organisations_matching_search=2)
+            for org_name in all_org_names:
+                delete_organisation_through_admin(page, domain, org_name, expected_organisations_matching_search=2)
         delete_grant_through_admin(page, domain, handle.grant_name_uuid)

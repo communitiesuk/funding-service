@@ -140,22 +140,36 @@ def create_collection(
 def create_organisation(page: Page, domain: str, grant_id: str, collection_id: str, scenario: GrantScenario) -> None:
     assert scenario.org_name and scenario.org_external_id
 
+    rows = [OrganisationSetupRow(scenario.org_external_id, scenario.org_name, scenario.org_type)]
+    rows += [OrganisationSetupRow(o.external_id, o.name, o.type) for o in scenario.additional_organisations]
+
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
     set_up_orgs_page.navigate()
-    set_up_orgs_page.fill_organisations(
-        [OrganisationSetupRow(scenario.org_external_id, scenario.org_name, "Central Government")]
-    )
-    set_up_orgs_page.click_set_up_organisations()
+    set_up_orgs_page.fill_organisations(rows)
+    if len(rows) == 1:
+        set_up_orgs_page.click_set_up_organisations()
+    else:
+        set_up_orgs_page.click_set_up_organisations(expected_organisations_created=len(rows))
 
 
 def create_grant_recipient(page: Page, domain: str, grant_id: str, collection_id: str, scenario: GrantScenario) -> None:
     assert scenario.org_name
 
+    org_names = [scenario.org_name] + [o.name for o in scenario.additional_organisations]
+
     set_up_grant_recipients_page = SetUpGrantRecipientsPage(page, domain, grant_id, collection_id)
     set_up_grant_recipients_page.navigate()
-    set_up_grant_recipients_page.select_organisation(scenario.org_name)
+    if len(org_names) == 1:
+        set_up_grant_recipients_page.select_organisation(org_names[0])
+    else:
+        set_up_grant_recipients_page.select_organisations(org_names)
     set_up_grant_recipients_page.select_status(scenario.recipient_status)
-    set_up_grant_recipients_page.click_set_up_grant_recipients()
+    if len(org_names) == 1:
+        set_up_grant_recipients_page.click_set_up_grant_recipients()
+    else:
+        set_up_grant_recipients_page.click_set_up_grant_recipients(
+            expected_message=f"Created {len(org_names)} grant recipients and {len(org_names)} test grant recipients."
+        )
 
 
 def invite_data_providers(page: Page, domain: str, grant_id: str, collection_id: str, scenario: GrantScenario) -> None:

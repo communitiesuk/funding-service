@@ -121,6 +121,13 @@ class RecipientConfig:
 
 
 @dataclasses.dataclass
+class OrganisationConfig:
+    name: str
+    external_id: str
+    type: str = "Central Government"
+
+
+@dataclasses.dataclass
 class GrantScenario:
     """Declarative spec for `build_grant_scenario`: a grant is always built; everything else (collection,
     organisation, recipient(s), the heavier lifecycle steps) is opt-in, since most journeys only need a slice
@@ -134,6 +141,8 @@ class GrantScenario:
     eligibility_qualifying_answer: str | None = None
     org_name: str | None = None
     org_external_id: str | None = None
+    org_type: str = "Central Government"
+    additional_organisations: list[OrganisationConfig] = dataclasses.field(default_factory=list)
     recipients: list[RecipientConfig] = dataclasses.field(default_factory=list)
     recipient_status: GrantRecipientStatusEnum = GrantRecipientStatusEnum.AWARDED
     set_certifiers: bool = False
@@ -148,6 +157,9 @@ class GrantScenario:
     def __post_init__(self) -> None:
         if bool(self.org_name) != bool(self.org_external_id):
             raise ValueError("org_name and org_external_id must be provided together")
+
+        if self.additional_organisations and not self.org_name:
+            raise ValueError("additional_organisations requires org_name/org_external_id to be set")
 
         needs_collection = (
             self.org_name
@@ -183,4 +195,5 @@ class GrantScenarioHandle:
     collection_id: str | None
     report_name: str | None
     org_name: str | None
+    additional_organisation_names: list[str] = dataclasses.field(default_factory=list)
     public_sign_up_url: str | None = None
