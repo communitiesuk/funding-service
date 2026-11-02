@@ -43,6 +43,17 @@ class TestMagicLinkSignInView:
             assert response.status_code == 302
             assert response.location == "http://auth.example.com/auth-uri"
 
+    def test_post_mixed_case_email_redirects_to_sso(self, app, anonymous_client):
+        with patch("app.common.auth.build_auth_code_flow") as mock_build_auth_code_flow:
+            mock_build_auth_code_flow.return_value = {"auth_uri": "http://auth.example.com/auth-uri"}
+            response = anonymous_client.post(
+                url_for("auth.request_a_link_to_sign_in"),
+                data={"email_address": "test@COMMUNITIES.gov.uk"},
+                follow_redirects=False,
+            )
+            assert response.status_code == 302
+            assert response.location == "http://auth.example.com/auth-uri"
+
     def test_post_invalid_non_mhclg_email(self, anonymous_client, factories, mock_notification_service_calls):
         response = anonymous_client.post(
             url_for("auth.request_a_link_to_sign_in"), data={"email_address": "test@localgov.gov.uk"}
@@ -248,6 +259,29 @@ class TestCollectionRequestALinkToPublicSignUpView:
                     collection_slug=collection.slug,
                 ),
                 data={"email_address": "test@communities.gov.uk"},
+                follow_redirects=False,
+            )
+            assert response.status_code == 302
+            assert response.location == "http://auth.example.com/auth-uri"
+
+    def test_post_mixed_case_email_redirects_to_sso(self, app, anonymous_client, factories):
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug",
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            allow_public_sign_up=True,
+        )
+
+        with patch("app.common.auth.build_auth_code_flow") as mock_build_auth_code_flow:
+            mock_build_auth_code_flow.return_value = {"auth_uri": "http://auth.example.com/auth-uri"}
+            response = anonymous_client.post(
+                url_for(
+                    "auth.collection_request_a_link_to_public_sign_up",
+                    grant_slug=grant.slug,
+                    collection_slug=collection.slug,
+                ),
+                data={"email_address": "test@COMMUNITIES.gov.uk"},
                 follow_redirects=False,
             )
             assert response.status_code == 302
