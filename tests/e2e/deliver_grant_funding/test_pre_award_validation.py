@@ -4,20 +4,15 @@ from typing import Callable
 from playwright.sync_api import Page, expect
 
 from app.common.data.types import GrantRecipientStatusEnum, QuestionDataType
-from tests.e2e.access_grant_funding.pages import AccessHomePage
 from tests.e2e.config import EndToEndTestSecrets
-from tests.e2e.conftest import DeliverGrantFundingUserType, e2e_user_configs
+from tests.e2e.conftest import DeliverGrantFundingUserType, e2e_user_configs, switch_user
 from tests.e2e.dataclasses import GrantScenario, GrantScenarioHandle, QuestionDict, QuestionResponse, SectionDict
-from tests.e2e.deliver_grant_funding.reports_pages import (
-    GrantPreAwardFormsPage,
-    PreAwardTestGrantRecipientJourneyPage,
-    RunnerCheckYourAnswersPage,
-    RunnerTasklistPage,
-)
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
+from tests.e2e.pages.access_pages import AccessHomePage
+from tests.e2e.pages.deliver_pages import GrantPreAwardFormsPage, PreAwardTestGrantRecipientJourneyPage
+from tests.e2e.pages.misc_pages import RunnerCheckYourAnswersPage, RunnerTasklistPage
+from tests.e2e.question_helpers import (
     answer_questions_and_check_for_expected_errors,
     complete_task,
-    switch_user,
     task_check_your_answers,
 )
 

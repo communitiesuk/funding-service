@@ -15,7 +15,7 @@ from tests.e2e.dataclasses import (
     SectionDict,
 )
 from tests.e2e.deliver_grant_funding.helpers import navigate_to_report_sections_page
-from tests.e2e.deliver_grant_funding.reports_pages import (
+from tests.e2e.pages.misc_pages import (
     RunnerAddAnotherRemovePage,
     RunnerAddAnotherSummaryPage,
     RunnerCheckYourAnswersPage,

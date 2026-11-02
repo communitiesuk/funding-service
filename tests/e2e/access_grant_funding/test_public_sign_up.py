@@ -4,7 +4,15 @@ from typing import Callable
 from playwright.sync_api import Page, expect
 
 from app.common.data.types import QuestionDataType
-from tests.e2e.access_grant_funding.pages import (
+from tests.e2e.config import EndToEndTestSecrets
+from tests.e2e.conftest import DeliverGrantFundingUserType, login_with_session_cookie, login_with_stub_sso
+from tests.e2e.dataclasses import GrantScenario, GrantScenarioHandle, QuestionDict, QuestionResponse, SectionDict
+from tests.e2e.helpers import (
+    delete_grant_recipient_through_admin,
+    delete_organisation_through_admin,
+    retrieve_magic_link,
+)
+from tests.e2e.pages.access_pages import (
     AccessGrantPage,
     CreateOrganisationAllowTeamMembersPage,
     CreateOrganisationCheckYourAnswersPage,
@@ -16,16 +24,8 @@ from tests.e2e.access_grant_funding.pages import (
     PublicSignUpIneligiblePage,
     PublicSignUpStartPage,
 )
-from tests.e2e.config import EndToEndTestSecrets
-from tests.e2e.conftest import DeliverGrantFundingUserType, login_with_session_cookie, login_with_stub_sso
-from tests.e2e.dataclasses import GrantScenario, GrantScenarioHandle, QuestionDict, QuestionResponse, SectionDict
-from tests.e2e.deliver_grant_funding.reports_pages import RunnerTasklistPage
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import complete_task, task_check_your_answers
-from tests.e2e.helpers import (
-    delete_grant_recipient_through_admin,
-    delete_organisation_through_admin,
-    retrieve_magic_link,
-)
+from tests.e2e.pages.misc_pages import RunnerTasklistPage
+from tests.e2e.question_helpers import complete_task, task_check_your_answers
 
 
 def test_public_sign_up_journey(

@@ -3,7 +3,7 @@ from typing import Self
 
 from playwright.sync_api import Page, expect
 
-from tests.e2e.pages import BasePage
+from tests.e2e.pages.misc_pages import BasePage
 
 
 class CookieBannerMixin(ABC):

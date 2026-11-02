@@ -5,9 +5,10 @@ from playwright.sync_api import Page
 from app.common.data.types import CollectionStatusEnum, GrantStatusEnum
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import GrantScenario, SectionDict
-from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage
-from tests.e2e.deliver_grant_funding.reports_pages import (
+from tests.e2e.pages.deliver_pages import (
     AdminCollectionLifecycleTasklistPage,
+    AllGrantsPage,
+    GrantDashboardPage,
     GrantPreAwardFormsPage,
     GrantReportsPage,
     MarkAsOnboardingWithFundingServicePage,
@@ -24,6 +25,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpGrantRecipientsPage,
     SetUpOrganisationsPage,
 )
+from tests.e2e.question_helpers import create_question_or_group
 
 
 def create_grant(new_grant_name: str, grant_name_uuid: str, all_grants_page: AllGrantsPage) -> GrantDashboardPage:
@@ -86,9 +88,6 @@ def _add_sections(
     collection_name: str,
     list_page: GrantReportsPage | GrantPreAwardFormsPage,
 ) -> None:
-    # Local import to avoid a circular import: test_create_preview_collection.py imports from this module.
-    from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
-
     is_report = isinstance(list_page, GrantReportsPage)
 
     for i, section in enumerate(sections):
@@ -272,7 +271,7 @@ def invite_and_claim_grant_team_member(
     scenario: GrantScenario,
 ) -> None:
     # Local import to avoid a circular import: conftest.py imports from this module.
-    from tests.e2e.conftest import DeliverGrantFundingUserType, login_with_session_cookie, login_with_stub_sso
+    from tests.e2e.conftest import DeliverGrantFundingUserType, switch_user
 
     assert scenario.grant_team_member_email
 
@@ -281,19 +280,10 @@ def invite_and_claim_grant_team_member(
     add_grant_team_member_page.fill_in_user_email(scenario.grant_team_member_email)
     add_grant_team_member_page.click_continue()
 
-    grant_dashboard_page.click_sign_out()
-    if e2e_test_secrets.E2E_ENV == "local":
-        login_with_stub_sso(
-            domain, page, scenario.grant_team_member_email, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER
-        )
-    else:
-        login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER)
-
-    page.goto(f"{domain}/sign-out")
-    if e2e_test_secrets.E2E_ENV == "local":
-        login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
-    else:
-        login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+    switch_user(
+        page, domain, e2e_test_secrets, DeliverGrantFundingUserType.GRANT_TEAM_MEMBER, scenario.grant_team_member_email
+    )
+    switch_user(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN, email)
 
 
 def create_application_collection(
@@ -319,9 +309,6 @@ def create_application_collection(
 
 
 def enable_public_sign_up(page: Page, domain: str, grant_id: str, grant_name: str, scenario: GrantScenario) -> str:
-    # Local import to avoid a circular import: test_create_preview_collection.py imports from this module.
-    from tests.e2e.deliver_grant_funding.test_create_preview_collection import create_question_or_group
-
     assert scenario.collection_name and scenario.eligibility_question and scenario.eligibility_qualifying_answer
 
     pre_award_forms_page = GrantPreAwardFormsPage(page, domain, grant_name)

@@ -5,10 +5,10 @@ from typing import Callable
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.e2e.access_grant_funding.pages import AccessHomePage, RequestALinkToSignInPage
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import GrantScenario, GrantScenarioHandle, RecipientConfig
 from tests.e2e.helpers import retrieve_magic_link
+from tests.e2e.pages.access_pages import AccessHomePage, RequestALinkToSignInPage
 
 
 @pytest.mark.skip_in_environments(["prod"])

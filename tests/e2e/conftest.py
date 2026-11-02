@@ -15,7 +15,6 @@ from pytest_playwright import CreateContextCallback
 from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum
 from tests.conftest import create_test_app
-from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig, GrantScenario, GrantScenarioHandle
 from tests.e2e.deliver_grant_funding.helpers import (
@@ -35,13 +34,19 @@ from tests.e2e.deliver_grant_funding.helpers import (
     set_privacy_policy,
     set_reporting_and_submission_dates,
 )
-from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, SSOSignInPage, StubSSOEmailLoginPage
-from tests.e2e.deliver_grant_funding.reports_pages import AdminCollectionLifecycleTasklistPage
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
     delete_grant_through_admin,
     delete_organisation_through_admin,
     retrieve_magic_link,
+)
+from tests.e2e.pages.access_pages import RequestALinkToSignInPage
+from tests.e2e.pages.deliver_pages import (
+    AdminCollectionLifecycleTasklistPage,
+    AllGrantsPage,
+    GrantDashboardPage,
+    SSOSignInPage,
+    StubSSOEmailLoginPage,
 )
 from tests.utils import build_db_config
 
@@ -209,6 +214,21 @@ def login_with_session_cookie(
     sso_sign_in_page.navigate()
 
     return E2ETestUser(email_address=user_config.email)
+
+
+def switch_user(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    user_type: DeliverGrantFundingUserType,
+    email_address: str,
+) -> E2ETestUser:
+    grant_dashboard_page = GrantDashboardPage(page, domain)
+    grant_dashboard_page.click_sign_out()
+    if e2e_test_secrets.E2E_ENV == "local":
+        return login_with_stub_sso(domain, page, email_address, user_type)
+    else:
+        return login_with_session_cookie(page, domain, e2e_test_secrets, user_type)
 
 
 @pytest.fixture()

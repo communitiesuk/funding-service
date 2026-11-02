@@ -18,11 +18,11 @@ from app.common.data.types import (
 from app.common.expressions import EvaluationStatement, ExpressionContext, InterpolationStatement
 from app.common.expressions.custom import CustomExpression
 from app.common.expressions.managed import GreaterThan
-from tests.e2e.access_grant_funding.pages import AccessHomePage
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.conftest import (
     DeliverGrantFundingUserType,
     e2e_user_configs,
+    switch_user,
 )
 from tests.e2e.dataclasses import (
     DataReferenceConfig,
@@ -37,22 +37,22 @@ from tests.e2e.dataclasses import (
     SectionDict,
     TextFieldWithData,
 )
-from tests.e2e.deliver_grant_funding.reports_pages import (
+from tests.e2e.pages.access_pages import AccessHomePage
+from tests.e2e.pages.deliver_pages import (
     DeliverTestGrantRecipientJourneyPage,
     GrantReportsPage,
     MarkAsOnboardingWithFundingServicePage,
     PlatformAdminGrantSettingsPage,
     PlatformAdminReportSettingsPage,
-    RunnerTasklistPage,
     SetPrivacyPolicyPage,
     SetReportingDatesPage,
     SetSubmissionDatesPage,
     UploadedDataSetsPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
+from tests.e2e.pages.misc_pages import RunnerTasklistPage
+from tests.e2e.question_helpers import (
     complete_task,
     create_question_or_group,
-    switch_user,
     task_check_your_answers,
 )
 
