@@ -381,17 +381,8 @@ def test_first_task_grouped_questions(
     view_submission_page.click_reset_submission()
 
 
-def test_second_task_all_question_types(
-    page: Page,
-    domain: str,
-    e2e_test_secrets: EndToEndTestSecrets,
-    email: str,
-    build_grant_scenario: Callable[..., GrantScenarioHandle],
-) -> None:
-    """Grant team member previews and fills, then (as a test grant recipient) submits, a collection containing
-    every question type."""
-    section_name = "E2E second task - all question types"
-    components: list[QuestionDict | QuestionGroupDict] = [
+def _all_question_types_components() -> list[QuestionDict | QuestionGroupDict]:
+    return [
         QuestionDict(
             type=QuestionDataType.DATE,
             text="Enter a date",
@@ -800,6 +791,18 @@ def test_second_task_all_question_types(
         ),
     ]
 
+
+def test_second_task_all_question_types_preview(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    email: str,
+    build_grant_scenario: Callable[..., GrantScenarioHandle],
+) -> None:
+    """Grant team member previews and fills a collection containing every question type."""
+    section_name = "E2E second task - all question types"
+    components = _all_question_types_components()
+
     scenario, collection_name, grant_team_email = _build_recipient_and_preview(
         page, domain, e2e_test_secrets, build_grant_scenario, [SectionDict(name=section_name, components=components)]
     )
@@ -827,6 +830,41 @@ def test_second_task_all_question_types(
     expect(
         tasklist_page.submission_status_box.filter(has=tasklist_page.page.get_by_text("Ready to submit"))
     ).to_be_visible()
+    expect(tasklist_page.submit_button).to_be_enabled()
+    tasklist_page.click_submit_for_preview()
+
+
+def test_second_task_all_question_types_deliver_test_recipient(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    email: str,
+    build_grant_scenario: Callable[..., GrantScenarioHandle],
+) -> None:
+    """As a test grant recipient, fills and submits a collection containing every question type, then certifies,
+    signs off, reopens and resets the submission."""
+    section_name = "E2E second task - all question types"
+    components = _all_question_types_components()
+
+    scenario, collection_name, grant_team_email = _build_recipient_and_preview(
+        page, domain, e2e_test_secrets, build_grant_scenario, [SectionDict(name=section_name, components=components)]
+    )
+
+    all_grants_page = AllGrantsPage(page, domain)
+    all_grants_page.navigate()
+    if all_grants_page.title.is_visible():
+        all_grants_page.click_grant(scenario.grant_name)
+
+    grant_details_page = GrantDetailsPage(page, domain, scenario.grant_name)
+    grant_reports_page = grant_details_page.click_reports(scenario.grant_name)
+    report_sections_page = grant_reports_page.click_manage_sections(
+        grant_name=scenario.grant_name, report_name=collection_name
+    )
+    tasklist_page = report_sections_page.click_preview_report()
+
+    complete_task(tasklist_page, section_name, scenario.grant_name, components)
+    task_check_your_answers(tasklist_page, scenario.grant_name, collection_name, components)
+
     expect(tasklist_page.submit_button).to_be_enabled()
     tasklist_page.click_submit_for_preview()
 
