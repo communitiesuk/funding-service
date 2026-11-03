@@ -232,17 +232,24 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
     return CustomClient(app, app.response_class, use_cookies=True)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _integration_test_timeout(request: FixtureRequest) -> None:
+def pytest_itemcollected(item: pytest.Item) -> None:
     """Fail tests under `tests/integration` if they take 'too long', to encourage us to maintain tests that are
     reasonably fast here.
 
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
     still be able to be fairly fast.
+
+    This is a conftest hook rather than a session-scoped autouse fixture: a session fixture's `request.node` is the
+    Session itself, so a marker added there applies to every test in the process, including the unit tests that an
+    xdist worker happens to run after its first integration test. Tests that declare their own `fail_slow` marker
+    keep it.
     """
-    request.node.add_marker(
-        pytest.mark.fail_slow(os.environ.get("INTEGRATION_TIMEOUT_MS", "500ms" if "CI" not in os.environ else "1000ms"))
-    )
+    if item.get_closest_marker("fail_slow") is None:
+        item.add_marker(
+            pytest.mark.fail_slow(
+                os.environ.get("INTEGRATION_TIMEOUT_MS", "500ms" if "CI" not in os.environ else "1000ms")
+            )
+        )
 
 
 @pytest.fixture(scope="function", autouse=True)
