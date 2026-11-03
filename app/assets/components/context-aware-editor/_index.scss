@@ -103,7 +103,7 @@
 
 // Improve text contrast when references are within links
 .govuk-link .app-context-aware-editor--valid-reference {
-    color: govuk.govuk-colour("dark-blue");
+    color: govuk.govuk-colour("blue", $variant: "shade-50");
 }
 
 // Notification area for screen readers (if needed for toolbar)
