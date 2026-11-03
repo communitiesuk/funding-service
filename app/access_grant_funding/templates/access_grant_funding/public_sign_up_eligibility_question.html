@@ -20,7 +20,7 @@
         {% if question.guidance_body %}
           {{ interpolator(question.guidance_body) | govuk_markdown | safe }}
         {% endif %}
-        {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true) }}
+        {{ collection_render_single_question(form, question, interpolator, questionAsPageHeading=true, existing_file_upload_answer=existing_file_upload_answer, file_upload_clear_url=file_upload_clear_url) }}
 
         {{ form.submit(params={"text": "Continue"}) }}
       </form>

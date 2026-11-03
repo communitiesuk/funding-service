@@ -21,7 +21,7 @@
   {% endif %}
 {% endmacro %}
 
-{% macro collection_render_single_question(form, question, interpolator, questionAsPageHeading) %}
+{% macro collection_render_single_question(form, question, interpolator, questionAsPageHeading, runner=none, existing_file_upload_answer=none, file_upload_clear_url=none) %}
   {% if question.data_type == enum.question_type.TEXT_MULTI_LINE %}
     {{
       form.render_question(
@@ -112,13 +112,15 @@
       }}
     {% endif %}
   {% elif question.data_type == enum.question_type.FILE_UPLOAD %}
-    {% set existing_file_upload_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
+    {% if existing_file_upload_answer is none and runner is not none %}
+      {% set existing_file_upload_answer = runner.submission.cached_get_answer_for_question(question.id, add_another_index=runner.add_another_index if runner.add_another_index is not none else none) %}
+    {% endif %}
 
     {% if existing_file_upload_answer %}
       {% if questionAsPageHeading %}
-        <h1 class="govuk-heading-l">{{ runner.interpolate(question.text) }}</h1>
+        <h1 class="govuk-heading-l">{{ interpolator(question.text) }}</h1>
       {% else %}
-        <label class="govuk-label govuk-label--s govuk-!-margin-bottom-4">{{ runner.interpolate(question.text) }}</label>
+        <label class="govuk-label govuk-label--s govuk-!-margin-bottom-4">{{ interpolator(question.text) }}</label>
       {% endif %}
       {{
         govukSummaryList({
@@ -127,7 +129,7 @@
             "value": { "text": existing_file_upload_answer.filename },
             "actions": {
               "items": [{
-                "href": runner.to_url(enum.form_runner_state.QUESTION, question=question, add_another_index=runner.add_another_index if runner.add_another_index is not none else none, action="clear"),
+                "href": file_upload_clear_url or runner.to_url(enum.form_runner_state.QUESTION, question=question, add_another_index=runner.add_another_index if runner.add_another_index is not none else none, action="clear"),
                 "text": "Remove",
                 "visuallyHiddenText": "your uploaded file for " ~ question.name,
                 "classes": "govuk-link--no-visited-state"
@@ -192,7 +194,7 @@
     {# We want the caption outside of the <h> element to keep things more concise and understandable to screenreader users #}
     {# So we just manually add the caption here. #}
     {% for question in questions %}
-      {{ collection_render_single_question(form, question, runner.interpolate, questionAsPageHeading) }}
+      {{ collection_render_single_question(form, question, runner.interpolate, questionAsPageHeading, runner=runner) }}
     {% endfor %}
     {{ form.submit }}
   </form>

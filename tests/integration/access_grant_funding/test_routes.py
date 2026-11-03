@@ -12,7 +12,7 @@ from sqlalchemy import select
 from app.access_grant_funding.forms import EligibleOrganisationSelectionForm
 from app.access_grant_funding.session_models import MatchedOrganisationSession
 from app.common.collections.forms import build_question_form
-from app.common.collections.types import YesNoAnswer
+from app.common.collections.types import FileUploadAnswer, YesNoAnswer
 from app.common.data.interfaces.collections import add_component_condition, add_component_eligibility
 from app.common.data.models import GrantRecipient, Submission
 from app.common.data.models_audit import AuditEvent as AuditEventModel
@@ -3784,6 +3784,70 @@ class TestPublicSignUpIneligiblePage:
 
 
 class TestPublicSignUpEligibilityQuestion:
+    def test_get_renders_file_upload_question(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.FILE_UPLOAD)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+            )
+        )
+
+        assert response.status_code == 200
+        assert "Your file must be smaller than" in BeautifulSoup(response.data, "html.parser").get_text()
+
+    def test_get_file_upload_question_can_clear_existing_answer(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.FILE_UPLOAD)
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=authenticated_no_role_client.user,
+            grant_recipient=None,
+            answers=[
+                FactoryAnswer(
+                    question,
+                    FileUploadAnswer(filename="test-file.pdf", size=0, mime_type="application/pdf"),
+                )
+            ],
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+                action="clear",
+            )
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
+        )
+
     def test_get_redirects_when_not_authenticated(self, anonymous_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(

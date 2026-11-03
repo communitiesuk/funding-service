@@ -34,7 +34,7 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipient, get
 from app.common.data.interfaces.grants import get_grant, get_grant_by_slug
 from app.common.data.interfaces.organisations import get_matched_organisations, get_organisation
 from app.common.data.interfaces.user import upsert_user_by_email
-from app.common.data.types import RoleEnum, SubmissionModeEnum
+from app.common.data.types import QuestionDataType, RoleEnum, SubmissionModeEnum
 from app.common.expressions import evaluate
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import (
@@ -564,6 +564,17 @@ def public_sign_up_eligibility_question(
             )
         )
 
+    if request.args.get("action") == "clear" and question.data_type == QuestionDataType.FILE_UPLOAD:
+        submission_helper.remove_answer_for_question(question.id)
+        return redirect(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant_slug,
+                collection_slug=collection_slug,
+                question_id=question.id,
+            )
+        )
+
     form_cls = build_question_form(
         [question], submission_helper.cached_evaluation_context, submission_helper.cached_interpolation_context
     )
@@ -621,6 +632,14 @@ def public_sign_up_eligibility_question(
         collection=collection,
         form=form,
         question=question,
+        existing_file_upload_answer=submission_helper.cached_get_answer_for_question(question.id),
+        file_upload_clear_url=url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant_slug,
+            collection_slug=collection_slug,
+            question_id=question.id,
+            action="clear",
+        ),
         back_url=back_url,
         interpolator=SubmissionHelper.get_interpolator(collection, submission_helper),
     )
