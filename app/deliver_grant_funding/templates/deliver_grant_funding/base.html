@@ -43,15 +43,15 @@
   {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
 {% endblock header %}
 
-{% block main %}
+{% block container %}
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T8XPM3NL" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
   <div>
     <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-      {% block beforeContent %}{% endblock %}
+      {% block containerStart %}{% endblock %}
       <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
-        {% block mainWrapper %}
+        {% block main %}
           <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
             {% block errorSummary %}
               {{ standardErrorSummary(form) }}
@@ -60,11 +60,12 @@
             {% block content %}
             {% endblock content %}
           </main>
-        {% endblock mainWrapper %}
+        {% endblock main %}
       </div>
     </div>
+    {% block containerEnd %}{% endblock %}
   </div>
-{% endblock %}
+{% endblock container %}
 
 {% block footer %}
   {{
