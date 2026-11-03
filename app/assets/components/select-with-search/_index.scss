@@ -127,7 +127,7 @@
             border: 0;
             padding: 0 0 0 10px;
             margin: 10px 10px 0 0;
-            background-color: govuk.govuk-colour("light-grey");
+            background-color: govuk.govuk-colour("black", $variant: "tint-95");
             box-shadow: 0 2px govuk.$govuk-border-colour;
             line-height: 1;
             color: govuk.$govuk-text-colour;
