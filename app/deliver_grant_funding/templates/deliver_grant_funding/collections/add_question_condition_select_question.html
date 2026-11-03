@@ -5,10 +5,10 @@
 
 {% set page_title = "Add a condition - " ~ component.name %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% set back_link = url_for("deliver_grant_funding.add_question_condition_select_calculation", grant_id=grant.id, component_id=component.id) %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

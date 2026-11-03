@@ -7,7 +7,7 @@
 {% set active_item_identifier = constants.active_nav %}
 
 {% set return_link = url_for("access_grant_funding.route_to_submission", organisation_id=grant_recipient.organisation.id, grant_id=grant_recipient.grant.id, collection_id = submission.collection_id) %}
-{% block beforeContent %}
+{% block containerStart %}
   {{ super() }}
   {{
     govukBackLink({
@@ -15,7 +15,7 @@
       "text": "Back"
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 {% block content %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">

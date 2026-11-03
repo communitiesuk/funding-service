@@ -10,7 +10,7 @@
 {% set mainClasses = "app-full-screen-with-section-nav" %}
 
 {% set active_item_identifier = constants.active_nav %}
-{% block beforeContent %}
+{% block containerStart %}
   {{ super() }}
 
   {{
@@ -23,7 +23,7 @@
       "text": "Back to " ~ constants.plural
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% set should_certify = authorisation_helper.is_access_grant_certifier(submission.grant_recipient, current_user) and submission.is_awaiting_sign_off and not submission.in_immutable_state %}
 {% block content %}

@@ -9,9 +9,9 @@
 
 {% set page_title = "Add validation - " ~ question.name %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ govukBackLink({ "text": "Back", "href": url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=question.id) }) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   {% set heading = "Edit validation" if expression else "Add validation" %}

@@ -12,14 +12,14 @@
 {% set heading_caption = context_source_heading_caption(add_context_data) %}
 {% set cancel_url = context_source_return_url(add_context_data, grant, db_form, enum) %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
         "text": "Back",
         "href": back_url
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

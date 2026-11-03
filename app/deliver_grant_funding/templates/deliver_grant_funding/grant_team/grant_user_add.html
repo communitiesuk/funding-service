@@ -4,14 +4,14 @@
 {% set page_title = "Add grant team member" %}
 {% set active_item_identifier = "grant_team" %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

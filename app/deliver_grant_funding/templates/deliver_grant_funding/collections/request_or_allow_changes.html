@@ -6,7 +6,7 @@
 {% set type_constants = helper.submission.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if helper.is_test %}
     {{ mhclgInlinePageTestDataBanner("Test submission") }}
   {% endif %}
@@ -16,7 +16,7 @@
       "href": url_for('deliver_grant_funding.view_submission', grant_id=grant.id, submission_id=helper.submission.id)
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

@@ -6,10 +6,10 @@
 
 {% set page_title = form.need_calculation.label.text %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% set back_link = url_for("deliver_grant_funding.edit_question", grant_id=grant.id, question_id=component.id) if not component.is_group else url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=component.id) %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

@@ -7,14 +7,14 @@
 {% set type_constants = db_form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.choose_question_type", grant_id=grant.id, form_id=db_form.id, question_data_type=chosen_question_data_type.name, parent_id=parent.id if parent else None)
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

@@ -11,7 +11,7 @@
 {% set constants = runner.submission.collection.type.constants %}
 {% set active_item_identifier = constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ super() }}
   {% if runner.submission.collection.allow_multiple_submissions %}
     {{
@@ -28,7 +28,7 @@
       })
     }}
   {% endif %}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">
