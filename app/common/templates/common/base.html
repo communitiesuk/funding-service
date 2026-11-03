@@ -41,11 +41,11 @@
   }}
 {% endblock header %}
 
-{% block main %}
+{% block container %}
   <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-    {% block beforeContent %}{% endblock %}
+    {% block containerStart %}{% endblock %}
     <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
-      {% block mainWrapper %}
+      {% block main %}
         <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
           {% block errorSummary %}
             {{ standardErrorSummary(form) }}
@@ -54,10 +54,11 @@
           {% block content %}
           {% endblock content %}
         </main>
-      {% endblock mainWrapper %}
+      {% endblock main %}
     </div>
+    {% block containerEnd %}{% endblock %}
   </div>
-{% endblock %}
+{% endblock container %}
 
 {% block bodyEnd %}
   <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
