@@ -88,6 +88,7 @@ from app.extensions import (
     talisman,
     toolbar,
 )
+from app.logging.cli_output import log_alembic_stdout
 from app.monkeypatch import patch_sqlalchemy_lite_async
 from app.sentry import init_sentry
 from app.types import FlashMessageType
@@ -251,6 +252,7 @@ def create_app() -> Flask:  # noqa: C901
         render_as_batch=True,
         metadatas=BaseModel.metadata,
     )
+    migrate.configure(log_alembic_stdout)
     flask_assets_vite.init_app(app)
     if toolbar:
         toolbar.init_app(app)
@@ -425,4 +427,5 @@ def create_app() -> Flask:  # noqa: C901
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
+    logging.use_correlating_cli_contexts(app)
     return app

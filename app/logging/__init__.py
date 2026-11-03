@@ -2,13 +2,14 @@ import datetime
 import ipaddress
 import logging
 import time
-from collections.abc import Iterable, Iterator
-from contextlib import ExitStack
+from collections.abc import Generator, Iterable, Iterator
+from contextlib import ExitStack, contextmanager
 from logging import LogRecord
 from logging.config import dictConfig
 from typing import TYPE_CHECKING, Any
 
-from flask import Flask, g, request, session
+import click
+from flask import Flask, appcontext_pushed, g, request, session
 from flask_login import user_loaded_from_cookie, user_logged_in, user_logged_out
 from pythonjsonlogger.core import RESERVED_ATTRS
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 _MAX_USER_AGENT_LENGTH = 256
 
 request_logger = logging.getLogger("app.request")
+cli_logger = logging.getLogger("app.cli")
 
 # Flat, snake_case names: CloudWatch Logs Insights discovers top-level JSON keys automatically, and keys without dots or
 # hyphens can be used in `filter`/`stats`/`display` without backtick-quoting.
@@ -112,6 +114,7 @@ def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
     user_logged_in.connect(_bind_logged_in_user, app)
     user_loaded_from_cookie.connect(_bind_logged_in_user, app)
     user_logged_out.connect(_unbind_logged_out_user, app)
+    appcontext_pushed.connect(_enter_cli_context, app)
 
 
 def route_loggers_through_app(app: Flask, logger_names: Iterable[str], level: int = logging.INFO) -> None:
@@ -365,6 +368,117 @@ def _unbind_logged_out_user(sender: Flask, **kwargs: Any) -> None:
     correlation.bind(user_id=None)
 
 
+class CorrelatingClickCLIContext(click.Context):
+    """Binds the CLI unit of work's `cli_command` to this context's command path as soon as click enters it, so the
+    command is known before anything is logged or sent to Sentry (see `correlation.refine_cli_command`)."""
+
+    def __enter__(self) -> click.Context:
+        rv = super().__enter__()
+        correlation.refine_cli_command(self.command_path)
+        return rv
+
+
+def use_correlating_cli_contexts(app: Flask) -> None:
+    """Make every command on `app.cli` use `CorrelatingContext`. Called at the end of `create_app`, once the blueprints
+    and flask-migrate have registered their commands: `Command.context_class` is what `make_context` reads."""
+    _use_correlating_contexts(app.cli)
+
+
+def _use_correlating_contexts(command: click.Command) -> None:
+    command.context_class = CorrelatingClickCLIContext
+    if isinstance(command, click.Group):
+        for subcommand in command.commands.values():
+            _use_correlating_contexts(subcommand)
+
+
+def _enter_cli_context(sender: Flask, **kwargs: Any) -> None:
+    """Every Flask CLI command (and `create_app` when loaded by the CLI) pushes an app context while a click context is
+    active; the first such push enters a CLI unit of work that lasts until the whole click invocation finishes.
+    """
+    click_ctx = click.get_current_context(silent=True)
+    if click_ctx is None:
+        return
+
+    if correlation.get_current_context() is None:
+        click_ctx.find_root().with_resource(_cli_unit_of_work(click_ctx.command_path))
+
+
+@contextmanager
+def _cli_unit_of_work(command_path: str) -> Generator[None]:
+    """A CLI unit of work (see `correlation.cli_context`) that logs one line when the command ends, while still inside
+    the unit of work so that the line carries the correlation fields and the Sentry scope tags.
+
+    CLI commands can end with:
+    - a normal exit, or an exit with code 0, logs "Command finished" at INFO;
+    - a non-zero exit code (`Exit`, `ClickException`, `SystemExit`) logs "Command finished ... with exit code" at
+      WARNING;
+    - any other exception logs "Command failed" at ERROR with its traceback, and is re-raised.
+    """
+    with correlation.cli_context(command_path):
+        started_at = time.perf_counter()
+        try:
+            yield
+        except (
+            click.exceptions.Exit,
+            click.exceptions.Abort,
+            click.exceptions.ClickException,
+            SystemExit,
+            KeyboardInterrupt,
+        ) as exc:
+            _log_cli_finished(started_at, exc)
+            raise
+        except BaseException:
+            _log_cli_failed(started_at)
+            raise
+        else:
+            _log_cli_finished(started_at, None)
+
+
+def _cli_exit_code(exc: BaseException | None) -> int:
+    match exc:
+        case None:
+            return 0
+        case click.exceptions.Exit():
+            return exc.exit_code
+        case click.exceptions.ClickException():
+            return exc.exit_code
+        case SystemExit(code=None):
+            return 0
+        case SystemExit(code=int() as code):
+            return code
+        case _:
+            return 1
+
+
+def _cli_log_args(started_at: float) -> tuple[str | None, float]:
+    context = correlation.get_current_context()
+    cli_command = context.cli_command if context else None
+    return cli_command, round((time.perf_counter() - started_at) * 1000, 2)
+
+
+def _log_cli_finished(started_at: float, exc: BaseException | None) -> None:
+    cli_command, duration_ms = _cli_log_args(started_at)
+    exit_code = _cli_exit_code(exc)
+    log_args = {"cli_command": cli_command, "exit_code": exit_code, "duration_ms": duration_ms}
+    extra: dict[str, Any] = {"exit_code": exit_code, "duration_ms": duration_ms}
+
+    message = "Command finished %(cli_command)s with exit code %(exit_code)s in %(duration_ms)sms"
+    if exc is None or (isinstance(exc, click.exceptions.Exit) and exit_code == 0):
+        message = "Command finished %(cli_command)s in %(duration_ms)sms"
+
+    cli_logger.log(logging.WARNING if exit_code != 0 else logging.INFO, message, log_args, extra=extra)
+
+
+def _log_cli_failed(started_at: float) -> None:
+    cli_command, duration_ms = _cli_log_args(started_at)
+    cli_logger.error(
+        "Command failed %(cli_command)s in %(duration_ms)sms",
+        {"cli_command": cli_command, "duration_ms": duration_ms},
+        exc_info=True,
+        extra={"exit_code": 1, "duration_ms": duration_ms},
+    )
+
+
 class RejectMutableDataStructuresFilter(logging.Filter):
     def filter(self, record: LogRecord) -> LogRecord:
         # The policy applies to our own code. Third-party loggers routed through the app's handlers (eg alembic during
@@ -414,10 +528,10 @@ class JSONFormatter(BaseJSONFormatter):
 
 
 class PlaintextFormatter(logging.Formatter):
-    """Human-readable local format. By default (`LOG_FORMATTER=plaintext`) a line in a request ends with a short tag,
-    the first 8 characters of its `request_id`, so the lines of one request can be told apart. With `full_context`
-    (`LOG_FORMATTER=plaintext-full`) every correlation field is appended instead, so behaviour can be verified
-    locally."""
+    """Human-readable local format. By default (`LOG_FORMATTER=plaintext`) a line in a unit of work ends with a short
+    tag, the first 8 characters of its `request_id` or `run_id` (the first one set), so the lines of one request/CLI
+    command can be told apart. With `full_context` (`LOG_FORMATTER=plaintext-full`) every correlation
+    field is appended instead, so behaviour can be verified locally."""
 
     def __init__(self, *args: Any, full_context: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -433,7 +547,7 @@ class PlaintextFormatter(logging.Formatter):
             return line
         if self.full_context:
             return f"{line} [{' '.join(f'{key}={value}' for key, value in fields.items())}]"
-        tag = next((fields[key] for key in ("request_id",) if key in fields), None)
+        tag = next((fields[key] for key in ("request_id", "run_id") if key in fields), None)
         if tag is None:
             return line
         return f"{line} [{str(tag)[:8]}]"

@@ -7,12 +7,14 @@ from contextlib import closing
 from logging.config import DictConfigurator
 from typing import Any
 
+import click
 import pytest
 import sentry_sdk
 from pydantic import ValidationError
 
 from app.config import UnitTestConfig
 from app.logging import (
+    CorrelatingClickCLIContext,
     CorrelationMiddleware,
     JSONFormatter,
     PlaintextFormatter,
@@ -31,6 +33,10 @@ def _make_record(
     level: int = logging.INFO, msg: str = "test message", name: str = "app.tests", **extra: object
 ) -> logging.LogRecord:
     return logging.getLogger(name).makeRecord(name, level, __file__, 1, msg, None, None, extra=extra or None)
+
+
+def _isolation_scope_tags() -> dict[str, str]:
+    return dict(sentry_sdk.get_isolation_scope()._tags)
 
 
 class TestParseAlbTraceId:
@@ -103,6 +109,51 @@ class TestLogRecordCorrelation:
         ) as context:
             assert context.method == "GET"
             assert context.path == "/test-path"
+
+    def test_records_snapshot_the_current_unit_of_work(self):
+        with correlation.cli_context("flask test-command") as context:
+            record = _make_record()
+
+        fields = get_record_correlation(record)
+        assert fields["context_type"] == "cli"
+        assert fields["run_id"] == context.run_id
+        assert fields["cli_command"] == "flask test-command"
+        assert len(fields["trace_id"]) == 32
+        assert len(fields["span_id"]) == 16
+
+    def test_context_is_reset_after_the_unit_of_work_exits(self):
+        with correlation.cli_context("flask test-command"):
+            pass
+
+        assert get_current_context() is None
+
+    def test_each_unit_of_work_gets_its_own_sentry_trace(self):
+        with correlation.cli_context("flask first"):
+            first = get_record_correlation(_make_record())
+        with correlation.cli_context("flask second"):
+            second = get_record_correlation(_make_record())
+
+        assert first["trace_id"] != second["trace_id"]
+        assert first["run_id"] != second["run_id"]
+
+    def test_lines_of_one_cli_run_share_its_run_id(self):
+        with correlation.cli_context("flask test-command") as context:
+            first = get_record_correlation(_make_record())
+            second = get_record_correlation(_make_record())
+
+        assert uuid.UUID(context.run_id)
+        assert first["run_id"] == second["run_id"] == context.run_id
+
+    def test_bind_changes_fields_until_the_unit_of_work_exits(self):
+        user_id = str(uuid.uuid4())
+        with correlation.cli_context("flask test-command"):
+            correlation.bind(user_id=user_id)
+            bound = get_record_correlation(_make_record())
+        with correlation.cli_context("flask test-command"):
+            after = get_record_correlation(_make_record())
+
+        assert bound["user_id"] == user_id
+        assert "user_id" not in after
 
 
 class TestFormatters:
@@ -201,6 +252,171 @@ class TestLogFormatterConfig:
 
         assert isinstance(formatter, PlaintextFormatter)
         assert formatter.full_context is expected_full_context
+
+
+class TestCliContext:
+    def test_app_context_pushed_by_a_cli_command_enters_a_cli_unit_of_work(self, app):
+        command = click.Command("test-command")
+
+        with click.Context(command, info_name="test-command"):
+            with app.app_context():
+                context = get_current_context()
+            still_active = get_current_context()
+        after = get_current_context()
+
+        assert context is not None
+        assert context.context_type is ContextType.CLI
+        assert context.cli_command == "test-command"
+        assert still_active is context
+        assert after is None
+
+    def test_cli_command_is_refined_once_the_subcommand_is_resolved(self, app):
+        db_group = click.Group("db")
+        upgrade_command = click.Command("upgrade")
+
+        with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            context_during_app_creation = get_current_context()
+            with (
+                CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
+            ):
+                fields = get_record_correlation(_make_record())
+                tags = _isolation_scope_tags()
+
+        assert context_during_app_creation is not None
+        assert context_during_app_creation.cli_command == "flask"
+        assert fields["cli_command"] == tags["cli_command"] == "flask db upgrade"
+        assert fields["run_id"] == context_during_app_creation.run_id
+
+    def test_refined_cli_command_is_kept_after_the_subcommand_context_exits(self, app):
+        db_group = click.Group("db")
+        upgrade_command = click.Command("upgrade")
+
+        with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            with (
+                CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
+            ):
+                _make_record()
+            fields = get_record_correlation(_make_record())
+            tags = _isolation_scope_tags()
+
+        assert fields["cli_command"] == tags["cli_command"] == "flask db upgrade"
+
+    def test_create_app_makes_every_cli_command_use_correlating_contexts(self, app):
+        db_group = app.cli.commands["db"]
+        developers_group = app.cli.commands["developers"]
+        assert isinstance(db_group, click.Group)
+        assert isinstance(developers_group, click.Group)
+
+        assert db_group.context_class is CorrelatingClickCLIContext
+        assert db_group.commands["upgrade"].context_class is CorrelatingClickCLIContext
+        assert developers_group.context_class is CorrelatingClickCLIContext
+        assert developers_group.commands["seed-grants"].context_class is CorrelatingClickCLIContext
+
+    def test_no_cli_unit_of_work_without_a_click_context(self, app):
+        with app.app_context():
+            assert get_current_context() is None
+
+    def _cli_finish_records(self, caplog) -> list[logging.LogRecord]:
+        return [record for record in caplog.records if record.name == "app.cli"]
+
+    def test_normal_exit_logs_command_finished(self, app, caplog):
+        with click.Context(click.Group("flask"), info_name="flask"):
+            with app.app_context():
+                context = get_current_context()
+
+        (record,) = self._cli_finish_records(caplog)
+        fields = get_record_correlation(record)
+        assert context is not None
+        assert record.levelno == logging.INFO
+        assert record.getMessage().startswith("Command finished flask in ")
+        assert record.exit_code == 0
+        assert isinstance(record.duration_ms, float)
+        assert fields["context_type"] == "cli"
+        assert fields["run_id"] == context.run_id
+
+    def test_exit_with_code_zero_logs_command_finished(self, app, caplog):
+        with pytest.raises(click.exceptions.Exit), click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            raise click.exceptions.Exit(0)
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.INFO
+        assert record.getMessage().startswith("Command finished flask in ")
+        assert record.exit_code == 0
+
+    @pytest.mark.parametrize(
+        "exception, expected_exit_code",
+        [
+            (click.exceptions.Exit(3), 3),
+            (SystemExit(1), 1),
+            (SystemExit("test failure message"), 1),
+            (click.ClickException("bad"), 1),
+        ],
+    )
+    def test_non_zero_exit_logs_a_warning_with_the_exit_code(self, app, caplog, exception, expected_exit_code):
+        with pytest.raises(type(exception)), click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            raise exception
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.WARNING
+        assert record.getMessage().startswith(f"Command finished flask with exit code {expected_exit_code} in ")
+        assert record.exit_code == expected_exit_code
+
+    def test_system_exit_with_code_zero_logs_at_info(self, app, caplog):
+        with pytest.raises(SystemExit), click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            raise SystemExit(0)
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.levelno == logging.INFO
+        assert record.exit_code == 0
+
+    def test_unexpected_exception_logs_command_failed_and_propagates(self, app, caplog):
+        error = RuntimeError("boom")
+
+        with (
+            pytest.raises(RuntimeError) as exc_info,
+            click.Context(click.Group("flask"), info_name="flask") as root_ctx,
+        ):
+            root_ctx.with_resource(app.app_context())
+            raise error
+
+        (record,) = self._cli_finish_records(caplog)
+        assert exc_info.value is error
+        assert record.levelno == logging.ERROR
+        assert record.getMessage().startswith("Command failed flask in ")
+        assert record.exc_info is not None
+        assert record.exc_info[0] is RuntimeError
+        assert record.exit_code == 1
+        assert get_record_correlation(record)["context_type"] == "cli"
+
+    def test_finish_line_uses_the_refined_cli_command(self, app, caplog):
+        db_group = click.Group("db")
+        upgrade_command = click.Command("upgrade")
+
+        with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+            with (
+                CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
+            ):
+                pass
+
+        (record,) = self._cli_finish_records(caplog)
+        assert record.getMessage().startswith("Command finished flask db upgrade in ")
+        assert get_record_correlation(record)["cli_command"] == "flask db upgrade"
+
+    def test_unit_of_work_is_exited_after_the_finish_line(self, app, caplog):
+        with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
+            root_ctx.with_resource(app.app_context())
+
+        assert len(self._cli_finish_records(caplog)) == 1
+        assert get_current_context() is None
 
 
 class TestUnloggedPaths:
