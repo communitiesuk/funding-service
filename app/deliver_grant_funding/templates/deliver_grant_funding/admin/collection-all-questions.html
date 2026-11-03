@@ -3,7 +3,7 @@
 {% from "govuk_frontend_jinja/components/back-link/macro.html" import govukBackLink %}
 {% from "common/macros/all_questions.html" import render_all_questions with context %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ govukBackLink({"text": "Back", "href": url_for('collection.edit_view', id=collection.id)}) }}
 {% endblock %}
 

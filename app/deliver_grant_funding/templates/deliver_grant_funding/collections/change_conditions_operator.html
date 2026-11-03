@@ -6,7 +6,7 @@
 {% set type_constants = component.form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if component.is_group %}
     {% set back_link = url_for("deliver_grant_funding.list_group_questions", grant_id=grant.id, group_id=component.id) %}
   {% else %}
@@ -18,7 +18,7 @@
         "href": back_link
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

@@ -8,7 +8,7 @@
 
 {% set page_title = "Review missing data in " ~ session_data.name ~ " data set" %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if session_data.has_grant_recipient_mismatches %}
     {% set back_link = url_for("deliver_grant_funding.confirm_data_set_grant_recipients", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id, data_source_id=session_data.data_source_id if session_data.is_replace == True else None) %}
   {% else %}
@@ -19,7 +19,7 @@
     {% endif %}
   {% endif %}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">
