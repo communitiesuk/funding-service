@@ -4,7 +4,7 @@
 {% set page_title = "Enter your GGIS reference number" %}
 {% set active_item_identifier = "details" %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if not grant %}
     {{
       govukBackLink({
