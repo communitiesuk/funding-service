@@ -54,7 +54,7 @@
         border-color: govuk.$govuk-link-colour;
         color: govuk.$govuk-link-colour;
         font-weight: bold;
-        background-color: govuk.govuk-colour("light-grey");
+        background-color: govuk.govuk-colour("black", $variant: "tint-95");
     }
 
     a:hover {

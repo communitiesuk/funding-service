@@ -2,8 +2,13 @@
 // of Access grant funding or Deliver grant funding.
 
 @use "sass:color";
+
+$admin-brand-colour: #912b88;
+
 @use "govuk/base" as govuk with (
-    $govuk-brand-colour: #912b88,
+    $govuk-functional-colours: (
+        brand: $admin-brand-colour,
+    ),
     $govuk-assets-path: "/static/assets/"
 );
 
@@ -40,7 +45,7 @@
 
 .app-header__navigation-item {
     border-bottom-color: color.adjust(
-        govuk.$govuk-brand-colour,
+        $admin-brand-colour,
         $lightness: -15%
     ) !important;
 
