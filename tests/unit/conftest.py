@@ -4,7 +4,6 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-from _pytest.fixtures import FixtureRequest
 from flask import Flask
 from flask_sqlalchemy_lite import SQLAlchemy
 
@@ -18,15 +17,20 @@ from tests.models import FactoryAnswer
 from tests.utils import build_db_config
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _unit_test_timeout(request: FixtureRequest) -> None:
-    """Fail tests under `tests/unit` if they take more than 1ms, to encourage us to maintain tests that are
+def pytest_itemcollected(item: pytest.Item) -> None:
+    """Fail tests under `tests/unit` if they take more than 10ms, to encourage us to maintain tests that are
     very fast here.
 
     These tests should not need to do anything over the network and are likely to make use of mocking to keep the
     amount of code under test fairly tight, so this should not be hard to meet.
+
+    This is a conftest hook rather than a session-scoped autouse fixture: a session fixture's `request.node` is the
+    Session itself, so a marker added there applies to every test in the process, including the integration tests
+    that an xdist worker happens to run after its first unit test. Tests that declare their own `fail_slow` marker
+    keep it.
     """
-    request.node.add_marker(pytest.mark.fail_slow("10ms"))
+    if item.get_closest_marker("fail_slow") is None:
+        item.add_marker(pytest.mark.fail_slow("10ms"))
 
 
 @pytest.fixture(scope="session")
