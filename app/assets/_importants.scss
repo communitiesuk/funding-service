@@ -4,7 +4,7 @@
     white-space: nowrap !important;
 }
 .app-\!-border-top-line {
-    border-top: 1px solid govuk.govuk-colour("mid-grey") !important;
+    border-top: 1px solid govuk.govuk-colour("black", $variant: "tint-80") !important;
 }
 
 .app-\!-cell-width-200 {
