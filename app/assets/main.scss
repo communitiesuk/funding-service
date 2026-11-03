@@ -1,6 +1,7 @@
-$brand-colour: #00625e;
+$functional-colours: (
+    brand: #00625e,
+);
 $assets-path: "/static/assets/";
-$new-organisation-colours: true;
 
 @use "moj/settings/assets" with (
     $moj-assets-path: $assets-path
@@ -8,14 +9,12 @@ $new-organisation-colours: true;
 
 // This configures govuk/base for us, which @use components below will then reuse with the correct configuration.
 @use "moj/vendor/govuk-frontend" with (
-    $govuk-brand-colour: $brand-colour,
-    $govuk-new-organisation-colours: $new-organisation-colours
+    $govuk-functional-colours: $functional-colours
 );
 
 @use "govuk" with (
-    $govuk-new-organisation-colours: $new-organisation-colours,
     $govuk-assets-path: $assets-path,
-    $govuk-brand-colour: $brand-colour
+    $govuk-functional-colours: $functional-colours
 );
 
 @use "moj/objects/scrollable-pane";
