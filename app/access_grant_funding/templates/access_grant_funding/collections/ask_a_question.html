@@ -8,10 +8,10 @@
 
 {% set form = runner.question_with_add_another_summary_form %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ super() }}
   {{ collection_before(runner) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block errorSummary %}
   {{ formRunnerErrorSummary(form, runner) }}

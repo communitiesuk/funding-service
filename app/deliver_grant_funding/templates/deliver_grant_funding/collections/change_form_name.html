@@ -5,9 +5,9 @@
 {% set type_constants = db_form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=db_form.collection, form=db_form, this_page_breadcrumb_item={"text":"Section name"}) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">
