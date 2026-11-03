@@ -5,7 +5,7 @@
 {% set type_constants = db_form.collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% set truncated=False %}
   {% if group.parent %}
     {% set truncated=True %}
@@ -28,7 +28,7 @@
         truncated=truncated
     )
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

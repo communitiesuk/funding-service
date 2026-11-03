@@ -7,7 +7,7 @@
 
 {% set form = runner.tasklist_form %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {# the top level back behaviour is likely context specific #}
   {{
     govukBackLink({
@@ -15,7 +15,7 @@
         "href": url_for("deliver_grant_funding.list_collection_sections", grant_id=runner.submission.grant.id, collection_type=runner.submission.collection.type, collection_id=runner.submission.collection.id)
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">
