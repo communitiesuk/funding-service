@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from app.config import UnitTestConfig
 from app.logging import (
-    CorrelatingContext,
+    CorrelatingClickCLIContext,
     CorrelationMiddleware,
     JSONFormatter,
     PlaintextFormatter,
@@ -278,8 +278,8 @@ class TestCliContext:
             root_ctx.with_resource(app.app_context())
             context_during_app_creation = get_current_context()
             with (
-                CorrelatingContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
-                CorrelatingContext(upgrade_command, info_name="upgrade", parent=db_ctx),
+                CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
             ):
                 fields = get_record_correlation(_make_record())
                 tags = _isolation_scope_tags()
@@ -296,8 +296,8 @@ class TestCliContext:
         with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
             root_ctx.with_resource(app.app_context())
             with (
-                CorrelatingContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
-                CorrelatingContext(upgrade_command, info_name="upgrade", parent=db_ctx),
+                CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
             ):
                 _make_record()
             fields = get_record_correlation(_make_record())
@@ -311,10 +311,10 @@ class TestCliContext:
         assert isinstance(db_group, click.Group)
         assert isinstance(developers_group, click.Group)
 
-        assert db_group.context_class is CorrelatingContext
-        assert db_group.commands["upgrade"].context_class is CorrelatingContext
-        assert developers_group.context_class is CorrelatingContext
-        assert developers_group.commands["seed-grants"].context_class is CorrelatingContext
+        assert db_group.context_class is CorrelatingClickCLIContext
+        assert db_group.commands["upgrade"].context_class is CorrelatingClickCLIContext
+        assert developers_group.context_class is CorrelatingClickCLIContext
+        assert developers_group.commands["seed-grants"].context_class is CorrelatingClickCLIContext
 
     def test_no_cli_unit_of_work_without_a_click_context(self, app):
         with app.app_context():
@@ -402,8 +402,8 @@ class TestCliContext:
         with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
             root_ctx.with_resource(app.app_context())
             with (
-                CorrelatingContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
-                CorrelatingContext(upgrade_command, info_name="upgrade", parent=db_ctx),
+                CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
+                CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
             ):
                 pass
 

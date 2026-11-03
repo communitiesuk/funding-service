@@ -368,7 +368,7 @@ def _unbind_logged_out_user(sender: Flask, **kwargs: Any) -> None:
     correlation.bind(user_id=None)
 
 
-class CorrelatingContext(click.Context):
+class CorrelatingClickCLIContext(click.Context):
     """Binds the CLI unit of work's `cli_command` to this context's command path as soon as click enters it, so the
     command is known before anything is logged or sent to Sentry (see `correlation.refine_cli_command`)."""
 
@@ -385,7 +385,7 @@ def use_correlating_cli_contexts(app: Flask) -> None:
 
 
 def _use_correlating_contexts(command: click.Command) -> None:
-    command.context_class = CorrelatingContext
+    command.context_class = CorrelatingClickCLIContext
     if isinstance(command, click.Group):
         for subcommand in command.commands.values():
             _use_correlating_contexts(subcommand)
