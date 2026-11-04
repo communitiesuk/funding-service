@@ -10,6 +10,15 @@ healthcheck_blueprint = Blueprint(name="healthcheck", import_name=__name__)
 
 @healthcheck_blueprint.route("/healthcheck")
 def healthcheck() -> ResponseReturnValue:
+    redis_client = current_app.extensions["redis"]
+    if redis_client is not None:
+        try:
+            if not redis_client.ping():
+                raise RuntimeError("Redis PING failed")
+        except Exception:
+            current_app.logger.exception("Redis healthcheck error")
+            return "ERROR", 500, {"content-type": "text/plain"}
+
     return "OK", 200, {"content-type": "text/plain"}
 
 

@@ -83,6 +83,7 @@ from app.extensions import (
     notification_service,
     psycopg_citext,
     record_sqlalchemy_queries,
+    redis_client,
     register_signals,
     s3_service,
     talisman,
@@ -259,6 +260,7 @@ def create_app() -> Flask:  # noqa: C901
     notification_service.init_app(app)
     companies_house_service.init_app(app)
     s3_service.init_app(app)
+    redis_client.init_app(app)
     talisman.init_app(app, **app.config["TALISMAN_SETTINGS"])
     login_manager.init_app(app)
     register_signals(app)

@@ -243,6 +243,11 @@ class _SharedConfig(_BaseConfig):
 
     RECORD_SQLALCHEMY_QUERIES: bool = False
 
+    # Redis-compatible cache
+    REDIS_URL: str | None = None
+    REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS: float = 1
+    REDIS_SOCKET_TIMEOUT_SECONDS: float = 1
+
     # Logging
     LOG_LEVEL: LogLevels = "INFO"
     LOG_FORMATTER: LogFormats = "json"
@@ -461,6 +466,8 @@ class LocalConfig(_SharedConfig):
 
     AWS_S3_BUCKET_NAME: str = "local-bucket"
 
+    REDIS_URL: str | None = "redis://localhost:6379/0"
+
 
 class UnitTestConfig(LocalConfig):
     """
@@ -482,6 +489,8 @@ class UnitTestConfig(LocalConfig):
     SEED_SYSTEM_DATA: bool = False
 
     AWS_S3_BUCKET_NAME: str = "test-bucket"
+
+    REDIS_URL: str | None = None
 
 
 class DevConfig(_SharedConfig):
