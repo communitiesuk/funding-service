@@ -10,6 +10,7 @@ from app.extensions.auto_commit_after_request import AutoCommitAfterRequestExten
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from app.extensions.psycopg_citext import PsycopgCitextExtension
 from app.extensions.record_sqlalchemy_queries import RecordSqlalchemyQueriesExtension
+from app.extensions.redis import RedisExtension
 from app.services.companies_house import CompaniesHouseService
 from app.services.notify import NotificationService
 from app.services.s3 import S3Service
@@ -26,6 +27,7 @@ login_manager = LoginManager()
 record_sqlalchemy_queries = RecordSqlalchemyQueriesExtension()
 psycopg_citext = PsycopgCitextExtension()
 govuk_markdown = FlaskGOVUKMarkdown()
+redis_client = RedisExtension()
 
 try:
     from flask_debugtoolbar import DebugToolbarExtension
@@ -58,4 +60,5 @@ __all__ = [
     "record_sqlalchemy_queries",
     "psycopg_citext",
     "register_signals",
+    "redis_client",
 ]

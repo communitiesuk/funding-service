@@ -79,11 +79,26 @@ def client_healthcheck() -> ResponseReturnValue:
 
 @healthcheck_blueprint.route("/healthcheck/db")
 def db_healthcheck_current_revision() -> ResponseReturnValue:
+    result: dict[str, str] = {}
+
     try:
         db = current_app.extensions["sqlalchemy"]
         with db.engine.connect() as conn:
-            result = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-        return result, 200, {"content-type": "text/plain"}
+            result["db"] = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
     except Exception:
         current_app.logger.exception("Database healthcheck error")
-        return "ERROR", 500, {"content-type": "text/plain"}
+        result["db"] = "ERROR"
+
+    redis_client = current_app.extensions["redis"].client
+    if redis_client is None:
+        result["cache"] = "NOT_CONFIGURED"
+    else:
+        try:
+            if not redis_client.ping():
+                raise RuntimeError("Cache PING failed")
+            result["cache"] = "OK"
+        except Exception:
+            current_app.logger.exception("Cache healthcheck error")
+            result["cache"] = "ERROR"
+
+    return result, 200
