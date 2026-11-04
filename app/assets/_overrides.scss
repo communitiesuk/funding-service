@@ -9,6 +9,6 @@
 }
 
 .govuk-notification-banner--success {
-    border-color: govuk.$govuk-success-colour;
-    background-color: govuk.$govuk-success-colour;
+    border-color: govuk.govuk-functional-colour("success");
+    background-color: govuk.govuk-functional-colour("success");
 }

@@ -14,7 +14,7 @@
     display: block;
     flex: 1;
     padding: govuk.govuk-spacing(3);
-    background: govuk.$govuk-brand-colour;
+    background: govuk.govuk-functional-colour("brand");
     color: govuk.govuk-colour("white");
     text-decoration: none;
 
@@ -30,14 +30,14 @@
     }
 
     &:focus {
-        outline: 3px solid govuk.$govuk-focus-colour;
+        outline: 3px solid govuk.govuk-functional-colour("focus");
         outline-offset: 0;
-        background: govuk.$govuk-focus-colour;
-        color: govuk.$govuk-focus-text-colour;
+        background: govuk.govuk-functional-colour("focus");
+        color: govuk.govuk-functional-colour("focus-text");
 
         .app-big-number__number,
         .app-big-number__label {
-            color: govuk.$govuk-focus-text-colour;
+            color: govuk.govuk-functional-colour("focus-text");
         }
     }
 

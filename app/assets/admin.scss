@@ -61,7 +61,7 @@ h4,
 h5,
 h6 {
     &:target {
-        border-left: 4px solid govuk.$govuk-brand-colour;
+        border-left: 4px solid govuk.govuk-functional-colour("brand");
         padding-left: govuk.govuk-spacing(2);
     }
 }
