@@ -13,6 +13,19 @@ services:
     networks:
       - ofs
 
+  redis:
+    image: valkey/valkey:7.2-alpine@sha256:f8c1a646f4b31ae4dc3980ff06723a20b533ea1123b9796d450d78ed53ad6d3e
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - ofs
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   funding-service:
     build: .
     init: true
@@ -50,12 +63,14 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: "postgres"
       DATABASE_SECRET: '{"username":"postgres","password":"postgres"}'  # pragma:allowlist secret
+      CACHE_URL: "redis://redis:6379/0"
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
       WERKZEUG_DEBUG_PIN: off
       ASSETS_VITE_LIVE_ENABLED: ${ASSETS_VITE_LIVE_ENABLED:-true}
     depends_on:
       - db
       - localstack
+      - redis
     networks:
       - ofs
     healthcheck:
