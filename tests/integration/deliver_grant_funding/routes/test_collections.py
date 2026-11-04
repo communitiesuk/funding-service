@@ -17713,7 +17713,7 @@ class TestChooseCollectionCreationMethod:
         assert response.status_code == 403
 
     def test_query_count_does_not_scale_with_number_of_grants(
-        self, authenticated_platform_admin_client, factories, track_sql_queries
+        self, authenticated_platform_admin_client, factories, track_sql_queries, db_session
     ):
         collection_type = CollectionType.MONITORING_REPORT
         grant = factories.grant.create()
@@ -17724,6 +17724,9 @@ class TestChooseCollectionCreationMethod:
             collection_type=collection_type,
         )
 
+        # Expire the session so both measured requests start from the same state, rather than
+        # relying on whatever relationships the factories happened to leave loaded.
+        db_session.expire_all()
         with track_sql_queries() as baseline_queries:
             response = authenticated_platform_admin_client.get(url)
         assert response.status_code == 200
@@ -17731,6 +17734,7 @@ class TestChooseCollectionCreationMethod:
         for other_grant in factories.grant.create_batch(4):
             factories.collection.create(grant=other_grant, type=collection_type)
 
+        db_session.expire_all()
         with track_sql_queries() as more_grants_queries:
             response = authenticated_platform_admin_client.get(url)
         assert response.status_code == 200
