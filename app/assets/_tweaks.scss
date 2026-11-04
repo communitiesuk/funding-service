@@ -57,7 +57,7 @@
 }
 
 .app-actions {
-    border-top: 1px solid govuk.$govuk-brand-colour;
+    border-top: 1px solid govuk.govuk-functional-colour("brand");
     padding-top: govuk.govuk-spacing(3);
 }
 
