@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pytest
 from _pytest._code import ExceptionInfo
+from sqlalchemy import inspect as sqlalchemy_inspect
 from sqlalchemy.exc import NoResultFound
 
 from app.common.data.interfaces.exceptions import GrantCannotBeUpdatedWhenLiveError, StateTransitionError
@@ -111,6 +112,25 @@ class TestGetAllDeliverGrantsByUser:
         factories.grant.create_batch(5)
         result = get_all_deliver_grants_by_user(authenticated_grant_member_client.user)
         assert result == [authenticated_grant_member_client.grant]
+
+    def test_with_collections_platform_admin_eager_loads(self, factories, authenticated_platform_admin_client):
+        grants = factories.grant.create_batch(3)
+        for grant in grants:
+            factories.collection.create(grant=grant)
+
+        result = get_all_deliver_grants_by_user(authenticated_platform_admin_client.user, with_collections=True)
+
+        assert len(result) == 4
+        assert all("collections" not in sqlalchemy_inspect(grant).unloaded for grant in result)
+
+    def test_with_collections_grant_member_eager_loads(self, factories, authenticated_grant_member_client):
+        factories.grant.create_batch(2)
+        factories.collection.create(grant=authenticated_grant_member_client.grant)
+
+        result = get_all_deliver_grants_by_user(authenticated_grant_member_client.user, with_collections=True)
+
+        assert result == [authenticated_grant_member_client.grant]
+        assert "collections" not in sqlalchemy_inspect(result[0]).unloaded
 
 
 class TestGetAllGrants:

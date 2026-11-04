@@ -274,7 +274,7 @@ def start_test_grant_recipient_journey(
 
 def _collections_user_can_copy(collection_type: CollectionType) -> list[Any]:
     """All collections of this type that the current user could copy, from any grant they have access to."""
-    grants = get_all_deliver_grants_by_user(interfaces.user.get_current_user())
+    grants = get_all_deliver_grants_by_user(interfaces.user.get_current_user(), with_collections=True)
     return sorted(
         (collection for grant in grants for collection in grant.collections if collection.type == collection_type),
         key=lambda collection: (collection.grant.name.lower(), collection.name.lower()),

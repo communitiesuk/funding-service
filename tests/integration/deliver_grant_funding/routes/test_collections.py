@@ -17712,6 +17712,31 @@ class TestChooseCollectionCreationMethod:
 
         assert response.status_code == 403
 
+    def test_query_count_does_not_scale_with_number_of_grants(
+        self, authenticated_platform_admin_client, factories, track_sql_queries
+    ):
+        collection_type = CollectionType.MONITORING_REPORT
+        grant = factories.grant.create()
+        factories.collection.create(grant=grant, type=collection_type)
+        url = url_for(
+            "deliver_grant_funding.choose_collection_creation_method",
+            grant_id=grant.id,
+            collection_type=collection_type,
+        )
+
+        with track_sql_queries() as baseline_queries:
+            response = authenticated_platform_admin_client.get(url)
+        assert response.status_code == 200
+
+        for other_grant in factories.grant.create_batch(4):
+            factories.collection.create(grant=other_grant, type=collection_type)
+
+        with track_sql_queries() as more_grants_queries:
+            response = authenticated_platform_admin_client.get(url)
+        assert response.status_code == 200
+
+        assert len(more_grants_queries) == len(baseline_queries)
+
     @pytest.mark.parametrize("collection_type", CollectionType)
     def test_post_copy_redirects_to_select_collection(
         self, authenticated_grant_admin_client, collection_type, factories
