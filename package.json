@@ -12,10 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ministryofjustice/frontend": "9.0.0",
+    "@ministryofjustice/frontend": "12.0.0",
     "accessible-autocomplete": "3.0.2",
     "choices.js": "11.2.4",
-    "govuk-frontend": "6.0.0",
+    "govuk-frontend": "6.3.0",
     "turndown": "7.2.4"
   },
   "overrides": {
