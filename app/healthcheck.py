@@ -5,6 +5,8 @@ from flask.typing import ResponseReturnValue
 from sqlalchemy import text
 from werkzeug.http import parse_list_header
 
+from app.logging.correlation import get_log_fields
+
 healthcheck_blueprint = Blueprint(name="healthcheck", import_name=__name__)
 
 
@@ -38,6 +40,10 @@ def client_healthcheck() -> ResponseReturnValue:
 
     When either answer is no, the detail (the entry count, the configured PROXY_FIX_FOR, the request host and the
     configured SERVER_NAME) is logged at WARNING so it can be investigated in CloudWatch.
+
+    It also reports the request's own trace id: a per-request random identifier that is already shown on the 500 page,
+    so it reveals nothing new. It lets the smoke tests prove, through the real proxy chain, that a client cannot choose
+    the trace id our logs and Sentry events carry by sending trace headers.
     """
     forwarded_for_entries = len(parse_list_header(request.headers.get("X-Forwarded-For", "")))
     expected_forwarded_for_entries = current_app.config["PROXY_FIX_FOR"]
@@ -64,6 +70,7 @@ def client_healthcheck() -> ResponseReturnValue:
             "scheme": request.scheme,
             "host_is_canonical": host_is_canonical,
             "forwarded_for_matches_config": forwarded_for_matches_config,
+            "trace_id": get_log_fields().get("trace_id"),
         },
         200,
         {"Cache-Control": "no-store"},

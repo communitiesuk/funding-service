@@ -2,17 +2,11 @@ import ipaddress
 from typing import Any
 from urllib.parse import urlsplit
 
-from tests.smoke.conftest import CLIENT_PATH, SmokeEnvironment, SmokeGet
+from tests.smoke.conftest import SmokeEnvironment, SmokeGet, client_view
 
 # Globally routable because the endpoint masks non-public addresses, so a documentation-range spoof could never leak.
 SPOOFED_ADDRESS = "1.2.3.4"
 SPOOFED_HOST = "spoofed.example.com"
-
-
-def _client_view(smoke_get: SmokeGet, headers: dict[str, str]) -> dict[str, Any]:
-    response = smoke_get(CLIENT_PATH, headers)
-    assert response.status_code == 200, response.text
-    return response.json()
 
 
 def test_plain_request_uses_the_public_scheme_and_canonical_host(
@@ -36,7 +30,7 @@ def test_plain_request_resolves_the_callers_public_address(
 
 
 def test_spoofed_forwarded_for_never_becomes_the_client(smoke_get: SmokeGet, baseline: dict[str, Any]) -> None:
-    view = _client_view(smoke_get, {"X-Forwarded-For": SPOOFED_ADDRESS})
+    view = client_view(smoke_get, {"X-Forwarded-For": SPOOFED_ADDRESS})
 
     assert view["remote_addr"] == baseline["remote_addr"]
     assert view["remote_addr"] != SPOOFED_ADDRESS
@@ -48,14 +42,14 @@ def test_spoofed_forwarded_proto_is_ignored(
 ) -> None:
     spoofed_scheme = "http" if urlsplit(smoke_env.base_url).scheme == "https" else "https"
 
-    view = _client_view(smoke_get, {"X-Forwarded-Proto": spoofed_scheme})
+    view = client_view(smoke_get, {"X-Forwarded-Proto": spoofed_scheme})
 
     assert view["scheme"] == baseline["scheme"]
     assert view["host_is_canonical"] is True
 
 
 def test_spoofed_forwarded_host_is_ignored(smoke_get: SmokeGet, baseline: dict[str, Any]) -> None:
-    view = _client_view(smoke_get, {"X-Forwarded-Host": SPOOFED_HOST})
+    view = client_view(smoke_get, {"X-Forwarded-Host": SPOOFED_HOST})
 
     assert view["host_is_canonical"] is True
     assert view["scheme"] == baseline["scheme"]
@@ -63,7 +57,7 @@ def test_spoofed_forwarded_host_is_ignored(smoke_get: SmokeGet, baseline: dict[s
 
 
 def test_spoofed_forwarded_header_is_ignored(smoke_get: SmokeGet, baseline: dict[str, Any]) -> None:
-    view = _client_view(smoke_get, {"Forwarded": f"for={SPOOFED_ADDRESS};proto=http;host={SPOOFED_HOST}"})
+    view = client_view(smoke_get, {"Forwarded": f"for={SPOOFED_ADDRESS};proto=http;host={SPOOFED_HOST}"})
 
     assert view["remote_addr"] == baseline["remote_addr"]
     assert view["scheme"] == baseline["scheme"]
