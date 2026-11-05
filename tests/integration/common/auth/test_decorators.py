@@ -627,7 +627,6 @@ class TestCollectionIsOpenForSignUp:
             (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
             (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
             (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
@@ -651,6 +650,26 @@ class TestCollectionIsOpenForSignUp:
         with app.test_request_context(f"/access/grant/{grant.slug}/{collection.slug}"):
             response = view_func(grant_slug=grant.slug, collection_slug=collection.slug)
             assert response == "OK"
+
+    def test_deliver_user_testing_access_blocked_for_closed_collection(self, app, factories, user):
+        # Unlike the other draft/onboarding statuses, a closed collection blocks sign-up for everyone,
+        # including deliver-testing users
+        grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            slug="collection-slug", grant=grant, status=CollectionStatusEnum.CLOSED, allow_public_sign_up=True
+        )
+        factories.user_role.create(
+            user=user, organisation=grant.organisation, grant=grant, permissions=[RoleEnum.MEMBER]
+        )
+
+        @collection_is_open_for_sign_up
+        def view_func(grant_slug: str, collection_slug: str):
+            return "OK"
+
+        login_user(user)
+
+        with app.test_request_context(f"/access/grant/{grant.slug}/{collection.slug}"), pytest.raises(NotFound):
+            view_func(grant_slug=grant.slug, collection_slug=collection.slug)
 
 
 class TestIsSigningUp:
