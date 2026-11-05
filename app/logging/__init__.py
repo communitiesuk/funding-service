@@ -14,6 +14,8 @@ from flask_login import user_loaded_from_cookie, user_logged_in, user_logged_out
 from pythonjsonlogger.core import RESERVED_ATTRS
 from pythonjsonlogger.json import JsonFormatter as BaseJSONFormatter
 
+from app.common.data.types import TraceLevelEnum
+from app.common.helpers.request_tracing import get_tracing_levels_from_environ
 from app.logging import correlation
 from app.logging.correlation import (
     CORRELATION_RECORD_ATTR,
@@ -52,6 +54,10 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
         "version": 1,
         "disable_existing_loggers": False,
         "filters": {
+            "contextual_level": {
+                "()": "app.logging.ContextualLevelFilter",
+                "level": log_level,
+            },
             "reject_mutable_data_structures": {
                 "()": "app.logging.RejectMutableDataStructuresFilter",
             },
@@ -80,9 +86,10 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
                 "class": "sentry_sdk.integrations.logging.SentryLogsHandler",
                 # Correlation fields reach Sentry Logs as isolation-scope attributes (see `app.logging.correlation`),
                 # not through a formatter: SentryLogsHandler reads the message template and record extras directly.
+                "filters": ["reject_mutable_data_structures", "contextual_level"],
             },
             "default": {
-                "filters": ["reject_mutable_data_structures"],
+                "filters": ["reject_mutable_data_structures", "contextual_level"],
                 "formatter": formatter,
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stdout",
@@ -97,7 +104,11 @@ def get_default_logging_config(app: Flask) -> dict[str, Any]:
             },
             app.name: {
                 "handlers": ["default", "sentry"],
-                "level": log_level,
+                # The logger lets DEBUG records through so that a single unit of work can opt in to debug logging via
+                # the request tracing cookie; `ContextualLevelFilter` on each handler applies the configured level.
+                # It is the last filter on each handler, so the policy filters run before it and a bad debug call
+                # fails even when debug logging is off.
+                "level": logging.DEBUG,
             },
         },
     }
@@ -152,13 +163,14 @@ class CorrelationMiddleware:
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ: WSGIEnvironment, start_response: StartResponse) -> Iterable[bytes]:
+        debug_logging = self._debug_logging_requested(environ)
         exit_stack = ExitStack()
         exit_stack.enter_context(
             correlation.request_context(
                 environ,
                 alb_trace_id=correlation.parse_alb_trace_id(environ.get("HTTP_X_AMZN_TRACE_ID")),
                 cloudfront_request_id=correlation.parse_cloudfront_request_id(environ.get("HTTP_X_AMZ_CF_ID")),
-                debug_logging=False,
+                debug_logging=debug_logging,
             )
         )
         response = _LoggedResponse(environ, exit_stack)
@@ -172,6 +184,9 @@ class CorrelationMiddleware:
 
         response.wrap_iterable(iterable)
         return response
+
+    def _debug_logging_requested(self, environ: WSGIEnvironment) -> bool:
+        return TraceLevelEnum.DEBUG_LOGGING in get_tracing_levels_from_environ(environ, self.app.config["SECRET_KEY"])
 
 
 class _LoggedResponse:
@@ -479,6 +494,18 @@ def _log_cli_failed(started_at: float) -> None:
     )
 
 
+class ContextualLevelFilter(logging.Filter):
+    """Applies the configured log level, except for records created inside a unit of work that has debug logging
+    enabled (via `TraceLevelEnum.DEBUG_LOGGING` on the request tracing cookie)."""
+
+    def __init__(self, level: str | int = logging.INFO) -> None:
+        super().__init__()
+        self.level = level if isinstance(level, int) else logging.getLevelNamesMapping()[level]
+
+    def filter(self, record: LogRecord) -> bool:
+        return record.levelno >= self.level or get_record_correlation(record).get("debug_logging") is True
+
+
 class RejectMutableDataStructuresFilter(logging.Filter):
     def filter(self, record: LogRecord) -> LogRecord:
         # The policy applies to our own code. Third-party loggers routed through the app's handlers (eg alembic during
@@ -556,6 +583,8 @@ class PlaintextFormatter(logging.Formatter):
 __all__ = [
     "ContextType",
     "CorrelationMiddleware",
+    "ContextualLevelFilter",
+    "CorrelatingClickCLIContext",
     "JSONFormatter",
     "PlaintextFormatter",
     "RejectMutableDataStructuresFilter",

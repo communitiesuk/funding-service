@@ -7,6 +7,8 @@ import pytest
 from flask import url_for
 
 from app.common.data import interfaces
+from app.common.data.types import TraceLevelEnum
+from app.common.helpers.request_tracing import REQUEST_TRACING_COOKIE_NAME, encode_levels
 from app.logging.correlation import get_current_context, get_record_correlation
 from tests.utils import recording_sentry_scope
 
@@ -48,6 +50,14 @@ class TestLogging:
         assert isinstance(exc.value, ValueError)
         assert str(exc.value) == f"Attempt to log data type `{type(complex)}` rejected by security policy."
 
+    @pytest.mark.parametrize("complex", [[1, 2, 3], (1, 2, 3), {"a": "b"}, {"a"}])
+    def test_cannot_log_complex_data_types_at_debug_level(self, app, caplog, complex: Any) -> None:
+        with app.app_context(), pytest.raises(ValueError) as exc:
+            app.logger.debug("this is a test log %(complex)s", {"complex": complex})
+
+        assert isinstance(exc.value, ValueError)
+        assert str(exc.value) == f"Attempt to log data type `{type(complex)}` rejected by security policy."
+
     def test_can_log_date(self, app, caplog) -> None:
         test_date = datetime.date(2023, 6, 30)
         with app.app_context():
@@ -65,8 +75,6 @@ class TestLogging:
 
 class TestRequestLogging:
     def test_logs_start_and_finish_of_request(self, anonymous_client, caplog) -> None:
-        caplog.set_level(logging.DEBUG, logger="app")
-
         response = anonymous_client.get("/custom-cache-control")
 
         records = _request_records(caplog)
@@ -195,8 +203,6 @@ class TestRequestLogging:
         assert request_records[1].levelno == logging.DEBUG
 
     def test_every_line_in_a_request_shares_a_generated_request_id(self, anonymous_client, caplog) -> None:
-        caplog.set_level(logging.DEBUG, logger="app")
-
         anonymous_client.get("/custom-cache-control", headers={"X-Request-Id": "client-supplied"})
         anonymous_client.get("/custom-cache-control")
 
@@ -289,16 +295,12 @@ class TestRequestLogging:
     def test_user_id_present_from_first_line_for_signed_in_user(
         self, authenticated_platform_admin_client, caplog
     ) -> None:
-        caplog.set_level(logging.DEBUG, logger="app")
-
         authenticated_platform_admin_client.get("/custom-cache-control")
 
         user_id = str(authenticated_platform_admin_client.user.id)
         assert [fields.get("user_id") for fields in _correlations(_request_records(caplog))] == [user_id, user_id]
 
     def test_user_id_read_from_session_without_loading_user(self, anonymous_client, caplog) -> None:
-        caplog.set_level(logging.DEBUG, logger="app")
-
         user_id = str(uuid.uuid4())
         with anonymous_client.session_transaction() as session:
             session["_user_id"] = user_id
@@ -308,8 +310,6 @@ class TestRequestLogging:
         assert [fields.get("user_id") for fields in _correlations(_request_records(caplog))] == [user_id, user_id]
 
     def test_user_id_reflects_login_within_request(self, anonymous_client, caplog) -> None:
-        caplog.set_level(logging.DEBUG, logger="app")
-
         magic_link = interfaces.magic_link.create_magic_link(email="test@local.gov.uk", user=None, redirect_to_path="/")
 
         anonymous_client.post(url_for("auth.claim_magic_link", magic_link_code=magic_link.code), json={"submit": "yes"})
@@ -322,8 +322,6 @@ class TestRequestLogging:
         assert finished["user_id"] == user_id
 
     def test_user_id_reflects_logout_within_request(self, authenticated_platform_admin_client, caplog) -> None:
-        caplog.set_level(logging.DEBUG, logger="app")
-
         authenticated_platform_admin_client.get(url_for("auth.sign_out"))
 
         started, finished = _correlations(_request_records(caplog))
@@ -356,6 +354,21 @@ class TestRequestLogging:
         assert recorder.users[-1] is None
         assert "user_id" not in recorder.tags[-1]
         assert "user_id" not in recorder.attributes[-1]
+
+    def test_debug_logging_cookie_enables_debug_for_that_request_only(self, app, anonymous_client, caplog) -> None:
+        token = encode_levels([TraceLevelEnum.DEBUG_LOGGING], app.config["SECRET_KEY"])
+
+        anonymous_client.set_cookie(REQUEST_TRACING_COOKIE_NAME, token, domain="funding.communities.gov.localhost")
+        anonymous_client.get("/custom-cache-control")
+        anonymous_client.delete_cookie(REQUEST_TRACING_COOKIE_NAME, domain="funding.communities.gov.localhost")
+        anonymous_client.get("/custom-cache-control")
+
+        assert [fields.get("debug_logging") for fields in _correlations(_request_records(caplog))] == [
+            True,
+            True,
+            None,
+            None,
+        ]
 
 
 class TestErrorLogging:
