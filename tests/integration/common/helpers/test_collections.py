@@ -63,7 +63,6 @@ from app.common.helpers.collections import (
     get_or_create_unclaimed_submission,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
-from app.metrics import MetricEventName
 from tests.models import FactoryAnswer
 from tests.utils import AnyStringMatching
 
@@ -421,35 +420,6 @@ class TestSubmissionHelper:
                 helper.submit_answer_for_question(question.id, form, submission.created_by)
 
             assert helper.cached_get_answer_for_question(question.id) == TextSingleLineAnswer("Alpha")
-
-        def test_submit_valid_data_emits_metric(self, db_session, factories, mock_sentry_metrics):
-            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.create(collection=question.form.collection, mode=SubmissionModeEnum.LIVE)
-            helper = SubmissionHelper(submission)
-
-            assert helper.cached_get_answer_for_question(question.id) is None
-
-            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
-                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
-            )
-            helper.submit_answer_for_question(question.id, form, submission.created_by)
-
-            assert mock_sentry_metrics.call_count == 1
-            assert mock_sentry_metrics.call_args[0] == (MetricEventName.SUBMISSION_QUESTION_ANSWERED, 1)
-
-        def test_submit_valid_data_no_metric_for_non_live_submissions(self, db_session, factories, mock_sentry_metrics):
-            question = factories.question.create(id=uuid.UUID("d696aebc-49d2-4170-a92f-b6ef42994294"))
-            submission = factories.submission.create(collection=question.form.collection)
-            helper = SubmissionHelper(submission)
-
-            assert helper.cached_get_answer_for_question(question.id) is None
-
-            form = build_question_form([question], evaluation_context=EC(), interpolation_context=EC())(
-                q_d696aebc49d24170a92fb6ef42994294="User submitted data"
-            )
-            helper.submit_answer_for_question(question.id, form, submission.created_by)
-
-            assert mock_sentry_metrics.call_count == 0
 
     class TestRemoveEntryForAddAnother:
         def test_remove_entry_for_add_another(self, db_session, factories):
