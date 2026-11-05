@@ -146,7 +146,7 @@
   {{ super() }}
   <script type="module" src="{{ vite_asset('app/assets/components/cookie-consent/index.js') }}"></script>
 {% endblock %}
-{% block footer %}
+{% block govukFooter %}
   {% set grant_id = grant.id if grant is defined else request.view_args.grant_id %}
 
   {{
@@ -174,4 +174,4 @@
       }
     })
   }}
-{% endblock footer %}
+{% endblock govukFooter %}
