@@ -4872,6 +4872,50 @@ class TestDeleteQuestion:
         for item in question.data_source.items:
             assert db_session.get(DataSourceItem, item.id) is None
 
+    def test_delete_question_with_data_source_item_referenced_by_other_component(self, db_session, factories):
+        form = factories.form.create()
+        question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+        other_question = factories.question.create(form=form)
+        dependent_question = factories.question.create(form=form)
+        # A reference to one of the question's data source items whose `depends_on_component` does not point at the
+        # question itself must still block deletion, rather than failing with a foreign key violation on flush.
+        db_session.add(
+            ComponentReference(
+                component=dependent_question,
+                depends_on_component=other_question,
+                depends_on_data_source_item=question.data_source.items[0],
+            )
+        )
+        db_session.flush()
+
+        with pytest.raises(DependencyOrderException) as e:
+            delete_question(question)
+
+        assert e.value.question == dependent_question
+        assert db_session.get(Question, question.id) is not None
+
+    def test_delete_question_with_self_reference_to_own_data_source_item(self, db_session, factories):
+        form = factories.form.create()
+        question = factories.question.create(form=form, data_type=QuestionDataType.RADIOS)
+        data_source_id = question.data_source.id
+        item_ids = [item.id for item in question.data_source.items]
+        db_session.add(
+            ComponentReference(
+                component=question,
+                depends_on_component=question,
+                depends_on_data_source_item=question.data_source.items[0],
+            )
+        )
+        db_session.flush()
+
+        delete_question(question)
+
+        assert db_session.get(Question, question.id) is None
+        assert db_session.get(DataSource, data_source_id) is None
+        for item_id in item_ids:
+            assert db_session.get(DataSourceItem, item_id) is None
+        assert db_session.query(ComponentReference).filter_by(component_id=question.id).count() == 0
+
 
 class TestDeleteCollectionSubmissions:
     def test_delete_preview_collection_submission_created_by_user(self, db_session, factories):
