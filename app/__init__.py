@@ -151,7 +151,10 @@ def _register_global_error_handlers(app: Flask) -> None:
         service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
 
         return render_template(
-            "common/errors/500.html", service_desk_url=service_desk_url, base_template=base_template
+            "common/errors/500.html",
+            service_desk_url=service_desk_url,
+            base_template=base_template,
+            trace_id=logging.correlation.get_log_fields().get("trace_id"),
         ), 500
 
     @app.errorhandler(RedirectException)
