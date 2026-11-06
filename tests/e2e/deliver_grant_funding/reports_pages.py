@@ -2979,6 +2979,12 @@ class OverrideGrantRecipientCertifiersPage:
 
         self.add_certifer_button = page.get_by_role("button", name="Add grant-specific certifier")
 
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/override-grant-certifiers"
+        )
+        expect(self.heading).to_be_visible()
+
     def select_organisation(self, org_name: str) -> None:
         self.organisation_combo_box.click()
         self.page.get_by_role("option", name=org_name, exact=True).click()
