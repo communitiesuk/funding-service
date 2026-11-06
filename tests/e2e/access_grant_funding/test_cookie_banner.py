@@ -1,6 +1,6 @@
 from playwright.sync_api import Page
 
-from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
+from tests.e2e.pages.access_pages import RequestALinkToSignInPage
 
 
 def test_cookie_banner_accepted(page: Page, domain: str):

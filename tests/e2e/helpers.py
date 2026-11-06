@@ -41,8 +41,7 @@ def delete_grant_recipient_through_admin(
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/grantrecipient/?{query}")
 
-    grant_recipients = page.get_by_role("link", name=re.compile(search)).all()
-    assert len(grant_recipients) == expected_grant_recipients_matching_search
+    expect(page.get_by_role("link", name=search)).to_have_count(expected_grant_recipients_matching_search)
     page.check("#select-all")
     page.locator("button:has-text('Actions')").click()
     page.locator(f"button:has-text('Delete ({expected_grant_recipients_matching_search} selected)')").click()
@@ -53,20 +52,22 @@ def delete_grant_through_admin(page: Page, domain: str, search: str) -> None:
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/grant/?{query}")
 
-    assert len(page.get_by_role("link", name=re.compile(search)).all()) == 1
+    expect(page.get_by_role("link", name=search)).to_have_count(1)
 
     page.check("#select-all")
     page.locator("button:has-text('Delete (1 selected)')").click()
     page.locator("button:has-text('Confirm delete')").click()
 
 
-def delete_organisation_through_admin(page: Page, domain: str, search: str) -> None:
+def delete_organisation_through_admin(
+    page: Page, domain: str, search: str, expected_organisations_matching_search: int = 1
+) -> None:
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/organisation/?{query}")
 
-    assert len(page.get_by_role("cell", name=re.compile(search)).all()) == 1
+    expect(page.get_by_role("cell", name=search)).to_have_count(expected_organisations_matching_search)
 
     page.check("#select-all")
     page.locator("button:has-text('Actions')").click()
-    page.locator("button:has-text('Delete (1 selected)')").click()
+    page.locator(f"button:has-text('Delete ({expected_organisations_matching_search} selected)')").click()
     page.locator("button:has-text('Confirm delete')").click()

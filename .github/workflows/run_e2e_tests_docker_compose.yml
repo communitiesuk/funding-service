@@ -29,9 +29,22 @@ on:
 jobs:
 
   e2e_tests_docker_compose:
-    name: Run E2E tests against docker compose
+    name: Run E2E tests against docker compose (${{ matrix.name }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: access
+            test_paths: tests/e2e/access_grant_funding
+            extra_args: ""
+          - name: preview-collection
+            test_paths: tests/e2e/deliver_grant_funding/test_create_preview_collection.py
+            extra_args: ""
+          - name: deliver-other
+            test_paths: tests/e2e/deliver_grant_funding
+            extra_args: --ignore=tests/e2e/deliver_grant_funding/test_create_preview_collection.py
     steps:
       - name: checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,7 +110,7 @@ jobs:
 
       - name: run e2e tests
         run: |
-          uv run --frozen pytest --e2e --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -vv --durations=999 tests/e2e
+          uv run --frozen pytest --e2e -n auto --tracing=retain-on-failure --browser chromium --screenshot=only-on-failure -vv --durations=999 ${{ matrix.test_paths }} ${{ matrix.extra_args }}
 
       - name: Dump docker compose service logs on failure
         if: failure()
@@ -111,7 +124,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ failure() }}
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.name }}
           path: test-results/*
 
   notify_slack:

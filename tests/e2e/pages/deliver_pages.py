@@ -2,6 +2,7 @@ import datetime
 import re
 import tempfile
 import textwrap
+from abc import ABC
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal, NamedTuple, cast
 
@@ -16,7 +17,6 @@ from app.common.data.types import (
     MultilineTextInputRows,
     NumberInputWidths,
     NumberTypeEnum,
-    QuestionDataType,
     QuestionPresentationOptions,
 )
 from app.common.expressions import EvaluationStatement, ExpressionContext, InterpolationStatement
@@ -31,9 +31,496 @@ from app.common.expressions.managed import (
 )
 from tests.e2e.dataclasses import DataReferenceConfig, GuidanceText
 from tests.e2e.helpers import get_context_aware_textbox_locator_by_name, wait_for_context_aware_textarea_to_be_ready
+from tests.e2e.pages.misc_pages import BasePage, ReportsBasePage
 
 if TYPE_CHECKING:
-    from tests.e2e.deliver_grant_funding.pages import GrantTeamPage, SSOSignInPage
+    from tests.e2e.pages.misc_pages import RunnerTasklistPage
+
+
+class TopNavMixin(ABC):
+    domain: str
+    page: Page
+
+    def click_grants(self) -> AllGrantsPage:
+        # This should be the 'Show all grants' link, to be added shortly.
+        self.page.get_by_role("link", name="Deliver grant funding").click()
+        return AllGrantsPage(self.page, self.domain)
+
+
+class LandingPage(TopNavMixin, BasePage):
+    # TODO extend once there is more stuff on the landing page
+    def navigate(self) -> None:
+        self.page.goto(self.domain)
+
+
+class SSOSignInPage(BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Deliver grant funding")
+        self.sign_in = self.page.get_by_role("button", name="Sign in")
+
+    def navigate(self) -> None:
+        self.page.goto(f"{self.domain}/sso/sign-in")
+        # If already logged in, this will redirect to /grants
+        expect(
+            self.title.or_(self.page.get_by_role("heading", name="Grants", exact=True)).or_(
+                self.page.get_by_role("heading", name="Grant details")
+            )
+        ).to_be_visible()
+
+    def click_sign_in(self) -> None:
+        self.sign_in.click()
+
+
+class StubSSOEmailLoginPage(BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Local SSO Stub Login")
+        self.email_address = self.page.get_by_role("textbox", name="Email address")
+        self.sign_in = self.page.get_by_role("button", name="Sign in")
+
+    def click_sign_in(self) -> None:
+        self.sign_in.click()
+
+    def fill_email_address(self, email_address: str) -> None:
+        self.email_address.fill(email_address)
+
+    def uncheck_platform_admin_checkbox(self) -> None:
+        self.page.get_by_role("checkbox", name="Platform admin type login").uncheck()
+
+
+class MicrosoftLoginBasePage(BasePage):
+    email_address: str
+    password: str
+
+    def __init__(self, page: Page, domain: str, email_address: str, password: str) -> None:
+        super().__init__(page, domain)
+        self.email_address = email_address
+        self.password = password
+
+
+class MicrosoftLoginPageEmail(MicrosoftLoginBasePage):
+    title: Locator
+    email_input: Locator
+    next_button: Locator
+
+    def __init__(self, page: Page, domain: str, email_address: str, password: str) -> None:
+        super().__init__(page, domain, email_address, password)
+        self.title = self.page.get_by_role("heading", name="Sign in to your account")
+        self.email_input = self.page.get_by_role("textbox", name="Email, phone, or Skype")
+        self.next_button = self.page.get_by_role("button", name="Next")
+
+    def fill_email_address(self) -> None:
+        self.email_input.fill(self.email_address)
+
+    def click_next(self) -> MicrosoftLoginPagePassword:
+        self.next_button.click()
+        password_page = MicrosoftLoginPagePassword(self.page, self.domain, self.email_address, self.password)
+        expect(password_page.title).to_be_visible()
+        return password_page
+
+
+class MicrosoftLoginPagePassword(MicrosoftLoginBasePage):
+    title: Locator
+    password_input: Locator
+    sign_in_button: Locator
+
+    def __init__(self, page: Page, domain: str, email_address: str, password: str) -> None:
+        super().__init__(page, domain, email_address, password)
+        self.title = page.get_by_role("heading", name="Enter password")
+        self.password_input = page.get_by_role("textbox", name=f"Enter the password for {self.email_address}")
+        self.sign_in_button = page.get_by_role("button", name="Sign in")
+
+    def fill_password(
+        self,
+    ) -> None:
+        self.password_input.fill(self.password)
+
+    def click_sign_in(self) -> None:
+        self.sign_in_button.click()
+
+
+class AllGrantsPage(TopNavMixin, BasePage):
+    title: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Grants", exact=True)
+
+    def navigate(self) -> None:
+        self.page.goto(f"{self.domain}/deliver/grants")
+
+    def click_set_up_a_grant(self) -> GrantSetupIntroPage:
+        self.page.get_by_role("button", name="Set up a grant").click()
+        grant_setup_intro_page = GrantSetupIntroPage(self.page, self.domain)
+        expect(grant_setup_intro_page.title).to_be_visible()
+        return grant_setup_intro_page
+
+    def check_grant_exists(self, grant_name: str) -> None:
+        expect(self.page.get_by_role("link", name=grant_name)).to_be_visible()
+
+    def check_grant_doesnt_exist(self, grant_name: str) -> None:
+        expect(self.page.get_by_role("link", name=grant_name, exact=True)).not_to_be_visible()
+
+    def click_grant(self, grant_name: str) -> GrantDashboardPage:
+        self.page.get_by_role("link", name=grant_name).click()
+        grant_dashboard_page = GrantDashboardPage(self.page, self.domain)
+        expect(self.page.get_by_role("heading", name=grant_name)).to_be_visible()
+        return grant_dashboard_page
+
+
+class GrantSetupIntroPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Tell us about the grant")
+        self.continue_button = self.page.get_by_role("button", name="Continue")
+
+    def click_continue(self) -> GrantSetupGGISPage:
+        self.continue_button.click()
+        grant_setup_ggis_page = GrantSetupGGISPage(self.page, self.domain)
+        expect(grant_setup_ggis_page.title).to_be_visible()
+        return grant_setup_ggis_page
+
+
+class GrantSetupGGISPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role(
+            "heading", name="Do you have a Government Grants Information System (GGIS) reference number?"
+        )
+        self.yes_radio = self.page.get_by_role("radio", name="Yes")
+        self.ggis_number_input = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
+
+    def select_yes(self) -> None:
+        self.yes_radio.click()
+
+    def fill_ggis_number(self, ggis_number: str = "ABC-123") -> None:
+        self.ggis_number_input.fill(ggis_number)
+
+    def click_save_and_continue(self) -> GrantSetupNamePage:
+        self.save_continue_button.click()
+        grant_setup_name_page = GrantSetupNamePage(self.page, self.domain)
+        expect(grant_setup_name_page.title).to_be_visible()
+        return grant_setup_name_page
+
+
+class GrantSetupNamePage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the name of this grant?")
+        self.name_input = self.page.get_by_role("textbox", name="Enter the grant name")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
+
+    def fill_name(self, name: str) -> None:
+        self.name_input.fill(name)
+
+    def click_save_and_continue(self) -> GrantSetupCodePage:
+        self.save_continue_button.click()
+        grant_setup_code_page = GrantSetupCodePage(self.page, self.domain)
+        expect(grant_setup_code_page.title).to_be_visible()
+        return grant_setup_code_page
+
+
+class GrantSetupCodePage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the unique code for this grant?")
+        self.code_input = self.page.get_by_role("textbox", name="Enter the grant code")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
+
+    def fill_code(self, code: str) -> None:
+        self.code_input.fill(code)
+
+    def click_save_and_continue(self) -> GrantSetupDescriptionPage:
+        self.save_continue_button.click()
+        grant_setup_description_page = GrantSetupDescriptionPage(self.page, self.domain)
+        expect(grant_setup_description_page.title).to_be_visible()
+        return grant_setup_description_page
+
+
+class GrantSetupDescriptionPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
+        self.description_textarea = self.page.get_by_role("textbox", name="Enter the main purpose of this grant")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
+
+    def fill_description(self, description: str = "Test grant description for E2E testing purposes.") -> None:
+        self.description_textarea.fill(description)
+
+    def click_save_and_continue(self) -> GrantSetupContactPage:
+        self.save_continue_button.click()
+        grant_setup_contact_page = GrantSetupContactPage(self.page, self.domain)
+        expect(grant_setup_contact_page.title).to_be_visible()
+        return grant_setup_contact_page
+
+
+class GrantSetupContactPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Who is the main contact for this grant?")
+        self.contact_name_input = self.page.get_by_role("textbox", name="Full name")
+        self.contact_email_input = self.page.get_by_role("textbox", name="Email address")
+        self.save_continue_button = self.page.get_by_role("button", name="Save and continue")
+
+    def fill_contact_name(self, name: str = "Test Contact") -> None:
+        self.contact_name_input.fill(name)
+
+    def fill_contact_email(self, email: str = "test.contact@communities.gov.uk") -> None:
+        self.contact_email_input.fill(email)
+
+    def click_save_and_continue(self) -> GrantSetupCheckYourAnswersPage:
+        self.save_continue_button.click()
+        grant_setup_check_your_answers_page = GrantSetupCheckYourAnswersPage(self.page, self.domain)
+        expect(grant_setup_check_your_answers_page.title).to_be_visible()
+        return grant_setup_check_your_answers_page
+
+
+class GrantSetupCheckYourAnswersPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Check your answers")
+        self.add_grant_button = self.page.get_by_role("button", name="Confirm and set up grant")
+
+    def click_add_grant(self) -> GrantDashboardPage:
+        self.add_grant_button.click()
+        grant_dashboard_page = GrantDashboardPage(self.page, self.domain)
+        return grant_dashboard_page
+
+
+class GrantSetupConfirmationPage(TopNavMixin, BasePage):
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.locator("h1:has-text('added')")
+        self.continue_button = self.page.get_by_role("link", name="Continue to grant home")
+
+    def click_continue(self) -> GrantDashboardPage:
+        self.continue_button.click()
+        return GrantDashboardPage(self.page, self.domain)
+
+
+class GrantDashboardBasePage(TopNavMixin, BasePage):
+    settings_nav: Locator
+    reports_nav: Locator
+    pre_award_nav: Locator
+    grant_team_nav: Locator
+    sign_out_nav: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.settings_nav = self.page.get_by_role("link", name="Grant details")
+        self.reports_nav = self.page.get_by_role("link", name="Reports")
+        self.pre_award_nav = self.page.get_by_role("link", name="Pre-award")
+        self.grant_team_nav = self.page.get_by_role("link", name="Team")
+        self.sign_out_nav = self.page.get_by_role("link", name="Sign out")
+
+    def click_settings(self, grant_name: str) -> GrantDetailsPage:
+        self.settings_nav.click()
+        grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_details_page.page.get_by_role("heading", name=f"{grant_name} Grant details")).to_be_visible()
+        return grant_details_page
+
+    def check_grant_name(self, grant_name: str) -> None:
+        expect(self.page.get_by_role("heading", name=grant_name)).to_be_visible()
+
+    def click_reports(self, grant_name: str) -> GrantReportsPage:
+        self.reports_nav.click()
+        grant_reports_page = GrantReportsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_reports_page.heading).to_be_visible()
+        return grant_reports_page
+
+    def click_pre_award(self, grant_name: str) -> GrantPreAwardFormsPage:
+        self.pre_award_nav.click()
+        grant_forms_page = GrantPreAwardFormsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_forms_page.heading).to_be_visible()
+        return grant_forms_page
+
+    def click_grant_team(self) -> GrantTeamPage:
+        self.grant_team_nav.click()
+        grant_team_page = GrantTeamPage(self.page, self.domain)
+        expect(grant_team_page.title).to_be_visible()
+        return grant_team_page
+
+    def click_sign_out(self) -> SSOSignInPage:
+        self.sign_out_nav.click()
+        sso_sign_in_page = SSOSignInPage(self.page, self.domain)
+        expect(sso_sign_in_page.title).to_be_visible()
+        return sso_sign_in_page
+
+
+class GrantDashboardPage(GrantDashboardBasePage):
+    pass
+
+
+class GrantDetailsPage(GrantDashboardBasePage):
+    change_name_link: Locator
+    change_ggis_link: Locator
+    change_description_link: Locator
+    change_contact_link: Locator
+    grant_name: str
+    title: Locator
+
+    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
+        super().__init__(page, domain)
+        self.title = page.get_by_role("heading", name=f"{grant_name} Grant details")
+        self.change_name_link = self.page.get_by_role("link", name="Change grant name")
+        self.change_ggis_link = self.page.get_by_role("link", name="Change GGIS reference number")
+        self.change_description_link = self.page.get_by_role("link", name="Change main purpose")
+        self.change_contact_link = self.page.get_by_role("link", name="Change main contact")
+
+    def click_change_grant_ggis(self, existing_ggis_ref: str | None) -> ChangeGrantGGISPage:
+        self.change_ggis_link.click()
+        change_ggis_page = ChangeGrantGGISPage(self.page, self.domain)
+        expect(change_ggis_page.title).to_be_visible()
+        if existing_ggis_ref:
+            expect(change_ggis_page.ggis_textbox).to_be_visible()
+            expect(change_ggis_page.ggis_textbox).to_have_value(existing_ggis_ref)
+        else:
+            expect(change_ggis_page.ggis_textbox).not_to_be_visible()
+        return change_ggis_page
+
+    def click_change_grant_name(self, grant_name: str) -> ChangeGrantNamePage:
+        self.change_name_link.click()
+        change_grant_name_page = ChangeGrantNamePage(self.page, self.domain)
+        expect(change_grant_name_page.title).to_be_visible()
+        expect(change_grant_name_page.grant_name_textbox).to_have_value(grant_name)
+        return change_grant_name_page
+
+    def click_change_grant_contact_details(
+        self, existing_contact_name: str, existing_contact_email: str
+    ) -> ChangeGrantMainContactPage:
+        self.change_contact_link.click()
+        change_grant_main_contact_page = ChangeGrantMainContactPage(self.page, self.domain)
+        expect(change_grant_main_contact_page.title).to_be_visible()
+        expect(change_grant_main_contact_page.contact_name_textbox).to_have_value(existing_contact_name)
+        expect(change_grant_main_contact_page.contact_email_textbox).to_have_value(existing_contact_email)
+
+        return change_grant_main_contact_page
+
+    def click_change_grant_description(self, existing_description: str) -> ChangeGrantDescriptionPage:
+        self.change_description_link.click()
+        change_grant_description_page = ChangeGrantDescriptionPage(self.page, self.domain)
+        expect(change_grant_description_page.title).to_be_visible()
+        expect(change_grant_description_page.grant_description_textbox).to_have_value(existing_description)
+        return change_grant_description_page
+
+
+class ChangeGrantNamePage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    grant_name_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the name of this grant?")
+        self.grant_name_textbox = page.get_by_role("textbox", name="Enter the grant name")
+
+    def fill_in_grant_name(self, name: str) -> None:
+        self.grant_name_textbox.fill(name)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update grant name").click()
+        grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_details_page.title).to_be_visible()
+        return grant_details_page
+
+
+class ChangeGrantGGISPage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    ggis_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the GGIS reference number?")
+        self.ggis_textbox = self.page.get_by_role("textbox", name="Enter your GGIS reference number")
+
+    def fill_ggis_number(self, new_ggis_ref: str) -> None:
+        self.ggis_textbox.fill(new_ggis_ref)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update GGIS reference number").click()
+        grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_details_page.title).to_be_visible()
+        return grant_details_page
+
+
+class ChangeGrantDescriptionPage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    grant_description_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="What is the main purpose of this grant?")
+        self.grant_description_textbox = page.get_by_role("textbox", name="Enter the main purpose of this grant")
+
+    def fill_in_grant_description(self, description: str) -> None:
+        self.grant_description_textbox.fill(description)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update main purpose").click()
+        grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_details_page.title).to_be_visible()
+        return grant_details_page
+
+
+class ChangeGrantMainContactPage(GrantDashboardBasePage):
+    backlink: Locator
+    title: Locator
+    contact_name_textbox: Locator
+    contact_email_textbox: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = self.page.get_by_role("heading", name="Who is the main contact for this grant?")
+        self.contact_name_textbox = page.get_by_role("textbox", name="Full name")
+        self.contact_email_textbox = page.get_by_role("textbox", name="Email address")
+
+    def fill_contact_name(self, name: str) -> None:
+        self.contact_name_textbox.fill(name)
+
+    def fill_contact_email(self, email: str) -> None:
+        self.contact_email_textbox.fill(email)
+
+    def click_submit(self, grant_name: str) -> GrantDetailsPage:
+        self.page.get_by_role("button", name="Update main contact").click()
+        grant_details_page = GrantDetailsPage(self.page, self.domain, grant_name=grant_name)
+        expect(grant_details_page.title).to_be_visible()
+        return grant_details_page
+
+
+class GrantTeamPage(GrantDashboardBasePage):
+    title: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = page.get_by_role("heading", name="Team")
+
+    def click_add_grant_team_member(self) -> AddGrantTeamMemberPage:
+        self.page.get_by_role("button", name="Add grant team member").click()
+        add_grant_team_member_page = AddGrantTeamMemberPage(self.page, self.domain)
+        expect(add_grant_team_member_page.title).to_be_visible()
+        return add_grant_team_member_page
+
+
+class AddGrantTeamMemberPage(GrantDashboardBasePage):
+    title: Locator
+
+    def __init__(self, page: Page, domain: str) -> None:
+        super().__init__(page, domain)
+        self.title = page.get_by_role("heading", name="What’s their email address?")
+
+    def fill_in_user_email(self, email_address: str) -> None:
+        self.page.get_by_role("textbox").fill(email_address)
+
+    def click_continue(self) -> GrantTeamPage:
+        self.page.get_by_role("button", name="Continue").click()
+        grant_team_page = GrantTeamPage(self.page, self.domain)
+        expect(grant_team_page.page.get_by_role("heading", name="Grant team member added")).to_be_visible()
+        expect(grant_team_page.page.get_by_role("alert", name="Success")).to_be_visible()
+        return grant_team_page
 
 
 DataSetColumnType = Literal["Text", "British pounds", "Whole number", "Decimal number"]
@@ -193,46 +680,6 @@ def _configure_between_dates_expression(
         expression_form_page.page.get_by_role(
             "checkbox", name="An answer of exactly the latest date is allowed"
         ).check()
-
-
-class ReportsBasePage:
-    domain: str
-    page: Page
-
-    heading: Locator
-    grant_name: str
-
-    def __init__(self, page: Page, domain: str, heading: Locator, grant_name: str) -> None:
-        self.page = page
-        self.domain = domain
-        self.heading = heading
-        self.grant_name = grant_name
-
-    @classmethod
-    def fill_in_date_fields(
-        cls, date_group: Locator, date_to_complete: datetime.date, approx_date: bool = False
-    ) -> None:
-        if not approx_date:
-            date_group.get_by_label("Day").click()
-            date_group.get_by_label("Day").fill(str(date_to_complete.day))
-        date_group.get_by_label("Month").click()
-        date_group.get_by_label("Month").fill(str(date_to_complete.month))
-        date_group.get_by_label("Year").click()
-        date_group.get_by_label("Year").fill(str(date_to_complete.year))
-
-    def click_nav_sign_out(self) -> SSOSignInPage:
-        from tests.e2e.deliver_grant_funding.pages import SSOSignInPage
-
-        self.page.get_by_role("link", name="Sign out").click()
-        sso_sign_in_page = SSOSignInPage(self.page, self.domain)
-        return sso_sign_in_page
-
-    def click_nav_grant_team(self) -> GrantTeamPage:
-        from tests.e2e.deliver_grant_funding.pages import GrantTeamPage
-
-        self.page.get_by_role("link", name="Team").click()
-        sso_sign_in_page = GrantTeamPage(self.page, self.domain)
-        return sso_sign_in_page
 
 
 class DeliverTestGrantRecipientJourneyPage(ReportsBasePage):
@@ -623,6 +1070,8 @@ class ReportSectionsPage(ReportsBasePage):
         expect(self.page.get_by_role("link", name=section_title, exact=True)).to_be_visible()
 
     def click_preview_report(self) -> RunnerTasklistPage:
+        from tests.e2e.pages.misc_pages import RunnerTasklistPage
+
         self.preview_report_button.click()
         tasklist_page = RunnerTasklistPage(
             self.page, self.domain, grant_name=self.grant_name, report_name=self.report_name
@@ -679,6 +1128,8 @@ class PreAwardFormSectionsPage(ReportsBasePage):
         return grant_pre_award_forms_page
 
     def click_preview_form(self) -> RunnerTasklistPage:
+        from tests.e2e.pages.misc_pages import RunnerTasklistPage
+
         self.preview_form_button.click()
         tasklist_page = RunnerTasklistPage(
             self.page, self.domain, grant_name=self.grant_name, report_name=self.form_name
@@ -1904,355 +2355,6 @@ class AddSectionPage(ReportsBasePage):
         )
         expect(report_sections_page.heading).to_be_visible()
         return report_sections_page
-
-
-class RunnerTasklistPage(ReportsBasePage):
-    report_name: str
-    submission_status_box: Locator
-    submit_button: Locator
-    back_link: Locator
-    status_tags: Locator
-
-    def __init__(
-        self,
-        page: Page,
-        domain: str,
-        grant_name: str,
-        report_name: str,
-    ) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name=report_name),
-        )
-        self.report_name = report_name
-        self.submission_status_box = page.get_by_test_id("submission-status")
-        self.submit_button = page.get_by_role("button", name="Submit")
-        self.back_link = self.page.get_by_role("link", name="Back")
-        self.status_tags = page.locator(".govuk-tag")
-
-    def status_tag_with_text(self, text: str) -> Locator:
-        return self.status_tags.filter(has_text=text)
-
-    def click_on_section(self, section_name: str) -> None:
-        self.page.get_by_role("link", name=section_name).click()
-
-    def click_submit_for_preview(self) -> ReportSectionsPage:
-        self.submit_button.click()
-        report_sections_page = ReportSectionsPage(self.page, self.domain, self.grant_name, self.report_name)
-        expect(report_sections_page.heading).to_be_visible()
-        return report_sections_page
-
-    def click_submit_for_certify(self) -> ReportSubmittedConfirmationPage:
-        self.submit_button.click()
-        submitted_page = ReportSubmittedConfirmationPage(
-            page=self.page,
-            domain=self.domain,
-            grant_name=self.grant_name,
-            report_name=self.report_name,
-            submitted_to_certifier=True,
-        )
-        expect(submitted_page.heading).to_be_visible()
-        return submitted_page
-
-    def click_submit_for_direct_submission(self) -> PreAwardConfirmSubmitPage:
-        self.submit_button.click()
-        confirm_submit_page = PreAwardConfirmSubmitPage(self.page, self.domain, self.grant_name)
-        expect(confirm_submit_page.heading).to_be_visible()
-        return confirm_submit_page
-
-    def click_back(self) -> ReportSectionsPage:
-        self.back_link.click()
-        report_sections_page = ReportSectionsPage(
-            self.page, self.domain, grant_name=self.grant_name, report_name=self.report_name
-        )
-        expect(report_sections_page.heading).to_be_visible()
-        return report_sections_page
-
-
-class ReportSubmittedConfirmationPage(ReportsBasePage):
-    report_name: str
-    return_to_reports_link: Locator
-
-    def __init__(
-        self, page: Page, domain: str, grant_name: str, report_name: str, submitted_to_certifier: bool
-    ) -> None:
-        super().__init__(
-            page=page,
-            domain=domain,
-            grant_name=grant_name,
-            heading=page.get_by_role(
-                "heading",
-                name=("Report submitted to certifier" if submitted_to_certifier else "Report signed off and submitted"),
-            ),
-        )
-        self.report_name = report_name
-        self.return_to_reports_link = page.get_by_role("link", name="Return to reports")
-
-    def click_return_to_reports(self) -> None:
-        self.return_to_reports_link.click()
-
-
-class PreAwardConfirmSubmitPage(ReportsBasePage):
-    confirm_submit_button: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Confirm and submit form"),
-        )
-        self.confirm_submit_button = page.get_by_role("button", name="Confirm and submit")
-
-    def click_confirm_and_submit(self) -> PreAwardFormSubmittedConfirmationPage:
-        self.confirm_submit_button.click()
-        confirmation_page = PreAwardFormSubmittedConfirmationPage(self.page, self.domain, self.grant_name)
-        expect(confirmation_page.heading).to_be_visible()
-        return confirmation_page
-
-
-class PreAwardFormSubmittedConfirmationPage(ReportsBasePage):
-    return_to_forms_link: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Form submitted"),
-        )
-        self.return_to_forms_link = page.get_by_role("link", name="Return to forms")
-
-    def click_return_to_forms(self) -> None:
-        self.return_to_forms_link.click()
-
-
-class ViewLockedReportPage(ReportsBasePage):
-    report_name: str
-    sign_off_and_submit_button: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
-        super().__init__(
-            domain=domain,
-            page=page,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name=f"Review report: {report_name}"),
-        )
-        self.report_name = report_name
-        self.sign_off_and_submit_button = page.get_by_role("button", name="Continue to sign off and submit")
-
-    def click_sign_off_and_submit(self) -> ConfirmSignOffPage:
-        self.sign_off_and_submit_button.click()
-        sign_off_page = ConfirmSignOffPage(self.page, self.domain, self.grant_name, self.report_name)
-        expect(sign_off_page.heading).to_be_visible()
-        return sign_off_page
-
-
-class ConfirmSignOffPage(ReportsBasePage):
-    report_name: str
-    sign_off_and_submit_button: Locator
-
-    def __init__(self, page: Page, domain: str, grant_name: str, report_name: str) -> None:
-        super().__init__(
-            page=page,
-            domain=domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Confirm sign off and submit report"),
-        )
-        self.report_name = report_name
-        self.sign_off_and_submit_button = page.get_by_role("button", name="Confirm sign off and submit")
-
-    def click_sign_off_and_submit(self) -> ReportSubmittedConfirmationPage:
-        self.sign_off_and_submit_button.click()
-        confirmation_page = ReportSubmittedConfirmationPage(
-            page=self.page,
-            domain=self.domain,
-            grant_name=self.grant_name,
-            report_name=self.report_name,
-            submitted_to_certifier=False,
-        )
-        expect(confirmation_page.heading).to_be_visible()
-        return confirmation_page
-
-
-class RunnerQuestionPage(ReportsBasePage):
-    continue_button: Locator
-    question_name: str
-
-    def __init__(
-        self,
-        page: Page,
-        domain: str,
-        grant_name: str,
-        question_name: str,
-        is_in_a_same_page_group: bool = False,
-    ) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_text(question_name, exact=True)
-            if is_in_a_same_page_group
-            else page.get_by_role("heading", name=question_name),
-        )
-        self.question_name = question_name
-        self.continue_button = page.get_by_role("button", name="Continue")
-
-    def respond_to_question(self, question_type: QuestionDataType, question_text: str, answer: str | list[str]) -> None:
-        if isinstance(answer, list):
-            if question_type == QuestionDataType.CHECKBOXES:
-                for choice in answer:
-                    self.page.get_by_role("checkbox", name=choice).click()
-            elif question_type == QuestionDataType.DATE:
-                approx_date = len(answer) == 2
-                date_to_enter = (
-                    datetime.date(*[int(a) for a in answer])
-                    if not approx_date
-                    else datetime.date(int(answer[0]), int(answer[1]), 1)
-                )
-                ReportsBasePage.fill_in_date_fields(
-                    self.page.get_by_role("group", name=question_text),
-                    date_to_enter,
-                    approx_date=approx_date,
-                )
-            else:
-                raise ValueError(f"respond_to_question got a list of answers, but question type was {question_type}")
-        else:
-            if question_type in [QuestionDataType.YES_NO, QuestionDataType.RADIOS]:
-                # once we start having multiple of these on a page - enjoy the refactor =]
-                accessible_autocomplete = self.page.query_selector("[data-accessible-autocomplete]")
-                if accessible_autocomplete:
-                    # there is a few ms of delay during the call to "enhanceSelectElement" which allows the select
-                    # being progressively enhanced to be selected before its complete as playwright will act immediately
-                    # on the role being available - this causes the test to fail particularly when there is network
-                    # latency.
-                    # Wait for the full input + options to be loaded before using it
-                    expect(self.page.locator("[class='autocomplete__wrapper']")).to_be_attached()
-                    element = self.page.get_by_role("combobox")
-                    element.click()
-                    element.fill(answer)
-                    element.press("Enter")
-                else:
-                    self.page.get_by_role("radio", name=answer).click()
-
-            elif question_type == QuestionDataType.FILE_UPLOAD:
-                self.page.locator("input[type='file']").set_input_files("./tests/fixtures/e2e-test-file.txt")
-            else:
-                self.page.get_by_role("textbox", name=question_text).fill(answer)
-
-    def click_continue(
-        self,
-    ) -> None:
-        self.continue_button.click()
-
-
-class RunnerCheckYourAnswersPage(ReportsBasePage):
-    save_and_continue_button: Locator
-    mark_as_complete_yes: Locator
-    changes_requested_reason_inset: Locator
-
-    def __init__(
-        self,
-        page: Page,
-        domain: str,
-        grant_name: str,
-    ) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Check your answers"),
-        )
-        self.save_and_continue_button = page.get_by_role("button", name="Save and continue")
-        self.mark_as_complete_yes = page.get_by_role("radio", name="Yes, I’ve completed this section")
-        self.changes_requested_reason_inset = page.locator(".govuk-inset-text")
-
-    def click_mark_as_complete_yes(self) -> None:
-        self.mark_as_complete_yes.click()
-
-    def click_change_answer(self, question_name: str) -> RunnerQuestionPage:
-        self.page.get_by_role("link", name=f"Change {question_name}").click()
-        question_page = RunnerQuestionPage(self.page, self.domain, self.grant_name, question_name)
-        expect(question_page.heading).to_be_visible()
-        return question_page
-
-    def click_save_and_continue(self, report_name: str) -> RunnerTasklistPage:
-        self.save_and_continue_button.click()
-        task_list_page = RunnerTasklistPage(self.page, self.domain, self.grant_name, report_name=report_name)
-        expect(task_list_page.heading).to_be_visible()
-        return task_list_page
-
-
-class RunnerAddAnotherSummaryPage(ReportsBasePage):
-    def __init__(
-        self,
-        page: Page,
-        domain: str,
-        grant_name: str,
-        group_name: str,
-    ) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name=group_name, exact=True),
-        )
-        self.group_name = group_name
-
-    def expect_empty(self) -> None:
-        expect(self.heading).to_be_visible()
-        expect(self.page.get_by_text(f"You have not added any {self.group_name}.")).to_be_visible()
-
-    def expect_count(self, count: int) -> None:
-        expect(self.heading).to_be_visible()
-        expect(self.page.get_by_text(f"You have added {count} {self.group_name}")).to_be_visible()
-
-    def click_add_first_answer(self) -> None:
-        self.page.get_by_role("button", name="Add the first answer").click()
-
-    def click_add_another_yes(self) -> None:
-        self.page.get_by_role("radio", name="Yes").click()
-        self.page.get_by_role("button", name="Continue").click()
-
-    def click_add_another_no(self) -> None:
-        self.page.get_by_role("radio", name="No").click()
-        self.page.get_by_role("button", name="Continue").click()
-
-    def click_change(self, index: int = 0) -> None:
-        self.page.get_by_role("link", name="Change", exact=False).nth(index).click()
-
-    def click_remove_first(self) -> None:
-        self.page.get_by_role("link", name="Remove", exact=False).first.click()
-
-    def click_remove_last(self) -> None:
-        self.page.get_by_role("link", name="Remove", exact=False).last.click()
-
-
-class RunnerAddAnotherRemovePage(ReportsBasePage):
-    def __init__(
-        self,
-        page: Page,
-        domain: str,
-        grant_name: str,
-    ) -> None:
-        super().__init__(
-            page,
-            domain,
-            grant_name=grant_name,
-            heading=page.get_by_role("heading", name="Are you sure you want to remove", exact=False),
-        )
-
-    def confirm_remove(self) -> None:
-        expect(self.heading).to_be_visible()
-        self.page.get_by_role("radio", name="Yes").click()
-        self.page.get_by_role("button", name="Continue").click()
-
-    def cancel_remove(self) -> None:
-        expect(self.heading).to_be_visible()
-        self.page.get_by_role("radio", name="No").click()
-        self.page.get_by_role("button", name="Continue").click()
 
 
 class SubmissionsListPage(ReportsBasePage):

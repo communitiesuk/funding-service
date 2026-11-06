@@ -27,13 +27,24 @@ from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from app.extensions.flask_assets_vite import FlaskAssetsViteExtension
 from stubs.sso.forms import SSOSignInForm
 
-dummy_nonce = ""  # noqa: F841
-email_address = ""  # noqa: F841
-is_platform_admin = False  # noqa: F841
-
 dummy_client_info = {"uid": str(uuid.uuid4()), "utid": str(uuid.uuid4())}
 json_dummy_client_info = json.dumps(dummy_client_info)
 base_64_str_client_info = base64.b64encode(json_dummy_client_info.encode()).decode()  # noqa: F841
+
+
+def _encode_code(nonce: str, email: str, is_platform_admin: bool) -> str:
+    """Packs the per-login state we need to hand back at the token endpoint into the authorization `code`.
+
+    MSAL round-trips this value verbatim from `/authorize` to `/token`, so encoding our state here keeps
+    concurrent logins from different browser sessions from clobbering each other's nonce/email - each
+    login's code only ever carries its own data.
+    """
+    payload = json.dumps({"nonce": nonce, "email": email, "is_platform_admin": is_platform_admin})
+    return base64.urlsafe_b64encode(payload.encode()).decode()
+
+
+def _decode_code(code: str) -> dict:
+    return json.loads(base64.urlsafe_b64decode(code.encode()).decode())
 
 
 def create_sso_stub_app() -> Flask:
@@ -61,23 +72,19 @@ def create_sso_stub_app() -> Flask:
 
     @app.route("/<tenant>/oauth2/v2.0/authorize", methods=["GET", "POST"])
     def oauth_redirect(tenant):
-        global dummy_nonce, base_64_str_client_info, email_address, is_platform_admin
-
         form = SSOSignInForm(
             data={"email_address": os.getenv("SSO_STUB_SERVER_DEFAULT_EMAIL", "john.cheese@communities.gov.uk")}
         )
         if form.validate_on_submit():
-            dummy_nonce = request.args["nonce"]
-            email_address = form.email_address.data
+            code = _encode_code(request.args["nonce"], form.email_address.data, form.is_platform_admin.data)
             data = urlencode(
                 {
-                    "code": "dummy value",
+                    "code": code,
                     "client_info": base_64_str_client_info,
                     "state": request.args["state"],
                     "session_state": uuid.uuid4(),
                 }
             )
-            is_platform_admin = form.is_platform_admin.data
             return redirect(request.args["redirect_uri"] + "?" + data)
         return render_template("sso/sso_login.html", form=form)
 
@@ -135,12 +142,13 @@ def create_sso_stub_app() -> Flask:
 
     @app.route("/<tenant>/oauth2/v2.0/token", methods=["GET", "POST"])
     def token_endpoint(tenant):
-        global dummy_nonce, base_64_str_client_info, email_address, is_platform_admin
-
         # We've replaced a lot of the values in this dictionary with empty strings
         # as they won't be referenced anywhere else
-        # The only ones that are needed are the global variables, roles and timestamps.
+        # The only ones that are needed are the decoded code, roles and timestamps.
         # For more info on these look at the docs https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference
+        decoded = _decode_code(request.values["code"])
+        nonce, email_address, is_platform_admin = decoded["nonce"], decoded["email"], decoded["is_platform_admin"]
+
         return {
             "token_type": "Bearer",
             "scope": "User.Read User.ReadBasic.All profile openid email",
@@ -157,7 +165,7 @@ def create_sso_stub_app() -> Flask:
                 "exp": int(time.time() + 60 * 60),
                 "idp": "",
                 "name": _name_from_email(email_address),
-                "nonce": dummy_nonce,
+                "nonce": nonce,
                 "oid": "",
                 "preferred_username": email_address,
                 "rh": "",
