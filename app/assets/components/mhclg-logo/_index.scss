@@ -1,0 +1,20 @@
+@use "govuk/base" as govuk;
+
+.app-mhclg-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: govuk.govuk-spacing(1);
+}
+
+.app-mhclg-logo__crest {
+    filter: brightness(0) invert(1);
+
+    // GOV.UK headers print with a transparent background and black text, so match that
+    @media print {
+        filter: brightness(0);
+    }
+}
+
+.app-mhclg-logo__product-name {
+    @include govuk.govuk-font-size($size: 24, $line-height: 1);
+}

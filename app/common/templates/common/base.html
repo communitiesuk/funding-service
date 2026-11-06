@@ -1,5 +1,6 @@
 {% extends "govuk_frontend_jinja/template.html" %}
-{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
@@ -25,19 +26,15 @@
   <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
 {% endblock head %}
 
-{% block header %}
+{% block govukHeader %}
   {{ mhclgRequestTracingBanner() }}
-  {# todo: have this header read a homepageUrl variable, then any subclasses can just use super() calls #}
   {{
-    mhclgHeader(
-      params={
-        "homepageUrl": url_for("index"),
-        "assetPath": assetPath
-      },
-      currentUser=current_user,
-    )
+    govukGenericHeader({
+      "url": url_for("index"),
+      "logoHtml": mhclgLogo(assetPath)
+    })
   }}
-{% endblock header %}
+{% endblock govukHeader %}
 
 {% block container %}
   <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
