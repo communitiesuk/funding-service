@@ -80,10 +80,44 @@
       })
     }}
   {% endif %}
-  {{
-    govukServiceNavigation({
-    "navigation": nav_items + right_nav_items,
-    "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
-    })
-  }}
+  {{ serviceNavigationWithRightItems({"navigation": nav_items}, right_nav_items) }}
+{% endmacro %}
+
+{# Takes the same dict of params as the govukServiceNavigation macro #}
+{% macro serviceNavigationWithRightItems(params, right_nav_items=[]) %}
+  {% set nav_params = dict(params) %}
+
+  {% if right_nav_items %}
+    {% set navigation_end %}
+      {% for item in right_nav_items %}
+        {% if loop.first %}
+          {% set item_classes = "govuk-service-navigation__item app-service-navigation__item--right-nav" %}
+        {% else %}
+          {% set item_classes = "govuk-service-navigation__item" %}
+        {% endif %}
+        <li class="{{ item_classes }}">
+          <a class="govuk-service-navigation__link" href="{{ item.href }}">{{ item.text }}</a>
+        </li>
+      {% endfor %}
+    {% endset %}
+
+    {% set slots = dict(params.slots or {}) %}
+    {% do slots.update({"navigationEnd": navigation_end}) %}
+    {% do nav_params.update({"slots": slots}) %}
+
+    {% if params.navigationClasses %}
+      {% set navigation_classes = params.navigationClasses ~ " app-service-navigation__wrapper--sectional" %}
+    {% else %}
+      {% set navigation_classes = "app-service-navigation__wrapper--sectional" %}
+    {% endif %}
+    {% do nav_params.update({"navigationClasses": navigation_classes}) %}
+  {% endif %}
+
+  {% if params.collapseNavigationOnMobile is not defined %}
+    {% set number_of_nav_items = (params.navigation or []) | length %}
+    {% set number_of_right_nav_items = right_nav_items | length %}
+    {% do nav_params.update({"collapseNavigationOnMobile": number_of_nav_items + number_of_right_nav_items > 1}) %}
+  {% endif %}
+
+  {{ govukServiceNavigation(nav_params) }}
 {% endmacro %}
