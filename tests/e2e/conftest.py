@@ -1,6 +1,7 @@
 import enum
 import os
-from typing import Generator, cast
+import uuid
+from typing import Callable, Generator, cast
 from unittest.mock import patch
 
 import pytest
@@ -12,13 +13,39 @@ from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
 from app.common.data.models_user import User
-from app.common.data.types import AuthMethodEnum
+from app.common.data.types import AuthMethodEnum, CollectionType
 from tests.conftest import create_test_app
 from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
-from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig
-from tests.e2e.deliver_grant_funding.pages import SSOSignInPage, StubSSOEmailLoginPage
-from tests.e2e.helpers import retrieve_magic_link
+from tests.e2e.dataclasses import BuiltGrantScenario, E2ETestUser, E2ETestUserConfig, GrantScenario
+from tests.e2e.deliver_grant_funding.helpers import (
+    configure_report_settings,
+    create_application_collection,
+    create_collection,
+    create_grant,
+    create_grant_recipients,
+    create_organisations,
+    enable_public_sign_up,
+    extract_uuid_from_url,
+    invite_and_claim_grant_team_member,
+    invite_data_providers,
+    mark_as_onboarding,
+    override_certifiers,
+    set_grant_and_collection_live,
+    set_privacy_policy,
+    set_reporting_and_submission_dates,
+)
+from tests.e2e.deliver_grant_funding.pages import (
+    AllGrantsPage,
+    SSOSignInPage,
+    StubSSOEmailLoginPage,
+)
+from tests.e2e.helpers import (
+    delete_grant_recipient_through_admin,
+    delete_grant_through_admin,
+    delete_organisation_through_admin,
+    retrieve_magic_link,
+)
 from tests.utils import build_db_config
 
 
@@ -197,3 +224,129 @@ def authenticated_browser_sso(
         return login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
     else:
         raise ValueError(f"Unknown e2e_env: {e2e_test_secrets.E2E_ENV}. Cannot authenticate browser with SSO.")
+
+
+@pytest.fixture()
+def build_grant_scenario(  # noqa: C901
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    authenticated_browser_sso: E2ETestUser,
+    email: str,
+) -> Generator[Callable[..., BuiltGrantScenario], None, None]:
+    """Factory fixture: builds a grant + collection + organisation + recipient(s) from a `GrantScenario` spec, and
+    tears down everything it built once the test finishes.
+
+    Teardown re-authenticates as platform admin before cleaning up, since the test body is free to sign out and/or
+    switch to a different identity after calling this fixture."""
+    grant_scenarios: list[BuiltGrantScenario] = []
+
+    def _build(  # noqa: C901
+        scenario: GrantScenario, *, sign_out_after: bool = False
+    ) -> BuiltGrantScenario:
+        grant_name_uuid = str(uuid.uuid4())
+        grant_name = f"E2E {grant_name_uuid}"
+
+        all_grants_page = AllGrantsPage(page, domain)
+        all_grants_page.navigate()
+
+        # Create the grant, which is always required.
+        create_grant(grant_name, grant_name_uuid, all_grants_page)
+        grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
+
+        # Record what's been built so far so teardown can clean it up even if a later step raises.
+        grant_scenario = BuiltGrantScenario(
+            grant_id=grant_id,
+            grant_name=grant_name,
+            grant_name_uuid=grant_name_uuid,
+            collection_id=None,
+        )
+        grant_scenarios.append(grant_scenario)
+
+        # If requested, invite and claim the shared grant-team-member identity on this grant.
+        if scenario.add_grant_team_member:
+            invite_and_claim_grant_team_member(page, domain, e2e_test_secrets, email, grant_name)
+
+        # If a collection is requested go through all the steps to set it up
+        if scenario.collection:
+            if scenario.collection.type == CollectionType.APPLICATION:
+                collection_id = create_application_collection(page, domain, grant_name, scenario.collection)
+            else:
+                collection_id = create_collection(page, domain, grant_name, scenario.collection)
+            grant_scenario.collection_id = collection_id
+
+            if scenario.collection.enable_public_sign_up:
+                grant_scenario.public_sign_up_url = enable_public_sign_up(
+                    page, domain, grant_id, grant_name, scenario.collection
+                )
+
+            # Admin hard updates, done straight after creating the collection.
+            if scenario.collection.allow_validation or scenario.collection.turn_off_requires_certification:
+                configure_report_settings(page, domain, collection_id, scenario.collection)
+
+            # Tasklist-driven steps.
+
+            # Step: Add an organisation
+            if scenario.organisations:
+                create_organisations(page, domain, grant_id, collection_id, scenario.organisations)
+                grant_scenario.org_names = [o.name for o in scenario.organisations]
+
+            # Step: Mark as onboarding with Funding Service
+            if scenario.collection.mark_onboarding:
+                mark_as_onboarding(page, domain, grant_id, collection_id)
+
+            # Step: Set privacy policy
+            if scenario.collection.set_privacy_policy:
+                set_privacy_policy(page, domain, grant_id, collection_id)
+
+            if scenario.organisations:
+                # Step: Set up grant recipients
+                create_grant_recipients(page, domain, grant_id, collection_id, scenario.organisations)
+                # Step: Set up grant recipient data providers
+                invite_data_providers(page, domain, grant_id, collection_id, scenario.organisations)
+
+                for organisation in scenario.organisations:
+                    # Step: Override certifiers for this grant
+                    # First data provider of the organisation is marked as certifier if set_certifiers is True
+                    if organisation.set_certifiers:
+                        override_certifiers(
+                            page, domain, grant_id, collection_id, organisation.name, organisation.data_providers
+                        )
+
+            # Step: Set reporting dates / Set submission dates
+            if scenario.collection.set_dates:
+                set_reporting_and_submission_dates(page, domain, grant_id, collection_id, scenario.collection.name)
+
+            # Step: Make the grant live (admin hard update)
+            if scenario.collection.set_live:
+                set_grant_and_collection_live(page, domain, grant_id, collection_id)
+
+        if sign_out_after:
+            page.goto(f"{domain}/sign-out")
+
+        return grant_scenario
+
+    yield _build
+
+    # Teardown: clean up everything that was built, if anything was built.
+    if grant_scenarios:
+        # Re-authenticate as platform admin before cleaning up
+        page.goto(f"{domain}/sign-out")
+        if e2e_test_secrets.E2E_ENV == "local":
+            login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+        else:
+            login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+
+        # Teardown: delete grant recipients, organisations, and the grant itself, for each scenario built.
+        # The collection is deleted automatically when the grant is deleted.
+        for grant_scenario in grant_scenarios:
+            if grant_scenario.org_names:
+                delete_grant_recipient_through_admin(
+                    page,
+                    domain,
+                    grant_scenario.grant_name_uuid,
+                    expected_grant_recipients_matching_search=2 * len(grant_scenario.org_names),
+                )
+                for org_name in grant_scenario.org_names:
+                    delete_organisation_through_admin(page, domain, org_name, expected_organisations_matching_search=2)
+            delete_grant_through_admin(page, domain, grant_scenario.grant_name_uuid)
