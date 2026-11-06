@@ -48,12 +48,16 @@ We use [uv](https://github.com/astral-sh/uv) for managing the local Python envir
 Developers are expected to run the app locally using [docker-compose](https://docs.docker.com/compose/). There are some helper commands in a Makefile to help bring up the service.
 
 * `make bootstrap` will create a local self-signed certificate for HTTPS during development, and set up flask-vite/vite to compile GOV.UK Frontend/our frontend assets.
-* `make up` / `docker compose up` will start the Funding Service app and expose it on https://funding.communities.gov.localhost:8080
+* `make up` / `docker compose up` will start the Funding Service app, Postgres, Redis and LocalStack, and expose the app on https://funding.communities.gov.localhost:8080
 * `make down` / `docker compose down` will stop the Funding Service.
 * `make build` / `docker compose build` will rebuild the Funding Service image.
 * `make clean-build` / `docker compose build --no-cache` will rebuild the Funding Service image, bypassing caching. This should rarely be needed.
 * `make check-html` / `make format-html` will check or format Jinja HTML templates with Prettier. This is also run as part of the pre-commit checks.
 * `make clean-down` will run `make down` then delete all images, containers, networks and volumes from docker
+
+Redis is available to the app at `redis://redis:6379/0` in Docker Compose and on the host at
+`redis://localhost:6379/0`. The app reads this from `REDIS_URL`. When `REDIS_URL` is not set, cache connectivity is
+not checked and the app can start without Redis.
 
 ### SSO
 

@@ -42,6 +42,7 @@ dependencies = [
     "charset-normalizer==3.5.2",
     "free-email-domains==1.0.2",
     "requests==2.34.2",
+    "redis==8.1.0",
 ]
 
 [dependency-groups]

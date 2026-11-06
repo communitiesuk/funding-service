@@ -45,9 +45,11 @@ def test_deployed_config_reads_internal_domains_from_environment() -> None:
         "AZURE_AD_TENANT_ID": "test-tenant-id",
         "JIRA_DATA_CONNECTOR_API_TOKEN": "test-jira-token",  # pragma: allowlist secret
         "INTERNAL_DOMAINS": json.dumps(["@communities.gov.uk", "@example.com"]),
+        "REDIS_URL": "rediss://cache.example.com:6379/0",
     }
 
     with patch.dict(os.environ, env, clear=True):
         config = ProdConfig()
 
     assert config.INTERNAL_DOMAINS == ("@communities.gov.uk", "@example.com")
+    assert config.REDIS_URL == "rediss://cache.example.com:6379/0"
