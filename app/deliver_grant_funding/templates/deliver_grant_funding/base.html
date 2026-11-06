@@ -7,8 +7,18 @@
 {% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
 
 {% set nav_items = nav_items or [] %}
-{% set right_nav_items = right_nav_items or [] %}
-
+{% set right_nav_items = [] %}
+{% if current_user and current_user.is_authenticated %}
+  {%
+    do right_nav_items.append(
+    {
+        "text": "Sign out",
+        "key": "sign_out",
+        "href": url_for("auth.sign_out")
+    }
+    )
+  %}
+{% endif %}
 {% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
 {% block head %}
   <!-- Google Tag Manager -->
@@ -38,7 +48,7 @@
       "logoHtml": mhclgLogo(assetPath, "Deliver grant funding")
     })
   }}
-  {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
+  {{ deliverGrantFundingServiceNavigation(grant_name, nav_items, right_nav_items) }}
 {% endblock govukHeader %}
 
 {% block container %}
