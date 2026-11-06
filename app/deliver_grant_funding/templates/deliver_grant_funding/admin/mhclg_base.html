@@ -2,6 +2,7 @@
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 {% from 'govuk_frontend_jinja/components/generic-header/macro.html' import govukGenericHeader %}
 {% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "common/macros/navigation.html" import serviceNavigationWithRightItems %}
 
 {% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
 
@@ -30,6 +31,38 @@
     })
   }}
 {% endblock %}
+
+{# Overrides xgovuk_flask_admin's headerNav so we can add right-hand nav items. The menu-building loop is copied #}
+{# from xgovuk_flask_admin/templates/admin/base.html so should be kept in sync. #}
+{% block headerNav %}
+  {% set service_nav_items = [] %}
+  {% for item in admin_view.admin.menu() %}
+    {% if item.is_category() %}
+      {% for child in item.get_children() %}
+        {% if child.is_accessible() and child.is_visible() and not child.is_category() %}
+          {% do service_nav_items.append({"href": child.get_url(), "text": child.name, "active": child.is_active(admin_view)}) %}
+        {% endif %}
+      {% endfor %}
+    {% elif item.is_accessible() and item.is_visible() and item.name != "Home" %}
+      {% do service_nav_items.append({"href": item.get_url(), "text": item.name, "active": item.is_active(admin_view)}) %}
+    {% endif %}
+  {% endfor %}
+
+  {%
+    set right_nav_items = [
+      {"text": "Deliver grant funding", "href": url_for("deliver_grant_funding.list_grants")},
+      {"text": "Sign out", "href": url_for("auth.sign_out")},
+    ]
+  %}
+
+  {{
+    serviceNavigationWithRightItems({
+      "serviceName": xgovuk_flask_admin_service_name,
+      "serviceUrl": url_for(admin_view.admin.endpoint ~ ".index"),
+      "navigation": service_nav_items,
+    }, right_nav_items)
+  }}
+{% endblock headerNav %}
 
 {% block govukFooter %}
   {{

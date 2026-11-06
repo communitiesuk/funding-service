@@ -3,7 +3,15 @@
 .app-service-navigation__wrapper--sectional {
     flex: 1;
 
-    .govuk-service-navigation__item:last-child {
+    .app-service-navigation__item--right-nav {
+        margin-left: auto;
+    }
+
+    // TODO: remove once the Access nav uses right_nav_items. Until then Access relies on the last item being pushed
+    // right. The :not() stops it applying to items that follow a --right-nav item (eg Sign out after Admin panel).
+    .govuk-service-navigation__item:last-child:not(
+            .app-service-navigation__item--right-nav ~ *
+        ) {
         margin-left: auto;
     }
 
@@ -33,6 +41,7 @@
         padding-top: 20px;
         padding-bottom: 0px;
     }
+
     .govuk-service-navigation__item {
         padding-top: 20px;
         padding-bottom: 0px;

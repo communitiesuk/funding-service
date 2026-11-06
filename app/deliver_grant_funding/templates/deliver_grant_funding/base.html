@@ -9,15 +9,10 @@
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = [] %}
 {% if current_user and current_user.is_authenticated %}
-  {%
-    do right_nav_items.append(
-    {
-        "text": "Sign out",
-        "key": "sign_out",
-        "href": url_for("auth.sign_out")
-    }
-    )
-  %}
+  {% if authorisation_helper.is_platform_member(current_user) %}
+    {% do right_nav_items.append({"text": "Admin panel", "href": "/deliver/admin/"}) %}
+  {% endif %}
+  {% do right_nav_items.append({"text": "Sign out", "href": url_for("auth.sign_out")}) %}
 {% endif %}
 {% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
 {% block head %}
