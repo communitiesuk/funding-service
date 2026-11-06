@@ -1,5 +1,6 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
-{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
 
 {% set assetPath = vite_asset('assets') %}
 
@@ -26,14 +27,12 @@
       document.body.className += " js-enabled" + ("noModule" in HTMLScriptElement.prototype ? " govuk-frontend-supported" : "");
     </script>
     <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
+
     {{
-      mhclgHeader(
-        params={
-          "homepageUrl": "#",
-          "assetPath": assetPath
-        },
-        currentUser=current_user,
-      )
+      govukGenericHeader({
+        "url": "#",
+        "logoHtml": mhclgLogo(assetPath, "Deliver grant funding")
+      })
     }}
     <div class="govuk-width-container">
       <main class="govuk-main-wrapper" id="main-content">

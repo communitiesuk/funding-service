@@ -16,11 +16,11 @@
 
 {% set page_title = heading ~ " - " ~ component.name %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {# todo: pressing back here should remember which question you had selected in case you want to just move one up or down in the list #}
   {#       that would also line up with how the browsers "back" button would work (remembering form options) #}
   {{ govukBackLink({ "text": "Back", "href": back_link }) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

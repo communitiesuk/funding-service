@@ -70,12 +70,19 @@
   {% endif %}
 {% endmacro %}
 
-{% macro deliverGrantFundingServiceNavigation(nav_items=[], right_nav_items=[]) %}
+{% macro deliverGrantFundingServiceNavigation(grant_name=None, nav_items=[], right_nav_items=[]) %}
+  {% if grant_name %}
+    {{
+      govukServiceNavigation({
+      "serviceName": grant_name,
+      "serviceUrl": "#",
+      "navigation": [],
+      })
+    }}
+  {% endif %}
   {{
     govukServiceNavigation({
-    "serviceName": "Deliver grant funding",
-    "serviceUrl": url_for("deliver_grant_funding.list_grants"),
-    "navigation": nav_items + right_nav_items,
+    "navigation": [{"text":"hello"}]+nav_items + right_nav_items,
     "navigationClasses": "app-service-navigation__wrapper--sectional" if right_nav_items else "",
     })
   }}

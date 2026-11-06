@@ -9,9 +9,9 @@
 {# configure the page for the base error summary #}
 {% set form = runner.question_with_add_another_summary_form %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ collection_before(runner, override_back_link=url_for("deliver_grant_funding.list_section_questions", grant_id=runner.submission.grant.id, form_id=runner.form.id) if (is_first_question_in_section_preview and runner.add_another_index is none) else None) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block errorSummary %}
   {{ formRunnerErrorSummary(form, runner) }}

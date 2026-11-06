@@ -4,14 +4,60 @@
 {% set page_title = "Add grant team member" %}
 {% set active_item_identifier = "grant_team" %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
         "text": "Back",
         "href": url_for("deliver_grant_funding.list_users_for_grant", grant_id=grant.id)
     })
   }}
-{% endblock beforeContent %}
+  <section aria-label="Service information" class="govuk-service-navigation" data-module="govuk-service-navigation">
+    <div class="govuk-width-container">
+      <div class="app-annotate-block">
+        <span class="app-annotate-block__label">slot: start</span>
+      </div>
+      <div class="govuk-service-navigation__container">
+        <span class="govuk-service-navigation__service-name">
+          <a href="#" class="govuk-service-navigation__link"> Service name </a>
+        </span>
+        <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
+          <button type="button" class="govuk-service-navigation__toggle govuk-js-service-navigation-toggle" aria-controls="navigation" hidden aria-hidden="true">Menu</button>
+          <ul class="govuk-service-navigation__list" id="navigation">
+            <!--
+    Notice the wrapping `<li>` as the `navigationStart` slot
+    injects content at the start of the `<ul>` listing the navigation items
+  -->
+            <li class="govuk-service-navigation__item">
+              <div class="app-annotate-block app-annotate-block--short">
+                <span class="app-annotate-block__label">slot: navigationStart</span>
+              </div>
+            </li>
+            <li class="govuk-service-navigation__item">
+              <a class="govuk-service-navigation__link" href="#"> Item 1 </a>
+            </li>
+            <li class="govuk-service-navigation__item govuk-service-navigation__item--active">
+              <a class="govuk-service-navigation__link" href="#" aria-current="true">
+                <strong class="govuk-service-navigation__active-fallback">Item 2</strong>
+              </a>
+            </li>
+            <!--
+    Notice the wrapping `<li>` as the `navigationStart` slot
+    injects content at the end of the `<ul>` listing the navigation items
+  -->
+            <li class="govuk-service-navigation__item">
+              <div class="app-annotate-block app-annotate-block--short">
+                <span class="app-annotate-block__label">slot: navigationEnd</span>
+              </div>
+            </li>
+          </ul>
+        </nav>
+      </div>
+      <div class="app-annotate-block">
+        <span class="app-annotate-block__label">slot: end</span>
+      </div>
+    </div>
+  </section>
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

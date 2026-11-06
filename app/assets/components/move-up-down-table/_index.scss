@@ -5,11 +5,11 @@
 }
 
 .app-move-up-down-table__action--disabled {
-    color: govuk.govuk-colour("mid-grey");
+    color: govuk.govuk-colour("black", $variant: "tint-80");
 }
 
 .app-move-up-down-table__row:first-child {
-    border-top: 1px solid govuk.govuk-colour("mid-grey");
+    border-top: 1px solid govuk.govuk-colour("black", $variant: "tint-80");
 }
 
 .move-up-down-link-hidden {
