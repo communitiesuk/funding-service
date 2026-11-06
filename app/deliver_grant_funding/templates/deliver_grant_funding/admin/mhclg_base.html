@@ -1,7 +1,17 @@
 {% extends "admin/base.html" %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
+{% from 'govuk_frontend_jinja/components/generic-header/macro.html' import govukGenericHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
 
 {% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
+
+{% block headIcons %}
+  {% set appAssetPath = vite_asset('assets') %}
+  <link rel="icon" sizes="48x48" href="{{ appAssetPath }}/images/favicon.ico" />
+  <link rel="icon" sizes="any" href="{{ appAssetPath }}/images/favicon.svg" type="image/svg+xml" />
+  <link rel="mask-icon" href="{{ appAssetPath }}/images/govuk-icon-mask.svg" color="{{ themeColor }}" />
+  <link rel="apple-touch-icon" href="{{ appAssetPath }}/images/govuk-icon-180.png" />
+{% endblock %}
 
 {% block head %}
   {{ super() }}
@@ -11,30 +21,14 @@
 
 {% block headerRow %}
   {{ mhclgRequestTracingBanner() }}
-  <header class="govuk-header" data-module="govuk-header">
-    <div class="govuk-header__container govuk-width-container">
-      <div class="govuk-header__logo app-header__logo">
-        <a href="{{ url_for("platform_admin.index") }}" class="govuk-header__link govuk-header__link--homepage app-!-align-vertically">
-          <img src="/static/assets/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);" nonce="{{ csp_nonce() }}" />
-          <span class="govuk-!-margin-top-0 govuk-!-margin-bottom-0 govuk-!-margin-left-1">MHCLG Funding Service</span>
-        </a>
-      </div>
 
-      {# Bit of a hack - this is deprecated GOV.UK Header CSS; but it'll do for now ... (sorry future us) #}
-      <div class="govuk-header__content app-header__content">
-        <nav aria-label="Menu" class="govuk-header__navigation app-header__navigation">
-          <ul class="govuk-header__navigation-list">
-            <li class="govuk-header__navigation-item app-header__navigation-item">
-              <a class="govuk-header__link" href="{{ url_for('deliver_grant_funding.list_grants') }}">Deliver grant funding</a>
-            </li>
-            <li class="govuk-header__navigation-item app-header__navigation-item">
-              <a class="govuk-header__link" href="{{ url_for('auth.sign_out') }}">Sign out</a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  </header>
+  {{
+    govukGenericHeader({
+      "url": url_for("platform_admin.index"),
+      "classes": "app-generic-header--brand",
+      "logoHtml": mhclgLogo(vite_asset('assets'),"Deliver grant funding | Admin")
+    })
+  }}
 {% endblock %}
 
 {% block govukFooter %}

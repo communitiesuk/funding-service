@@ -1,13 +1,9 @@
 // This file contains CSS that is only used by the platform admin/flask-admin pages and not in the core
 // of Access grant funding or Deliver grant funding.
 
-@use "sass:color";
-
-$admin-brand-colour: #912b88;
-
 @use "govuk/base" as govuk with (
     $govuk-functional-colours: (
-        brand: $admin-brand-colour,
+        brand: #912b88,
     ),
     $govuk-assets-path: "/static/assets/"
 );
@@ -15,43 +11,12 @@ $admin-brand-colour: #912b88;
 @use "components/big-number";
 @use "components/context-aware-editor";
 @use "components/metadata";
+@use "components/mhclg-logo";
 @use "components/test-data-banner";
 @use "tweaks";
 
-.app-\!-align-vertically {
-    display: inline-flex !important;
-    align-items: center !important;
-}
-
-.app-header__content {
-    @include govuk.govuk-media-query($from: desktop) {
-        display: inline-flex !important;
-        flex-direction: row-reverse;
-        width: 50%;
-    }
-}
-
-.app-header__logo {
-    @include govuk.govuk-media-query($from: desktop) {
-        width: 50%;
-    }
-}
-
-.app-header__navigation {
-    @include govuk.govuk-media-query($from: desktop) {
-        padding-top: 18px !important;
-    }
-}
-
-.app-header__navigation-item {
-    border-bottom-color: color.adjust(
-        $admin-brand-colour,
-        $lightness: -15%
-    ) !important;
-
-    a {
-        font-weight: govuk.$govuk-font-weight-bold !important;
-    }
+.app-generic-header--brand {
+    background: govuk.govuk-functional-colour(brand);
 }
 
 h1,

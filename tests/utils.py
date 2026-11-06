@@ -144,7 +144,7 @@ def get_link_hrefs(soup: BeautifulSoup) -> list[str]:
 
 
 def get_service_name_text(soup: BeautifulSoup) -> str | None:
-    service_name_element = soup.find("span", class_="govuk-header__product-name")
+    service_name_element = soup.find("span", class_="app-mhclg-logo__product-name")
     return service_name_element.text if service_name_element else None
 
 
