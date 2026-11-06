@@ -105,7 +105,7 @@ class AccessGrantFundingEmail(Email):
         if not email:
             return
 
-        if email.endswith(internal_domains):
+        if email.lower().endswith(internal_domains):
             return
 
         user = interfaces.user.get_user_by_email(email)

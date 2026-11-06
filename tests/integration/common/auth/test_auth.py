@@ -32,12 +32,15 @@ class TestMagicLinkSignInView:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_error(soup, "Enter an email address in the correct format")
 
-    def test_post_mhclg_email_redirects_to_sso(self, app, anonymous_client):
+    @pytest.mark.parametrize(
+        "email_address", ["test@communities.gov.uk", "test@COMMUNITIES.gov.uk", "test@communities.GOV.uk"]
+    )
+    def test_post_internal_email_redirects_to_sso(self, app, anonymous_client, email_address):
         with patch("app.common.auth.build_auth_code_flow") as mock_build_auth_code_flow:
             mock_build_auth_code_flow.return_value = {"auth_uri": "http://auth.example.com/auth-uri"}
             response = anonymous_client.post(
                 url_for("auth.request_a_link_to_sign_in"),
-                data={"email_address": "test@communities.gov.uk"},
+                data={"email_address": email_address},
                 follow_redirects=False,
             )
             assert response.status_code == 302
@@ -230,7 +233,10 @@ class TestCollectionRequestALinkToPublicSignUpView:
         assert "Enter your work email address" in get_h1_text(soup)
         assert "Test grant name" in soup.text
 
-    def test_post_mhclg_email_redirects_to_sso(self, app, anonymous_client, factories):
+    @pytest.mark.parametrize(
+        "email_address", ["test@communities.gov.uk", "test@COMMUNITIES.gov.uk", "test@communities.GOV.uk"]
+    )
+    def test_post_internal_email_redirects_to_sso(self, app, anonymous_client, factories, email_address):
         grant = factories.grant.create(slug="grant-slug", status=GrantStatusEnum.LIVE)
         collection = factories.collection.create(
             slug="collection-slug",
@@ -247,7 +253,7 @@ class TestCollectionRequestALinkToPublicSignUpView:
                     grant_slug=grant.slug,
                     collection_slug=collection.slug,
                 ),
-                data={"email_address": "test@communities.gov.uk"},
+                data={"email_address": email_address},
                 follow_redirects=False,
             )
             assert response.status_code == 302

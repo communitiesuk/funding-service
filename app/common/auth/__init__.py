@@ -40,7 +40,7 @@ def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug
         email = cast(str, form.email_address.data)
 
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
-        if email.endswith(internal_domains):
+        if email.lower().endswith(internal_domains):
             # upgrade authorisation requests for internal users to make sure they
             # still have valid access to their admin account
             session["next"] = sanitise_redirect_url(
@@ -107,7 +107,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
         email = cast(str, form.email_address.data)
 
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
-        if email.endswith(internal_domains):
+        if email.lower().endswith(internal_domains):
             # upgrade authorisation requests for internal users to make sure they
             # still have valid access to their admin account
             session["next"] = sanitise_redirect_url(session.get("next", url_for("access_grant_funding.index")))
