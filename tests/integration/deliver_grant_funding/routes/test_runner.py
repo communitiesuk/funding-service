@@ -1233,6 +1233,23 @@ class TestCheckYourAnswers:
             assert "What's your favourite colour?" in soup.text
             assert "Colour information" in soup.text
 
+    def test_get_check_your_answers_unknown_form_404s(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        question = factories.question.create(form__collection__grant=grant)
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.check_your_answers",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                form_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
+
     def test_get_check_your_answers_with_extracts_add_another(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(
             text="What's your favourite colour?",
