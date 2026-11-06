@@ -204,10 +204,24 @@ class FormRunner:
 
         question, form = None, None
 
-        if question_id:
-            question = submission.get_question(question_id)
-        elif form_id:
-            form = submission.get_form(form_id)
+        try:
+            if question_id:
+                question = submission.get_question(question_id)
+            elif form_id:
+                form = submission.get_form(form_id)
+        except ValueError:
+            # The question/form may have been removed from the collection (e.g. a stale or bookmarked link)
+            current_app.logger.warning(
+                "Could not find question %(question_id)s or form %(form_id)s in collection %(collection_id)s "
+                "for submission %(submission_id)s",
+                {
+                    "question_id": question_id,
+                    "form_id": form_id,
+                    "collection_id": submission.collection_id,
+                    "submission_id": submission_id,
+                },
+            )
+            return abort(404)
 
         form_runner = cls(
             submission=submission,
