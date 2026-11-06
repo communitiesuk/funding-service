@@ -2,6 +2,8 @@
 
 {% set cspNonce = csp_nonce() %}
 
+{% set grant_name=grant.name %}
+
 {% set nav_items = [] %}
 {%
   do nav_items.append({
