@@ -1,5 +1,6 @@
 {% extends "common/base.html" %}
-{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
 {% from "common/macros/navigation.html" import accessGrantFundingServiceNavigation %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner, mhclgRequestTracingBanner with context %}
@@ -31,18 +32,13 @@
     window.googleTagId = "{{ get_google_tag_manager_id() }}";
   </script>
 {% endblock head %}
-{% block header %}
+{% block govukHeader %}
   {{ mhclgRequestTracingBanner() }}
   {{
-    mhclgHeader(
-      params={
-        "homepageUrl": "#",
-        "assetPath": assetPath,
-        "productName": "MHCLG Access grant funding",
-        "isAccess": true
-      },
-      currentUser=current_user
-    )
+    govukGenericHeader({
+      "url": url_for("access_grant_funding.index"),
+      "logoHtml": mhclgLogo(assetPath, "Access grant funding")
+    })
   }}
 
   {% set user_organisation = grant_recipient.organisation if grant_recipient else (organisation if organisation else None) %}
@@ -64,7 +60,7 @@
     {% endif %}
     {{ accessGrantFundingServiceNavigation(current_user, nav_items, grant_recipient=grant_recipient, organisation=organisation if not grant_recipient else None) }}
   {% endif %}
-{% endblock header %}
+{% endblock govukHeader %}
 
 {% block bodyStart %}
   {% set cookie_banner_html %}
