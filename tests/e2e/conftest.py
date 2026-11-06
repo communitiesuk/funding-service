@@ -26,7 +26,6 @@ from tests.e2e.deliver_grant_funding.helpers import (
     create_grant_recipients,
     create_organisations,
     enable_public_sign_up,
-    extract_uuid_from_url,
     invite_and_claim_grant_team_member,
     invite_data_providers,
     mark_as_onboarding,
@@ -37,6 +36,7 @@ from tests.e2e.deliver_grant_funding.helpers import (
 )
 from tests.e2e.deliver_grant_funding.pages import (
     AllGrantsPage,
+    GrantDashboardPage,
     SSOSignInPage,
     StubSSOEmailLoginPage,
 )
@@ -44,6 +44,7 @@ from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
     delete_grant_through_admin,
     delete_organisation_through_admin,
+    extract_uuid_from_url,
     retrieve_magic_link,
 )
 from tests.utils import build_db_config
@@ -212,6 +213,21 @@ def login_with_session_cookie(
     sso_sign_in_page.navigate()
 
     return E2ETestUser(email_address=user_config.email)
+
+
+def switch_user(
+    page: Page,
+    domain: str,
+    e2e_test_secrets: EndToEndTestSecrets,
+    user_type: DeliverGrantFundingUserType,
+    email_address: str,
+) -> E2ETestUser:
+    grant_dashboard_page = GrantDashboardPage(page, domain)
+    grant_dashboard_page.click_sign_out()
+    if e2e_test_secrets.E2E_ENV == "local":
+        return login_with_stub_sso(domain, page, email_address, user_type)
+    else:
+        return login_with_session_cookie(page, domain, e2e_test_secrets, user_type)
 
 
 @pytest.fixture()

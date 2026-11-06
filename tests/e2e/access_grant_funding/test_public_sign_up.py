@@ -19,9 +19,11 @@ from tests.e2e.access_grant_funding.pages import (
 from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.dataclasses import E2ETestUser, QuestionDict, QuestionResponse
 from tests.e2e.deliver_grant_funding.helpers import (
+    complete_task,
     create_grant,
-    extract_uuid_from_url,
+    create_question_or_group,
     navigate_to_pre_award_sections_page,
+    task_check_your_answers,
 )
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
@@ -30,15 +32,11 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     PlatformAdminReportSettingsPage,
     RunnerTasklistPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
-    complete_task,
-    create_question_or_group,
-    task_check_your_answers,
-)
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
     delete_grant_through_admin,
     delete_organisation_through_admin,
+    extract_uuid_from_url,
     retrieve_magic_link,
 )
 

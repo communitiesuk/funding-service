@@ -19,6 +19,18 @@ def wait_for_context_aware_textarea_to_be_ready(page: Page, textarea_id: str) ->
     expect(page.locator(f".app-context-aware-editor__visible-textarea[id='{textarea_id}']")).to_be_attached()
 
 
+def extract_uuid_from_url(url: str, pattern: str) -> str:
+    """Extract a UUID from a URL using a regex pattern.
+
+    The pattern should contain a named group 'uuid' for the UUID to extract.
+    Example: r"/grant/(?P<uuid>[a-f0-9-]+)/reports"
+    """
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError(f"Could not extract UUID from URL {url} using pattern {pattern}")
+    return match.group("uuid")
+
+
 def extract_email_link(email: dict[str, str]) -> str:
     pattern = r"https?:\/\/[\w-]+(?:\.[\w]+)+(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?"
 

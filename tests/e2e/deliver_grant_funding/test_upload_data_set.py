@@ -23,6 +23,7 @@ from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.conftest import (
     DeliverGrantFundingUserType,
     e2e_user_configs,
+    switch_user,
 )
 from tests.e2e.dataclasses import (
     DataReferenceConfig,
@@ -35,7 +36,12 @@ from tests.e2e.dataclasses import (
     SectionDict,
     TextFieldWithData,
 )
-from tests.e2e.deliver_grant_funding.helpers import create_grant, extract_uuid_from_url
+from tests.e2e.deliver_grant_funding.helpers import (
+    complete_task,
+    create_grant,
+    create_question_or_group,
+    task_check_your_answers,
+)
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage, GrantDashboardPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
     DeliverTestGrantRecipientJourneyPage,
@@ -52,13 +58,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpOrganisationsPage,
     UploadedDataSetsPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
-    complete_task,
-    create_question_or_group,
-    switch_user,
-    task_check_your_answers,
-)
-from tests.e2e.helpers import delete_grant_through_admin
+from tests.e2e.helpers import delete_grant_through_admin, extract_uuid_from_url
 
 SPACE_COUNT_COLUMN = "Free spaces"
 GROUP_QUESTION_TEXT = "How many spaces should we keep back?"

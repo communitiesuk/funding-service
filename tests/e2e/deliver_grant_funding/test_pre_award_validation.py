@@ -14,12 +14,16 @@ from tests.e2e.config import EndToEndTestSecrets
 from tests.e2e.conftest import (
     DeliverGrantFundingUserType,
     e2e_user_configs,
+    switch_user,
 )
 from tests.e2e.dataclasses import E2ETestUser, QuestionDict, QuestionResponse
 from tests.e2e.deliver_grant_funding.helpers import (
+    answer_questions_and_check_for_expected_errors,
+    complete_task,
     create_grant,
-    extract_uuid_from_url,
+    create_question_or_group,
     navigate_to_pre_award_sections_page,
+    task_check_your_answers,
 )
 from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
 from tests.e2e.deliver_grant_funding.reports_pages import (
@@ -34,14 +38,7 @@ from tests.e2e.deliver_grant_funding.reports_pages import (
     SetUpGrantRecipientsPage,
     SetUpOrganisationsPage,
 )
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
-    answer_questions_and_check_for_expected_errors,
-    complete_task,
-    create_question_or_group,
-    switch_user,
-    task_check_your_answers,
-)
-from tests.e2e.helpers import delete_grant_through_admin
+from tests.e2e.helpers import delete_grant_through_admin, extract_uuid_from_url
 
 _shared_setup_data: dict | None = None
 

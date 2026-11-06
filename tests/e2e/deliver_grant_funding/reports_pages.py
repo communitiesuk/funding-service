@@ -45,7 +45,7 @@ class OrganisationSetupRow(NamedTuple):
     organisation_type: str
 
 
-def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_source: DataReferenceConfig) -> None:
+def reference_data_flow(select_data_source_page: SelectDataSourcePage, context_source: DataReferenceConfig) -> None:
     select_data_source_page.select_data_source(context_source.data_source)
 
     match context_source.data_source:
@@ -96,7 +96,7 @@ def _reference_data_in_expression(
     expression_form_page: AddValidationPage | AddConditionPage, field_name: str, context_source: DataReferenceConfig
 ) -> None:
     select_data_source_page = expression_form_page.click_insert_data(field_name)
-    _reference_data_flow(select_data_source_page, context_source)
+    reference_data_flow(select_data_source_page, context_source)
 
 
 def _configure_greater_than_expression(
@@ -1299,7 +1299,7 @@ def _fill_custom_field(
             context_source = references.get(reference_key)
             if context_source:
                 reference_data_btn.click()
-                _reference_data_flow(
+                reference_data_flow(
                     SelectDataSourcePage(reports_page.page, reports_page.domain, reports_page.grant_name),
                     context_source,
                 )
