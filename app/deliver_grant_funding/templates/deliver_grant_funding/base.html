@@ -9,15 +9,30 @@
 {% set nav_items = nav_items or [] %}
 {% set right_nav_items = [] %}
 {% if current_user and current_user.is_authenticated %}
-  {%
-    do right_nav_items.append(
-    {
-        "text": "Sign out",
-        "key": "sign_out",
-        "href": url_for("auth.sign_out")
-    }
-    )
-  %}
+  {% if authorisation_helper.is_platform_member(current_user) %}
+    {% set admin_link_html %}
+      <li class="govuk-service-navigation__item right-nav">
+        <a class="govuk-service-navigation__link" href="/deliver/admin/"> Admin panel </a>
+      </li>
+    {% endset %}
+    {% set sign_out_link_html %}
+      <li class="govuk-service-navigation__item">
+        <a class="govuk-service-navigation__link" href="{{ url_for('auth.sign_out') }}"> Sign out </a>
+      </li>
+    {% endset %}
+    {%
+      do right_nav_items.append(
+      {"html":admin_link_html})
+    %}
+    %}
+  {% else %}
+    {% set sign_out_link_html %}
+      <li class="govuk-service-navigation__item right-nav">
+        <a class="govuk-service-navigation__link" href="{{ url_for('auth.sign_out') }}"> Sign out </a>
+      </li>
+    {% endset %}
+  {% endif %}
+  {% do right_nav_items.append( {"html":sign_out_link_html}) %}
 {% endif %}
 {% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
 {% block head %}
