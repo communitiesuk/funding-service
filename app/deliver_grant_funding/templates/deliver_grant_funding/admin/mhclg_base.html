@@ -3,6 +3,7 @@
 {% from 'govuk_frontend_jinja/components/generic-header/macro.html' import govukGenericHeader %}
 {% from "common/partials/mhclg-logo.html" import mhclgLogo %}
 {% from "common/macros/navigation.html" import serviceNavigationWithRightItems %}
+{% from "common/macros/navigation.html" import serviceNavigationWithRightItems2 %}
 
 {% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
 
@@ -56,7 +57,7 @@
   %}
 
   {{
-    serviceNavigationWithRightItems({
+    serviceNavigationWithRightItems2({
       "serviceName": xgovuk_flask_admin_service_name,
       "serviceUrl": url_for(admin_view.admin.endpoint ~ ".index"),
       "navigation": service_nav_items,
