@@ -39,18 +39,26 @@
       {% set navigation_classes = "app-service-navigation__wrapper--sectional--org-hidden" %}
     {% endif %}
 
+    {% set grant_nav_items=[] %}
     {% if number_of_grants > 1 %}
-      {% do nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
-      {% set navigation_classes = "app-service-navigation__wrapper--sectional" ~ ("--grant-and-org-hidden" if (number_of_organisations > 1) else "") %}
+      {% do grant_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
+      {% set grant_nav_classes = "app-service-navigation__wrapper--sectional" ~ ("--grant-and-org-hidden" if (number_of_organisations > 1) else "") %}
     {% endif %}
 
     {{
       govukServiceNavigation({
           "serviceName": grant.name,
           "serviceUrl": "#",
+          "navigation": grant_nav_items,
+          "navigationClasses": grant_nav,
+          "attributes": { "id": "grant-nav" }
+      })
+    }}
+    {{
+      govukServiceNavigation({
           "navigation": nav_items,
           "navigationClasses": navigation_classes,
-          "attributes": { "id": "grant-nav" }
+          "attributes": { "id": "access-nav" }
       })
     }}
   {% else %}
