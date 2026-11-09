@@ -1765,6 +1765,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
         self.page.get_by_role("textbox", name="Maximum number of decimal places").fill(str(max_decimal_places))
 
     def click_submit(self) -> EditQuestionPage:
+        question_name = self.page.get_by_role("textbox", name="Question text").input_value()
         self.page.get_by_role("button", name="Add question").click()
         edit_question_page = EditQuestionPage(
             self.page,
@@ -1772,7 +1773,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
             grant_name=self.grant_name,
             report_name=self.report_name,
             section_name=self.section_name,
-            question_name=self.page.get_by_role("textbox", name="Question text").input_value(),
+            question_name=question_name,
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
