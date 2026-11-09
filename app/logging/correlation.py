@@ -7,15 +7,16 @@ Every unit of work enters exactly one `CorrelationContext`. It lives in a `Conte
 tags/attributes that we set when the unit of work starts.
 
 Every request and every CLI command starts a new Sentry trace, whose `trace_id` is on every log line alongside the
-`request_id` (requests) or `run_id` (CLI commands) and the `user_id`. Incoming trace headers
+`context_type` and the `user_id` and is the identifier for the unit of work. Incoming trace headers
 (`sentry-trace`, `baggage`, `traceparent`, `tracestate`) are ignored, so a client cannot choose the `trace_id` (see
 `app.sentry.IgnoreIncomingTraceHeaders` for the deployed path).
 
-Background jobs (not yet implemented): a job should be its own unit of work with its own `job_id`, never inheriting the
-`request_id` or `run_id` of the unit of work that enqueued it. The producer should put `sentry_sdk.get_traceparent()`
-and `sentry_sdk.get_baggage()`, plus `user_id` and `debug_logging`, into the job message; the consumer should enter a
-forked isolation scope, call `sentry_sdk.continue_trace(headers)` and start a `queue.process` transaction, validating
-every inherited value (bounded strings, a UUID for `user_id`) because the message is data, not trusted context (see
+Background jobs (not yet implemented): a job should be its own unit of work with its own `job_id`; it continues the
+trace of the unit of work that enqueued it (via the traceparent in the message) but is not part of it. The producer
+should put `sentry_sdk.get_traceparent()` and `sentry_sdk.get_baggage()`, plus `user_id` and `debug_logging`, into the
+job message; the consumer should enter a forked isolation scope, call `sentry_sdk.continue_trace(headers)` and start a
+`queue.process` transaction, validating every inherited value (bounded strings, a UUID for `user_id`) because the
+message is data, not trusted context (see
 https://docs.sentry.io/platforms/python/tracing/instrumentation/custom-instrumentation/queues-module/).
 
 Application fields (not yet implemented): a unit of work could later carry application identifiers such as
@@ -57,8 +58,6 @@ type LogFieldValue = str | int | float | bool
 # metrics). Request-shape fields (method/path/endpoint) are already recorded natively by Sentry's Flask integration.
 _SENTRY_FIELDS = (
     "context_type",
-    "request_id",
-    "run_id",
     "cli_command",
     "user_id",
     "alb_trace_id",
@@ -77,9 +76,6 @@ class ContextType(StrEnum):
 @dataclass(frozen=True, kw_only=True)
 class CorrelationContext:
     context_type: ContextType
-    request_id: str | None = None
-    # Identifies a CLI command; requests have `request_id`.
-    run_id: str | None = None
     cli_command: str | None = None
     user_id: str | None = None
     method: str | None = None
@@ -114,10 +110,6 @@ _current_context: ContextVar[CorrelationContext | None] = ContextVar("correlatio
 
 def get_current_context() -> CorrelationContext | None:
     return _current_context.get()
-
-
-def new_id() -> str:
-    return str(uuid.uuid4())
 
 
 def bind(**changes: Any) -> None:
@@ -293,7 +285,6 @@ def request_context(
     path)."""
     context = CorrelationContext(
         context_type=ContextType.REQUEST,
-        request_id=new_id(),
         method=environ.get("REQUEST_METHOD"),
         path=environ.get("PATH_INFO"),
         alb_trace_id=alb_trace_id,
@@ -309,7 +300,6 @@ def request_context(
 def cli_context(command: str | None) -> Generator[CorrelationContext]:
     context = CorrelationContext(
         context_type=ContextType.CLI,
-        run_id=new_id(),
         cli_command=command,
     )
     with _enter(context, fork_sentry_scope=True):

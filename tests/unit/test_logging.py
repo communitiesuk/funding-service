@@ -84,7 +84,7 @@ class TestLogRecordCorrelation:
 
     def test_unforked_sentry_scope_is_cleaned_up_on_exit(self):
         user_id = str(uuid.uuid4())
-        context = CorrelationContext(context_type=ContextType.REQUEST, request_id=correlation.new_id(), user_id=user_id)
+        context = CorrelationContext(context_type=ContextType.REQUEST, user_id=user_id)
 
         with correlation._enter(context, fork_sentry_scope=False):
             scope_inside = sentry_sdk.get_isolation_scope()
@@ -93,11 +93,11 @@ class TestLogRecordCorrelation:
             user_inside = scope_inside._user
         scope_after = sentry_sdk.get_isolation_scope()
 
-        assert tags_inside["request_id"] == attributes_inside["request_id"] == context.request_id
+        assert tags_inside["context_type"] == attributes_inside["context_type"] == "request"
         assert tags_inside["user_id"] == attributes_inside["user_id"] == user_id
         assert user_inside == {"id": user_id}
-        assert "request_id" not in scope_after._tags
-        assert "request_id" not in scope_after._attributes
+        assert "context_type" not in scope_after._tags
+        assert "context_type" not in scope_after._attributes
         assert "user_id" not in scope_after._tags
         assert "user_id" not in scope_after._attributes
         assert scope_after._user is None
@@ -113,12 +113,13 @@ class TestLogRecordCorrelation:
             assert context.path == "/test-path"
 
     def test_records_snapshot_the_current_unit_of_work(self):
-        with correlation.cli_context("flask test-command") as context:
+        with correlation.cli_context("flask test-command"):
+            trace_id = correlation.get_log_fields()["trace_id"]
             record = _make_record()
 
         fields = get_record_correlation(record)
         assert fields["context_type"] == "cli"
-        assert fields["run_id"] == context.run_id
+        assert fields["trace_id"] == trace_id
         assert fields["cli_command"] == "flask test-command"
         assert len(fields["trace_id"]) == 32
         assert len(fields["span_id"]) == 16
@@ -136,15 +137,16 @@ class TestLogRecordCorrelation:
             second = get_record_correlation(_make_record())
 
         assert first["trace_id"] != second["trace_id"]
-        assert first["run_id"] != second["run_id"]
 
-    def test_lines_of_one_cli_run_share_its_run_id(self):
-        with correlation.cli_context("flask test-command") as context:
+    def test_lines_of_one_cli_run_share_its_trace_id(self):
+        with correlation.cli_context("flask test-command"):
+            trace_id = correlation.get_log_fields()["trace_id"]
             first = get_record_correlation(_make_record())
             second = get_record_correlation(_make_record())
 
-        assert uuid.UUID(context.run_id)
-        assert first["run_id"] == second["run_id"] == context.run_id
+        assert len(trace_id) == 32
+        assert set(trace_id) <= set("0123456789abcdef")
+        assert first["trace_id"] == second["trace_id"] == trace_id
 
     def test_bind_changes_fields_until_the_unit_of_work_exits(self):
         user_id = str(uuid.uuid4())
@@ -178,7 +180,8 @@ class TestFormatters:
     def test_json_formatter_emits_flat_correlation_fields(self):
         with correlation.request_context(
             {"REQUEST_METHOD": "GET"}, alb_trace_id=ALB_ROOT, cloudfront_request_id=None, debug_logging=False
-        ) as context:
+        ):
+            trace_id = correlation.get_log_fields()["trace_id"]
             record = _make_record(status=200)
 
         output = json.loads(JSONFormatter().format(record))
@@ -189,7 +192,7 @@ class TestFormatters:
         assert output["log_type"] == "application"
         assert output["status"] == 200
         assert output["context_type"] == "request"
-        assert output["request_id"] == context.request_id
+        assert output["trace_id"] == trace_id
         assert output["alb_trace_id"] == ALB_ROOT
         assert output["method"] == "GET"
         assert output["timestamp"].endswith("+00:00")
@@ -199,12 +202,13 @@ class TestFormatters:
     def test_json_formatter_correlation_fields_win_over_extra(self):
         with correlation.request_context(
             {"REQUEST_METHOD": "GET"}, alb_trace_id=None, cloudfront_request_id=None, debug_logging=False
-        ) as context:
-            record = _make_record(request_id="spoofed")
+        ):
+            trace_id = correlation.get_log_fields()["trace_id"]
+            record = _make_record(trace_id="spoofed")
 
         output = json.loads(JSONFormatter().format(record))
 
-        assert output["request_id"] == context.request_id
+        assert output["trace_id"] == trace_id
 
     @pytest.mark.parametrize("full_context", [False, True])
     def test_plaintext_formatter_without_context_is_unchanged(self, full_context):
@@ -215,12 +219,13 @@ class TestFormatters:
     def test_concise_plaintext_formatter_appends_only_a_short_request_tag(self):
         with correlation.request_context(
             {"REQUEST_METHOD": "GET"}, alb_trace_id=ALB_ROOT, cloudfront_request_id=None, debug_logging=False
-        ) as context:
+        ):
+            trace_id = correlation.get_log_fields()["trace_id"]
             record = _make_record()
 
         output = PlaintextFormatter("%(levelname)s - %(message)s").format(record)
 
-        assert output == f"INFO - test message [{context.request_id[:8]}]"
+        assert output == f"INFO - test message [{trace_id[:8]}]"
 
     def test_full_plaintext_formatter_shows_every_correlation_field(self):
         with correlation.request_context(
@@ -228,13 +233,14 @@ class TestFormatters:
             alb_trace_id=ALB_ROOT,
             cloudfront_request_id=None,
             debug_logging=False,
-        ) as context:
+        ):
+            trace_id = correlation.get_log_fields()["trace_id"]
             record = _make_record()
 
         output = PlaintextFormatter("%(asctime)s %(levelname)s - %(message)s", full_context=True).format(record)
 
         assert "INFO - test message [context_type=request " in output
-        assert f"request_id={context.request_id}" in output
+        assert f"trace_id={trace_id}" in output
         assert "method=GET" in output
         assert "path=/test-path" in output
         assert f"alb_trace_id={ALB_ROOT}" in output
@@ -295,6 +301,7 @@ class TestCliContext:
         with click.Context(click.Group("flask"), info_name="flask") as root_ctx:
             root_ctx.with_resource(app.app_context())
             context_during_app_creation = get_current_context()
+            trace_id_during_app_creation = correlation.get_log_fields()["trace_id"]
             with (
                 CorrelatingClickCLIContext(db_group, info_name="db", parent=root_ctx) as db_ctx,
                 CorrelatingClickCLIContext(upgrade_command, info_name="upgrade", parent=db_ctx),
@@ -305,7 +312,7 @@ class TestCliContext:
         assert context_during_app_creation is not None
         assert context_during_app_creation.cli_command == "flask"
         assert fields["cli_command"] == tags["cli_command"] == "flask db upgrade"
-        assert fields["run_id"] == context_during_app_creation.run_id
+        assert fields["trace_id"] == trace_id_during_app_creation
 
     def test_refined_cli_command_is_kept_after_the_subcommand_context_exits(self, app):
         db_group = click.Group("db")
@@ -345,6 +352,7 @@ class TestCliContext:
         with click.Context(click.Group("flask"), info_name="flask"):
             with app.app_context():
                 context = get_current_context()
+                trace_id = correlation.get_log_fields()["trace_id"]
 
         (record,) = self._cli_finish_records(caplog)
         fields = get_record_correlation(record)
@@ -354,7 +362,7 @@ class TestCliContext:
         assert record.exit_code == 0
         assert isinstance(record.duration_ms, float)
         assert fields["context_type"] == "cli"
-        assert fields["run_id"] == context.run_id
+        assert fields["trace_id"] == trace_id
 
     def test_exit_with_code_zero_logs_command_finished(self, app, caplog):
         with pytest.raises(click.exceptions.Exit), click.Context(click.Group("flask"), info_name="flask") as root_ctx:
@@ -518,6 +526,7 @@ class TestCorrelationMiddleware:
 
         response = middleware({"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path"}, _start_response)
         context_while_streaming = get_current_context()
+        trace_id_while_streaming = correlation.get_log_fields()["trace_id"]
         chunks = list(response)
         finished_before_close = self._finish_records(caplog)
         response.close()
@@ -528,7 +537,7 @@ class TestCorrelationMiddleware:
         assert chunks == [b"first", b"second"]
         assert finished_before_close == []
         assert len(finished) == 1
-        assert get_record_correlation(finished[0])["request_id"] == context_while_streaming.request_id
+        assert get_record_correlation(finished[0])["trace_id"] == trace_id_while_streaming
         assert finished[0].response_size == len(b"firstsecond")
         assert finished[0].response_streamed is True
         assert not hasattr(finished[0], "iteration_failed")
@@ -559,7 +568,7 @@ class TestCorrelationMiddleware:
         assert streaming[0].levelno == logging.DEBUG
         assert streaming[0].status == 200
         assert caplog.records.index(streaming[0]) < caplog.records.index(finished[0])
-        assert get_record_correlation(streaming[0])["request_id"] == get_record_correlation(finished[0])["request_id"]
+        assert get_record_correlation(streaming[0])["trace_id"] == get_record_correlation(finished[0])["trace_id"]
 
     def test_start_response_called_twice_logs_streaming_line_once(self, app, caplog):
         caplog.set_level(logging.DEBUG, logger="app.request")
@@ -620,6 +629,7 @@ class TestCorrelationMiddleware:
 
         with closing(middleware({"REQUEST_METHOD": "GET", "PATH_INFO": "/test-path"}, _start_response)) as response:
             request_context = get_current_context()
+            request_trace_id = correlation.get_log_fields()["trace_id"]
             with pytest.raises(RuntimeError):
                 list(response)
 
@@ -636,14 +646,14 @@ class TestCorrelationMiddleware:
         assert body_failed[0].status == 200
         assert body_failed[0].response_size == len(first_chunk)
         assert body_failed[0].response_streamed is True
-        assert get_record_correlation(body_failed[0])["request_id"] == request_context.request_id
+        assert get_record_correlation(body_failed[0])["trace_id"] == request_trace_id
 
         assert finished[0].levelno == logging.WARNING
         assert finished[0].status == 200
         assert finished[0].iteration_failed is True
         assert finished[0].response_size == len(first_chunk)
         assert finished[0].getMessage().endswith("but the response body failed")
-        assert get_record_correlation(finished[0])["request_id"] == request_context.request_id
+        assert get_record_correlation(finished[0])["trace_id"] == request_trace_id
         assert caplog.records.index(body_failed[0]) < caplog.records.index(finished[0])
         assert get_current_context() is None
 
@@ -681,6 +691,8 @@ class TestCorrelationMiddleware:
         )
         first_context = first_request.run(get_current_context)
         second_context = second_request.run(get_current_context)
+        first_trace_id = first_request.run(correlation.get_log_fields)["trace_id"]
+        second_trace_id = second_request.run(correlation.get_log_fields)["trace_id"]
         logged_in_first = first_request.run(_make_record)
         logged_in_second = second_request.run(_make_record)
         first_request.run(first_response.close)
@@ -689,9 +701,9 @@ class TestCorrelationMiddleware:
         second_request.run(second_response.close)
 
         assert first_context is not None and second_context is not None
-        assert first_context.request_id != second_context.request_id
-        assert get_record_correlation(logged_in_first)["request_id"] == first_context.request_id
-        assert get_record_correlation(logged_in_second)["request_id"] == second_context.request_id
+        assert first_trace_id != second_trace_id
+        assert get_record_correlation(logged_in_first)["trace_id"] == first_trace_id
+        assert get_record_correlation(logged_in_second)["trace_id"] == second_trace_id
         assert first_cleared is None
         assert second_still_entered is second_context
         assert second_request.run(get_current_context) is None
@@ -713,6 +725,6 @@ class TestCorrelationMiddleware:
 
         first_fields, second_fields = (get_record_correlation(record) for record in self._finish_records(caplog))
         assert first_fields["alb_trace_id"] == alb_trace_id
-        assert second_fields["request_id"] != first_fields["request_id"]
+        assert second_fields["trace_id"] != first_fields["trace_id"]
         assert "alb_trace_id" not in second_fields
         assert get_current_context() is None
