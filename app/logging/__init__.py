@@ -562,9 +562,9 @@ class JSONFormatter(BaseJSONFormatter):
 
 class PlaintextFormatter(logging.Formatter):
     """Human-readable local format. By default (`LOG_FORMATTER=plaintext`) a line in a unit of work ends with a short
-    tag, the first 8 characters of its `request_id` or `run_id` (the first one set), so the lines of one request/CLI
-    command can be told apart. With `full_context` (`LOG_FORMATTER=plaintext-full`) every correlation
-    field is appended instead, so behaviour can be verified locally."""
+    tag, the first 8 characters of its `trace_id`, so the lines of one request/CLI command can be told apart. With
+    `full_context` (`LOG_FORMATTER=plaintext-full`) every correlation field is appended instead, so behaviour can be
+    verified locally."""
 
     def __init__(self, *args: Any, full_context: bool = False, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -580,7 +580,7 @@ class PlaintextFormatter(logging.Formatter):
             return line
         if self.full_context:
             return f"{line} [{' '.join(f'{key}={value}' for key, value in fields.items())}]"
-        tag = next((fields[key] for key in ("request_id", "run_id") if key in fields), None)
+        tag = fields.get("trace_id")
         if tag is None:
             return line
         return f"{line} [{str(tag)[:8]}]"

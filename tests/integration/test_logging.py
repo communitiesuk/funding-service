@@ -26,8 +26,8 @@ def _correlations(records: list[logging.LogRecord]) -> list[dict[str, Any]]:
     return [dict(get_record_correlation(record)) for record in records]
 
 
-def _records_for_request(caplog: pytest.LogCaptureFixture, request_id: str) -> list[logging.LogRecord]:
-    return [record for record in caplog.records if get_record_correlation(record).get("request_id") == request_id]
+def _records_for_request(caplog: pytest.LogCaptureFixture, trace_id: str) -> list[logging.LogRecord]:
+    return [record for record in caplog.records if get_record_correlation(record).get("trace_id") == trace_id]
 
 
 class TestLogging:
@@ -156,38 +156,38 @@ class TestRequestLogging:
         assert finished.response_size == len(response.data)
         assert get_current_context() is None
 
-    def test_lines_logged_while_streaming_a_response_share_the_request_id(self, anonymous_client, caplog) -> None:
+    def test_lines_logged_while_streaming_a_response_share_the_trace_id(self, anonymous_client, caplog) -> None:
         response = anonymous_client.get("/_testing/streamed-response")
 
         streaming_record = next(r for r in caplog.records if r.getMessage() == "Generating streamed response body")
         finished = _request_records(caplog)[-1]
-        request_id = get_record_correlation(finished)["request_id"]
+        trace_id = get_record_correlation(finished)["trace_id"]
         assert response.data == b"first chunk\nsecond chunk\n"
-        assert get_record_correlation(streaming_record)["request_id"] == request_id
+        assert get_record_correlation(streaming_record)["trace_id"] == trace_id
         assert get_record_correlation(streaming_record)["path"] == "/_testing/streamed-response"
-        assert _records_for_request(caplog, request_id)[-1] is finished
+        assert _records_for_request(caplog, trace_id)[-1] is finished
         assert finished.response_streamed is True
         assert finished.response_size == len(response.data)
         assert get_current_context() is None
 
-    def test_streamed_response_body_failure_is_logged_with_the_request_id(self, anonymous_client, caplog) -> None:
+    def test_streamed_response_body_failure_is_logged_with_the_trace_id(self, anonymous_client, caplog) -> None:
         with pytest.raises(RuntimeError, match="streamed body failed"):
             anonymous_client.get("/_testing/streamed-response-failure")
 
         body_failed = next(r for r in _request_records(caplog) if r.getMessage().startswith("Response body failed"))
         finished = _request_records(caplog)[-1]
-        request_id = get_record_correlation(finished)["request_id"]
+        trace_id = get_record_correlation(finished)["trace_id"]
 
         assert body_failed.levelno == logging.WARNING
         assert body_failed.exc_info is not None
         assert body_failed.status == 200
-        assert get_record_correlation(body_failed)["request_id"] == request_id
+        assert get_record_correlation(body_failed)["trace_id"] == trace_id
 
         assert finished.getMessage().startswith("Request finished GET /_testing/streamed-response-failure 200")
         assert finished.levelno == logging.WARNING
         assert finished.iteration_failed is True
         assert finished.response_streamed is True
-        assert _records_for_request(caplog, request_id)[-1] is finished
+        assert _records_for_request(caplog, trace_id)[-1] is finished
 
     def test_streamed_response_logs_streaming_line_between_start_and_body(self, anonymous_client, caplog) -> None:
         caplog.set_level(logging.DEBUG, logger="app")
@@ -195,7 +195,7 @@ class TestRequestLogging:
         anonymous_client.get("/_testing/streamed-response")
 
         finished = _request_records(caplog)[-1]
-        request_records = _records_for_request(caplog, get_record_correlation(finished)["request_id"])
+        request_records = _records_for_request(caplog, get_record_correlation(finished)["trace_id"])
         assert [record.getMessage().split(" in ")[0] for record in request_records] == [
             "Request started GET /_testing/streamed-response",
             "Response streaming GET /_testing/streamed-response 200",
@@ -204,16 +204,14 @@ class TestRequestLogging:
         ]
         assert request_records[1].levelno == logging.DEBUG
 
-    def test_every_line_in_a_request_shares_a_generated_request_id(self, anonymous_client, caplog) -> None:
-        anonymous_client.get("/custom-cache-control", headers={"X-Request-Id": "client-supplied"})
+    def test_every_line_in_a_request_shares_a_generated_trace_id(self, anonymous_client, caplog) -> None:
+        anonymous_client.get("/custom-cache-control")
         anonymous_client.get("/custom-cache-control")
 
         first, second = _correlations(_request_records(caplog))[::2]
         first_finish = _correlations(_request_records(caplog))[1]
-        assert uuid.UUID(first["request_id"])
-        assert first["request_id"] == first_finish["request_id"]
-        assert "run_id" not in first
-        assert first["request_id"] != second["request_id"]
+        assert len(first["trace_id"]) == 32
+        assert set(first["trace_id"]) <= set("0123456789abcdef")
         assert first["trace_id"] == first_finish["trace_id"]
         assert first["trace_id"] != second["trace_id"]
         assert first["context_type"] == "request"
@@ -253,8 +251,8 @@ class TestRequestLogging:
         second_request_fields = _correlations(_request_records(caplog))
         assert first_request_fields[0]["user_id"] == str(authenticated_platform_admin_client.user.id)
         assert second_request_fields
-        assert {fields["request_id"] for fields in second_request_fields}.isdisjoint(
-            {fields["request_id"] for fields in first_request_fields}
+        assert {fields["trace_id"] for fields in second_request_fields}.isdisjoint(
+            {fields["trace_id"] for fields in first_request_fields}
         )
         assert all(fields.get("user_id") is None for fields in second_request_fields)
         assert get_current_context() is None
@@ -338,10 +336,8 @@ class TestRequestLogging:
                 "/custom-cache-control", headers={"X-Amzn-Trace-Id": f"Root={ALB_ROOT}", "X-Amz-Cf-Id": "abc"}
             )
 
-        started = _correlations(_request_records(caplog))[0]
         expected_fields = {
             "context_type": "request",
-            "request_id": started["request_id"],
             "user_id": str(authenticated_platform_admin_client.user.id),
             "alb_trace_id": ALB_ROOT,
             "cloudfront_request_id": "abc",
