@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlsplit
 from app.common.feedback_survey import FeedbackSurveyPrefillConfig, prefill_survey_link
 
 PREFILL_CONFIG: FeedbackSurveyPrefillConfig = {
-    "form_id": "test-form-id",
+    "ms_form_id": "test-form-id",
     "grant_field": "r-grant",
     "organisation_field": "r-organisation",
     "collection_field": "r-collection",
