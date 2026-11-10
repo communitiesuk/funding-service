@@ -5,8 +5,8 @@ from app.common.data.models import Collection, GrantRecipient
 
 
 class FeedbackSurveyPrefillConfig(TypedDict):
-    # Form ID
-    form_id: str
+    # Microsoft Form ID
+    ms_form_id: str
 
     # Form fields to prefill
     grant_field: str
@@ -21,7 +21,7 @@ def prefill_survey_link(
     collection: Collection,
 ) -> str:
     query_params = {
-        "id": prefill_config["form_id"],
+        "id": prefill_config["ms_form_id"],
         prefill_config["grant_field"]: grant_recipient.grant.name,
         prefill_config["organisation_field"]: grant_recipient.organisation.name,
         prefill_config["collection_field"]: collection.name,

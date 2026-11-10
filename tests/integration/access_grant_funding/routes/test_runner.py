@@ -2680,7 +2680,7 @@ class TestConfirmSentForCertification:
         assert feedback_link
         assert feedback_link["href"].startswith(app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL"])
         assert parse_qs(urlsplit(feedback_link["href"]).query) == {
-            "id": [prefill_config["form_id"]],
+            "id": [prefill_config["ms_form_id"]],
             prefill_config["grant_field"]: [grant_recipient.grant.name],
             prefill_config["organisation_field"]: [grant_recipient.organisation.name],
             prefill_config["collection_field"]: [submission_awaiting_sign_off.collection.name],
