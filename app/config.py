@@ -9,6 +9,7 @@ from pydantic import BaseModel, PostgresDsn, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.common.data.types import OrganisationType, QuestionDataType
+from app.common.feedback_survey import FeedbackSurveyPrefillConfig
 from app.types import LogFormats, LogLevels
 
 
@@ -353,8 +354,13 @@ class _SharedConfig(_BaseConfig):
     DELTA_S151_CSV_PATH_OR_KEY: str = "app/developers/data/s151-data.csv"
 
     # Feedback Surveys
-    GRANT_RECIPIENT_GENERAL_FEEDBACK_URL: str = "https://forms.office.com/e/NpWGTr4AAa"
-    GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL: str = "https://forms.office.com/e/E6TyPDpph7"
+    GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL: str = "https://forms.cloud.microsoft/Pages/ResponsePage.aspx"
+    GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL_PREFILL: FeedbackSurveyPrefillConfig = {
+        "form_id": "EGg0v32c3kOociSi7zmVqIpdDApnKW5Ep4Er6o1SfUlUM0JHREJESllSME1JMDlOSlpVTTJRWUhYQi4u",
+        "grant_field": "rff4944f75070455d89474e4c5e7ae49f",
+        "organisation_field": "rf061255558f54a889e7450cab0b6c9f8",
+        "collection_field": "r6cd02dbb2c8642eba2c831ac7c2a2dbf",
+    }
 
     # Form rendering options
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20

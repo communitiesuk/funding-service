@@ -14,6 +14,7 @@ from app.common.data.interfaces.grant_recipients import get_grant_recipient
 from app.common.data.interfaces.user import get_current_user
 from app.common.data.types import CollectionType, RoleEnum, SubmissionStatusEnum
 from app.common.exceptions import SubmissionValidationFailed
+from app.common.feedback_survey import prefill_survey_link
 from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.common.helpers.pdf import render_pdf
@@ -499,4 +500,10 @@ def submitted_confirmation(
         "access_grant_funding/collections/submitted_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
+        feedback_survey_link=prefill_survey_link(
+            feedback_url=current_app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL"],
+            prefill_config=current_app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL_PREFILL"],
+            grant_recipient=grant_recipient,
+            collection=submission_helper.collection,
+        ),
     )

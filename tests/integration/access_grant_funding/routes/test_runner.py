@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from io import BytesIO
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -2656,6 +2657,34 @@ class TestConfirmSentForCertification:
         if allow_multiple_submissions:
             expected_url_kwargs["collection_id"] = question.form.collection.id
         assert back_link["href"] == url_for(expected_back_link_route, **expected_url_kwargs)
+
+    def test_feedback_link_is_prefilled_with_grant_organisation_and_collection(
+        self, authenticated_grant_recipient_member_client, submission_awaiting_sign_off, app
+    ):
+        grant_recipient = authenticated_grant_recipient_member_client.grant_recipient
+        prefill_config = app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL_PREFILL"]
+
+        response = authenticated_grant_recipient_member_client.get(
+            url_for(
+                "access_grant_funding.confirm_sent_for_certification",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission_awaiting_sign_off.collection.type,
+                submission_id=submission_awaiting_sign_off.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        feedback_link = page_has_link(soup, "Tell us what you think of this service")
+        assert feedback_link
+        assert feedback_link["href"].startswith(app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL"])
+        assert parse_qs(urlsplit(feedback_link["href"]).query) == {
+            "id": [prefill_config["form_id"]],
+            prefill_config["grant_field"]: [grant_recipient.grant.name],
+            prefill_config["organisation_field"]: [grant_recipient.organisation.name],
+            prefill_config["collection_field"]: [submission_awaiting_sign_off.collection.name],
+        }
 
 
 class TestRemoveAddAnotherEntry:
