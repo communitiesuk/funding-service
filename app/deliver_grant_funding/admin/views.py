@@ -1031,10 +1031,14 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         form = PlatformAdminSetReminderDaysForm(obj=collection)
 
         if form.validate_on_submit():
-            update_collection(
-                collection,
-                reminder_email_business_days_before_closing=form.reminder_email_business_days_before_closing.data,
-            )
+            if form.send_deadline_reminder_emails.data:
+                update_collection(
+                    collection,
+                    send_deadline_reminder_emails=True,
+                    reminder_email_business_days_before_closing=form.reminder_email_business_days_before_closing.data,
+                )
+            else:
+                update_collection(collection, send_deadline_reminder_emails=False)
             flash(f"Updated reminder email setting for {collection.name}.", "success")
             return redirect(url_for("collection_lifecycle.tasklist", grant_id=grant.id, collection_id=collection.id))
 
