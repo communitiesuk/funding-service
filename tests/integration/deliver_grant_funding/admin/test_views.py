@@ -42,7 +42,16 @@ from app.common.data.types import (
 )
 from app.common.helpers.collections import SubmissionHelper
 from tests.models import FactoryAnswer, _get_grant_managing_organisation
-from tests.utils import get_h1_text, get_h2_text, get_summary_list_value_by_key, page_has_error, page_has_flash
+from tests.utils import (
+    get_checked_radio_value,
+    get_h1_text,
+    get_h2_text,
+    get_input_value,
+    get_summary_list_value_by_key,
+    get_task_list_item_status_text,
+    page_has_error,
+    page_has_flash,
+)
 
 
 class TestFlaskAdminAccess:
@@ -5988,6 +5997,179 @@ class TestSetCollectionDatesStatusRestriction:
         )
 
 
+class TestSetReminderDays:
+    def test_get_prepopulates_yes_and_days_for_default_collection(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(grant=grant, name="Test Report")
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days"
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_checked_radio_value(soup, "send_deadline_reminder_emails") == "True"
+        assert get_input_value(soup, "reminder_email_business_days_before_closing") == "5"
+
+    def test_get_prepopulates_no_when_reminders_disabled(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Test Report",
+            send_deadline_reminder_emails=False,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days"
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert get_checked_radio_value(soup, "send_deadline_reminder_emails") == "False"
+
+    def test_application_with_reminders_disabled_can_enable_reminders(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Test Application",
+            type=CollectionType.APPLICATION,
+            send_deadline_reminder_emails=False,
+        )
+
+        get_response = authenticated_platform_grant_lifecycle_manager_client.get(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days"
+        )
+        assert get_response.status_code == 200
+        assert (
+            get_checked_radio_value(BeautifulSoup(get_response.data, "html.parser"), "send_deadline_reminder_emails")
+            == "False"
+        )
+
+        post_response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days",
+            data={
+                "send_deadline_reminder_emails": "True",
+                "reminder_email_business_days_before_closing": "3",
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+
+        assert post_response.status_code == 200
+        assert post_response.request.path == f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        soup = BeautifulSoup(post_response.data, "html.parser")
+        assert page_has_flash(soup, "Updated reminder email setting for Test Application.")
+        assert get_task_list_item_status_text(soup, "Set reminder email timing") == "3 business days"
+
+        db_session.refresh(collection)
+        assert collection.send_deadline_reminder_emails is True
+        assert collection.reminder_email_business_days_before_closing == 3
+
+    @pytest.mark.parametrize("submitted_days", ["", "10", "not a number", "0", "99"])
+    def test_post_no_disables_reminders_and_leaves_days_unchanged(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session, submitted_days
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Test Report",
+            send_deadline_reminder_emails=True,
+            reminder_email_business_days_before_closing=4,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days",
+            data={
+                "send_deadline_reminder_emails": "False",
+                "reminder_email_business_days_before_closing": submitted_days,
+                "submit": "y",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert response.request.path == f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}"
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_flash(soup, "Updated reminder email setting for Test Report.")
+        assert get_task_list_item_status_text(soup, "Set reminder email timing") == "Not enabled"
+
+        db_session.refresh(collection)
+        assert collection.send_deadline_reminder_emails is False
+        assert collection.reminder_email_business_days_before_closing == 4
+
+    @pytest.mark.parametrize(
+        "submitted_days,expected_error",
+        [
+            ("", "Enter the number of business days"),
+            ("-1", "Number must be between 1 and 20."),
+            ("21", "Number must be between 1 and 20."),
+        ],
+    )
+    def test_post_yes_with_missing_or_out_of_range_days_shows_error(
+        self,
+        authenticated_platform_grant_lifecycle_manager_client,
+        factories,
+        db_session,
+        submitted_days,
+        expected_error,
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Test Report",
+            send_deadline_reminder_emails=False,
+            reminder_email_business_days_before_closing=4,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days",
+            data={
+                "send_deadline_reminder_emails": "True",
+                "reminder_email_business_days_before_closing": submitted_days,
+                "submit": "y",
+            },
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, expected_error)
+        assert get_checked_radio_value(soup, "send_deadline_reminder_emails") == "True"
+
+        db_session.refresh(collection)
+        assert collection.send_deadline_reminder_emails is False
+        assert collection.reminder_email_business_days_before_closing == 4
+
+    def test_post_without_selecting_an_option_shows_error(
+        self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
+    ):
+        grant = factories.grant.create(name="Test Grant")
+        collection = factories.collection.create(
+            grant=grant,
+            name="Test Report",
+            send_deadline_reminder_emails=True,
+            reminder_email_business_days_before_closing=4,
+        )
+
+        response = authenticated_platform_grant_lifecycle_manager_client.post(
+            f"/deliver/admin/collection-lifecycle/{grant.id}/{collection.id}/set-reminder-days",
+            data={"reminder_email_business_days_before_closing": "6", "submit": "y"},
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_error(soup, "Select whether deadline reminder emails should be sent")
+
+        db_session.refresh(collection)
+        assert collection.send_deadline_reminder_emails is True
+        assert collection.reminder_email_business_days_before_closing == 4
+
+
 class TestMakeReportLive:
     @pytest.mark.parametrize(
         "client_fixture, expected_code",
@@ -8743,7 +8925,7 @@ class TestAdminDashboard:
         assert "18 June 2026 soon Submissions become overdue No Overdue Email" in page_text
         assert "19 June 2026 soon Send overdue emails No Overdue Email" not in page_text
 
-    def test_lifecycle_hides_reminder_and_overdue_tasks_when_disabled(
+    def test_lifecycle_shows_reminder_timing_as_not_enabled_and_hides_send_tasks_when_disabled(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session
     ):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE)
@@ -8767,7 +8949,8 @@ class TestAdminDashboard:
             for item in soup.select("#report-tasks li.govuk-task-list__item")
         ]
 
-        assert "Set reminder email timing" not in task_titles
+        assert "Set reminder email timing" in task_titles
+        assert get_task_list_item_status_text(soup, "Set reminder email timing") == "Not enabled"
         assert "Send deadline reminder emails" not in task_titles
         assert "Send report overdue emails" not in task_titles
         assert "Send emails to data providers" in task_titles

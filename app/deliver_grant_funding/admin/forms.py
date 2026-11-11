@@ -659,12 +659,28 @@ class PlatformAdminSetCollectionSubmissionDatesForm(FlaskForm):
 
 
 class PlatformAdminSetReminderDaysForm(FlaskForm):
+    send_deadline_reminder_emails = RadioField(
+        "Should deadline reminder emails be sent?",
+        choices=[(True, "Yes"), (False, "No")],
+        validators=[InputRequired("Select whether deadline reminder emails should be sent")],
+        widget=GovRadioInput(),
+        coerce=lambda value: value in {True, "True", "true"},
+    )
     reminder_email_business_days_before_closing = IntegerField(
         "How many business days before closing should reminder emails be sent?",
         validators=[DataRequired("Enter the number of business days"), NumberRange(min=1, max=20)],
         widget=GovTextInput(),
     )
     submit = SubmitField("Save", widget=GovSubmitInput())
+
+    def validate(self, extra_validators: Mapping[str, Sequence[Any]] | None = None) -> bool:
+        result: bool = super().validate(extra_validators)
+
+        if self.send_deadline_reminder_emails.raw_data and self.send_deadline_reminder_emails.data is False:
+            self.reminder_email_business_days_before_closing.errors = []
+            result = not self.errors
+
+        return result
 
 
 class PlatformAdminScheduleCollectionForm(FlaskForm):

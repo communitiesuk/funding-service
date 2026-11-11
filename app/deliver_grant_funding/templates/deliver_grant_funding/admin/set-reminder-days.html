@@ -27,7 +27,18 @@
 
       <form method="post" novalidate>
         {{ form.csrf_token }}
-        {{ form.reminder_email_business_days_before_closing(params={"classes": "govuk-input--width-2"}) }}
+        {{
+          form.send_deadline_reminder_emails(params={
+            "items": [
+              {
+                "conditional": {
+                  "html": form.reminder_email_business_days_before_closing(params={"classes": "govuk-input--width-2"})
+                }
+              },
+              {}
+            ]
+          })
+        }}
         {{ form.submit }}
       </form>
     </div>

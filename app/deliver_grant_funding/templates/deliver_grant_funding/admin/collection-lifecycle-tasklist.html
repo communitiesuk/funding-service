@@ -173,18 +173,21 @@
         })
       %}
 
-      {% if collection.send_deadline_reminder_emails %}
-        {% set reminderDaysTag %}
+
+      {% set reminderDaysTag %}
+        {% if collection.send_deadline_reminder_emails %}
           {{ govukTag({"text": collection.reminder_email_business_days_before_closing ~ " business day" ~ ("s" if collection.reminder_email_business_days_before_closing != 1 else "") , "classes": "govuk-tag--blue"}) }}
-        {% endset %}
-        {%
-          do rows.append({
-            "title": {"text": "Set reminder email timing", "classes": "govuk-link--no-visited-state"},
-            "status": {"html": reminderDaysTag},
-            "href": url_for('collection_lifecycle.set_reminder_days', grant_id=grant.id, collection_id=collection.id),
-          })
-        %}
-      {% endif %}
+        {% else %}
+          {{ govukTag({"text": "Not enabled", "classes": "govuk-tag--grey"}) }}
+        {% endif %}
+      {% endset %}
+      {%
+        do rows.append({
+          "title": {"text": "Set reminder email timing", "classes": "govuk-link--no-visited-state"},
+          "status": {"html": reminderDaysTag},
+          "href": url_for('collection_lifecycle.set_reminder_days', grant_id=grant.id, collection_id=collection.id),
+        })
+      %}
 
       {% set dates_are_set = collection.submission_period_start_date and collection.submission_period_end_date %}
       {% set grant_recipients_are_set_up = grant_recipients_count > 0 or collection.allow_public_sign_up %}
