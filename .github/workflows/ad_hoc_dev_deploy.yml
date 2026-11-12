@@ -4,6 +4,7 @@ run-name: Deploy branch '${{github.ref_name}}' to dev
 permissions:
   contents: read  # This is required for actions/checkout
   id-token: write  # This is required for authenticating with aws
+  actions: read # Required for reading status to prevent classing cancelled runs as failures in the slack notifications
 
 on:
   workflow_dispatch:

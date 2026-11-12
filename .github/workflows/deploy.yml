@@ -154,9 +154,11 @@ jobs:
         run: uv run --frozen pytest tests/smoke --confcutdir=tests/smoke --smoke-env "${{ inputs.environment }}" -v
 
   notify_slack:
+    permissions:
+      actions: read # Required for reading status to prevent classing cancelled runs as failures in the slack notifications
     needs: [ deploy, e2e_tests, smoke_test ]
     if: ${{ always() && (needs.deploy.result == 'failure' || needs.e2e_tests.result == 'failure' || needs.smoke_test.result == 'failure') && github.ref_name == 'main' }}
-    uses: communitiesuk/funding-service-design-workflows/.github/workflows/notify-slack-deployment-failed.yml@d4a4c7d63b1d5c82a8c1fe57edea8ef529a60d04  # PR #313
+    uses: ./.github/workflows/notify-slack-deployment-failed.yml
     with:
       app_name: FS Deploy CI ECR
       env_name: ${{ inputs.environment }}
