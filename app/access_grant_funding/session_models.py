@@ -405,9 +405,9 @@ class CreateOrganisationSession(SignUpSession):
 
 
 class NamedCreateOrganisationSession(CreateOrganisationSession):
-    organisation_type: SignUpOrganisationType
-    name: str = Field(min_length=1)
-    external_id: str = Field(min_length=1)
+    organisation_type: SignUpOrganisationType  # ty: ignore[invalid-mutable-override]
+    name: str = Field(min_length=1)  # ty: ignore[invalid-mutable-override]
+    external_id: str = Field(min_length=1)  # ty: ignore[invalid-mutable-override]
 
 
 class CompleteCreateOrganisationSession(NamedCreateOrganisationSession):

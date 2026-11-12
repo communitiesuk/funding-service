@@ -3,7 +3,6 @@ import uuid
 from collections.abc import Callable
 from typing import cast
 
-import sentry_sdk
 from flask import abort, current_app, flash, redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import logout_user
@@ -50,7 +49,6 @@ def access_grant_funding_login_required[**P](
         # to make sure we know about it through a Sentry error as it would mean our login flows are broken
         if session_auth is None:
             logout_user()
-            sentry_sdk.set_user(None)
             return abort(500)
 
         if collection_id := session.get(SESSION_SIGNING_UP_FOR_COLLECTION_ID):
@@ -83,7 +81,6 @@ def deliver_grant_funding_login_required[**P](
         # to make sure we know about it through a Sentry error as it would mean our login flows are broken
         if session_auth is None:
             logout_user()
-            sentry_sdk.set_user(None)
             return abort(500)
 
         return func(*args, **kwargs)
@@ -232,7 +229,6 @@ def is_deliver_grant_funding_user[**P](
         # If Deliver Grant Funding user and has logged in with magic link somehow
         if AuthorisationHelper.is_deliver_grant_funding_user(user) and session_auth != AuthMethodEnum.SSO:
             logout_user()
-            sentry_sdk.set_user(None)
             session["next"] = request.full_path
             return redirect(url_for("auth.sso_sign_in"))
 

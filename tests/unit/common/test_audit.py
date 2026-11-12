@@ -1,4 +1,5 @@
 import datetime
+import logging
 from collections.abc import Iterator
 from enum import IntEnum, StrEnum
 from typing import Any, Literal, get_origin
@@ -20,6 +21,7 @@ from app.common.audit import (
     _serialize_value,
     parse_audit_event,
 )
+from app.common.data.interfaces.audit import track_audit_event
 from app.common.data.types import AuditEventType, RoleEnum
 
 
@@ -430,3 +432,27 @@ class TestAuditEventFieldOrder:
     @pytest.mark.parametrize("event_class", _concrete_audit_event_classes(), ids=lambda cls: cls.__name__)
     def test_common_fields_come_first(self, event_class):
         assert list(event_class.model_fields)[:4] == ["event_type", "timestamp", "user_id", "action"]
+
+
+class TestTrackAuditEvent:
+    def test_logs_audit_detail_nested_under_audit(self, app, factories, mocker, caplog):
+        mocker.patch("app.common.data.interfaces.audit.db")
+        mocker.patch("app.common.data.interfaces.exceptions.db")
+        user = factories.user.build(email="test@local.gov.uk")
+        event = UserInvitationCancelled(
+            user_id=user.id,
+            invitation_id=uuid4(),
+            organisation_id=uuid4(),
+            grant_id=uuid4(),
+            grant_recipient_id=uuid4(),
+            permissions=[RoleEnum.MEMBER],
+        )
+
+        with caplog.at_level(logging.INFO, logger=app.logger.name):
+            track_audit_event(event, user)
+
+        record = next(record for record in caplog.records if record.getMessage().startswith("audit_event:"))
+        assert record.audit["event_type"] == event.event_type
+        assert record.audit["user_id"] == str(user.id)
+        assert record.audit["user_email"] == "test@local.gov.uk"
+        assert not hasattr(record, "user_id")

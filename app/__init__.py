@@ -14,6 +14,7 @@ from flask_wtf.csrf import generate_csrf
 from govuk_frontend_wtf.main import WTFormsHelpers
 from jinja2 import ChoiceLoader, PackageLoader, PrefixLoader
 from sqlalchemy.exc import NoResultFound, ProgrammingError
+from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import BaseConverter, ValidationError
 from xgovuk_flask_admin import XGovukFlaskAdmin
 from xgovuk_flask_admin.theme import XGovukFrontendTheme
@@ -87,6 +88,7 @@ from app.extensions import (
     talisman,
     toolbar,
 )
+from app.logging.cli_output import log_alembic_stdout
 from app.monkeypatch import patch_sqlalchemy_lite_async
 from app.sentry import init_sentry
 from app.types import FlashMessageType
@@ -141,12 +143,18 @@ def _register_global_error_handlers(app: Flask) -> None:
         ), 404
 
     @app.errorhandler(500)
-    def handle_500(error: Literal[500]) -> ResponseReturnValue:
-        current_app.logger.error("Internal server error", exc_info=True)
+    def handle_500(error: InternalServerError) -> ResponseReturnValue:
+        # Unhandled exceptions have already been logged once, with their traceback, by Flask's `handle_exception`.
+        # Only an explicit `abort(500)` reaches here without an original exception, so only log in that case.
+        if error.original_exception is None:
+            current_app.logger.error("Internal server error", exc_info=True)
         service_desk_url, base_template = _determine_service_components_based_on_request_url(request.url)
 
         return render_template(
-            "common/errors/500.html", service_desk_url=service_desk_url, base_template=base_template
+            "common/errors/500.html",
+            service_desk_url=service_desk_url,
+            base_template=base_template,
+            trace_id=logging.correlation.get_log_fields().get("trace_id"),
         ), 500
 
     @app.errorhandler(RedirectException)
@@ -247,6 +255,7 @@ def create_app() -> Flask:  # noqa: C901
         render_as_batch=True,
         metadatas=BaseModel.metadata,
     )
+    migrate.configure(log_alembic_stdout)
     flask_assets_vite.init_app(app)
     if toolbar:
         toolbar.init_app(app)
@@ -278,10 +287,7 @@ def create_app() -> Flask:  # noqa: C901
 
     @login_manager.user_loader
     def load_user(user_id: str) -> User | None:
-        user = interfaces.user.get_user(user_id)
-        if user:
-            sentry_sdk.set_user({"email": user.email, "name": user.name, "id": user_id})
-        return user
+        return interfaces.user.get_user(user_id)
 
     # Configure templates
     app.jinja_loader = ChoiceLoader(
@@ -370,6 +376,7 @@ def create_app() -> Flask:  # noqa: C901
     #       otherwise publicly accessible; we can then do basic auth through something like a cloudfront edge function
     #       rather than application code.
     if app.config["BASIC_AUTH_ENABLED"]:
+        basic_auth_exempt_endpoints = frozenset({"healthcheck.healthcheck", "healthcheck.client_healthcheck"})
 
         @app.before_request
         def basic_auth() -> ResponseReturnValue | None:
@@ -377,7 +384,7 @@ def create_app() -> Flask:  # noqa: C901
 
             unauth_response = Response(status=401, headers={"WWW-Authenticate": "Basic"})
 
-            if request.endpoint == "healthcheck.healthcheck":
+            if request.endpoint in basic_auth_exempt_endpoints:
                 return None
 
             auth = request.authorization
@@ -423,4 +430,5 @@ def create_app() -> Flask:  # noqa: C901
         return redirect(url_for("deliver_grant_funding.list_grants"))
 
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
+    logging.use_correlating_cli_contexts(app)
     return app

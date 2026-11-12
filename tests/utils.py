@@ -1,10 +1,14 @@
 import json
+import logging
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from functools import lru_cache
 from re import Pattern
 from types import MappingProxyType
 from typing import Any, Callable, Dict, Mapping, cast
 
+import sentry_sdk
 from bs4 import BeautifulSoup, Tag
 from flask_wtf import FlaskForm
 from testcontainers.community.postgres import PostgresContainer
@@ -190,6 +194,23 @@ def get_input_value(soup: BeautifulSoup, input_name: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def get_checked_radio_value(soup: BeautifulSoup, input_name: str) -> str | None:
+    field = soup.find("input", attrs={"type": "radio", "name": input_name, "checked": True})
+    value = field.get("value") if isinstance(field, Tag) else None
+    return value if isinstance(value, str) else None
+
+
+def get_task_list_item_status_text(soup: BeautifulSoup, task_title: str) -> str | None:
+    for item in soup.select("li.govuk-task-list__item"):
+        name_and_hint = item.find("div", class_="govuk-task-list__name-and-hint")
+        title = name_and_hint.find(["a", "div"]) if isinstance(name_and_hint, Tag) else None
+        if isinstance(title, Tag) and title.get_text(strip=True) == task_title:
+            status = item.find("div", class_="govuk-task-list__status")
+            return status.get_text(strip=True) if isinstance(status, Tag) else None
+
+    return None
+
+
 def page_has_button(soup: BeautifulSoup, button_text: str) -> Tag | None:
     buttons = soup.select("button")
 
@@ -234,3 +255,27 @@ def get_test_flashes(client: FundingServiceTestClient, category: str | None = No
     with client.session_transaction() as sess:
         flashes = sess["_flashes"]
         return [msg for cat, msg in flashes if category is None or category == cat]
+
+
+class SentryScopeRecorder(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.tags: list[dict[str, str]] = []
+        self.attributes: list[dict[str, Any]] = []
+        self.users: list[dict[str, Any] | None] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        scope = sentry_sdk.get_isolation_scope()
+        self.tags.append(dict(scope._tags))
+        self.attributes.append(dict(scope._attributes))
+        self.users.append(dict(scope._user) if scope._user is not None else None)
+
+
+@contextmanager
+def recording_sentry_scope(logger_name: str = "app.request") -> Generator[SentryScopeRecorder]:
+    recorder = SentryScopeRecorder()
+    logging.getLogger(logger_name).addHandler(recorder)
+    try:
+        yield recorder
+    finally:
+        logging.getLogger(logger_name).removeHandler(recorder)

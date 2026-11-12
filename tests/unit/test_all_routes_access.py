@@ -258,6 +258,7 @@ routes_with_no_expected_access_restrictions = [
     "deliver_grant_funding.return_from_test_submission",  # the target endpoints have auth
     "static",
     "healthcheck.healthcheck",
+    "healthcheck.client_healthcheck",
     "index",
     # \/ authorisation done within the endpoint, to avoid redirects+session hijacking \/
     "deliver_grant_funding.api.preview_guidance",

@@ -7,11 +7,20 @@
     <div class="govuk-grid-column-two-thirds">
       <h1 class="govuk-heading-l">Sorry, there is a problem with the service</h1>
       <p class="govuk-body">Try again later.</p>
-      <p class="govuk-body">
-        If you continue to have issues, please contact us through our
-        <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk</a>.
-      </p>
-      <p class="govuk-body">Monday to Friday, 9am to 5pm (except public holidays).</p>
+      {% if trace_id %}
+        <p class="govuk-body">
+          If you continue to have issues, contact us through our
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in a new tab)</a>
+          and include the reference:
+        </p>
+        <div class="govuk-inset-text"><code>{{ trace_id }}</code></div>
+      {% else %}
+        <p class="govuk-body">
+          If you continue to have issues, contact us through our
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ service_desk_url }}" target="_blank">support desk (opens in a new tab)</a>.
+        </p>
+      {% endif %}
+      <p class="govuk-body">Our support hours are Monday to Friday, 9am to 5pm (except public holidays).</p>
     </div>
   </div>
 {% endblock content %}

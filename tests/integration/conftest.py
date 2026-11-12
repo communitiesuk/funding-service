@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from flask import Flask, Request, Response, abort, template_rendered
+from flask import Flask, Request, Response, abort, current_app, stream_with_context, template_rendered
 from flask.sessions import SessionMixin
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
@@ -26,7 +26,6 @@ from sqlalchemy_utils import create_database, database_exists
 from testcontainers.community.postgres import PostgresContainer
 from werkzeug.test import TestResponse
 
-from app import create_app
 from app.common.collections.types import TextSingleLineAnswer
 from app.common.data.interfaces.collections import update_submission_data
 from app.common.data.interfaces.system import seed_system_data
@@ -45,7 +44,7 @@ from app.common.data.types import (
 from app.common.helpers.collections import SubmissionHelper
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.extensions.record_sqlalchemy_queries import QueryInfo, get_recorded_queries
-from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates
+from tests.conftest import FundingServiceTestClient, _Factories, _precompile_templates, create_test_app
 from tests.integration.utils import TimeFreezer
 from tests.models import FactoryAnswer
 from tests.types import TemplateRenderRecord, TTemplatesRendered
@@ -92,12 +91,12 @@ def db(setup_db_container: PostgresContainer, app: Flask) -> Generator[SQLAlchem
 
 
 @pytest.fixture(scope="session")
-def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
+def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:  # noqa: C901
     with patch.dict(
         os.environ,
         build_db_config(setup_db_container),
     ):
-        app = create_app()
+        app = create_test_app()
 
     @app.route("/_testing/403")
     def raise_403() -> ResponseReturnValue:
@@ -122,6 +121,27 @@ def app(setup_db_container: PostgresContainer) -> Generator[Flask, None, None]:
     @app.route("/deliver/_testing/500")
     def raise_deliver_500() -> ResponseReturnValue:
         return abort(500)
+
+    @app.route("/_testing/unhandled-exception")
+    def raise_unhandled_exception() -> ResponseReturnValue:
+        raise RuntimeError("Unhandled test exception")
+
+    @app.route("/_testing/streamed-response")
+    def streamed_response() -> ResponseReturnValue:
+        def generate_body() -> Generator[str, None, None]:
+            yield "first chunk\n"
+            current_app.logger.info("Generating streamed response body")
+            yield "second chunk\n"
+
+        return Response(stream_with_context(generate_body()), mimetype="text/plain")
+
+    @app.route("/_testing/streamed-response-failure")
+    def streamed_response_failure() -> ResponseReturnValue:
+        def generate_body() -> Generator[str, None, None]:
+            yield "first chunk\n"
+            raise RuntimeError("streamed body failed")
+
+        return Response(stream_with_context(generate_body()), mimetype="text/plain")
 
     @app.route("/_testing/sqlalchemy-not-found")
     def raise_sqlalchemy_not_found() -> ResponseReturnValue:
@@ -202,29 +222,34 @@ def anonymous_client(app: Flask, templates_rendered: TTemplatesRendered) -> Fund
             return response
 
         @contextmanager
-        def session_transaction(self, *args: t.Any, **kwargs: t.Any) -> t.Iterator[SessionMixin]:
+        def session_transaction(self, *args: t.Any, **kwargs: t.Any) -> Generator[SessionMixin]:
             kwargs.setdefault("headers", {})
             kwargs["headers"].setdefault("Host", "funding.communities.gov.localhost:8080")
 
             with super().session_transaction(*args, **kwargs) as sess:
                 yield sess
 
-    app.test_client_class = CustomClient
-    client = app.test_client()
-    return t.cast(CustomClient, client)
+    return CustomClient(app, app.response_class, use_cookies=True)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _integration_test_timeout(request: FixtureRequest) -> None:
+def pytest_itemcollected(item: pytest.Item) -> None:
     """Fail tests under `tests/integration` if they take 'too long', to encourage us to maintain tests that are
     reasonably fast here.
 
     These tests may talk over the network (eg to the DB), so we need to make some allowance for that, but they should
     still be able to be fairly fast.
+
+    This is a conftest hook rather than a session-scoped autouse fixture: a session fixture's `request.node` is the
+    Session itself, so a marker added there applies to every test in the process, including the unit tests that an
+    xdist worker happens to run after its first integration test. Tests that declare their own `fail_slow` marker
+    keep it.
     """
-    request.node.add_marker(
-        pytest.mark.fail_slow(os.environ.get("INTEGRATION_TIMEOUT_MS", "500ms" if "CI" not in os.environ else "1000ms"))
-    )
+    if item.get_closest_marker("fail_slow") is None:
+        item.add_marker(
+            pytest.mark.fail_slow(
+                os.environ.get("INTEGRATION_TIMEOUT_MS", "500ms" if "CI" not in os.environ else "1000ms")
+            )
+        )
 
 
 @pytest.fixture(scope="function", autouse=True)

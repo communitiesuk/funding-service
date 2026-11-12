@@ -1,3 +1,5 @@
+default_language_version:
+  node: lts
 ci:
   autofix_prs: false
   skip: [ "ty", "format-frontend" ]
@@ -48,6 +50,6 @@ repos:
         entry: make format-frontend
         language: node
         additional_dependencies:
-          - "prettier@3.9.9"
+          - "prettier@3.9.10"
           - "prettier-plugin-jinja-template@2.2.0"
         pass_filenames: false

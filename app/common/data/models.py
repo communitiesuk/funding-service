@@ -430,7 +430,11 @@ class Collection(BaseModel):
     allow_multiple_submissions: Mapped[bool] = mapped_column(default=False)
     allow_public_sign_up: Mapped[bool] = mapped_column(default=False)
     allow_validation: Mapped[bool] = mapped_column(default=False)
-    submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("component.id"), nullable=True)
+    # use_alter: collection -> component -> form/data_source -> collection is an FK cycle; this FK is emitted as a
+    # separate ALTER so the table sort has no loop.
+    submission_name_question_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("component.id", use_alter=True), nullable=True
+    )
     submission_name_question: Mapped["Question | None"] = relationship(
         "Question", foreign_keys=[submission_name_question_id]
     )
@@ -1200,7 +1204,7 @@ class Question(Component, SafeQidMixin):
     if TYPE_CHECKING:
         # database constraints ensure the question component will have a data_type
         # we reflect that its required on the question component but don't hook in a competing migration
-        data_type: QuestionDataType
+        data_type: QuestionDataType  # ty: ignore[invalid-mutable-override]
 
     @property
     def question_id(self) -> uuid.UUID:
@@ -1327,7 +1331,7 @@ class Group(Component):
 
     if TYPE_CHECKING:
         # reflect that groups will never have a data type but don't hook in a competing migration
-        data_type: None
+        data_type: None  # ty: ignore[invalid-mutable-override]
 
     def clear_caches(self):
         for attr, value in self.__class__.__dict__.items():

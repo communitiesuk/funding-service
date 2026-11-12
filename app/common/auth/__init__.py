@@ -1,7 +1,6 @@
 import uuid
 from typing import cast
 
-import sentry_sdk
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import login_user, logout_user
@@ -41,7 +40,7 @@ def collection_request_a_link_to_public_sign_up(grant_slug: str, collection_slug
         email = cast(str, form.email_address.data)
 
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
-        if email.endswith(internal_domains):
+        if email.lower().endswith(internal_domains):
             # upgrade authorisation requests for internal users to make sure they
             # still have valid access to their admin account
             session["next"] = sanitise_redirect_url(
@@ -108,7 +107,7 @@ def request_a_link_to_sign_in() -> ResponseReturnValue:
         email = cast(str, form.email_address.data)
 
         internal_domains = current_app.config["INTERNAL_DOMAINS"]
-        if email.endswith(internal_domains):
+        if email.lower().endswith(internal_domains):
             # upgrade authorisation requests for internal users to make sure they
             # still have valid access to their admin account
             session["next"] = sanitise_redirect_url(session.get("next", url_for("access_grant_funding.index")))
@@ -187,7 +186,7 @@ def claim_magic_link(magic_link_code: str) -> ResponseReturnValue:
     form = GenericSubmitForm()
     if form.validate_on_submit():
         user = magic_link.user
-        if not user:
+        if not user or not user.roles:
             user = interfaces.user.create_user_and_claim_invitations(email_address=str(magic_link.email))
         interfaces.magic_link.claim_magic_link(magic_link=magic_link, user=user)
         if not login_user(user):
@@ -312,7 +311,6 @@ def sso_get_token() -> ResponseReturnValue:
 @auth_blueprint.get("/sign-out")
 def sign_out() -> ResponseReturnValue:
     logout_user()
-    sentry_sdk.set_user(None)
 
     auth_method = session.pop("auth", None)
 

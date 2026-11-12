@@ -397,8 +397,8 @@ class FormRunner:
         except ValueError:
             current_app.logger.warning(
                 "ValueError when submitting id %(submission_id)s",
+                {"submission_id": str(self.submission.id)},
                 exc_info=True,
-                extra={"submission_id": str(self.submission.id)},
             )
             self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # ty: ignore[unresolved-attribute]
             return False

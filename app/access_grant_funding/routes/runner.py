@@ -2,7 +2,7 @@ from functools import partial
 from io import BytesIO
 from uuid import UUID
 
-from flask import abort, redirect, render_template, request, send_file, url_for
+from flask import abort, current_app, redirect, render_template, request, send_file, url_for
 from flask.typing import ResponseReturnValue
 
 from app.access_grant_funding.routes import access_grant_funding_blueprint
@@ -17,6 +17,7 @@ from app.common.data.interfaces.collections import get_collection
 from app.common.data.types import CollectionType, FormRunnerState, RoleEnum, SubmissionModeEnum
 from app.common.exceptions import SubmissionAnswerConflict
 from app.common.expressions import ExpressionContext, interpolate
+from app.common.feedback_survey import prefill_survey_link
 from app.common.helpers.collections import CollectionHelper, SubmissionHelper
 from app.extensions import auto_commit_after_request, s3_service
 
@@ -357,6 +358,12 @@ def confirm_sent_for_certification(
         "access_grant_funding/collections/sent_for_sign_off_confirmation.html",
         grant_recipient=grant_recipient,
         submission_helper=submission_helper,
+        feedback_survey_link=prefill_survey_link(
+            feedback_url=current_app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL"],
+            prefill_config=current_app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL_PREFILL"],
+            grant_recipient=grant_recipient,
+            collection=submission_helper.collection,
+        ),
     )
 
 

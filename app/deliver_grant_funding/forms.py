@@ -1478,7 +1478,7 @@ class ColumnDataTypeMappingForm(FlaskForm):
     # Our template sets the CSRF token for the main MapDataSetColumnsForm, which includes any number of these mini forms
     # for the individual column select fields. We need to set csrf=False for the mini forms so the POST requests don't
     # expect a CSRF for every single one, just the main form.
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         csrf = False
 
     column_name = HiddenField()
@@ -1571,7 +1571,7 @@ class MapDataSetColumnsForm(FlaskForm):
 
 
 class NumberColumnOptionsForm(FlaskForm):
-    class Meta:
+    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         csrf = False
 
     column_name = HiddenField()

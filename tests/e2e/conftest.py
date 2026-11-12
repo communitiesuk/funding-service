@@ -7,14 +7,13 @@ import pytest
 from flask import session
 from flask.typing import ResponseReturnValue
 from flask_login import login_user
-from playwright._impl._api_structures import SetCookieParam
 from playwright.sync_api import BrowserContext, Page, ViewportSize
 from pytest import FixtureRequest
 from pytest_playwright import CreateContextCallback
 
-from app import create_app
 from app.common.data.models_user import User
 from app.common.data.types import AuthMethodEnum
+from tests.conftest import create_test_app
 from tests.e2e.access_grant_funding.pages import RequestALinkToSignInPage
 from tests.e2e.config import AWSEndToEndSecrets, EndToEndTestSecrets, LocalEndToEndSecrets
 from tests.e2e.dataclasses import E2ETestUser, E2ETestUserConfig
@@ -150,14 +149,14 @@ def login_with_session_cookie(
 
     user_obj = User(name="E2E Test User", id=getattr(e2e_test_secrets, user_config.user_id))
     with patch.dict(os.environ, build_db_config(None)):
-        new_app = create_app()
+        new_app = create_test_app()
     new_app.config["SECRET_KEY"] = e2e_test_secrets.SECRET_KEY
 
     @new_app.route("/fake_login")
     def fake_login() -> ResponseReturnValue:
         login_user(user=user_obj, fresh=True)
         session["auth"] = AuthMethodEnum.SSO
-        return "OK"
+        return "OK", 200, {"Content-Type": "text/plain"}
 
     with new_app.test_request_context():
         test_client = new_app.test_client()
@@ -173,17 +172,14 @@ def login_with_session_cookie(
     sso_sign_in_page = SSOSignInPage(page, domain)
     sso_sign_in_page.page.context.add_cookies(
         [
-            cast(
-                SetCookieParam,
-                {
-                    "name": "session",
-                    "value": cookie_value,
-                    "domain": domain.split("https://")[1].split(":8080")[0],
-                    "path": "/",
-                    "httpOnly": True,
-                    "secure": True,
-                },
-            )
+            {
+                "name": "session",
+                "value": cookie_value,
+                "domain": domain.split("https://")[1].split(":8080")[0],
+                "path": "/",
+                "httpOnly": True,
+                "secure": True,
+            },
         ]
     )
     sso_sign_in_page.navigate()

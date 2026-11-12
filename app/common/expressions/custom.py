@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 class CustomExpression(EvaluatableExpression):
-    name: ClassVar[Literal["CUSTOM"]] = "CUSTOM"
-    _key: None = None
+    name: ClassVar[Literal["CUSTOM"]] = "CUSTOM"  # ty: ignore[invalid-mutable-override]
+    _key: None = None  # ty: ignore[invalid-mutable-override]
     expression_name: str | None = None
     custom_expression: EvaluationStatement
     custom_message: InterpolationStatement | None = None

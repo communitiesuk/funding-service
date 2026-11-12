@@ -20,17 +20,12 @@
 
       <h1 class="govuk-heading-l">
         <span class="govuk-caption-l">{{ grant.name }} - {{ collection.name }}</span>
-        Match applicant to organisation for public sign up
+        Add data provider or match applicant to organisation for public sign up
       </h1>
-      <p class="govuk-body">Use this for a user who has contacted us because they cannot apply for this {{ collection.type.constants.singular }} on behalf of their organisation.</p>
-      <p class="govuk-body">This links them to the organisation you choose for 7 days, so they can select it when they go through public sign up. It does not send them an email or set up a grant recipient.</p>
-      <p class="govuk-body">If another user is already signed up for this {{ collection.type.constants.singular }} on behalf of the organisation, we should ask them to be added by that user if possible.</p>
-      <p class="govuk-body">You then need to reply to the user to tell them they can now sign up for this {{ collection.type.constants.singular }} and select the organisation they asked for access to.</p>
+      <p class="govuk-body">If the organisation has already started an application for this {{ collection.type.constants.singular }}, this will give the user direct access to that application.</p>
+
       <p class="govuk-body">
-        <a class="govuk-link" href="{{ collection.public_sign_up }}">{{ collection.public_sign_up }}</a>
-      </p>
-      <p class="govuk-body">
-        We should always prefer that an appropriate user signs up using their official government email address for that organisation and then adds the user requesting access. In cases that this isn't possible we can use this tool.
+        Otherwise, if the organisation has not started an application, this will match the user to the organisation so that they can do eligibility checks and sign up on behalf of this organisation. (Match lasts for 7 days).
       </p>
     </div>
   </div>

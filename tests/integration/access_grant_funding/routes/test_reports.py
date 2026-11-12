@@ -3,6 +3,7 @@ import logging
 from copy import deepcopy
 from datetime import date
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from bs4 import BeautifulSoup
@@ -2040,3 +2041,33 @@ class TestViewSubmittedConfirmation:
         if allow_multiple_submissions:
             expected_url_kwargs["collection_id"] = question.form.collection.id
         assert back_link["href"] == url_for(expected_back_link_route, **expected_url_kwargs)
+
+    def test_feedback_link_is_prefilled_with_grant_organisation_and_collection(
+        self, authenticated_grant_recipient_data_provider_client, submission_submitted, app, db_session
+    ):
+        grant_recipient = authenticated_grant_recipient_data_provider_client.grant_recipient
+        prefill_config = app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL_PREFILL"]
+        submission_submitted.collection.requires_certification = False
+        db_session.commit()
+
+        response = authenticated_grant_recipient_data_provider_client.get(
+            url_for(
+                "access_grant_funding.submitted_confirmation",
+                organisation_id=grant_recipient.organisation.id,
+                grant_id=grant_recipient.grant.id,
+                collection_type=submission_submitted.collection.type,
+                submission_id=submission_submitted.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        feedback_link = page_has_link(soup, "Tell us what you think of this service")
+        assert feedback_link
+        assert feedback_link["href"].startswith(app.config["GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL"])
+        assert parse_qs(urlsplit(feedback_link["href"]).query) == {
+            "id": [prefill_config["ms_form_id"]],
+            prefill_config["grant_field"]: [grant_recipient.grant.name],
+            prefill_config["organisation_field"]: [grant_recipient.organisation.name],
+            prefill_config["collection_field"]: [submission_submitted.collection.name],
+        }

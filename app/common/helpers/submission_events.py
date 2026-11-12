@@ -17,14 +17,18 @@ if TYPE_CHECKING:
 
 
 # Mixins - schema protocol used to guarantee that the properties we're tracking using events
-# and our final state line up
+# and our final state line up. Members that events narrow (eg `bool | None` on the final state to `bool` on an
+# event) are declared as read-only properties, as narrowing a writable attribute is an invalid override.
 class CompletedMixin(Protocol):
     is_completed: bool
 
 
 class SignOffMixin(Protocol):
-    is_awaiting_sign_off: bool | None
-    is_approved: bool | None
+    @property
+    def is_awaiting_sign_off(self) -> bool | None: ...
+
+    @property
+    def is_approved(self) -> bool | None: ...
 
 
 class SubmittedMixin(Protocol):
@@ -39,11 +43,13 @@ class DeclinedMixin(Protocol):
 
 
 class ReopenedMixin(Protocol):
-    reopened_reason: str | None
+    @property
+    def reopened_reason(self) -> str | None: ...
 
 
 class ChangesRequestedMixin(Protocol):
-    changes_requested_reason: str | None
+    @property
+    def changes_requested_reason(self) -> str | None: ...
 
 
 class AssessorMarkedAsApprovedMixin(Protocol):

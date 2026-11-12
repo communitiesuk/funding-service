@@ -9,6 +9,7 @@ from pydantic import BaseModel, PostgresDsn, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.common.data.types import OrganisationType, QuestionDataType
+from app.common.feedback_survey import FeedbackSurveyPrefillConfig
 from app.types import LogFormats, LogLevels
 
 
@@ -128,6 +129,7 @@ class _SharedConfig(_BaseConfig):
     # Consumed by wsgi.py (the gunicorn entrypoint) — ProxyFix is not applied under `flask run` (local dev)
     PROXY_FIX_PROTO: int = 1  # CloudFront for AWS environments; Caddy for PullPreview
     PROXY_FIX_HOST: int = 1  # We inject X-Forwarded-For using Cloudfront custom headings
+    PROXY_FIX_FOR: int = 2  # CloudFront then the ALB each append to X-Forwarded-For; the client is 2nd from the right
     SERVER_NAME: str
     SEND_FILE_MAX_AGE_DEFAULT: int = 31536000
 
@@ -352,8 +354,13 @@ class _SharedConfig(_BaseConfig):
     DELTA_S151_CSV_PATH_OR_KEY: str = "app/developers/data/s151-data.csv"
 
     # Feedback Surveys
-    GRANT_RECIPIENT_GENERAL_FEEDBACK_URL: str = "https://forms.office.com/e/NpWGTr4AAa"
-    GRANT_RECIPIENT_CERTIFIER_FEEDBACK_URL: str = "https://forms.office.com/e/E6TyPDpph7"
+    GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL: str = "https://forms.cloud.microsoft/Pages/ResponsePage.aspx"
+    GRANT_RECIPIENT_ACCESS_GRANT_FUNDING_FEEDBACK_URL_PREFILL: FeedbackSurveyPrefillConfig = {
+        "ms_form_id": "EGg0v32c3kOociSi7zmVqIpdDApnKW5Ep4Er6o1SfUlUM0JHREJESllSME1JMDlOSlpVTTJRWUhYQi4u",
+        "grant_field": "rff4944f75070455d89474e4c5e7ae49f",
+        "organisation_field": "rf061255558f54a889e7450cab0b6c9f8",
+        "collection_field": "r6cd02dbb2c8642eba2c831ac7c2a2dbf",
+    }
 
     # Form rendering options
     ENHANCE_RADIOS_TO_AUTOCOMPLETE_AFTER_X_ITEMS: int = 20
@@ -420,6 +427,7 @@ class LocalConfig(_SharedConfig):
     SECRET_KEY: str = "unsafe"  # pragma: allowlist secret
     PROXY_FIX_PROTO: int = 0  # Unused: local dev serves via `flask run`, which never goes through wsgi.py/ProxyFix
     PROXY_FIX_HOST: int = 0
+    PROXY_FIX_FOR: int = 0
     SERVER_NAME: str = "funding.communities.gov.localhost:8080"
 
     # The LocalConfig needs default values for these AZURE_AD variables so that the Check DB Migrations job
@@ -504,6 +512,7 @@ class PullPreviewConfig(_SharedConfig):
     DEBUG_TB_ENABLED: bool = False
     PROXY_FIX_PROTO: int = 1
     PROXY_FIX_HOST: int = 1
+    PROXY_FIX_FOR: int = 1  # Caddy is the only proxy, appending one hop to X-Forwarded-For
 
     # Azure Active Directory Config
     # NB - this won't allow SSO to work yet on pull-previews, but will at least allow pull preview envs to start up
