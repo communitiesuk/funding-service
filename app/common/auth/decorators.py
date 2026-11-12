@@ -132,18 +132,11 @@ def collection_is_open_for_sign_up[**P](
         grant = get_grant_by_slug(grant_slug)
         collection = get_collection_by_slug(grant_id=grant.id, slug=collection_slug)
 
-        # A closed collection has genuinely finished accepting answers
-        if collection.status == CollectionStatusEnum.CLOSED:
-            return abort(404)
-
         user = interfaces.user.get_current_user()
-        if not AuthorisationHelper.is_deliver_user_testing_access(user):
-            if grant.status != GrantStatusEnum.LIVE:
+        if AuthorisationHelper.is_deliver_user_testing_access(user):
+            if not collection.is_accepting_test_sign_up:
                 return abort(404)
-            if collection.status != CollectionStatusEnum.OPEN:
-                return abort(404)
-
-        if not collection.allow_public_sign_up:
+        elif not collection.is_accepting_public_sign_up:
             return abort(404)
 
         return func(*args, **kwargs)
