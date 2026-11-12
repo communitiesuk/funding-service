@@ -221,6 +221,10 @@ def start_test_grant_recipient_journey(
     grant = get_grant(grant_id, with_all_collections=True)
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=False)
 
+    # Public sign up doesn't support testing the grant recipient journey once the collection is closed
+    if collection.allow_public_sign_up and not collection.is_accepting_test_sign_up:
+        abort(404)
+
     user = get_current_user()
     test_grant_recipients = [
         grant_recipient

@@ -1115,6 +1115,31 @@ class TestListCollectionSections:
         soup = BeautifulSoup(response.data, "html.parser")
         assert page_has_link(soup, "Test application journey") is not None
 
+    def test_get_hides_test_application_journey_button_when_collection_closed(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            name="Test Report",
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+            status=CollectionStatusEnum.CLOSED,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.list_collection_sections",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=CollectionType.APPLICATION,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_link(soup, "Test application journey") is None
+        assert "Test journey not available" in soup.get_text()
+
     @pytest.mark.parametrize(
         "client_fixture, can_edit",
         (
@@ -17935,3 +17960,22 @@ class TestStartTestGrantRecipientJourney:
             grant_slug=authenticated_grant_member_client.grant.slug,
             collection_slug=collection.slug,
         )
+
+    def test_get_404s_when_public_sign_up_on_and_collection_closed(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+            status=CollectionStatusEnum.CLOSED,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 404
