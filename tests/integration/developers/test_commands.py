@@ -1,3 +1,4 @@
+import datetime
 import io
 import json
 import uuid
@@ -8,7 +9,7 @@ from click import ClickException
 from sqlalchemy import delete, select
 
 from app.common.collections.types import SingleChoiceFromListAnswer, TextSingleLineAnswer
-from app.common.data.models import ComponentReference, Submission
+from app.common.data.models import ComponentReference, Grant, Submission
 from app.common.data.types import (
     ExpressionType,
     GrantRecipientModeEnum,
@@ -19,7 +20,13 @@ from app.common.data.types import (
     TasklistSectionStatusEnum,
 )
 from app.common.helpers.collections import SubmissionHelper
-from app.developers.commands import create_multi_submissions, export_grants, seed_grants, sync_component_references
+from app.developers.commands import (
+    create_multi_submissions,
+    export_grants,
+    seed_dashboard_events,
+    seed_grants,
+    sync_component_references,
+)
 from app.extensions import db
 from tests.models import FactoryAnswer, _get_grant_managing_organisation
 
@@ -36,6 +43,7 @@ def _unwrap(command):
 _create_multi_submissions = _unwrap(create_multi_submissions)
 _export_grants = _unwrap(export_grants)
 _seed_grants = _unwrap(seed_grants)
+_seed_dashboard_events = _unwrap(seed_dashboard_events)
 _sync_component_references = _unwrap(sync_component_references)
 
 
@@ -659,3 +667,21 @@ class TestSeedGrants:
         export_file.write_text("{}")
         with pytest.raises(click.ClickException, match="must not be run in production"):
             _seed_grants(file=export_file)
+
+
+class TestSeedDashboardEvents:
+    @pytest.mark.freeze_time("2026-10-13 12:00:00")
+    def test_creates_ten_events_and_can_be_rerun(self, db_session, capsys):
+        _seed_dashboard_events()
+        _seed_dashboard_events()
+
+        grant = db_session.scalar(select(Grant).where(Grant.name == "TEMP - Admin dashboard events"))
+        assert grant is not None
+        assert len(grant.collections) == 10
+        assert all(collection.allow_edits_after_submission_deadline for collection in grant.collections)
+        assert {collection.submission_period_start_date for collection in grant.collections} >= {
+            datetime.date(2026, 10, 11),
+            datetime.date(2026, 10, 13),
+            datetime.date(2026, 10, 15),
+        }
+        assert "Created 10 dashboard events" in capsys.readouterr().out

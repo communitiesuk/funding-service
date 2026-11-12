@@ -1,4 +1,5 @@
 import csv
+import datetime
 import hashlib
 import json
 import uuid
@@ -8,6 +9,7 @@ from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any, TextIO, TypedDict, cast
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import click
 from flask import current_app
@@ -50,11 +52,13 @@ from app.common.data.models import (
 )
 from app.common.data.models_user import User, UserRole
 from app.common.data.types import (
+    CollectionStatusEnum,
     ComponentType,
     DataSourceFileMetadata,
     DataSourceSchema,
     DataSourceType,
     GrantRecipientModeEnum,
+    GrantStatusEnum,
     OrganisationModeEnum,
     QuestionDataOptions,
     QuestionPresentationOptions,
@@ -557,6 +561,56 @@ def seed_grants_many_submissions() -> None:
         name="Test Collection with 100 submissions",
         create_completed_submissions_conditional_question_random__test=100,
     )
+
+
+@developers_blueprint.cli.command(
+    "seed-dashboard-events",
+    help="Temporarily seed ten past, today, and upcoming admin dashboard events",
+)
+def seed_dashboard_events() -> None:
+    """Create a small, rerunnable set of collections for manually testing the admin dashboard timeline."""
+    from tests.models import _CollectionFactory, _GrantFactory
+
+    grant_name = "TEMP - Admin dashboard events"
+    existing_grant = db.session.scalar(select(Grant).where(Grant.name == grant_name))
+    if existing_grant:
+        delete_grant(existing_grant.id)
+        db.session.commit()
+
+    today = datetime.datetime.now(ZoneInfo("Europe/London")).date()
+    grant = _GrantFactory.create(name=grant_name, status=GrantStatusEnum.LIVE)
+
+    opening_events = [
+        ("01 - Opening passed", -2),
+        ("02 - Opening today", 0),
+        ("03 - Opening upcoming", 2),
+    ]
+    for name, day_offset in opening_events:
+        _CollectionFactory.create(
+            grant=grant,
+            name=name,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=today + datetime.timedelta(days=day_offset),
+            submission_period_end_date=None,
+        )
+
+    overdue_offsets = [-6, -4, -1, 0, 1, 3, 6]
+    for index, day_offset in enumerate(overdue_offsets, start=4):
+        timing = "passed" if day_offset < 0 else "today" if day_offset == 0 else "upcoming"
+        _CollectionFactory.create(
+            grant=grant,
+            name=f"{index:02} - Becomes overdue {timing} {day_offset:+d}d",
+            status=CollectionStatusEnum.OPEN,
+            submission_period_start_date=today - datetime.timedelta(days=30),
+            submission_period_end_date=today + datetime.timedelta(days=day_offset),
+            allow_edits_after_submission_deadline=True,
+            send_deadline_reminder_emails=False,
+            send_overdue_emails=False,
+        )
+
+    db.session.commit()
+    click.echo(f"Created 10 dashboard events under grant '{grant_name}' relative to {today:%d %B %Y}.")
+    click.echo("Run this command again to replace the temporary data with dates relative to the new current day.")
 
 
 def add_all_components_flat(component: Component, users: set[User], grant_export: GrantExport) -> None:

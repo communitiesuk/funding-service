@@ -23,6 +23,7 @@ all_auth_annotations = [
 
 routes_with_expected_platform_admin_only_access = [
     "deliver_grant_funding.grant_change_ggis",
+    "platform_admin.set_dashboard_event_completion",
 ]
 routes_with_expected_deliver_org_member_only_access = [
     "deliver_grant_funding.grant_setup_intro",

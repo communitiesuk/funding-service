@@ -41,6 +41,7 @@ class FlashMessageType(StrEnum):
     ACCESS_TEAM_MEMBER_ADDED = "access_team_member_added"
     ACCESS_TEAM_MEMBER_INVITED = "access_team_member_invited"
     ACCESS_TEAM_MEMBER_REMOVED = "access_team_member_removed"
+    DASHBOARD_EVENT_UPDATED = "dashboard_event_updated"
 
 
 class TRadioItem(TypedDict):

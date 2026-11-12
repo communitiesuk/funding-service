@@ -1,9 +1,20 @@
 {% extends "admin/master.html" %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
+{% from "govuk_frontend_jinja/components/notification-banner/macro.html" import govukNotificationBanner %}
 
 {% block action_panel %}
+  {% set can_mark_events_done = authorisation_helper.is_platform_admin(current_user) %}
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
+      {% with flashes = get_flashed_messages(category_filter=[enum.flash_message_type.DASHBOARD_EVENT_UPDATED.value]) %}
+        {% if flashes %}
+          {% set dashboard_event_updated_banner %}
+            <h3 class="govuk-notification-banner__heading">Dashboard event updated</h3>
+            <p class="govuk-body">{{ flashes[0] }} <a class="govuk-notification-banner__link" href="#completed-events">View events marked as done</a>.</p>
+          {% endset %}
+          {{ govukNotificationBanner({"html": dashboard_event_updated_banner, "type": "success"}) }}
+        {% endif %}
+      {% endwith %}
       <h1 class="govuk-heading-l">Admin dashboard</h1>
 
       <div class="app-big-number-row">
@@ -31,59 +42,34 @@
           <span class="app-big-number__label">Overdue collection{{ 's' if overdue_collections|length != 1 else '' }}</span>
         </a>
       </div>
+    </div>
+  </div>
 
-      <h2 class="govuk-heading-m govuk-!-margin-top-7">Important events just passed and coming up</h2>
-      {% if timeline_events %}
-        <table class="govuk-table">
-          <thead class="govuk-table__head">
-            <tr class="govuk-table__row">
-              <th class="govuk-table__header" scope="col">Date</th>
-              <th class="govuk-table__header" scope="col">Event</th>
-              <th class="govuk-table__header" scope="col">Collection</th>
-              <th class="govuk-table__header" scope="col">Grant</th>
-            </tr>
-          </thead>
-          <tbody class="govuk-table__body">
-            {% for event in timeline_events %}
-              <tr class="govuk-table__row">
-                <td class="govuk-table__cell">
-                  {{ format_date_short(event.date) }}
-                  {% if event.type == "hard_deadline" %}
-                    at {{ constants.hard_submission_deadline_time_display }}
-                  {% endif %}
-                  {% if event.is_today %}
-                    {{ govukTag({"text": "today", "classes": "govuk-tag--green"}) }}
-                  {% elif event.is_past %}
-                    {{ govukTag({"text": "past", "classes": "govuk-tag--grey"}) }}
-                  {% else %}
-                    {{ govukTag({"text": "soon", "classes": "govuk-tag--blue"}) }}
-                  {% endif %}
-                </td>
-                <td class="govuk-table__cell">
-                  {% if event.type == "opening" %}
-                    Open for submissions
-                  {% elif event.type == "hard_deadline" %}
-                    Collection must be moved to Closed
-                  {% elif event.type == "closing" %}
-                    Send overdue emails
-                  {% elif event.type == "moving_to_overdue" %}
-                    Submissions become overdue
-                  {% elif event.type == "reminder" %}
-                    Send reminder emails
-                  {% endif %}
-                </td>
-                <td class="govuk-table__cell">
-                  <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=event.collection.grant_id, collection_id=event.collection.id) }}">{{ event.collection.name }}</a>
-                </td>
-                <td class="govuk-table__cell"><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=event.collection.grant_id) }}">{{ event.collection.grant.name }}</a></td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="govuk-body">No events in the last week or the next.</p>
-      {% endif %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-three-quarters">
+      <h2 class="govuk-heading-m govuk-!-margin-top-7">
+        Important events just passed and coming up
+        <span class="govuk-caption-m">Events that are overdue or due in the next week</span>
+      </h2>
+      {% with events=important_events, event_group="important" %}
+        {% include "deliver_grant_funding/admin/partials/_dashboard-events-table.html" %}
+      {% endwith %}
+      <p class="govuk-body" data-important-events-empty {% if important_events %}hidden{% endif %}>No events in the last week or the next.</p>
 
+      <section id="completed-events" data-completed-events {% if not completed_events %}hidden{% endif %}>
+        <h2 class="govuk-heading-m govuk-!-margin-top-7">
+          Events marked as done
+          <span class="govuk-caption-m">Events that have been completed in the last week</span>
+        </h2>
+        {% with events=completed_events, event_group="completed" %}
+          {% include "deliver_grant_funding/admin/partials/_dashboard-events-table.html" %}
+        {% endwith %}
+      </section>
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-m govuk-!-margin-top-7">Collections</h2>
       <h3 class="govuk-heading-s" id="scheduled-collections">Scheduled</h3>
       {% if scheduled_collections %}

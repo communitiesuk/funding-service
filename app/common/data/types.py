@@ -716,3 +716,4 @@ class TimelineEvent(typing.TypedDict):
     collection: "Collection"
     is_today: bool
     is_past: bool
+    is_done: bool

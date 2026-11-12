@@ -8452,6 +8452,110 @@ class TestCollectionDeletePreviewSubmissions:
 
 class TestAdminDashboard:
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
+    def test_dashboard_orders_unfinished_events_by_date_and_done_events_last(
+        self, authenticated_platform_admin_client, factories, db_session
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        past = factories.collection.create(
+            name="Past event",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2026, 6, 14),
+        )
+        factories.collection.create(
+            name="Unfinished past event",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2026, 6, 14),
+        )
+        factories.collection.create(
+            name="Today event",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2026, 6, 15),
+        )
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/{grant.id}/{past.id}/dashboard-event/opening/2026-06-14/done"
+        )
+        assert response.status_code == 302
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        soup = BeautifulSoup(response.data, "html.parser")
+        event_rows = soup.select("[data-event-group] tbody tr")
+        assert [header.get_text(strip=True) for header in soup.select('[data-event-group="important"] thead th')] == [
+            "Date",
+            "Event",
+            "Collection",
+            "Grant",
+            "Action",
+        ]
+
+        assert "Unfinished past event" in event_rows[0].get_text()
+        assert event_rows[0].find("strong", class_="govuk-tag--red").get_text(strip=True).lower() == "late"
+        assert "Today event" in event_rows[1].get_text()
+        assert "Past event" in event_rows[-1].get_text()
+        assert "Completed events just passed and coming up" in soup.get_text()
+        assert "Past event" in soup.select_one('[data-event-group="completed"]').get_text()
+        assert "done" in event_rows[-1].get_text().lower()
+        assert event_rows[-1].find("strong", class_="govuk-tag--purple")
+        assert "Mark as not done" in event_rows[-1].get_text()
+        banner = soup.select_one(".govuk-notification-banner--success")
+        assert "Dashboard event marked as done." in banner.get_text()
+        assert banner.select_one('a[href="#completed-events"]')
+
+    @pytest.mark.freeze_time("2026-06-15 12:00:00")
+    def test_mark_dashboard_event_done_records_completion_and_audit_event(
+        self, authenticated_platform_admin_client, factories, db_session, time_freezer
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE)
+        collection = factories.collection.create(
+            name="Opening Today",
+            grant=grant,
+            status=CollectionStatusEnum.SCHEDULED,
+            submission_period_start_date=datetime.date(2026, 6, 15),
+        )
+
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/{grant.id}/{collection.id}/dashboard-event/opening/2026-06-15/done"
+        )
+
+        assert response.status_code == 302
+        audit_event = db_session.scalar(
+            select(AuditEvent).where(
+                AuditEvent.data["model_class"].astext == "Collection",
+                AuditEvent.data["model_id"].astext == str(collection.id),
+            )
+        )
+        assert audit_event is not None
+        assert audit_event.data["action"] == "update"
+        assert audit_event.data["changes"] == {"dashboard_event:opening:2026-06-15": {"old": "pending", "new": "done"}}
+
+        time_freezer.update_frozen_time(datetime.timedelta(seconds=1))
+        response = authenticated_platform_admin_client.post(
+            f"/deliver/admin/{grant.id}/{collection.id}/dashboard-event/opening/2026-06-15/not-done"
+        )
+        assert response.status_code == 302
+        audit_events = db_session.scalars(
+            select(AuditEvent)
+            .where(
+                AuditEvent.data["model_class"].astext == "Collection",
+                AuditEvent.data["model_id"].astext == str(collection.id),
+            )
+            .order_by(AuditEvent.created_at_utc, AuditEvent.id)
+        ).all()
+        assert audit_events[-1].data["changes"] == {
+            "dashboard_event:opening:2026-06-15": {"old": "done", "new": "pending"}
+        }
+
+        response = authenticated_platform_admin_client.get("/deliver/admin/")
+        event_row = BeautifulSoup(response.data, "html.parser").select_one("table tbody tr")
+        assert event_row.find("strong", class_="govuk-tag--green").get_text(strip=True).lower() == "today"
+        assert "Mark as done" in event_row.get_text()
+        banner = BeautifulSoup(response.data, "html.parser").select_one(".govuk-notification-banner--success")
+        assert "Dashboard event marked as not done." in banner.get_text()
+        assert banner.select_one('a[href="#completed-events"]')
+
+    @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_grant_stats(self, authenticated_platform_admin_client, factories, db_session):
         factories.grant.create(status=GrantStatusEnum.LIVE)
         factories.grant.create(status=GrantStatusEnum.ONBOARDING)
@@ -8501,7 +8605,7 @@ class TestAdminDashboard:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "14 June 2026todaySend overdue emailsOverdue Collection" in soup.get_text(strip=True)
+        assert "14 JunetodaySend overdue emailsOverdue Collection" in soup.get_text(strip=True)
 
     @pytest.mark.freeze_time("2026-06-14 12:00:00")
     def test_dashboard_shows_hard_deadline_overdue_collection_at_2pm(
@@ -8522,7 +8626,7 @@ class TestAdminDashboard:
         soup = BeautifulSoup(response.data, "html.parser")
         page_text = " ".join(soup.get_text(" ").split())
         assert (
-            "13 June 2026 at 2pm past Collection must be moved to Closed Hard Deadline Overdue Collection "
+            "13 June at 2pm late Collection must be moved to Closed Hard Deadline Overdue Collection "
             "Hard Deadline Grant"
         ) in page_text
         assert (
@@ -8551,8 +8655,8 @@ class TestAdminDashboard:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "17 June 2026soonOpen for submissionsOpening Soon" in soup.get_text(strip=True)
-        assert "19 June 2026soonSend overdue emailsClosing Soon" in soup.get_text(strip=True)
+        assert "17 JunesoonOpen for submissionsOpening Soon" in soup.get_text(strip=True)
+        assert "19 JunesoonSend overdue emailsClosing Soon" in soup.get_text(strip=True)
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_hard_deadline_at_2pm(self, authenticated_platform_admin_client, factories, db_session):
@@ -8571,9 +8675,9 @@ class TestAdminDashboard:
 
         soup = BeautifulSoup(response.data, "html.parser")
         page_text = " ".join(soup.get_text(" ").split())
-        assert "18 June 2026 at 2pm soon Collection must be moved to Closed Hard Deadline" in page_text
+        assert "18 June at 2pm soon Collection must be moved to Closed Hard Deadline" in page_text
         assert "Hard deadline - collection must be moved to Closed" not in page_text
-        assert "19 June 2026 soon Send overdue emails Hard Deadline" not in page_text
+        assert "19 June soon Send overdue emails Hard Deadline" not in page_text
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_shows_today_tag(self, authenticated_platform_admin_client, factories, db_session):
@@ -8609,7 +8713,7 @@ class TestAdminDashboard:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.data, "html.parser")
-        assert "16 June 2026soonSend reminder emailsNeeds Reminder" in soup.get_text(strip=True)
+        assert "16 JunesoonSend reminder emailsNeeds Reminder" in soup.get_text(strip=True)
 
     @pytest.mark.freeze_time("2026-06-15 12:00:00")
     def test_dashboard_hides_send_reminder_emails_when_disabled(
@@ -8651,8 +8755,8 @@ class TestAdminDashboard:
 
         soup = BeautifulSoup(response.data, "html.parser")
         page_text = " ".join(soup.get_text(" ").split())
-        assert "18 June 2026 soon Submissions become overdue No Overdue Email" in page_text
-        assert "19 June 2026 soon Send overdue emails No Overdue Email" not in page_text
+        assert "18 June soon Submissions become overdue No Overdue Email" in page_text
+        assert "19 June soon Send overdue emails No Overdue Email" not in page_text
 
     def test_lifecycle_hides_reminder_and_overdue_tasks_when_disabled(
         self, authenticated_platform_grant_lifecycle_manager_client, factories, db_session

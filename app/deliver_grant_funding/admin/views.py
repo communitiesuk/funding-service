@@ -11,18 +11,33 @@ from zoneinfo import ZoneInfo
 
 import boto3
 import markupsafe
-from flask import Response, abort, current_app, flash, make_response, redirect, send_file, stream_with_context, url_for
+from flask import (
+    Response,
+    abort,
+    current_app,
+    flash,
+    make_response,
+    redirect,
+    send_file,
+    stream_with_context,
+    url_for,
+)
 from flask.typing import ResponseReturnValue
 from flask_admin import AdminIndexView, BaseView, expose
 from sqlalchemy import text
 
 from app.common.audit import UserPermissionsEventContextSource
+from app.common.auth.decorators import is_platform_admin
 from app.common.data.interfaces.collections import (
     get_collection,
     get_collections_by_status_excluding_draft_grants,
     get_collections_with_dates_near_today_excluding_draft_grants,
     get_overdue_open_collections_excluding_draft_grants,
     update_collection,
+)
+from app.common.data.interfaces.dashboard_events import (
+    get_completed_dashboard_event_keys,
+    set_dashboard_event_completion,
 )
 from app.common.data.interfaces.data_analysis import (
     UserManagementEventCsvRow,
@@ -120,10 +135,15 @@ from app.deliver_grant_funding.admin.mixins import (
     FlaskAdminPlatformMemberAccessibleMixin,
 )
 from app.extensions import auto_commit_after_request, db, notification_service
+from app.types import FlashMessageType
 
 if TYPE_CHECKING:
     from app.common.data.models import Grant, Organisation
     from app.common.data.models_user import User
+
+
+def _dashboard_event_sort_key(event: TimelineEvent) -> tuple[int, int]:
+    return (1 if event["is_done"] else 0, event["date"].toordinal())
 
 
 class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndexView):
@@ -140,6 +160,7 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
         overdue_collections = get_overdue_open_collections_excluding_draft_grants()
 
         nearby_collections = get_collections_with_dates_near_today_excluding_draft_grants(past_days=7, future_days=7)
+        completed_event_keys = get_completed_dashboard_event_keys()
         timeline_events: list[TimelineEvent] = []
         for collection in nearby_collections:
             if (
@@ -153,6 +174,12 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                         "collection": collection,
                         "is_today": collection.submission_period_start_date == today,
                         "is_past": collection.submission_period_start_date < today,
+                        "is_done": (
+                            collection.id,
+                            "opening",
+                            collection.submission_period_start_date,
+                        )
+                        in completed_event_keys,
                     }
                 )
 
@@ -175,6 +202,7 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                             "collection": collection,
                             "is_today": event_date == today,
                             "is_past": event_date < today,
+                            "is_done": (collection.id, event_type, event_date) in completed_event_keys,
                         }
                     )
 
@@ -188,10 +216,13 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
                         "collection": collection,
                         "is_today": reminder_date == today,
                         "is_past": reminder_date < today,
+                        "is_done": (collection.id, "reminder", reminder_date) in completed_event_keys,
                     }
                 )
 
-        timeline_events.sort(key=lambda e: e["date"])
+        timeline_events.sort(key=_dashboard_event_sort_key)
+        important_events = [event for event in timeline_events if not event["is_done"]]
+        completed_events = [event for event in timeline_events if event["is_done"]]
 
         return self.render(
             "deliver_grant_funding/admin/dashboard.html",
@@ -200,8 +231,62 @@ class PlatformAdminIndexView(FlaskAdminPlatformMemberAccessibleMixin, AdminIndex
             scheduled_collections=scheduled_collections,
             open_collections=open_collections,
             overdue_collections=overdue_collections,
-            timeline_events=timeline_events,
+            important_events=important_events,
+            completed_events=completed_events,
+            dashboard_event_form=GenericSubmitForm(),
         )
+
+    @expose(
+        "/<uuid:grant_id>/<uuid:collection_id>/dashboard-event/<event_type>/<event_date>/<completion_status>",
+        methods=["POST"],
+    )
+    @is_platform_admin
+    @auto_commit_after_request
+    def set_dashboard_event_completion(
+        self, grant_id: UUID, collection_id: UUID, event_type: str, event_date: str, completion_status: str
+    ) -> ResponseReturnValue:
+        current_user = get_current_user()
+        collection = get_collection(collection_id, grant_id=grant_id)
+        form = GenericSubmitForm()
+        if not form.validate_on_submit():
+            abort(400)
+
+        try:
+            parsed_event_date = datetime.date.fromisoformat(event_date)
+        except ValueError:
+            abort(404)
+
+        expected_dates = {
+            "opening": collection.submission_period_start_date,
+            "hard_deadline": (
+                collection.submission_period_end_date if not collection.allow_edits_after_submission_deadline else None
+            ),
+            "closing": collection.date_to_send_overdue_emails if collection.send_overdue_emails else None,
+            "moving_to_overdue": (
+                collection.submission_period_end_date
+                if collection.allow_edits_after_submission_deadline and not collection.send_overdue_emails
+                else None
+            ),
+            "reminder": collection.date_to_send_reminder_emails if collection.send_deadline_reminder_emails else None,
+        }
+        if expected_dates.get(event_type) != parsed_event_date:
+            abort(404)
+        if completion_status not in {"done", "not-done"}:
+            abort(404)
+
+        is_done = completion_status == "done"
+        set_dashboard_event_completion(
+            collection_id=collection.id,
+            event_type=event_type,
+            event_date=parsed_event_date,
+            is_done=is_done,
+            changed_by=current_user,
+        )
+        flash(
+            f"Dashboard event marked as {'done' if is_done else 'not done'}.",
+            FlashMessageType.DASHBOARD_EVENT_UPDATED.value,
+        )
+        return redirect(url_for("platform_admin.index"))
 
 
 class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycleManagerAccessibleMixin, BaseView):

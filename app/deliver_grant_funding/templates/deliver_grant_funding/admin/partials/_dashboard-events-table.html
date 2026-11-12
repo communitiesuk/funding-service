@@ -1,0 +1,61 @@
+<table class="govuk-table" data-event-group="{{ event_group }}" {% if not events %}hidden{% endif %}>
+  <thead class="govuk-table__head">
+    <tr class="govuk-table__row">
+      <th class="govuk-table__header" scope="col">Date</th>
+      <th class="govuk-table__header" scope="col">Event</th>
+      <th class="govuk-table__header" scope="col">Collection</th>
+      <th class="govuk-table__header" scope="col">Grant</th>
+      {% if can_mark_events_done %}<th class="govuk-table__header" scope="col">Action</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody class="govuk-table__body">
+    {% for event in events %}
+      <tr class="govuk-table__row">
+        <td class="govuk-table__cell">
+          {{ event.date.strftime("%-d %B") }}
+          {% if event.type == "hard_deadline" %}at {{ constants.hard_submission_deadline_time_display }}{% endif %}
+          {% if event.is_done %}
+            {{ govukTag({"text": "done", "classes": "govuk-tag--purple", "attributes": {"data-event-status": "" }})
+            }}
+          {% elif event.is_today %}
+            {{ govukTag({"text": "today", "classes": "govuk-tag--green", "attributes": {"data-event-status": "" }})
+            }}
+          {% elif event.is_past %}
+            {{ govukTag({"text": "late", "classes": "govuk-tag--red", "attributes": {"data-event-status": "" }})
+            }}
+          {% else %}
+            {{ govukTag({"text": "soon", "classes": "govuk-tag--blue", "attributes": {"data-event-status": "" }})
+            }}
+          {% endif %}
+        </td>
+        <td class="govuk-table__cell">
+          {% if event.type == "opening" %}
+            Open for submissions
+          {% elif event.type == "hard_deadline" %}
+            Collection must be moved to Closed
+          {% elif event.type == "closing" %}
+            Send overdue emails
+          {% elif event.type == "moving_to_overdue" %}
+            Submissions become overdue
+          {% elif event.type == "reminder" %}
+            Send reminder emails
+          {% endif %}
+        </td>
+        <td class="govuk-table__cell">
+          <a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('collection_lifecycle.tasklist', grant_id=event.collection.grant_id, collection_id=event.collection.id) }}">{{ event.collection.name }}</a>
+        </td>
+        <td class="govuk-table__cell"><a class="govuk-link govuk-link--no-visited-state" href="{{ url_for('deliver_grant_funding.grant_details', grant_id=event.collection.grant_id) }}">{{ event.collection.grant.name }}</a></td>
+        {% if can_mark_events_done %}
+          <td class="govuk-table__cell">
+            <form
+              method="post"
+              action="{{ url_for('platform_admin.set_dashboard_event_completion', grant_id=event.collection.grant_id, collection_id=event.collection.id, event_type=event.type, event_date=event.date.isoformat(), completion_status='not-done' if event.is_done else 'done') }}">
+              {{ dashboard_event_form.csrf_token }}
+              <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" type="submit">{{ "Mark as not done" if event.is_done else "Mark as done" }}</button>
+            </form>
+          </td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
