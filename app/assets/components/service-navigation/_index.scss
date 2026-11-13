@@ -77,3 +77,17 @@
         }
     }
 }
+
+.govuk-footer {
+    border-top-width: 1px;
+    border-top-style: solid;
+    border-top-color: govuk.govuk-functional-colour(surface-border);
+}
+
+.govuk-footer__crown {
+    margin-bottom: 0;
+}
+
+.govuk-footer__meta-item:last-child {
+    padding-bottom: 5px;
+}
