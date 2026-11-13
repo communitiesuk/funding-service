@@ -543,6 +543,14 @@ class Collection(BaseModel):
         return self.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT]
 
     @property
+    def is_accepting_public_sign_up(self) -> bool:
+        return self.allow_public_sign_up and self.grant.status == GrantStatusEnum.LIVE and self.is_open
+
+    @property
+    def is_accepting_test_sign_up(self) -> bool:
+        return self.allow_public_sign_up and not self.is_closed
+
+    @property
     def submission_deadline_with_time(self) -> datetime.datetime | None:
         if not self.submission_period_end_date:
             return None
