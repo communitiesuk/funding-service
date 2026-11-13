@@ -22,6 +22,10 @@
     }
 }
 
+.govuk-service-navigation:not(:last-child) {
+    border-bottom: none;
+}
+
 //  &--org-hidden {
 //    @extend .app-service-navigation__wrapper--sectional;
 //    @include govuk.govuk-media-query($from: tablet) {
