@@ -42,6 +42,7 @@ dependencies = [
     "charset-normalizer==3.5.2",
     "free-email-domains==1.0.2",
     "requests==2.34.2",
+    "redis==8.1.0",
 ]
 
 [dependency-groups]
@@ -69,6 +70,7 @@ dev = [
     "import-linter==2.15",
     "pytest==9.1.1",
     "pytest-playwright==0.10.0",
+    "pyyaml==6.0.3",
     "ty==0.0.89",
     "watchdog[watchmedo]==6.0.0",
 ]
