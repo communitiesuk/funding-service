@@ -10,19 +10,30 @@
     // TODO: remove once the Access nav uses right_nav_items. Until then Access relies on the last item being pushed
     // right. The :not() stops it applying to items that follow a --right-nav item (eg Sign out after Admin panel).
     .govuk-service-navigation__item:last-child:not(
+
             .app-service-navigation__item--right-nav ~ *
         ) {
         margin-left: auto;
     }
 
-    &--org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:last-child {
-                display: none;
-            }
-        }
-    }
+//  &--org-hidden {
+//    @extend .app-service-navigation__wrapper--sectional;
+//    @include govuk.govuk-media-query($from: tablet) {
+//      .govuk-service-navigation__item:last-child {
+//        display: none;
+//      }
+//    }
+//  }
+//
+//  &--grant-and-org-hidden {
+//    @extend .app-service-navigation__wrapper--sectional;
+//    @include govuk.govuk-media-query($from: tablet) {
+//      .govuk-service-navigation__item:nth-last-child(2) {
+//        display: none;
+//      }
+//    }
+//  }
+//}
 
     &--grant-and-org-hidden {
         @extend .app-service-navigation__wrapper--sectional;
@@ -33,7 +44,9 @@
         }
     }
 }
-
+.govuk-service-navigation:not(:last-child){
+    border-bottom:none;
+}
 .app-service-nav-org {
     border-bottom: none;
 
