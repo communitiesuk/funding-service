@@ -258,3 +258,8 @@ class TestClientHealthcheck:
 
         assert client_response.status_code == 200
         assert db_response.status_code == 401
+
+    def test_security_txt_redirect(self, anonymous_client):
+        response = anonymous_client.get(url_for("security_txt"))
+        assert response.status_code == 308
+        assert response.location == "https://communities.gov.uk/.well-known/security.txt"
