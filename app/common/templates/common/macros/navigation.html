@@ -69,13 +69,13 @@
   {% endif %}
   {% if grant_name %}
     {{
-      serviceNavigationWithRightItems2({
+      serviceNavigationWithRightItems({
       "serviceName": grant_name,
       "navigation": [],
       })
     }}
   {% endif %}
-  {{ serviceNavigationWithRightItems2({"navigation": nav_items}, right_nav_items) }}
+  {{ serviceNavigationWithRightItems({"navigation": nav_items}, right_nav_items) }}
 {% endmacro %}
 
 {# Takes the same dict of params as the govukServiceNavigation macro #}
