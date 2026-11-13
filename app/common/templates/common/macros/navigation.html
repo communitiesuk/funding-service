@@ -13,7 +13,7 @@
     {% if number_of_organisations > 1 %}
       {% do org_right_nav_items.append({"href":url_for('access_grant_funding.list_organisations'), "text":"Change organisation"}) %}
     {% endif %}
-    {{ serviceNavigationWithRightItems2({"serviceName":grant_recipient.organisation.name}, org_right_nav_items) }}
+    {{ serviceNavigationWithRightItems({"serviceName":grant_recipient.organisation.name}, org_right_nav_items) }}
 
     {% set grant = grant_recipient.grant %}
     {% set grant_right_nav_items=[] %}
@@ -22,7 +22,7 @@
       {% do grant_right_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
     {% endif %}
     {{
-      serviceNavigationWithRightItems2({
+      serviceNavigationWithRightItems({
       "serviceName": grant.name,
       "navigation": []}, grant_right_nav_items)
     }}
@@ -34,7 +34,7 @@
       {% do right_nav_items.append({"text": "Sign out", "href": url_for("auth.sign_out")}) %}
     {% endif %}
     {{
-      serviceNavigationWithRightItems2({
+      serviceNavigationWithRightItems({
           "navigation": nav_items,
           "navigationClasses": navigation_classes,
           "attributes": { "id": "access-nav" }
@@ -70,9 +70,11 @@
   {% if grant_name %}
     {{
       serviceNavigationWithRightItems({
-      "serviceName": grant_name,
-      "navigation": [],
-      })
+            "serviceName": grant_name,
+            "navigation": [],
+            }, [
+        {"text": "Change grant", "href":url_for("deliver_grant_funding.list_grants")}
+      ])
     }}
   {% endif %}
   {{ serviceNavigationWithRightItems({"navigation": nav_items}, right_nav_items) }}
