@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
     base: "/static",
     build: {
-        outDir: path.join(__dirname, "app/assets/dist"),
+        outDir: path.join(import.meta.dirname, "app/assets/dist"),
         manifest: "manifest.json",
         rollupOptions: {
             input: [

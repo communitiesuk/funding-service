@@ -3,28 +3,57 @@
 .app-service-navigation__wrapper--sectional {
     flex: 1;
 
-    .govuk-service-navigation__item:last-child {
+    .app-service-navigation__item--right-nav {
         margin-left: auto;
     }
 
-    &--org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:last-child {
-                display: none;
-            }
+    @include govuk.govuk-media-query($until: tablet) {
+        // Slightly separate the right nav items from the rest of the menu on mobile
+        .app-service-navigation__item--right-nav {
+            padding-top: 10px;
         }
     }
-
-    &--grant-and-org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:nth-last-child(2) {
-                display: none;
-            }
-        }
+    // TODO: remove once the Access nav uses right_nav_items. Until then Access relies on the last item being pushed
+    // right. The :not() stops it applying to items that follow a --right-nav item (eg Sign out after Admin panel).
+    .govuk-service-navigation__item:last-child:not(
+            .app-service-navigation__item--right-nav ~ *
+        ) {
+        margin-left: auto;
     }
 }
+
+.govuk-service-navigation:not(:last-child) {
+    border-bottom: none;
+}
+
+//  &--org-hidden {
+//    @extend .app-service-navigation__wrapper--sectional;
+//    @include govuk.govuk-media-query($from: tablet) {
+//      .govuk-service-navigation__item:last-child {
+//        display: none;
+//      }
+//    }
+//  }
+//
+//  &--grant-and-org-hidden {
+//    @extend .app-service-navigation__wrapper--sectional;
+//    @include govuk.govuk-media-query($from: tablet) {
+//      .govuk-service-navigation__item:nth-last-child(2) {
+//        display: none;
+//      }
+//    }
+//  }
+//}
+
+//.govuk-service-navigation__list--right-nav {
+//  display: block;
+//}
+//
+//@include govuk.govuk-media-query($from: tablet) {
+//  .govuk-service-navigation__list--right-nav {
+//    text-align: right;
+//  }
+//}
 
 .app-service-nav-org {
     border-bottom: none;
@@ -33,6 +62,7 @@
         padding-top: 20px;
         padding-bottom: 0px;
     }
+
     .govuk-service-navigation__item {
         padding-top: 20px;
         padding-bottom: 0px;
@@ -46,4 +76,18 @@
             padding-top: 0px;
         }
     }
+}
+
+.govuk-footer {
+    border-top-width: 1px;
+    border-top-style: solid;
+    border-top-color: govuk.govuk-functional-colour(surface-border);
+}
+
+.govuk-footer__crown {
+    margin-bottom: 0;
+}
+
+.govuk-footer__meta-item:last-child {
+    padding-bottom: 5px;
 }

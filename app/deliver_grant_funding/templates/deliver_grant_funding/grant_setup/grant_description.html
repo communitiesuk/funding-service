@@ -9,7 +9,7 @@
 
 {% set page_title = form.description.label.text %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if not grant %}
     {{
       govukBackLink({
@@ -18,7 +18,7 @@
       })
     }}
   {% endif %}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

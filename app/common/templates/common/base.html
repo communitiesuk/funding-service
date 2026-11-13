@@ -1,13 +1,12 @@
 {% extends "govuk_frontend_jinja/template.html" %}
-{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
 
 {% set assetPath = vite_asset('assets') %}
 {% set cspNonce = csp_nonce() %}
-
-{% set govukRebrand = false %}
 
 {% block pageTitle %}MHCLG Funding Service{% endblock pageTitle %}
 
@@ -27,25 +26,21 @@
   <link rel="stylesheet" href="{{ vite_asset('app/assets/main.scss') }}" type="text/css" />
 {% endblock head %}
 
-{% block header %}
+{% block govukHeader %}
   {{ mhclgRequestTracingBanner() }}
-  {# todo: have this header read a homepageUrl variable, then any subclasses can just use super() calls #}
   {{
-    mhclgHeader(
-      params={
-        "homepageUrl": url_for("index"),
-        "assetPath": assetPath
-      },
-      currentUser=current_user,
-    )
+    govukGenericHeader({
+      "url": url_for("index"),
+      "logoHtml": mhclgLogo(assetPath)
+    })
   }}
-{% endblock header %}
+{% endblock govukHeader %}
 
-{% block main %}
+{% block container %}
   <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-    {% block beforeContent %}{% endblock %}
+    {% block containerStart %}{% endblock %}
     <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
-      {% block mainWrapper %}
+      {% block main %}
         <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
           {% block errorSummary %}
             {{ standardErrorSummary(form) }}
@@ -54,16 +49,17 @@
           {% block content %}
           {% endblock content %}
         </main>
-      {% endblock mainWrapper %}
+      {% endblock main %}
     </div>
+    {% block containerEnd %}{% endblock %}
   </div>
-{% endblock %}
+{% endblock container %}
 
 {% block bodyEnd %}
   <script type="module" src="{{ vite_asset('app/assets/main.js') }}"></script>
 {% endblock %}
 
-{% block footer %}
+{% block govukFooter %}
   {{
     govukFooter({
       "contentLicence": none,
@@ -77,4 +73,4 @@
       }
     })
   }}
-{% endblock footer %}
+{% endblock govukFooter %}

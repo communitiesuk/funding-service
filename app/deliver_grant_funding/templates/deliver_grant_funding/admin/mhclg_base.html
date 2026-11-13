@@ -1,7 +1,19 @@
 {% extends "admin/base.html" %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
+{% from 'govuk_frontend_jinja/components/generic-header/macro.html' import govukGenericHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "common/macros/navigation.html" import serviceNavigationWithRightItems %}
+{% from "common/macros/navigation.html" import serviceNavigationWithRightItems2 %}
 
 {% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
+
+{% block headIcons %}
+  {% set appAssetPath = vite_asset('assets') %}
+  <link rel="icon" sizes="48x48" href="{{ appAssetPath }}/images/favicon.ico" />
+  <link rel="icon" sizes="any" href="{{ appAssetPath }}/images/favicon.svg" type="image/svg+xml" />
+  <link rel="mask-icon" href="{{ appAssetPath }}/images/govuk-icon-mask.svg" color="{{ themeColor }}" />
+  <link rel="apple-touch-icon" href="{{ appAssetPath }}/images/govuk-icon-180.png" />
+{% endblock %}
 
 {% block head %}
   {{ super() }}
@@ -11,33 +23,49 @@
 
 {% block headerRow %}
   {{ mhclgRequestTracingBanner() }}
-  <header class="govuk-header" data-module="govuk-header">
-    <div class="govuk-header__container govuk-width-container">
-      <div class="govuk-header__logo app-header__logo">
-        <a href="{{ url_for("platform_admin.index") }}" class="govuk-header__link govuk-header__link--homepage app-!-align-vertically">
-          <img src="/static/assets/images/mhclg-crest.png" alt="MHCLG Crest" width="32" height="32" style="color: white; filter: brightness(0) invert(1);" nonce="{{ csp_nonce() }}" />
-          <span class="govuk-!-margin-top-0 govuk-!-margin-bottom-0 govuk-!-margin-left-1">MHCLG Funding Service</span>
-        </a>
-      </div>
 
-      {# Bit of a hack - this is deprecated GOV.UK Header CSS; but it'll do for now ... (sorry future us) #}
-      <div class="govuk-header__content app-header__content">
-        <nav aria-label="Menu" class="govuk-header__navigation app-header__navigation">
-          <ul class="govuk-header__navigation-list">
-            <li class="govuk-header__navigation-item app-header__navigation-item">
-              <a class="govuk-header__link" href="{{ url_for('deliver_grant_funding.list_grants') }}">Deliver grant funding</a>
-            </li>
-            <li class="govuk-header__navigation-item app-header__navigation-item">
-              <a class="govuk-header__link" href="{{ url_for('auth.sign_out') }}">Sign out</a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-    </div>
-  </header>
+  {{
+    govukGenericHeader({
+      "url": url_for("platform_admin.index"),
+      "classes": "app-generic-header--brand",
+      "logoHtml": mhclgLogo(vite_asset('assets'),"Deliver grant funding | Admin")
+    })
+  }}
 {% endblock %}
 
-{% block footer %}
+{# Overrides xgovuk_flask_admin's headerNav so we can add right-hand nav items. The menu-building loop is copied #}
+{# from xgovuk_flask_admin/templates/admin/base.html so should be kept in sync. #}
+{% block headerNav %}
+  {% set service_nav_items = [] %}
+  {% for item in admin_view.admin.menu() %}
+    {% if item.is_category() %}
+      {% for child in item.get_children() %}
+        {% if child.is_accessible() and child.is_visible() and not child.is_category() %}
+          {% do service_nav_items.append({"href": child.get_url(), "text": child.name, "active": child.is_active(admin_view)}) %}
+        {% endif %}
+      {% endfor %}
+    {% elif item.is_accessible() and item.is_visible() and item.name != "Home" %}
+      {% do service_nav_items.append({"href": item.get_url(), "text": item.name, "active": item.is_active(admin_view)}) %}
+    {% endif %}
+  {% endfor %}
+
+  {%
+    set right_nav_items = [
+      {"text": "Deliver grant funding", "href": url_for("deliver_grant_funding.list_grants")},
+      {"text": "Sign out", "href": url_for("auth.sign_out")},
+    ]
+  %}
+
+  {{
+    serviceNavigationWithRightItems({
+      "serviceName": xgovuk_flask_admin_service_name,
+      "serviceUrl": url_for(admin_view.admin.endpoint ~ ".index"),
+      "navigation": service_nav_items,
+    }, right_nav_items)
+  }}
+{% endblock headerNav %}
+
+{% block govukFooter %}
   {{
     govukFooter({
       "contentLicence": none,
@@ -51,4 +79,4 @@
       }
     })
   }}
-{% endblock footer %}
+{% endblock govukFooter %}

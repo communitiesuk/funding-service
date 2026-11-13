@@ -1,52 +1,23 @@
 // This file contains CSS that is only used by the platform admin/flask-admin pages and not in the core
 // of Access grant funding or Deliver grant funding.
 
-@use "sass:color";
 @use "govuk/base" as govuk with (
-    $govuk-brand-colour: #912b88,
+    $govuk-functional-colours: (
+        brand: #912b88,
+    ),
     $govuk-assets-path: "/static/assets/"
 );
 
 @use "components/big-number";
 @use "components/context-aware-editor";
 @use "components/metadata";
+@use "components/mhclg-logo";
+@use "components/service-navigation";
 @use "components/test-data-banner";
 @use "tweaks";
 
-.app-\!-align-vertically {
-    display: inline-flex !important;
-    align-items: center !important;
-}
-
-.app-header__content {
-    @include govuk.govuk-media-query($from: desktop) {
-        display: inline-flex !important;
-        flex-direction: row-reverse;
-        width: 50%;
-    }
-}
-
-.app-header__logo {
-    @include govuk.govuk-media-query($from: desktop) {
-        width: 50%;
-    }
-}
-
-.app-header__navigation {
-    @include govuk.govuk-media-query($from: desktop) {
-        padding-top: 18px !important;
-    }
-}
-
-.app-header__navigation-item {
-    border-bottom-color: color.adjust(
-        govuk.$govuk-brand-colour,
-        $lightness: -15%
-    ) !important;
-
-    a {
-        font-weight: govuk.$govuk-font-weight-bold !important;
-    }
+.app-generic-header--brand {
+    background: govuk.govuk-functional-colour(brand);
 }
 
 h1,
@@ -56,7 +27,7 @@ h4,
 h5,
 h6 {
     &:target {
-        border-left: 4px solid govuk.$govuk-brand-colour;
+        border-left: 4px solid govuk.govuk-functional-colour("brand");
         padding-left: govuk.govuk-spacing(2);
     }
 }

@@ -1,12 +1,12 @@
 {% extends "common/base.html" %}
-{% from "common/partials/mhclg-header.html" import mhclgHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
 {% from "common/macros/navigation.html" import deliverGrantFundingServiceNavigation %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/macros/standard-error-summary.html" import standardErrorSummary with context %}
 
 {% set nav_items = nav_items or [] %}
-{% set right_nav_items = right_nav_items or [] %}
 
 {% block pageTitle %}{{ page_title }} - {{ super() }}{% endblock pageTitle %}
 {% block head %}
@@ -29,29 +29,26 @@
   <!-- End Google Tag Manager -->
   {{ super() }}
 {% endblock %}
-{% block header %}
+{% block govukHeader %}
   {{ mhclgRequestTracingBanner() }}
   {{
-    mhclgHeader(
-      params={
-        "homepageUrl": url_for("deliver_grant_funding.list_grants"),
-        "assetPath": assetPath
-      },
-      currentUser=current_user,
-    )
+    govukGenericHeader({
+      "url": url_for("deliver_grant_funding.list_grants"),
+      "logoHtml": mhclgLogo(assetPath, "Deliver grant funding")
+    })
   }}
-  {{ deliverGrantFundingServiceNavigation(nav_items, right_nav_items) }}
-{% endblock header %}
+  {{ deliverGrantFundingServiceNavigation(current_user,grant_name, nav_items, []) }}
+{% endblock govukHeader %}
 
-{% block main %}
+{% block container %}
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T8XPM3NL" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
   <div>
     <div class="govuk-width-container {% if containerClasses %}{{ containerClasses }}{% endif %}">
-      {% block beforeContent %}{% endblock %}
+      {% block containerStart %}{% endblock %}
       <div class="govuk-main-wrapper {% if mainClasses %}{{ mainClasses }}{% endif %}">
-        {% block mainWrapper %}
+        {% block main %}
           <main id="main-content" {% if mainLang %}lang="{{ mainLang }}"{% endif %}>
             {% block errorSummary %}
               {{ standardErrorSummary(form) }}
@@ -60,13 +57,14 @@
             {% block content %}
             {% endblock content %}
           </main>
-        {% endblock mainWrapper %}
+        {% endblock main %}
       </div>
     </div>
+    {% block containerEnd %}{% endblock %}
   </div>
-{% endblock %}
+{% endblock container %}
 
-{% block footer %}
+{% block govukFooter %}
   {{
     govukFooter({
       "contentLicence": none,
@@ -84,4 +82,4 @@
       }
     })
   }}
-{% endblock footer %}
+{% endblock govukFooter %}

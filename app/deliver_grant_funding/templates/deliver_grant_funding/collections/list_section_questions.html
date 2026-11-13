@@ -15,9 +15,9 @@
 {% set preview_blocked_by_data_sources = collection_has_data_sources and form_has_questions %}
 {% set can_preview = form_has_questions and not collection_has_data_sources and db_form.collection.status != enum.collection_status.CLOSED %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=db_form.collection, this_page_breadcrumb_item={"text":db_form.title}) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">
