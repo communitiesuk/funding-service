@@ -113,11 +113,11 @@
     {% set number_of_right_nav_items = right_nav_items | length %}
     {% do nav_params.update({"collapseNavigationOnMobile": number_of_nav_items + number_of_right_nav_items > 1}) %}
   {% endif %}
-
-  {{ govukServiceNavigation(nav_params) }}
+  hello {{ govukServiceNavigation(nav_params) }}
 {% endmacro %}
 {# Same as above, but any right nav items will wrap together, and appear outside the collapsed menu on a narrow screen #}
 {% macro serviceNavigationWithRightItems2(params, right_nav_items=[]) %}
+  nohello
   <section aria-label="Service information" class="govuk-service-navigation" data-module="govuk-service-navigation">
     <div class="govuk-width-container govuk-service-navigation__inlining-container">
       <div class="govuk-service-navigation__container">
@@ -139,8 +139,8 @@
           {% endif %}
         </nav>
         {% if right_nav_items | length >=1 %}
-          <nav aria-label="Put something here">
-            <ul class="govuk-service-navigation__list" id="navigation">
+          <nav aria-label="Put something here" class="govuk-service-navigation__wrapper">
+            <ul class="govuk-service-navigation__list govuk-service-navigation__list--right-nav" id="navigation">
               {% for item in right_nav_items %}
                 <li class="govuk-service-navigation__item ">
                   <a class="govuk-service-navigation__link" href="{{ item.href }}" aria-current="false">
