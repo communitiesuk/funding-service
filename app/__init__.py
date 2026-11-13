@@ -431,4 +431,13 @@ def create_app() -> Flask:  # noqa: C901
 
     app.add_template_global(AuthorisationHelper, "authorisation_helper")
     logging.use_correlating_cli_contexts(app)
+    _setup_security_txt_redirect(app)
     return app
+
+
+def _setup_security_txt_redirect(app: Flask) -> None:
+    app.add_url_rule(
+        "/.well-known/security.txt",
+        endpoint="security_txt",
+        redirect_to=app.config["SECURITY_TXT_REDIRECT_URL"],
+    )

@@ -412,6 +412,8 @@ class _SharedConfig(_BaseConfig):
     # GOV.UK Bank Holidays JSON API
     GOVUK_BANK_HOLIDAYS_API: str = "https://www.gov.uk/bank-holidays.json"
 
+    SECURITY_TXT_REDIRECT_URL: str = "https://communities.gov.uk/.well-known/security.txt"
+
     @property
     def IS_PRODUCTION(self) -> bool:
         return self.FLASK_ENV == Environment.PROD
