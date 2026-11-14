@@ -19,6 +19,18 @@ def wait_for_context_aware_textarea_to_be_ready(page: Page, textarea_id: str) ->
     expect(page.locator(f".app-context-aware-editor__visible-textarea[id='{textarea_id}']")).to_be_attached()
 
 
+def extract_uuid_from_url(url: str, pattern: str) -> str:
+    """Extract a UUID from a URL using a regex pattern.
+
+    The pattern should contain a named group 'uuid' for the UUID to extract.
+    Example: r"/grant/(?P<uuid>[a-f0-9-]+)/reports"
+    """
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError(f"Could not extract UUID from URL {url} using pattern {pattern}")
+    return match.group("uuid")
+
+
 def extract_email_link(email: dict[str, str]) -> str:
     pattern = r"https?:\/\/[\w-]+(?:\.[\w]+)+(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?"
 
@@ -60,13 +72,15 @@ def delete_grant_through_admin(page: Page, domain: str, search: str) -> None:
     page.locator("button:has-text('Confirm delete')").click()
 
 
-def delete_organisation_through_admin(page: Page, domain: str, search: str) -> None:
+def delete_organisation_through_admin(
+    page: Page, domain: str, search: str, expected_organisations_matching_search: int = 1
+) -> None:
     query = urlencode(query=dict(search=search))
     page.goto(f"{domain}/deliver/admin/organisation/?{query}")
 
-    assert len(page.get_by_role("cell", name=re.compile(search)).all()) == 1
+    expect(page.get_by_role("cell", name=search)).to_have_count(expected_organisations_matching_search)
 
     page.check("#select-all")
     page.locator("button:has-text('Actions')").click()
-    page.locator("button:has-text('Delete (1 selected)')").click()
+    page.locator(f"button:has-text('Delete ({expected_organisations_matching_search} selected)')").click()
     page.locator("button:has-text('Confirm delete')").click()

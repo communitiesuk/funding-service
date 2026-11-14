@@ -45,7 +45,7 @@ class OrganisationSetupRow(NamedTuple):
     organisation_type: str
 
 
-def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_source: DataReferenceConfig) -> None:
+def reference_data_flow(select_data_source_page: SelectDataSourcePage, context_source: DataReferenceConfig) -> None:
     select_data_source_page.select_data_source(context_source.data_source)
 
     match context_source.data_source:
@@ -96,7 +96,7 @@ def _reference_data_in_expression(
     expression_form_page: AddValidationPage | AddConditionPage, field_name: str, context_source: DataReferenceConfig
 ) -> None:
     select_data_source_page = expression_form_page.click_insert_data(field_name)
-    _reference_data_flow(select_data_source_page, context_source)
+    reference_data_flow(select_data_source_page, context_source)
 
 
 def _configure_greater_than_expression(
@@ -1299,7 +1299,7 @@ def _fill_custom_field(
             context_source = references.get(reference_key)
             if context_source:
                 reference_data_btn.click()
-                _reference_data_flow(
+                reference_data_flow(
                     SelectDataSourcePage(reports_page.page, reports_page.domain, reports_page.grant_name),
                     context_source,
                 )
@@ -1765,6 +1765,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
         self.page.get_by_role("textbox", name="Maximum number of decimal places").fill(str(max_decimal_places))
 
     def click_submit(self) -> EditQuestionPage:
+        question_name = self.page.get_by_role("textbox", name="Question text").input_value()
         self.page.get_by_role("button", name="Add question").click()
         edit_question_page = EditQuestionPage(
             self.page,
@@ -1772,7 +1773,7 @@ class AddQuestionDetailsPage(ReportsBasePage):
             grant_name=self.grant_name,
             report_name=self.report_name,
             section_name=self.section_name,
-            question_name=self.page.get_by_role("textbox", name="Question text").input_value(),
+            question_name=question_name,
         )
         expect(edit_question_page.heading).to_be_visible()
         return edit_question_page
@@ -2978,6 +2979,12 @@ class OverrideGrantRecipientCertifiersPage:
         self.user_email_box = page.get_by_role("textbox", name="Email address")
 
         self.add_certifer_button = page.get_by_role("button", name="Add grant-specific certifier")
+
+    def navigate(self) -> None:
+        self.page.goto(
+            f"{self.domain}/deliver/admin/collection-lifecycle/{self.grant_id}/{self.collection_id}/override-grant-certifiers"
+        )
+        expect(self.heading).to_be_visible()
 
     def select_organisation(self, org_name: str) -> None:
         self.organisation_combo_box.click()

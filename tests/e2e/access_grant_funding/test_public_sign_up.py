@@ -1,9 +1,9 @@
 import uuid
+from typing import Callable
 
-import pytest
 from playwright.sync_api import Page, expect
 
-from app.common.data.types import CollectionStatusEnum, GrantStatusEnum, QuestionDataType
+from app.common.data.types import CollectionType, QuestionDataType
 from tests.e2e.access_grant_funding.pages import (
     AccessGrantPage,
     CreateOrganisationAllowTeamMembersPage,
@@ -17,34 +17,25 @@ from tests.e2e.access_grant_funding.pages import (
     PublicSignUpStartPage,
 )
 from tests.e2e.config import EndToEndTestSecrets
-from tests.e2e.dataclasses import E2ETestUser, QuestionDict, QuestionResponse
-from tests.e2e.deliver_grant_funding.helpers import (
-    create_grant,
-    extract_uuid_from_url,
-    navigate_to_pre_award_sections_page,
+from tests.e2e.conftest import DeliverGrantFundingUserType, login_with_session_cookie, login_with_stub_sso
+from tests.e2e.dataclasses import (
+    BuiltGrantScenario,
+    CollectionConfig,
+    EligibilitySection,
+    GrantScenario,
+    QuestionDict,
+    QuestionResponse,
+    SectionDict,
 )
-from tests.e2e.deliver_grant_funding.pages import AllGrantsPage
-from tests.e2e.deliver_grant_funding.reports_pages import (
-    GrantPreAwardFormsPage,
-    PlatformAdminGrantSettingsPage,
-    PlatformAdminReportSettingsPage,
-    RunnerTasklistPage,
-)
-from tests.e2e.deliver_grant_funding.test_create_preview_collection import (
-    complete_task,
-    create_question_or_group,
-    task_check_your_answers,
-)
+from tests.e2e.deliver_grant_funding.helpers import complete_task, task_check_your_answers
+from tests.e2e.deliver_grant_funding.reports_pages import RunnerTasklistPage
 from tests.e2e.helpers import (
     delete_grant_recipient_through_admin,
-    delete_grant_through_admin,
     delete_organisation_through_admin,
     retrieve_magic_link,
 )
 
-COLLECTION_NAME = f"Public sign up round {uuid.uuid4()}"
 APPLICATION_SECTION_NAME = "Section 1"
-ELIGIBILITY_SECTION_NAME = "Eligibility questions"
 
 USER_1_EMAIL = "fs-e2e-public-sign-up-1@funding-service-e2e.gov.uk"
 
@@ -66,103 +57,37 @@ eligibility_question: QuestionDict = QuestionDict(
     }
 )
 
-# Module-level storage for shared test data across dependent tests
-_shared_setup_data: dict | None = None
 
-
-def handle_optional_user_name_step(page: Page, domain: str, name: str, next_heading_name: str) -> None:
-    """The "what is your full name?" step only appears the first time a given user ever completes a public sign
-    up - once the name is set on that first run, it's never asked again."""
-    user_name_page = CreateOrganisationUserNamePage(page, domain)
-    next_page_heading = page.get_by_role("heading", name=next_heading_name)
-    expect(user_name_page.heading.or_(next_page_heading)).to_be_visible()
-    if user_name_page.heading.is_visible():
-        user_name_page.fill_user_name(name)
-        user_name_page.click_continue()
-
-
-def test_public_sign_up_setup(
+def test_public_sign_up_new_organisation(
     page: Page,
     domain: str,
     e2e_test_secrets: EndToEndTestSecrets,
-    authenticated_browser_sso: E2ETestUser,
     email: str,
+    build_grant_scenario: Callable[..., BuiltGrantScenario],
 ) -> None:
-    """Setup test: creates a grant and an application collection with public sign up enabled, with a single
-    yes/no eligibility question where 'Yes' is the qualifying answer."""
-    global _shared_setup_data
+    """Build a live application collection with public sign up enabled (a single yes/no eligibility question
+    where 'Yes' is the qualifying answer), then as a member of the public with no existing organisation match:
+    start a public sign up, sign in via a magic link, answer the eligibility question (including a wrong answer
+    that's corrected after hitting the ineligible page), create a new organisation with domain sign up enabled,
+    and fill in and submit the application."""
+    collection_name = f"Public sign up round {uuid.uuid4()}"
 
-    grant_name_uuid = str(uuid.uuid4())
-    grant_name = f"E2E public sign up {grant_name_uuid}"
+    handle = build_grant_scenario(
+        GrantScenario(
+            collection=CollectionConfig(
+                name=collection_name,
+                type=CollectionType.APPLICATION,
+                sections=[SectionDict(name=APPLICATION_SECTION_NAME, components=[application_question])],
+                enable_public_sign_up=True,
+                eligibility=EligibilitySection(question=eligibility_question, qualifying_answer="Yes"),
+                set_live=True,
+            ),
+        ),
+        sign_out_after=True,
+    )
 
-    all_grants_page = AllGrantsPage(page, domain)
-    all_grants_page.navigate()
-    create_grant(grant_name, grant_name_uuid, all_grants_page)
-    grant_id = extract_uuid_from_url(page.url, r"/grant/(?P<uuid>[a-f0-9-]+)")
-
-    pre_award_forms_page = GrantPreAwardFormsPage(page, domain, grant_name)
-    pre_award_forms_page.navigate(grant_id)
-    method_page = pre_award_forms_page.click_add_form()
-    add_form_page = method_page.click_create_new()
-    add_form_page.fill_in_form_name(COLLECTION_NAME)
-    pre_award_forms_page = add_form_page.click_submit(grant_name)
-
-    # Add a section with a single question to the application form
-    add_section_page = pre_award_forms_page.click_add_section(COLLECTION_NAME, grant_name)
-    add_section_page.fill_in_section_name(APPLICATION_SECTION_NAME)
-    form_sections_page = add_section_page.click_add_section()
-    manage_section_page = form_sections_page.click_manage_section(APPLICATION_SECTION_NAME)
-    create_question_or_group(application_question, manage_section_page)
-
-    # Turn on public sign up - this auto-creates the "Eligibility questions" section
-    pre_award_forms_page.navigate(grant_id)
-    manage_collection_page = pre_award_forms_page.click_manage_settings(COLLECTION_NAME)
-    collection_id = extract_uuid_from_url(page.url, r"/applications/(?P<uuid>[a-f0-9-]+)")
-    public_sign_up_settings_page = manage_collection_page.click_change_public_sign_up()
-    public_sign_up_url = public_sign_up_settings_page.get_public_sign_up_url()
-    public_sign_up_settings_page.select_allow_public_sign_up(True)
-    public_sign_up_settings_page.click_save()
-
-    # Add the eligibility question, and set "Yes" as the qualifying answer
-    form_sections_page = navigate_to_pre_award_sections_page(page, domain, grant_name, COLLECTION_NAME)
-    manage_section_page = form_sections_page.click_manage_section(ELIGIBILITY_SECTION_NAME)
-    create_question_or_group(eligibility_question, manage_section_page)
-
-    edit_question_page = manage_section_page.click_edit_question(eligibility_question["text"])
-    add_eligibility_page = edit_question_page.click_set_eligibility_condition()
-    add_eligibility_page.click_eligible_answer("Yes")
-    add_eligibility_page.click_save()
-
-    # Make the grant and collection live via admin
-    grant_settings_page = PlatformAdminGrantSettingsPage(page, domain, grant_id)
-    grant_settings_page.navigate()
-    grant_settings_page.select_grant_status(GrantStatusEnum.LIVE)
-    grant_settings_page.click_save()
-
-    report_settings_page = PlatformAdminReportSettingsPage(page, domain, collection_id)
-    report_settings_page.navigate()
-    report_settings_page.select_collection_status(CollectionStatusEnum.OPEN)
-    report_settings_page.click_save()
-
-    _shared_setup_data = {
-        "grant_name": grant_name,
-        "grant_name_uuid": grant_name_uuid,
-        "grant_id": grant_id,
-        "collection_id": collection_id,
-        "public_sign_up_url": public_sign_up_url,
-    }
-
-
-def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secrets: EndToEndTestSecrets) -> None:
-    """A member of the public with no existing organisation match starts a public sign up, signs in via a magic
-    link, answers the eligibility question (including a wrong answer that's corrected after hitting the
-    ineligible page), creates a new organisation with domain sign up enabled, and fills in and submits the
-    application."""
-    global _shared_setup_data
-    assert _shared_setup_data is not None, "Setup test must run first"
-    data = _shared_setup_data
-
-    page.goto(data["public_sign_up_url"])
+    assert handle.public_sign_up_url
+    page.goto(handle.public_sign_up_url)
     start_page = PublicSignUpStartPage(page, domain)
     expect(start_page.start_now_button).to_be_visible()
     request_a_link_page = start_page.click_start_now()
@@ -212,9 +137,14 @@ def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secre
     allow_team_members_page.click_yes()
     allow_team_members_page.click_continue()
 
-    handle_optional_user_name_step(
-        page, domain, "E2E Test Applicant One", next_heading_name="Confirm your details are correct"
-    )
+    # The "what is your full name?" step only appears the first time a given user ever completes a public sign
+    # up - once the name is set on that first run, it's never asked again.
+    user_name_page = CreateOrganisationUserNamePage(page, domain)
+    check_your_answers_heading = page.get_by_role("heading", name="Confirm your details are correct")
+    expect(user_name_page.heading.or_(check_your_answers_heading)).to_be_visible()
+    if user_name_page.heading.is_visible():
+        user_name_page.fill_user_name("E2E Test Applicant One")
+        user_name_page.click_continue()
 
     check_your_answers_page = CreateOrganisationCheckYourAnswersPage(page, domain)
     expect(check_your_answers_page.heading).to_be_visible()
@@ -228,34 +158,24 @@ def test_public_sign_up_new_organisation(page: Page, domain: str, e2e_test_secre
 
     # Fill in and submit the application
     grant_page = AccessGrantPage(page, domain)
-    grant_page.click_collection(COLLECTION_NAME)
+    grant_page.click_collection(collection_name)
 
-    tasklist_page = RunnerTasklistPage(page, domain, data["grant_name"], COLLECTION_NAME)
+    tasklist_page = RunnerTasklistPage(page, domain, handle.grant_name, collection_name)
     expect(tasklist_page.heading).to_be_visible()
-    complete_task(tasklist_page, APPLICATION_SECTION_NAME, data["grant_name"], [application_question])
-    task_check_your_answers(tasklist_page, data["grant_name"], COLLECTION_NAME, [application_question])
+    complete_task(tasklist_page, APPLICATION_SECTION_NAME, handle.grant_name, [application_question])
+    task_check_your_answers(tasklist_page, handle.grant_name, collection_name, [application_question])
 
     confirm_submit_page = tasklist_page.click_submit_for_direct_submission()
     confirmation_page = confirm_submit_page.click_confirm_and_submit()
     expect(confirmation_page.heading).to_be_visible()
 
-    _shared_setup_data = {
-        **data,
-        "org_name": org_name,
-    }
+    # Tidy up the organisation and grant recipient created by this self-service journey (the grant itself is
+    # cleaned up automatically by build_grant_scenario).
+    page.goto(f"{domain}/sign-out")
+    if e2e_test_secrets.E2E_ENV == "local":
+        login_with_stub_sso(domain, page, email, DeliverGrantFundingUserType.PLATFORM_ADMIN)
+    else:
+        login_with_session_cookie(page, domain, e2e_test_secrets, DeliverGrantFundingUserType.PLATFORM_ADMIN)
 
-
-def test_public_sign_up_cleanup(
-    page: Page,
-    domain: str,
-    e2e_test_secrets: EndToEndTestSecrets,
-    authenticated_browser_sso: E2ETestUser,
-    email: str,
-) -> None:
-    """Tidy up the grant, organisation and grant recipient created during this journey."""
-    if _shared_setup_data is None:
-        pytest.skip("No setup data to clean up")
-
-    delete_grant_recipient_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
-    delete_organisation_through_admin(page, domain, _shared_setup_data["org_name"])
-    delete_grant_through_admin(page, domain, _shared_setup_data["grant_name_uuid"])
+    delete_grant_recipient_through_admin(page, domain, handle.grant_name_uuid)
+    delete_organisation_through_admin(page, domain, org_name)
