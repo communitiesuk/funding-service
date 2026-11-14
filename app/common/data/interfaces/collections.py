@@ -1768,9 +1768,23 @@ def raise_if_component_or_section_has_any_dependencies(component_or_form: Questi
     # Only consider references whose dependent component is *outside* the subtree being deleted.
     # Internal references (e.g. a group validation that references its own child questions) will be
     # cascaded away alongside the subtree, so they should not block deletion.
+    # References to individual options of a CUSTOM data source owned by a component in the subtree must also block
+    # deletion, as deleting the component deletes its CUSTOM data source and all of its items.
+    owned_data_source_item_ids = (
+        select(DataSourceItem.id)
+        .join(DataSource, DataSource.id == DataSourceItem.data_source_id)
+        .join(Component, Component.data_source_id == DataSource.id)
+        .where(Component.id.in_(child_components_ids))
+        .where(DataSource.type == DataSourceType.CUSTOM)
+    )
     component_reference = (
         db.session.query(ComponentReference)
-        .where(ComponentReference.depends_on_component_id.in_(child_components_ids))
+        .where(
+            or_(
+                ComponentReference.depends_on_component_id.in_(child_components_ids),
+                ComponentReference.depends_on_data_source_item_id.in_(owned_data_source_item_ids),
+            )
+        )
         .where(ComponentReference.component_id.notin_(child_components_ids))
         .all()
     )
@@ -2707,12 +2721,18 @@ def delete_form(form: Form) -> None:
 @flush_and_rollback_on_exceptions
 def delete_question(question: Question | Group) -> None:
     raise_if_component_or_section_has_any_dependencies(question)
-    if question.data_source and question.data_source.type == DataSourceType.CUSTOM:
-        db.session.delete(question.data_source)
-    db.session.delete(question)
-    if question in question.container.components:
-        question.container.components.remove(question)
-    question.container.components.reorder()
+    # Mark everything for deletion before flushing so that the unit of work can order the deletes correctly: the
+    # question's own component references (e.g. conditions referencing its own data source items) must be deleted
+    # before the data source items they point at. An autoflush part-way through would delete the items first and
+    # violate the component_reference -> data_source_item foreign key.
+    with db.session.no_autoflush:
+        data_source = question.data_source
+        db.session.delete(question)
+        if data_source and data_source.type == DataSourceType.CUSTOM:
+            db.session.delete(data_source)
+        if question in question.container.components:
+            question.container.components.remove(question)
+        question.container.components.reorder()
     db.session.execute(text("SET CONSTRAINTS uq_component_order_form DEFERRED"))
 
 
