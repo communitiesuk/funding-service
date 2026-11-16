@@ -782,6 +782,24 @@ class EligibilityFormRunner(FormRunner):
             return False
         return True
 
+    def to_url(
+        self,
+        state: FormRunnerState,
+        *,
+        question: Question | None = None,
+        form: Form | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        action: str | None = None,
+    ) -> str:
+        # Eligibility sections have no tasklist or report page to route to. Raise error if they are hit.
+        if state in (FormRunnerState.TASKLIST, FormRunnerState.VIEW_REPORT_PAGE):
+            raise RuntimeError(f"Eligibility sections don't support {state}")
+
+        return super().to_url(
+            state, question=question, form=form, source=source, add_another_index=add_another_index, action=action
+        )
+
     url_map: ClassVar[TRunnerUrlMap] = {
         FormRunnerState.QUESTION: (
             lambda runner, question, _form, _source, add_another_index, action, check_entries: url_for(
@@ -794,7 +812,7 @@ class EligibilityFormRunner(FormRunner):
                 check_entries=check_entries,
             )
         ),
-        # Should not be hit, but if it is, redirect to the public sign up router
+        # Eligibility sections have no tasklist - `to_url` raises before this is ever reached.
         FormRunnerState.TASKLIST: (
             lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
                 "access_grant_funding.public_sign_up_router",
@@ -810,7 +828,7 @@ class EligibilityFormRunner(FormRunner):
                 collection_slug=runner.submission.collection.slug,
             )
         ),
-        # Should not be hit, but if it is, redirect to the public sign up router
+        # Eligibility sections have no report page - `to_url` raises before this is ever reached.
         FormRunnerState.VIEW_REPORT_PAGE: (
             lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
                 "access_grant_funding.public_sign_up_router",
