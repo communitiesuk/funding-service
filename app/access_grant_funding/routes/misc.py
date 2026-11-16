@@ -39,6 +39,7 @@ from app.common.forms import GenericSubmitForm
 from app.common.helpers.collections import (
     SubmissionHelper,
     get_or_create_unclaimed_submission,
+    get_or_create_unclaimed_submission_id,
     get_unclaimed_submission_for_user,
 )
 from app.common.markdown import convert_text_to_govuk_markup
@@ -566,10 +567,10 @@ def public_sign_up_eligibility_question(
     submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
     check_entries = request.args.get("check_entries", type=int)
 
-    submission_helper = get_or_create_unclaimed_submission(user, collection, submission_mode)
+    submission_id = get_or_create_unclaimed_submission_id(user, collection, submission_mode)
 
     runner = EligibilityFormRunner.load(
-        submission_id=submission_helper.id,
+        submission_id=submission_id,
         question_id=question_id,
         add_another_index=add_another_index,
         is_removing=action == "remove",

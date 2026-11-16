@@ -61,6 +61,7 @@ from app.common.helpers.collections import (
     claim_or_discard_unclaimed_submission,
     eligibility_answers_currently_pass,
     get_or_create_unclaimed_submission,
+    get_or_create_unclaimed_submission_id,
 )
 from app.common.helpers.submission_events import SubmissionEventHelper
 from app.metrics import MetricEventName
@@ -4794,3 +4795,37 @@ class TestGetOrCreateUnclaimedSubmission:
         test_helper = get_or_create_unclaimed_submission(user, collection, SubmissionModeEnum.TEST)
 
         assert live_helper.submission.id != test_helper.submission.id
+
+
+class TestGetOrCreateUnclaimedSubmissionId:
+    def test_creates_new_unclaimed_submission_when_none_exists(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+
+        submission_id = get_or_create_unclaimed_submission_id(user, collection, SubmissionModeEnum.LIVE)
+
+        submission = interfaces.collections.get_submission(submission_id=submission_id)
+        assert submission.created_by_id == user.id
+        assert submission.collection_id == collection.id
+        assert submission.mode == SubmissionModeEnum.LIVE
+        assert submission.grant_recipient_id is None
+
+    def test_returns_existing_unclaimed_submission_instead_of_creating_another(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+        existing = factories.submission.create(
+            collection=collection, created_by=user, mode=SubmissionModeEnum.LIVE, grant_recipient=None
+        )
+
+        submission_id = get_or_create_unclaimed_submission_id(user, collection, SubmissionModeEnum.LIVE)
+
+        assert submission_id == existing.id
+
+    def test_creates_separate_unclaimed_submissions_per_mode(self, factories):
+        user = factories.user.create()
+        collection = factories.collection.create()
+
+        live_submission_id = get_or_create_unclaimed_submission_id(user, collection, SubmissionModeEnum.LIVE)
+        test_submission_id = get_or_create_unclaimed_submission_id(user, collection, SubmissionModeEnum.TEST)
+
+        assert live_submission_id != test_submission_id

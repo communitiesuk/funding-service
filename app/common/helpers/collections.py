@@ -1852,9 +1852,7 @@ def claim_or_discard_unclaimed_submission(
         claim_submission_for_grant_recipient(unclaimed, grant_recipient)
 
 
-def get_or_create_unclaimed_submission(
-    user: User, collection: Collection, mode: SubmissionModeEnum
-) -> SubmissionHelper:
+def get_or_create_unclaimed_submission_id(user: User, collection: Collection, mode: SubmissionModeEnum) -> uuid.UUID:
     # Acquire a transaction-scoped advisory lock keyed on (user, collection, mode) BEFORE reading submissions.
     # This prevents the double-click race condition: without the lock, two concurrent requests can both read no
     # unclaimed submission and each proceed to create one before either commits. The lock serialises them so the
@@ -1867,11 +1865,16 @@ def get_or_create_unclaimed_submission(
 
     unclaimed = get_unclaimed_submission_for_user(user, collection, mode)
     if unclaimed:
-        submission_id = unclaimed.id
-    else:
-        submission = create_submission(collection=collection, created_by=user, mode=mode, grant_recipient=None)
-        submission_id = submission.id
+        return unclaimed.id
 
+    submission = create_submission(collection=collection, created_by=user, mode=mode, grant_recipient=None)
+    return submission.id
+
+
+def get_or_create_unclaimed_submission(
+    user: User, collection: Collection, mode: SubmissionModeEnum
+) -> SubmissionHelper:
+    submission_id = get_or_create_unclaimed_submission_id(user, collection, mode)
     return SubmissionHelper.load(submission_id)
 
 
