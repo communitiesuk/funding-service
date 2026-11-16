@@ -592,10 +592,14 @@ def public_sign_up_eligibility_question(
         runner.question_with_add_another_summary_form
         and runner.question_with_add_another_summary_form.validate_on_submit()
     ):
+        # todo: review the logic here, almost everything here feels like it should be encapsulated
+        #       in the runner with increasing workarounds here
         success = True
         if runner.is_removing:
             success = runner.save_add_another()
         elif not runner.add_another_summary_context:
+            # todo: save question answer could aways no-op if theres nothing to save which would make this code
+            #       more straight forward
             success = runner.save_question_answer(user)
 
         if success:
