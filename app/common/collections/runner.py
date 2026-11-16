@@ -774,6 +774,43 @@ class AGFFormRunner(FormRunner):
 
 
 class EligibilityFormRunner(FormRunner):
+    @classmethod
+    def load(
+        cls,
+        *,
+        submission_id: UUID,
+        question_id: UUID | None = None,
+        form_id: UUID | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        grant_recipient_id: UUID | None = None,
+        is_removing: bool = False,
+        is_clearing: bool = False,
+        check_entries: int | None = None,
+    ) -> "EligibilityFormRunner":
+        form_runner = cast(
+            "EligibilityFormRunner",
+            super().load(
+                submission_id=submission_id,
+                question_id=question_id,
+                form_id=form_id,
+                source=source,
+                add_another_index=add_another_index,
+                grant_recipient_id=grant_recipient_id,
+                is_removing=is_removing,
+                is_clearing=is_clearing,
+                check_entries=check_entries,
+            ),
+        )
+
+        if form_runner.form and not form_runner.form.is_eligibility_section:
+            raise ValueError(
+                f"EligibilityFormRunner can only load questions belonging to the eligibility section, "
+                f"got form_id={form_runner.form.id}"
+            )
+
+        return form_runner
+
     @property
     def can_edit(self) -> bool:
         # Eligibility questions are answered against an unclaimed submission with no grant_recipient yet, so

@@ -4012,6 +4012,30 @@ class TestPublicSignUpEligibilityQuestion:
 
         assert response.status_code == 404
 
+    def test_raises_for_question_not_belonging_to_eligibility_section(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.form.create(collection=collection, is_eligibility_section=True)
+        application_form = factories.form.create(collection=collection, is_eligibility_section=False)
+        question = factories.question.create(form=application_form, data_type=QuestionDataType.YES_NO)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        with pytest.raises(
+            ValueError, match="EligibilityFormRunner can only load questions belonging to the eligibility section"
+        ):
+            authenticated_no_role_client.get(
+                url_for(
+                    "access_grant_funding.public_sign_up_eligibility_question",
+                    grant_slug=grant.slug,
+                    collection_slug=collection.slug,
+                    question_id=question.id,
+                )
+            )
+
     def test_get_renders_question(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug", name="Test grant name")
         collection = factories.collection.create(
