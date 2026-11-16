@@ -13,7 +13,7 @@
     {% if number_of_organisations > 1 %}
       {% do org_right_nav_items.append({"href":url_for('access_grant_funding.list_organisations'), "text":"Change organisation"}) %}
     {% endif %}
-    {{ serviceNavigationWithRightItems({"serviceName":grant_recipient.organisation.name}, org_right_nav_items) }}
+    {{ serviceNavigationWithRightItemsNoMenu({"serviceName":grant_recipient.organisation.name}, org_right_nav_items) }}
 
     {% set grant = grant_recipient.grant %}
     {% set grant_right_nav_items=[] %}
@@ -22,7 +22,7 @@
       {% do grant_right_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
     {% endif %}
     {{
-      serviceNavigationWithRightItems({
+      serviceNavigationWithRightItemsNoMenu({
       "serviceName": grant.name,
       "navigation": []}, grant_right_nav_items)
     }}
@@ -69,7 +69,7 @@
   {% endif %}
   {% if grant_name %}
     {{
-      serviceNavigationWithRightItems({
+      serviceNavigationWithRightItemsNoMenu({
             "serviceName": grant_name,
             "navigation": [],
             }, [
@@ -118,15 +118,14 @@
   {{ govukServiceNavigation(nav_params) }}
 {% endmacro %}
 {# Same as above, but any right nav items will wrap together, and appear outside the collapsed menu on a narrow screen #}
-{% macro serviceNavigationWithRightItems2(params, right_nav_items=[]) %}
+{% macro serviceNavigationWithRightItemsNoMenu(params, right_nav_items=[]) %}
   <section aria-label="Service information" class="govuk-service-navigation" data-module="govuk-service-navigation">
     <div class="govuk-width-container govuk-service-navigation__inlining-container">
       <div class="govuk-service-navigation__container">
         {% if params.serviceName %}
           <span class="govuk-service-navigation__service-name"> {{ params.serviceName }} </span>
         {% endif %}
-        <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
-          <button type="button" class="govuk-service-navigation__toggle govuk-js-service-navigation-toggle" aria-controls="navigation" hidden aria-hidden="true">Menu</button>
+        <nav aria-label="" class="govuk-service-navigation__wrapper">
           {% if params.navigation | length > 0 %}
             <ul class="govuk-service-navigation__list" id="navigation">
               {% for item in params.navigation %}
@@ -141,7 +140,7 @@
         </nav>
         {% if right_nav_items | length >=1 %}
           <nav aria-label="Put something here" class="govuk-service-navigation__wrapper">
-            <ul class="govuk-service-navigation__list govuk-service-navigation__list--right-nav" id="navigation">
+            <ul class="govuk-service-navigation__list govuk-service-navigation__list--right-nav-outside-menu">
               {% for item in right_nav_items %}
                 <li class="govuk-service-navigation__item ">
                   <a class="govuk-service-navigation__link" href="{{ item.href }}" aria-current="false">
