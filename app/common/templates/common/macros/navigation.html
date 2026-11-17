@@ -12,15 +12,15 @@
     {% endif %}
     {% do right_nav_items.append({"text": "Sign out", "href": url_for("auth.sign_out")}) %}
   {% endif %}
-  {% if grant_recipient %}
-    {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
-
-    {# we'll use the custom top nav as we'll be showing the grant nav below it #}
+  {% if organisation or grant_recipient %}
     {% set org_right_nav_items=[] %}
     {% if number_of_organisations > 1 %}
       {% do org_right_nav_items.append({"href":url_for('access_grant_funding.list_organisations'), "text":"Change organisation"}) %}
     {% endif %}
-    {{ serviceNavigationWithRightItemsNoMenu({"serviceName":grant_recipient.organisation.name}, org_right_nav_items) }}
+    {{ serviceNavigationWithRightItems({"serviceName":organisation.name if organisation else grant_recipient.organisation.name}, org_right_nav_items, "orgNav") }}
+  {% endif %}
+  {% if grant_recipient %}
+    {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
 
     {% set grant = grant_recipient.grant %}
     {% set grant_right_nav_items=[] %}
@@ -29,33 +29,17 @@
       {% do grant_right_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
     {% endif %}
     {{
-      serviceNavigationWithRightItemsNoMenu({
+      serviceNavigationWithRightItems({
       "serviceName": grant.name,
-      "navigation": []}, grant_right_nav_items)
+      "navigation": []}, grant_right_nav_items, navigationId="grantNav")
     }}
-  {% else %}
-
-    {#    TODO do we need this block? #}
-    {% if number_of_organisations > 1 and organisation %}
-      {# we use the standard service nav because we aren't above the grant nav and want standard menu and styles #}
-      {{
-        govukServiceNavigation({
-            "serviceName": organisation.name,
-            "serviceUrl": "#",
-            "navigation": [{ "text": "Change organisation", "href": url_for('access_grant_funding.list_organisations') }],
-            "collapseNavigationOnMobile": true,
-            "navigationClasses": "app-service-navigation__wrapper--sectional",
-            "attributes": { "id": "org-nav" }
-        })
-      }}
-    {% endif %}
   {% endif %}
   {{
     serviceNavigationWithRightItems({
         "navigation": nav_items,
         "navigationClasses": navigation_classes,
         "attributes": { "id": "access-nav" }
-    },right_nav_items )
+    },right_nav_items, "navigation" )
   }}
 {% endmacro %}
 
@@ -69,19 +53,19 @@
   {% endif %}
   {% if grant_name %}
     {{
-      serviceNavigationWithRightItemsNoMenu({
+      serviceNavigationWithRightItems({
             "serviceName": grant_name,
             "navigation": [],
             }, [
         {"text": "Change grant", "href":url_for("deliver_grant_funding.list_grants")}
-      ])
+      ], "grantNav")
     }}
   {% endif %}
   {{ serviceNavigationWithRightItems({"navigation": nav_items}, right_nav_items) }}
 {% endmacro %}
 
 {# Takes the same dict of params as the govukServiceNavigation macro #}
-{% macro serviceNavigationWithRightItems(params, right_nav_items=[]) %}
+{% macro serviceNavigationWithRightItems(params, right_nav_items=[], navigationId="navigation") %}
   {% set nav_params = dict(params) %}
 
   {% if right_nav_items %}
@@ -109,6 +93,7 @@
     {% endif %}
     {% do nav_params.update({"navigationClasses": navigation_classes}) %}
   {% endif %}
+  {% do nav_params.update({"navigationId":navigationId}) %}
 
   {% if params.collapseNavigationOnMobile is not defined %}
     {% set number_of_nav_items = (params.navigation or []) | length %}
@@ -116,42 +101,4 @@
     {% do nav_params.update({"collapseNavigationOnMobile": number_of_nav_items + number_of_right_nav_items > 1}) %}
   {% endif %}
   {{ govukServiceNavigation(nav_params) }}
-{% endmacro %}
-{# Same as above, but any right nav items will wrap together, and appear outside the collapsed menu on a narrow screen #}
-{% macro serviceNavigationWithRightItemsNoMenu(params, right_nav_items=[]) %}
-  <section aria-label="Service information" class="govuk-service-navigation" data-module="govuk-service-navigation">
-    <div class="govuk-width-container govuk-service-navigation__inlining-container">
-      <div class="govuk-service-navigation__container">
-        {% if params.serviceName %}
-          <span class="govuk-service-navigation__service-name"> {{ params.serviceName }} </span>
-        {% endif %}
-        <nav aria-label="" class="govuk-service-navigation__wrapper">
-          {% if params.navigation | length > 0 %}
-            <ul class="govuk-service-navigation__list" id="navigation">
-              {% for item in params.navigation %}
-                <li class="govuk-service-navigation__item {{ 'govuk-service-navigation__item--active' if item.active == true else '' }}">
-                  <a class="govuk-service-navigation__link" href="{{ item.href }}" aria-current="{{ item.active == true }}">
-                    <strong class="govuk-service-navigation__active-fallback">{{ item.text }}</strong>
-                  </a>
-                </li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        </nav>
-        {% if right_nav_items | length >=1 %}
-          <nav aria-label="Put something here" class="govuk-service-navigation__wrapper">
-            <ul class="govuk-service-navigation__list govuk-service-navigation__list--right-nav-outside-menu">
-              {% for item in right_nav_items %}
-                <li class="govuk-service-navigation__item ">
-                  <a class="govuk-service-navigation__link" href="{{ item.href }}" aria-current="false">
-                    <strong class="govuk-service-navigation__active-fallback">{{ item.text }}</strong>
-                  </a>
-                </li>
-              {% endfor %}
-            </ul>
-          </nav>
-        {% endif %}
-      </div>
-    </div>
-  </section>
 {% endmacro %}
