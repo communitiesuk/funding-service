@@ -82,7 +82,10 @@ class AnyStringMatching(RestrictedAny):
     True
     """
 
-    _cached_re_compile = staticmethod(lru_cache(maxsize=32)(re.compile))
+    @staticmethod
+    @lru_cache(maxsize=32)
+    def _cached_re_compile(*args: Any, **kwargs: Any) -> Pattern[Any]:
+        return re.compile(*args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         """
