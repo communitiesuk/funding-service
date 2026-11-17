@@ -29,7 +29,7 @@ def upgrade() -> None:
     )
     op.execute("DELETE FROM data_source WHERE type IN ('STATIC', 'PROJECT_LEVEL')")
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="data_source_type_enum",
         new_values=["CUSTOM", "GRANT_RECIPIENT"],
@@ -55,7 +55,7 @@ def downgrade() -> None:
             type_="check",
         )
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="data_source_type_enum",
         new_values=["CUSTOM", "STATIC", "GRANT_RECIPIENT", "PROJECT_LEVEL"],

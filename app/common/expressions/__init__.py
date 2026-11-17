@@ -596,7 +596,7 @@ def get_restricted_evaluator(
     # Remove all nodes except those we explicitly allowlist
     evaluator.nodes = {
         ast_expr: ast_fn
-        for ast_expr, ast_fn in evaluator.nodes.items()  # ty:ignore[unresolved-attribute]
+        for ast_expr, ast_fn in evaluator.nodes.items()  # ty:ignore[missing-union-attribute]
         if ast_expr
         in {
             ast.UnaryOp,

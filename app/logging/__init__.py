@@ -125,7 +125,7 @@ def init_app(app: Flask, log_config: dict[str, Any] | None = None) -> None:
     logging.captureWarnings(True)
     route_loggers_through_app(app, ["py.warnings"], level=logging.WARNING)
 
-    app.wsgi_app = CorrelationMiddleware(app, app.wsgi_app)  # ty: ignore[invalid-assignment]
+    app.wsgi_app = CorrelationMiddleware(app, app.wsgi_app)
     attach_request_loggers(app)
 
     user_logged_in.connect(_bind_logged_in_user, app)

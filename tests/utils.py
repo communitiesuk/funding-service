@@ -49,7 +49,7 @@ class RestrictedAny:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._condition})"
 
-    def __hash__(self) -> None:  # ty: ignore[invalid-method-override]
+    def __hash__(self) -> None:  # ty: ignore[incompatible-method-override]
         return None
 
 
@@ -82,7 +82,10 @@ class AnyStringMatching(RestrictedAny):
     True
     """
 
-    _cached_re_compile = staticmethod(lru_cache(maxsize=32)(re.compile))
+    @staticmethod
+    @lru_cache(maxsize=32)
+    def _cached_re_compile(*args: Any, **kwargs: Any) -> Pattern[Any]:
+        return re.compile(*args, **kwargs)
 
     def __init__(self, *args, **kwargs) -> None:
         """

@@ -192,22 +192,22 @@ def replace_uploaded_data_source(
 
     data_source.file_metadata = DataSourceFileMetadata(s3_key=s3_key, original_filename=original_filename)
     if new_columns:
-        data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[unresolved-attribute]
+        data_source.schema.root.update(_build_schema_from_column_mappings(new_columns).root)  # ty:ignore[missing-union-attribute]
         flag_modified(data_source, "schema")
 
     for removed_column_id in [
         k
-        for k, v in data_source.schema.root.items()  # ty:ignore[unresolved-attribute]
+        for k, v in data_source.schema.root.items()  # ty:ignore[missing-union-attribute]
         if v.original_column_name not in all_headers
     ]:
-        data_source.schema.root.pop(removed_column_id)  # ty:ignore[unresolved-attribute]
+        data_source.schema.root.pop(removed_column_id)  # ty:ignore[missing-union-attribute]
         flag_modified(data_source, "schema")
 
     _update_schema_column_order(data_source, all_headers)
 
     all_column_mappings = [
         DataSetColumnMapping.build_from_data_source_schema_column(schema_column)
-        for schema_column in data_source.schema.ordered_values()  # ty:ignore[unresolved-attribute]
+        for schema_column in data_source.schema.ordered_values()  # ty:ignore[missing-union-attribute]
     ]
 
     # delete all existing data source org items as the IDs aren't referenced, just column names
@@ -250,7 +250,7 @@ def get_data_source_list_for_collection(collection_id: uuid.UUID) -> Sequence[Li
             DataSource.name,
             DataSource.updated_at_utc,
             func.coalesce(user_updated.name, user_created.name).label("uploaded_by_name"),
-            DataSource.has_missing_data().label("has_missing_data"),  # ty:ignore[unresolved-attribute]
+            DataSource.has_missing_data().label("has_missing_data"),  # ty:ignore[missing-attribute]
         )
         .outerjoin(user_created, DataSource.created_by_id == user_created.id)
         .outerjoin(user_updated, DataSource.updated_by_id == user_updated.id)

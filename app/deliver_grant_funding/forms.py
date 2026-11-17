@@ -1273,7 +1273,7 @@ class UploadDataSetForm(FlaskForm):
             if not new_org_item_row:
                 raise ValidationError(f"The file does not contain a row for grant recipient {org.name}")
 
-            for column_id, column_def in existing_datasource.schema.root.items():  # ty:ignore[unresolved-attribute]
+            for column_id, column_def in existing_datasource.schema.root.items():  # ty:ignore[missing-union-attribute]
                 orig_col_name = column_def.original_column_name
                 existing_value_answer = (
                     existing_org_item.data[column_id] if column_id in existing_org_item.data else None
@@ -1359,7 +1359,7 @@ class UploadDataSetForm(FlaskForm):
 
         for dependent_reference in existing_datasource.depended_on_by_columns:
             if dependent_reference.depends_on_column_name not in fieldnames_to_safe_ids.values():
-                column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[unresolved-attribute, invalid-argument-type]
+                column = existing_datasource.schema.root[dependent_reference.depends_on_column_name]  # ty:ignore[missing-union-attribute, invalid-argument-type]
                 col_name = column.original_column_name
                 q_text = dependent_reference.component.name
                 usage_text = "used in "
@@ -1390,7 +1390,7 @@ class UploadDataSetForm(FlaskForm):
     ) -> list[str]:
         safe_ids_to_column_names = {safe_column_id(fieldname): fieldname for fieldname in fieldnames}
         data_errors = []
-        for col_safe_id, column_schema in datasource.schema.root.items():  # ty:ignore[unresolved-attribute]
+        for col_safe_id, column_schema in datasource.schema.root.items():  # ty:ignore[missing-union-attribute]
             if col_safe_id in safe_ids_to_column_names.keys():
                 column_mapping = DataSetColumnMapping.build_from_data_source_schema_column(column_schema)
                 for row in rows:
@@ -1478,7 +1478,7 @@ class ColumnDataTypeMappingForm(FlaskForm):
     # Our template sets the CSRF token for the main MapDataSetColumnsForm, which includes any number of these mini forms
     # for the individual column select fields. We need to set csrf=False for the mini forms so the POST requests don't
     # expect a CSRF for every single one, just the main form.
-    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
+    class Meta:  # ty: ignore[incompatible-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         csrf = False
 
     column_name = HiddenField()
@@ -1571,7 +1571,7 @@ class MapDataSetColumnsForm(FlaskForm):
 
 
 class NumberColumnOptionsForm(FlaskForm):
-    class Meta:  # ty: ignore[invalid-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
+    class Meta:  # ty: ignore[incompatible-attribute-override]  # https://github.com/astral-sh/ty/issues/4711
         csrf = False
 
     column_name = HiddenField()

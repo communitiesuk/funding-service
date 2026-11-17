@@ -1229,7 +1229,7 @@ def _update_data_source(question: Question, items: list[str]) -> None:
     for item_to_delete in to_delete:
         db.session.delete(item_to_delete)
     question.data_source.items = new_choices
-    question.data_source.items.reorder()  # ty: ignore[unresolved-attribute]
+    question.data_source.items.reorder()  # ty: ignore[missing-attribute]
 
 
 @flush_and_rollback_on_exceptions
@@ -1269,7 +1269,7 @@ def create_question(
         #       are not because of duplicated values - the convention based method doesn't feel ideal but this setup
         #       is already working on a few assumptions of things lining up in different places. This just raises
         #       the ORM error if we're not guessing its a duplicate value error based on it being a unique constraint
-        if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # ty: ignore[unresolved-attribute]
+        if e.orig.diag and e.orig.diag.constraint_name and e.orig.diag.constraint_name.startswith("uq_"):  # ty: ignore[missing-attribute]
             raise DuplicateValueError(e) from e
         raise e
 
@@ -2479,8 +2479,8 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
         # self-reference — it would create a bogus ComponentReference row that falsely blocks
         # deletion and same-page grouping.
 
-        referenced_question = expr_impl.subject_reference.question  # ty:ignore[unresolved-attribute]
-        referenced_data_set_ref = expr_impl.subject_reference.data_source_reference  # ty:ignore[unresolved-attribute]
+        referenced_question = expr_impl.subject_reference.question  # ty:ignore[missing-union-attribute]
+        referenced_data_set_ref = expr_impl.subject_reference.data_source_reference  # ty:ignore[missing-union-attribute]
 
         if referenced_question and referenced_question != expression.question:
             referenced_questions.add(referenced_question)
@@ -2500,7 +2500,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 ),
                 expression_type=expression.type_,
                 field_name_for_error_message=field,
-                question_to_test=expr_impl.subject_reference.question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
+                question_to_test=expr_impl.subject_reference.question if expression.is_managed else None,  # ty:ignore[missing-union-attribute]
             )
 
             if referenced_question := valid_reference.question:

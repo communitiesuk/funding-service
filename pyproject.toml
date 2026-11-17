@@ -69,7 +69,7 @@ dev = [
     "import-linter==2.15",
     "pytest==9.1.1",
     "pytest-playwright==0.10.0",
-    "ty==0.0.89",
+    "ty==0.0.100",
     "watchdog[watchmedo]==6.0.0",
 ]
 
@@ -205,3 +205,10 @@ filterwarnings = [
 [tool.ty.src]
 include = ["app", "tests"]
 exclude = ["tests/**/test_*.py"]
+
+# Alembic plugins register operations such as `op.sync_enum_values` at runtime, so ty can't see them.
+[[tool.ty.overrides]]
+include = ["app/common/data/migrations/versions"]
+
+[tool.ty.overrides.rules]
+missing-attribute = "ignore"

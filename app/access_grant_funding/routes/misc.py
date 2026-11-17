@@ -167,7 +167,7 @@ def add_grant_team_member(organisation_id: UUID, grant_id: UUID) -> ResponseRetu
                 upsert_user_by_email(form.email_address.data, name=form.full_name.data)
 
         if AuthorisationHelper.is_access_grant_member(grant_recipient, user_to_add):
-            form.email_address.errors.append(  # ty: ignore[unresolved-attribute]
+            form.email_address.errors.append(  # ty: ignore[missing-attribute]
                 f"This user already has access to {grant_recipient.grant.name}"
             )
         else:

@@ -148,7 +148,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
             field.data.splitlines()[0]
             != "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\tdomains(optional)"
         ):
-            field.errors.append(  # ty: ignore[unresolved-attribute]
+            field.errors.append(  # ty: ignore[missing-attribute]
                 "The header row must be exactly: "
                 "organisation-id\torganisation-name\ttype\tactive-date\tretirement-date\t"
                 "domains(optional)"
@@ -157,7 +157,7 @@ class PlatformAdminBulkCreateOrganisationsForm(FlaskForm):
         try:
             self.get_normalised_organisation_data()
         except Exception as e:
-            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # ty: ignore[unresolved-attribute]
+            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # ty: ignore[missing-attribute]
 
     def get_normalised_organisation_data(self) -> list[OrganisationData]:
         assert self.organisations_data.data
@@ -220,13 +220,13 @@ class PlatformAdminAddSingleOrganisationForm(FlaskForm):
             return False
 
         if OrganisationType(self.organisation_type.data) != OrganisationType.OTHER and not self.organisation_id.data:
-            self.organisation_id.errors.append("Enter the organisation's ID")  # ty: ignore[unresolved-attribute]
+            self.organisation_id.errors.append("Enter the organisation's ID")  # ty: ignore[missing-attribute]
             return False
 
         try:
             self.get_organisation_data()
         except ValueError as e:
-            self.organisation_id.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+            self.organisation_id.errors.append(str(e))  # ty: ignore[missing-attribute]
             return False
 
         return True
@@ -262,7 +262,7 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
         assert field.data
 
         if field.data.splitlines()[0] != "organisation-name\tfirst-name\tlast-name\temail-address":
-            field.errors.append(  # ty: ignore[unresolved-attribute]
+            field.errors.append(  # ty: ignore[missing-attribute]
                 "The header row must be exactly: organisation-name\tfirst-name\tlast-name\temail-address"
             )
             return
@@ -270,7 +270,7 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
         try:
             certifiers_data = self.get_normalised_certifiers_data()
         except Exception as e:
-            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # ty: ignore[unresolved-attribute]
+            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # ty: ignore[missing-attribute]
             return
 
         # Validate all organisation names first before creating any users
@@ -295,7 +295,7 @@ class PlatformAdminCreateCertifiersForm(FlaskForm):
                 invalid_emails.append(email_address)
 
         if invalid_emails:
-            field.errors.append(  # ty: ignore[unresolved-attribute]
+            field.errors.append(  # ty: ignore[missing-attribute]
                 f"Invalid email address(es): {', '.join(invalid_emails)}"
             )
 
@@ -393,7 +393,7 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         assert field.data
 
         if field.data.splitlines()[0] != "organisation-name\tfull-name\temail-address":
-            field.errors.append(  # ty: ignore[unresolved-attribute]
+            field.errors.append(  # ty: ignore[missing-attribute]
                 "The header row must be exactly: organisation-name\tfull-name\temail-address"
             )
             return
@@ -401,7 +401,7 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         try:
             users_data = self.get_normalised_users_data()
         except Exception as e:
-            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # ty: ignore[unresolved-attribute]
+            field.errors.append(f"The tab-separated data is not valid: {str(e)}")  # ty: ignore[missing-attribute]
             return
 
         # Validate all organisation names first before creating any users
@@ -413,7 +413,7 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
         if invalid_orgs:
             unique_invalid_orgs = sorted(set(invalid_orgs))
             for org_name in unique_invalid_orgs:
-                field.errors.append(  # ty: ignore[unresolved-attribute]
+                field.errors.append(  # ty: ignore[missing-attribute]
                     f"Organisation '{org_name}' is not a grant recipient for this grant."
                 )
 
@@ -428,7 +428,7 @@ class PlatformAdminCreateGrantRecipientDataProvidersForm(FlaskForm):
                 invalid_emails.append(email_address)
 
         if invalid_emails:
-            field.errors.append(  # ty: ignore[unresolved-attribute]
+            field.errors.append(  # ty: ignore[missing-attribute]
                 f"Invalid email address(es): {', '.join(invalid_emails)}"
             )
 
@@ -593,16 +593,16 @@ class PlatformAdminSetCollectionReportingDatesForm(FlaskForm):
         if (self.reporting_period_start_date.data or self.reporting_period_end_date.data) and not (
             self.reporting_period_start_date.data and self.reporting_period_end_date.data
         ):
-            self.reporting_period_start_date.errors.append("Set both a reporting start and end date, or neither")  # ty: ignore[unresolved-attribute]
-            self.reporting_period_end_date.errors.append("Set both a reporting start and end date, or neither")  # ty: ignore[unresolved-attribute]
+            self.reporting_period_start_date.errors.append("Set both a reporting start and end date, or neither")  # ty: ignore[missing-attribute]
+            self.reporting_period_end_date.errors.append("Set both a reporting start and end date, or neither")  # ty: ignore[missing-attribute]
             return False
 
         if self.reporting_period_start_date.data and self.reporting_period_end_date.data:
             if self.reporting_period_start_date.data >= self.reporting_period_end_date.data:
-                self.reporting_period_start_date.errors.append(  # ty: ignore[unresolved-attribute]
+                self.reporting_period_start_date.errors.append(  # ty: ignore[missing-attribute]
                     "report period start date must be before reporting period end date"
                 )
-                self.reporting_period_end_date.errors.append(  # ty: ignore[unresolved-attribute]
+                self.reporting_period_end_date.errors.append(  # ty: ignore[missing-attribute]
                     "report period end date must be after reporting period start date"
                 )
                 return False
@@ -641,16 +641,16 @@ class PlatformAdminSetCollectionSubmissionDatesForm(FlaskForm):
         if (self.submission_period_start_date.data or self.submission_period_end_date.data) and not (
             self.submission_period_start_date.data and self.submission_period_end_date.data
         ):
-            self.submission_period_start_date.errors.append("Set both a submission start and end date, or neither")  # ty: ignore[unresolved-attribute]
-            self.submission_period_end_date.errors.append("Set both a submission start and end date, or neither")  # ty: ignore[unresolved-attribute]
+            self.submission_period_start_date.errors.append("Set both a submission start and end date, or neither")  # ty: ignore[missing-attribute]
+            self.submission_period_end_date.errors.append("Set both a submission start and end date, or neither")  # ty: ignore[missing-attribute]
             return False
 
         if self.submission_period_start_date.data and self.submission_period_end_date.data:
             if self.submission_period_start_date.data >= self.submission_period_end_date.data:
-                self.submission_period_start_date.errors.append(  # ty: ignore[unresolved-attribute]
+                self.submission_period_start_date.errors.append(  # ty: ignore[missing-attribute]
                     "Submission period start date must be before submission period end date"
                 )
-                self.submission_period_end_date.errors.append(  # ty: ignore[unresolved-attribute]
+                self.submission_period_end_date.errors.append(  # ty: ignore[missing-attribute]
                     "Submission period start date must be before submission period end date"
                 )
                 return False
