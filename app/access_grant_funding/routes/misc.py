@@ -551,7 +551,16 @@ def public_sign_up_eligibility_question(
     submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
 
     submission_helper = get_or_create_unclaimed_submission(user, collection, submission_mode)
-    question = submission_helper.get_question(question_id)
+
+    # If the question is not found (e.g. a stale or bookmarked link), we return a 404 error
+    try:
+        question = submission_helper.get_question(question_id)
+    except ValueError:
+        current_app.logger.warning(
+            "Could not find eligibility question %(question_id)s in collection %(collection_id)s",
+            {"question_id": question_id, "collection_id": collection.id},
+        )
+        abort(404)
 
     if not submission_helper.is_component_visible(question, submission_helper.cached_evaluation_context):
         # If question is not visible, e.g. after changing the answer to an earlier

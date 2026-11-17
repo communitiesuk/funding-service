@@ -1,3 +1,4 @@
+import uuid
 from io import BytesIO
 
 import pytest
@@ -366,6 +367,23 @@ class TestAskAQuestion:
             )
         )
         assert response.status_code == expected_status_code
+
+    def test_get_ask_a_question_unknown_question_404s(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        question = factories.question.create(form__collection__grant=grant)
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
 
     def test_get_ask_a_question_with_failing_condition_redirects(self, authenticated_grant_admin_client, factories):
         grant = authenticated_grant_admin_client.grant
@@ -1214,6 +1232,23 @@ class TestCheckYourAnswers:
             assert "Check your answers" in soup.text
             assert "What's your favourite colour?" in soup.text
             assert "Colour information" in soup.text
+
+    def test_get_check_your_answers_unknown_form_404s(self, authenticated_grant_admin_client, factories):
+        grant = authenticated_grant_admin_client.grant
+        question = factories.question.create(form__collection__grant=grant)
+        submission = factories.submission.create(
+            collection=question.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        response = authenticated_grant_admin_client.get(
+            url_for(
+                "deliver_grant_funding.check_your_answers",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                form_id=uuid.uuid4(),
+            )
+        )
+        assert response.status_code == 404
 
     def test_get_check_your_answers_with_extracts_add_another(self, authenticated_grant_admin_client, factories):
         question = factories.question.create(

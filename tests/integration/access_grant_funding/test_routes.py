@@ -1550,6 +1550,28 @@ class TestPublicSignUpRouter:
 
         assert response.status_code == 400
 
+    def test_get_eligibility_question_unknown_question_404s(self, authenticated_grant_member_client, factories):
+        grant = authenticated_grant_member_client.grant
+        collection = factories.collection.create(
+            grant=grant,
+            status=CollectionStatusEnum.OPEN,
+            slug="collection-slug",
+            allow_public_sign_up=True,
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        factories.question.create(form=eligibility_form)
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=uuid.uuid4(),
+            )
+        )
+
+        assert response.status_code == 404
+
     def test_get_redirects_to_first_eligibility_question_by_default(self, authenticated_grant_member_client, factories):
         grant = authenticated_grant_member_client.grant
         collection = factories.collection.create(
