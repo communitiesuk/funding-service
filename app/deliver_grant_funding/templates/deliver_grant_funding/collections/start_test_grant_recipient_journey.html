@@ -22,11 +22,11 @@
 
       <p class="govuk-body">Test the {{ type_constants.singular }} as grant recipients will see it in Access grant funding.</p>
 
-      {% if users_existing_grant_recipients %}
+      {% if users_already_testing_grant_recipients %}
         <div class="govuk-inset-text">
-          <p class="govuk-body">You have already started or joined testing this {{ type_constants.singular }} on behalf of:</p>
+          <p class="govuk-body">You have started or joined testing for this {{ type_constants.singular }} as:</p>
           <ul class="govuk-list govuk-list--bullet">
-            {% for grant_recipient in users_existing_grant_recipients %}
+            {% for grant_recipient in users_already_testing_grant_recipients %}
               <li>
                 <a
                   class="govuk-link govuk-link--no-visited-state"

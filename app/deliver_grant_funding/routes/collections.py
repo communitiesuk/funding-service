@@ -229,14 +229,18 @@ def start_test_grant_recipient_journey(
         grant, mode=GrantRecipientModeEnum.TEST, with_organisations=True
     )
 
-    # Lets us give direct links back into Access
-    users_existing_grant_recipients = [
+    form = TestGrantRecipientJourneyForm(test_grant_recipients=test_grant_recipients, collection=collection)
+
+    # Lets us give direct links back into Access for test submissions already in progress for this collection by
+    # organisations the user has access to. The filter to include only grant recipient IDs that have test subsmissions
+    # in progress mean we don't just show all GRs a user has access to, which would silently create a new test
+    # submission where none existed before if they were clicked.
+    users_already_testing_grant_recipients = [
         grant_recipient
         for grant_recipient in user.get_grant_recipients(limit_to_grant_id=grant_id)
         if grant_recipient.mode == GrantRecipientModeEnum.TEST
+        and grant_recipient.id in form.already_testing_grant_recipient_ids
     ]
-
-    form = TestGrantRecipientJourneyForm(test_grant_recipients=test_grant_recipients, collection=collection)
 
     if form.validate_on_submit():
         grant_recipient = next(gr for gr in test_grant_recipients if str(gr.id) == form.organisation.data)
@@ -272,7 +276,7 @@ def start_test_grant_recipient_journey(
         collection=collection,
         form=form,
         test_grant_recipients=test_grant_recipients,
-        users_existing_grant_recipients=users_existing_grant_recipients,
+        users_already_testing_grant_recipients=users_already_testing_grant_recipients,
     )
 
 

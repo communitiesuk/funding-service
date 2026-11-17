@@ -1007,7 +1007,7 @@ class TestGrantRecipientJourneyForm(FlaskForm):
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
-        already_testing_grant_recipient_ids = {
+        self.already_testing_grant_recipient_ids = {
             submission.grant_recipient_id
             for submission in get_all_submissions_with_mode_for_collection(
                 collection_id=collection.id, submission_mode=SubmissionModeEnum.TEST, with_full_schema=False
@@ -1018,7 +1018,7 @@ class TestGrantRecipientJourneyForm(FlaskForm):
             (
                 str(grant_recipient.id),
                 grant_recipient.organisation.name
-                + (" (Already testing)" if grant_recipient.id in already_testing_grant_recipient_ids else ""),
+                + (" (Already testing)" if grant_recipient.id in self.already_testing_grant_recipient_ids else ""),
             )
             for grant_recipient in test_grant_recipients
         ]
