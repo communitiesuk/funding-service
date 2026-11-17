@@ -162,12 +162,12 @@
           {% else %}
             <p class="govuk-body">Preview not available</p>
           {% endif %}
-          {% if collection.allow_public_sign_up and not collection.is_accepting_test_sign_up %}
-            <p class="govuk-body">Test journey not available</p>
-          {% else %}
+          {% if collection.can_test_grant_recipient_journey %}
             <a class="govuk-button govuk-button--secondary" href="{{ url_for('deliver_grant_funding.start_test_grant_recipient_journey', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) }}"
               >{{ "Test application journey" if collection.allow_public_sign_up else "Test grant recipient journey" }}</a
             >
+          {% else %}
+            <p class="govuk-body">Test journey not available</p>
           {% endif %}
         </div>
       </div>
