@@ -851,11 +851,7 @@ class EligibilityFormRunner(FormRunner):
         ),
         # Eligibility sections have no tasklist - `to_url` raises before this is ever reached.
         FormRunnerState.TASKLIST: (
-            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
-                "access_grant_funding.public_sign_up_router",
-                grant_slug=runner.submission.collection.grant.slug,
-                collection_slug=runner.submission.collection.slug,
-            )
+            lambda _runner, _question, _form, _source, _add_another_index, _action, _check_entries: ""
         ),
         # next_url falls back to this state once all eligibility questions have been answered
         FormRunnerState.CHECK_YOUR_ANSWERS: (
@@ -867,10 +863,6 @@ class EligibilityFormRunner(FormRunner):
         ),
         # Eligibility sections have no report page - `to_url` raises before this is ever reached.
         FormRunnerState.VIEW_REPORT_PAGE: (
-            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
-                "access_grant_funding.public_sign_up_router",
-                grant_slug=runner.submission.collection.grant.slug,
-                collection_slug=runner.submission.collection.slug,
-            )
+            lambda _runner, _question, _form, _source, _add_another_index, _action, _check_entries: ""
         ),
     }
