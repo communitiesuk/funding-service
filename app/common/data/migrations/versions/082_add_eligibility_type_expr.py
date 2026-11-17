@@ -29,7 +29,7 @@ def upgrade() -> None:
             postgresql_where="type = 'CONDITION'::expression_type_enum AND managed_name IS NOT NULL",
         )
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(  # ty: ignore[missing-attribute]
         enum_schema="public",
         enum_name="expression_type_enum",
         new_values=["CONDITION", "VALIDATION", "ELIGIBILITY"],
@@ -72,7 +72,7 @@ def downgrade() -> None:
             postgresql_where="type = 'CONDITION'::expression_type_enum AND managed_name IS NOT NULL",
         )
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(  # ty: ignore[missing-attribute]
         enum_schema="public",
         enum_name="expression_type_enum",
         new_values=["CONDITION", "VALIDATION"],

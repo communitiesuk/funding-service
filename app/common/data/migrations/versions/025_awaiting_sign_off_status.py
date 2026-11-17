@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(  # ty: ignore[missing-attribute]
         enum_schema="public",
         enum_name="submission_event_key_enum",
         new_values=[
@@ -30,7 +30,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(  # ty: ignore[missing-attribute]
         enum_schema="public",
         enum_name="submission_event_key_enum",
         new_values=["FORM_RUNNER_FORM_COMPLETED", "SUBMISSION_SUBMITTED"],

@@ -45,5 +45,5 @@ def log_alembic_stdout(config: Config) -> Config:
     still writes its SQL to stdout."""
     route_loggers_through_app(current_app, [ALEMBIC_STDOUT_LOGGER_NAME])
     # flask_migrate's stubs don't declare the attributes its Config inherits from alembic's.
-    config.stdout = LoggingStream(logging.getLogger(ALEMBIC_STDOUT_LOGGER_NAME))  # ty: ignore[unresolved-attribute]
+    config.stdout = LoggingStream(logging.getLogger(ALEMBIC_STDOUT_LOGGER_NAME))  # ty: ignore[missing-attribute]
     return config

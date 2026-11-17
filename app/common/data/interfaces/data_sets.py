@@ -250,7 +250,7 @@ def get_data_source_list_for_collection(collection_id: uuid.UUID) -> Sequence[Li
             DataSource.name,
             DataSource.updated_at_utc,
             func.coalesce(user_updated.name, user_created.name).label("uploaded_by_name"),
-            DataSource.has_missing_data().label("has_missing_data"),  # ty:ignore[unresolved-attribute]
+            DataSource.has_missing_data().label("has_missing_data"),  # ty:ignore[missing-attribute]
         )
         .outerjoin(user_created, DataSource.created_by_id == user_created.id)
         .outerjoin(user_updated, DataSource.updated_by_id == user_updated.id)

@@ -53,7 +53,7 @@ submission_mode_enum = postgresql.ENUM("TEST", "LIVE", name="submission_mode_enu
 
 def upgrade() -> None:
     public_citext = PGExtension(schema="public", signature="citext")
-    op.create_entity(public_citext)  # ty: ignore[unresolved-attribute]
+    op.create_entity(public_citext)  # ty: ignore[missing-attribute]
 
     collection_type_enum.create(op.get_bind())
     component_type_enum.create(op.get_bind())
@@ -423,4 +423,4 @@ def downgrade() -> None:
     collection_type_enum.drop(op.get_bind())
 
     public_citext = PGExtension(schema="public", signature="citext")
-    op.drop_entity(public_citext)  # ty: ignore[unresolved-attribute]
+    op.drop_entity(public_citext)  # ty: ignore[missing-attribute]

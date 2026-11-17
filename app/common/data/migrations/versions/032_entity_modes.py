@@ -32,7 +32,7 @@ def upgrade() -> None:
     with op.batch_alter_table("organisation", schema=None) as batch_op:
         batch_op.add_column(sa.Column("mode", organisation_mode_enum, nullable=False, server_default="LIVE"))
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(  # ty: ignore[missing-attribute]
         enum_schema="public",
         enum_name="submission_mode_enum",
         new_values=["TEST", "PREVIEW", "LIVE"],
@@ -49,7 +49,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint("ck_grant_recipient_if_live", "submission", type_="check")
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(  # ty: ignore[missing-attribute]
         enum_schema="public",
         enum_name="submission_mode_enum",
         new_values=["TEST", "LIVE"],

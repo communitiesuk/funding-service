@@ -404,7 +404,7 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
             return redirect(url_for(collection_type.constants.list_endpoint, grant_id=grant_id))
 
         except DuplicateValueError:
-            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/set_up_collection.html",
@@ -439,7 +439,7 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
             )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.name.errors.append(  # ty: ignore[unresolved-attribute]
+            form.name.errors.append(  # ty: ignore[missing-attribute]
                 f"A {collection.type.constants.singular} with this name already exists"
             )
 
@@ -658,7 +658,7 @@ def collection_multiple_submissions(
                     )
                 )
             except ValueError as e:
-                form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+                form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[missing-attribute]
 
         else:
             return redirect(
@@ -777,7 +777,7 @@ def collection_multiple_submissions_settings(
                 submission_guidance=None if managed_by_service else form.guidance_body.data,
             )
         except ValueError as e:
-            form.submission_name_question.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+            form.submission_name_question.errors.append(str(e))  # ty: ignore[missing-attribute]
         else:
             if form.preview.data:
                 return redirect(
@@ -964,7 +964,7 @@ def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: 
             )
 
         except DuplicateValueError:
-            form.title.errors.append("A section with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.title.errors.append("A section with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/add_section.html",
@@ -1009,7 +1009,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.title.errors.append("A section with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.title.errors.append("A section with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/change_form_name.html",
@@ -1047,7 +1047,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
                 )
             )
         except DuplicateValueError:
-            form.name.errors.append("A question group with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.name.errors.append("A question group with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/change_question_group_name.html",
@@ -1153,15 +1153,15 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
             )
         except DependencyOrderException:
             # TODO: can we show the user the problematic questions like we do when rendering flashable exceptions?
-            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot display on the same page if questions depend on answers within the group"
             )
         except NestedGroupDisplayTypeSamePageException:
-            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot display on the same page if it contains a nested group"
             )
         except GroupHasValidationsCannotBeOnePerPageException:
-            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot display one question per page while it has validation rules attached. "
                 "Delete the group validations first."
             )
@@ -1243,17 +1243,17 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                 )
             )
         except GroupContainsAddAnotherException:
-            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot be answered more than once if it already contains questions that can "
                 "be answered more than once"
             )
         except AddAnotherDependencyException:
-            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot be answered more than once if questions elsewhere in the form depend on "
                 "questions in this group"
             )
         except AddAnotherNotValidException:
-            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot be answered more than once if it is already inside a group that can "
                 "be answered more than once"
             )
@@ -1751,7 +1751,7 @@ def _handle_remove_context_for_expression_forms(
     add_context_data: AddContextToExpressionsModel | None = None,
     subject_reference: ExpressionReference | None = None,
 ) -> None:
-    field_to_clear = form.remove_context.data  # ty: ignore[unresolved-attribute]
+    field_to_clear = form.remove_context.data  # ty: ignore[missing-attribute]
     if not field_to_clear:
         return
 
@@ -1849,7 +1849,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[missing-attribute]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.form_error_message)
@@ -2423,7 +2423,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[missing-attribute]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.form_error_message)
@@ -4042,7 +4042,7 @@ def list_collection_data_sets(
             del session[SESSION_DATA_SET_UPLOAD]
 
         if collection.allow_public_sign_up:
-            form.submit.errors.append(  # ty: ignore[unresolved-attribute]
+            form.submit.errors.append(  # ty: ignore[missing-attribute]
                 "You cannot add a data set to a form that has public sign up switched on"
             )
         else:
