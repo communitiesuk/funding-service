@@ -804,10 +804,12 @@ class EligibilityFormRunner(FormRunner):
         )
 
         if form_runner.form and not form_runner.form.is_eligibility_section:
-            raise ValueError(
-                f"EligibilityFormRunner can only load questions belonging to the eligibility section, "
-                f"got form_id={form_runner.form.id}"
+            current_app.logger.warning(
+                "EligibilityFormRunner loaded a question belonging to form_id=%(form_id)s, which is not an "
+                "eligibility section",
+                {"form_id": form_runner.form.id},
             )
+            abort(404)
 
         return form_runner
 
