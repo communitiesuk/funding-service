@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.sync_enum_values(  # ty: ignore[missing-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="grantstatusenum",
         new_values=["DRAFT", "ONBOARDING", "LIVE"],
@@ -26,7 +26,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.sync_enum_values(  # ty: ignore[missing-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="grantstatusenum",
         new_values=["DRAFT", "LIVE"],

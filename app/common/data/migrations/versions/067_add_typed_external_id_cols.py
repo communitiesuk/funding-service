@@ -17,7 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.sync_enum_values(  # ty:ignore[missing-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="organisationtype",
         new_values=[
@@ -90,7 +90,7 @@ def downgrade() -> None:
     op.drop_column("organisation", "ons_lad_id")
     op.drop_column("organisation", "iati_id")
 
-    op.sync_enum_values(  # ty:ignore[missing-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="organisationtype",
         new_values=[
