@@ -1805,7 +1805,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
 
     wt_form = QuestionForm(
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         question_type=question_data_type_enum,
     )
 
@@ -2340,7 +2340,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 
     wt_form = QuestionForm(
         obj=question if not add_context_data else None,
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         question_type=question.data_type,
     )
 
@@ -2471,7 +2471,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
     )
 
     form = AddGuidanceForm(
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         heading_required=False,
     )
     if not add_context_data and not form.is_submitted():
@@ -2544,7 +2544,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     form = AddGuidanceForm(
         obj=question if not add_context_data else None,
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
     )
 
     if form.is_submitted_to_add_context():
@@ -2630,7 +2630,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
         session_model=AddContextToExpressionsModel, component_id=component.id
     )
     wt_form = CalculatedConditionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         component=component,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -2726,7 +2726,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
         return redirect(return_url)
 
     wt_form = CalculatedConditionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         obj=expression.custom if not add_context_data else None,
         component=component,
         interpolation_context=(
@@ -2866,7 +2866,7 @@ def add_question_condition(
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, subject_reference)
     form = (
-        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ConditionForm
         else None
     )
@@ -2972,7 +2972,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference, expression)
     form = (
-        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ConditionForm
         else None
     )
@@ -3054,7 +3054,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         ExpressionReference.from_question(question),
     )
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ValidationForm
         else None
     )
@@ -3159,7 +3159,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         ExpressionType.VALIDATION, ExpressionReference.from_question(cast("Question", question)), expression
     )
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ValidationForm
         else None
     )
@@ -3339,7 +3339,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         session_model=AddContextToExpressionsModel, component_id=question.id
     )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -3433,7 +3433,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
             )
         )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         obj=expression.custom if not add_context_data else None,
         component=question,
         interpolation_context=(
@@ -3518,7 +3518,7 @@ def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         session_model=AddContextToExpressionsModel, component_id=group.id
     )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         component=group,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -3612,7 +3612,7 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
         )
 
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         obj=expression.custom if not add_context_data else None,
         component=group,
         interpolation_context=(
@@ -4436,7 +4436,7 @@ def map_data_set_columns(  # noqa: C901
         existing_datasource = get_data_source(data_set_data.data_source_id, with_organisation_items=True)
         existing_column_names = [
             col_def.original_column_name
-            for _, col_def in existing_datasource.schema.ordered_items()  # ty:ignore[unresolved-attribute]
+            for _, col_def in existing_datasource.schema.ordered_items()  # ty:ignore[missing-union-attribute]
         ]
         columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
         if not columns_to_map:  # no new columns
@@ -4648,7 +4648,7 @@ def confirm_data_set(  # noqa: C901
         if data_set_data.is_replace:
             existing_columns = [
                 v
-                for k, v in existing_datasource.schema.ordered_items()  # ty:ignore[unresolved-attribute]
+                for k, v in existing_datasource.schema.ordered_items()  # ty:ignore[missing-union-attribute]
                 if v.original_column_name in data_set_data.data_columns
             ]
             columns_to_display_in_formatting.extend(

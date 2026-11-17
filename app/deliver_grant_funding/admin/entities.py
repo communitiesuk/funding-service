@@ -848,7 +848,7 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
     def render_details(self, model: AuditEvent) -> markupsafe.Markup:
         """The parsed event is the record, so the details page renders it in place of the row's columns."""
         # flask-admin has no public accessor for its registered views.
-        views = self.admin._views  # ty: ignore[unresolved-attribute]
+        views = self.admin._views  # ty: ignore[missing-union-attribute]
         renderer = AuditEventDetailsRenderer(v for v in views if isinstance(v, PlatformAdminModelView))
         try:
             event = parse_audit_event(model.event_type, model.data)

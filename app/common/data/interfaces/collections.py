@@ -2479,8 +2479,8 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
         # self-reference — it would create a bogus ComponentReference row that falsely blocks
         # deletion and same-page grouping.
 
-        referenced_question = expr_impl.subject_reference.question  # ty:ignore[unresolved-attribute]
-        referenced_data_set_ref = expr_impl.subject_reference.data_source_reference  # ty:ignore[unresolved-attribute]
+        referenced_question = expr_impl.subject_reference.question  # ty:ignore[missing-union-attribute]
+        referenced_data_set_ref = expr_impl.subject_reference.data_source_reference  # ty:ignore[missing-union-attribute]
 
         if referenced_question and referenced_question != expression.question:
             referenced_questions.add(referenced_question)
@@ -2500,7 +2500,7 @@ def _validate_and_sync_expression_references(expression: Expression) -> None:  #
                 ),
                 expression_type=expression.type_,
                 field_name_for_error_message=field,
-                question_to_test=expr_impl.subject_reference.question if expression.is_managed else None,  # ty:ignore[unresolved-attribute]
+                question_to_test=expr_impl.subject_reference.question if expression.is_managed else None,  # ty:ignore[missing-union-attribute]
             )
 
             if referenced_question := valid_reference.question:

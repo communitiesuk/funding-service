@@ -928,7 +928,7 @@ class IsBefore(ManagedExpression):
         date_expression = (
             self.latest_expression.unwrapped
             if self.latest_expression
-            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # ty: ignore[unresolved-attribute]
+            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # ty: ignore[missing-union-attribute]
         )
         return EvaluationStatement(
             f"{self.subject_reference.unwrapped} <{'=' if self.inclusive else ''} {date_expression}"
@@ -1063,7 +1063,7 @@ class IsAfter(ManagedExpression):
         date_expression = (
             self.earliest_expression.unwrapped
             if self.earliest_expression
-            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # ty: ignore[unresolved-attribute]
+            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # ty: ignore[missing-union-attribute]
         )
         return EvaluationStatement(
             f"{self.subject_reference.unwrapped} >{'=' if self.inclusive else ''} {date_expression}"
@@ -1213,12 +1213,12 @@ class BetweenDates(ManagedExpression):
         earliest_date_expression = (
             self.earliest_expression.unwrapped
             if self.earliest_expression
-            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # ty: ignore[unresolved-attribute]
+            else f"date({self.earliest_value.year}, {self.earliest_value.month}, {self.earliest_value.day})"  # ty: ignore[missing-union-attribute]
         )
         latest_date_expression = (
             self.latest_expression.unwrapped
             if self.latest_expression
-            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # ty: ignore[unresolved-attribute]
+            else f"date({self.latest_value.year}, {self.latest_value.month}, {self.latest_value.day})"  # ty: ignore[missing-union-attribute]
         )
         return EvaluationStatement(
             f"{earliest_date_expression} "
