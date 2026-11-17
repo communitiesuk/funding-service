@@ -440,8 +440,8 @@ class TestAnyOfExpression:
         ),
     )
     def test_evaluate(self, items: list[TRadioItem], answer: str, expected_result: bool, factories):
-        expr = AnyOf(subject_reference=ExpressionReference.from_question(factories.question.build()), items=items)
-        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.build())
+        expr = AnyOf(subject_reference=ExpressionReference.from_question(factories.question.create()), items=items)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.create())
         assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answer})) is expected_result
 
     def test_needs_a_question_subject_reference(self, factories):
@@ -460,6 +460,80 @@ class TestAnyOfExpression:
             ValueError, match="AnyOf managed expressions are only implemented for questions with data sources"
         ):
             expr.get_form_fields(data_source_ref)
+
+    @pytest.mark.parametrize(
+        "items, answers, expected_result",
+        (
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"red"}, True),
+            ([{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}], {"red", "blue"}, True),
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                {"blue", "green"},
+                True,
+            ),
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                {"green"},
+                False,
+            ),
+            (
+                [{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+                set(),
+                False,
+            ),
+            (
+                [
+                    {"key": "red", "label": "Red"},
+                ],
+                {"red"},
+                True,
+            ),
+            (
+                [
+                    {"key": "red", "label": "Red"},
+                ],
+                {"blue"},
+                False,
+            ),
+            (
+                [
+                    {"key": "red", "label": "Red"},
+                ],
+                set(),
+                False,
+            ),
+        ),
+    )
+    def test_evaluate_checkboxes(self, items: list[TRadioItem], answers: set[str], expected_result: bool, factories):
+        question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
+        expr = AnyOf(subject_reference=ExpressionReference.from_question(question), items=items)
+        expression = Expression.from_evaluatable_expression(expr, ExpressionType.CONDITION, factories.user.create())
+        assert evaluate(expression, ExpressionContext({expr.subject_reference.unwrapped: answers})) is expected_result
+
+    def test_checkbox_statement_exposes_subject_reference(self, factories):
+        question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
+        subject = ExpressionReference.from_question(question)
+        expr = AnyOf(
+            subject_reference=subject,
+            items=[{"key": "red", "label": "Red"}, {"key": "blue", "label": "Blue"}],
+        )
+
+        assert expr.statement == f"any_of({subject.unwrapped}, {{'blue', 'red'}})"
+        assert expr.statement.references == [subject]
+
+    def test_statement_raises_if_subject_question_not_found(self, factories, db_session):
+        question = factories.question.create(data_type=QuestionDataType.CHECKBOXES)
+        expr = AnyOf(
+            subject_reference=ExpressionReference.from_question(question),
+            items=[{"key": "red", "label": "Red"}],
+        )
+
+        # Delete the question to simulate it not being found
+        db_session.delete(question)
+        db_session.flush()
+
+        with pytest.raises(ValueError, match="AnyOf subject question could not be found"):
+            _ = expr.statement
 
 
 class TestIsYesExpression:

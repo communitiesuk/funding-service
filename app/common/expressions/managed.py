@@ -663,7 +663,10 @@ class BaseDataSourceManagedExpression(ManagedExpression):
 @register_managed_expression
 class AnyOf(BaseDataSourceManagedExpression):
     name: ClassVar[ManagedExpressionsEnum] = ManagedExpressionsEnum.ANY_OF
-    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {QuestionDataType.RADIOS}
+    supported_condition_data_types: ClassVar[set[QuestionDataType]] = {
+        QuestionDataType.RADIOS,
+        QuestionDataType.CHECKBOXES,
+    }
     supported_validator_data_types: ClassVar[set[QuestionDataType]] = {}  # ty: ignore[invalid-assignment]
     managed_expression_form_template: ClassVar[str | None] = None
 
@@ -689,7 +692,25 @@ class AnyOf(BaseDataSourceManagedExpression):
     @property
     def statement(self) -> EvaluationStatement:
         item_keys = {str(item["key"]) for item in self.items}
+
+        # Checkbox answers are evaluated as a set of selected keys, eg {"one", "two"}
+        # (see MultipleChoiceFromListAnswer.get_value_for_evaluation)
+        # Keys are sorted for a stable statement; radio is unchanged to avoid mismatches with saved conditions
+        question = self.subject_reference.question
+        if self.subject_reference.question_id and not question:
+            raise ValueError("AnyOf subject question could not be found")
+        if question and question.data_type == QuestionDataType.CHECKBOXES:
+            sorted_keys = "{" + ", ".join(repr(key) for key in sorted(item_keys)) + "}"
+            return EvaluationStatement(f"any_of({self.subject_reference.unwrapped}, {sorted_keys})")
+
         return EvaluationStatement(f"{self.subject_reference.unwrapped} in {item_keys}")
+
+    @property
+    def required_functions(self) -> dict[str, Callable[..., Any] | type[Any]]:
+        def any_of(selected: set[str] | None, keys: set[str]) -> bool:
+            return bool(selected) and not selected.isdisjoint(keys)
+
+        return {"any_of": any_of}
 
     @staticmethod
     def get_form_fields(
@@ -854,14 +875,16 @@ class Specifically(BaseDataSourceManagedExpression):
                 default=expression.context["item"]["key"] if expression else None,  # ty: ignore[invalid-argument-type, not-subscriptable]
                 widget=GovRadioInput(),
                 choices=[(item.key, item.label) for item in question.data_source.items],
-                validators=[DataRequired("Choose one option")],
+                validators=[Optional()],
                 render_kw={"params": {"fieldset": {"legend": {"classes": "govuk-visually-hidden"}}}},
             ),
         }
 
     @staticmethod
     def update_validators(form: _ManagedExpressionForm) -> None:
-        pass
+        form.specifically.validators = [  # ty: ignore[missing-attribute]
+            DataRequired("Choose one option"),
+        ]
 
     @staticmethod
     def build_from_form(form: _ManagedExpressionForm, subject_reference: ExpressionReference) -> Specifically:
