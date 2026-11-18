@@ -56,14 +56,23 @@ def grant_code_exists(code: str, exclude_grant_id: UUID | None = None) -> Grant 
     return db.session.scalar(statement)
 
 
-def get_all_deliver_grants_by_user(user: User) -> Sequence[Grant]:
+def get_all_deliver_grants_by_user(user: User, with_collections: bool = False) -> Sequence[Grant]:
     from app.common.auth.authorisation_helper import AuthorisationHelper
 
     if AuthorisationHelper.is_platform_admin(user):
         statement = select(Grant).order_by(Grant.name)
-        return db.session.scalars(statement).all()
+    elif with_collections:
+        grant_ids = [grant.id for grant in user.deliver_grants]
+        if not grant_ids:
+            return []
+        statement = select(Grant).where(Grant.id.in_(grant_ids)).order_by(Grant.name)
+    else:
+        return user.deliver_grants
 
-    return user.deliver_grants
+    if with_collections:
+        statement = statement.options(selectinload(Grant.collections).joinedload(Collection.grant))
+
+    return db.session.scalars(statement).all()
 
 
 def get_all_grants(statuses: list[GrantStatusEnum] | None = None) -> Sequence[Grant]:
