@@ -1292,7 +1292,7 @@ def test_setup_grant_and_collection(
     # TODO seed our e2e test organisation; note a shadow test org will be created automatically
     org_name = "End-to-End Testing Organisation"
     user_name = "MHCLG Test User"
-    user_email = "fsd-post-award@levellingup.gov.uk"
+    user_email = "fs-e2e-create-preview-collection@funding-service-e2e.gov.uk"
     set_up_orgs_page = SetUpOrganisationsPage(page, domain, grant_id, collection_id)
     set_up_orgs_page.navigate()
     set_up_orgs_page.fill_organisations([OrganisationSetupRow("MHCLG-TEST-ORG", org_name, "Central Government")])
