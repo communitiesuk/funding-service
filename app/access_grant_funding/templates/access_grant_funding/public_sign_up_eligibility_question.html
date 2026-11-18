@@ -6,7 +6,7 @@
 {% set page_title = runner.interpolate(runner.component.text) ~ " - " ~ grant.name %}
 
 {% set form = runner.question_with_add_another_summary_form %}
-{% set previous_question = runner.submission.get_previous_question(runner.linked_question.id) %}
+{% set previous_question = runner.submission.get_previous_question(runner.linked_question.id, add_another_index=runner.add_another_index) %}
 
 {% block beforeContent %}
   {% if previous_question %}
