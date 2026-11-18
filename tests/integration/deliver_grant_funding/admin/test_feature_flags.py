@@ -40,10 +40,8 @@ class TestFeatureFlagsPage:
         response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/")
         assert response.status_code == 200
         assert "Feature flags" in response.text
-        assert "PRE_AWARD" not in response.text
-        assert "NEW_CONTEXT_SOURCES" in response.text
+
         assert "SAMPLE_SESSION_FLAG" in response.text
-        assert "context sources for referencing data" in response.text
         assert "Sample session-based flag" in response.text
 
     def test_only_renders_change_links_for_session_flags(
@@ -51,7 +49,6 @@ class TestFeatureFlagsPage:
     ):
         response = authenticated_platform_admin_client.get("/deliver/admin/feature-flags/")
         assert "/deliver/admin/feature-flags/toggle/SAMPLE_SESSION_FLAG" in response.text
-        assert "/deliver/admin/feature-flags/toggle/PRE_AWARD" not in response.text
 
 
 class TestToggleFeatureFlag:

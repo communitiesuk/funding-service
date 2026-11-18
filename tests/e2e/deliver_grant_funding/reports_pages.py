@@ -51,14 +51,7 @@ def _reference_data_flow(select_data_source_page: SelectDataSourcePage, context_
     match context_source.data_source:
         case "THIS_QUESTION":
             pass
-        case (
-            ExpressionContext.ContextSources.SECTION
-            | ExpressionContext.ContextSources.PREVIOUS_SECTION
-            | ExpressionContext.ContextSources.PREVIOUS_COLLECTION
-        ):
-            if context_source.collection_text:
-                raise NotImplementedError("Select previous collection is not yet supported for this context source")
-
+        case ExpressionContext.ContextSources.SECTION | ExpressionContext.ContextSources.PREVIOUS_SECTION:
             if context_source.section_text:
                 select_section_page = SelectDataSourceSectionPage(
                     select_data_source_page.page,
@@ -1809,8 +1802,9 @@ class SelectDataSourcePage(ReportsBasePage):
             case "THIS_QUESTION":
                 return None
 
-            case (ExpressionContext.ContextSources.PREVIOUS_COLLECTION, _):
+            case _:
                 pass
+
         raise NotImplementedError(f"Unexpected data source: {data_source}")
 
 
