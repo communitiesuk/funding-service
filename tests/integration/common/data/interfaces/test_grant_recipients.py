@@ -794,6 +794,41 @@ class TestCreateGrantRecipients:
         assert len(grant_recipients) == 3
         assert {gr.organisation_id for gr in grant_recipients} == {org1.id, org2.id, org3.id}
 
+    def test_does_not_duplicate_existing_grant_recipients(self, factories, db_session):
+        grant = factories.grant.create()
+        org1 = factories.organisation.create(name="Organisation 1")
+        org2 = factories.organisation.create(name="Organisation 2")
+
+        existing = factories.grant_recipient.create(grant=grant, organisation=org1)
+
+        create_grant_recipients(grant, [org1.id, org2.id], status=GrantRecipientStatusEnum.AWARDED)
+
+        db_session.expire_all()
+        grant_recipients = db_session.query(GrantRecipient).filter_by(grant_id=grant.id).all()
+        assert len(grant_recipients) == 2
+        assert {gr.organisation_id for gr in grant_recipients} == {org1.id, org2.id}
+        assert existing.id in {gr.id for gr in grant_recipients}
+
+    def test_does_not_duplicate_repeated_organisation_ids(self, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(name="Organisation 1")
+
+        create_grant_recipients(grant, [org.id, org.id], status=GrantRecipientStatusEnum.AWARDED)
+
+        db_session.expire_all()
+        assert db_session.query(GrantRecipient).filter_by(grant_id=grant.id).count() == 1
+
+    def test_repeated_calls_do_not_create_duplicates(self, factories, db_session):
+        grant = factories.grant.create()
+        org = factories.organisation.create(name="Organisation 1")
+
+        create_grant_recipients(grant, [org.id], status=GrantRecipientStatusEnum.AWARDED)
+        create_grant_recipients(grant, [org.id], status=GrantRecipientStatusEnum.AWARDED)
+
+        db_session.expire_all()
+        assert db_session.query(GrantRecipient).filter_by(grant_id=grant.id).count() == 1
+        assert get_grant_recipient_or_none(grant.id, org.id) is not None
+
 
 class TestDeleteGrantRecipients:
     def test_deletes_all_grant_recipients_for_grant(self, factories, db_session):

@@ -261,12 +261,37 @@ def create_grant_recipients(
     status: GrantRecipientStatusEnum,
     mode: GrantRecipientModeEnum = GrantRecipientModeEnum.LIVE,
 ) -> None:
-    grant_recipients = []
+    # De-duplicate the requested organisations while preserving order, so a single call can never insert the same
+    # (grant, organisation) pair twice.
+    unique_organisation_ids = list(dict.fromkeys(organisation_ids))
+    if not unique_organisation_ids:
+        return
 
-    for organisation_id in organisation_ids:
-        grant_recipients.append(
-            GrantRecipient(grant_id=grant.id, organisation_id=organisation_id, mode=mode, status=status)
+    # Acquire the same transaction-scoped advisory locks as `create_grant_recipient` (in a stable order to avoid
+    # deadlocks) so concurrent requests can't both decide a grant recipient is missing and each create one.
+    for organisation_id in sorted(unique_organisation_ids, key=str):
+        db.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+            {"key": f"{grant.id}:{organisation_id}"},
         )
+
+    # Skip organisations that are already grant recipients for this grant. Without this, re-running grant recipient
+    # set-up (eg for test organisations matched by external ID) creates duplicate rows, which later breaks lookups
+    # such as `get_grant_recipient_or_none` with MultipleResultsFound.
+    existing_organisation_ids = set(
+        db.session.scalars(
+            select(GrantRecipient.organisation_id).where(
+                GrantRecipient.grant_id == grant.id,
+                GrantRecipient.organisation_id.in_(unique_organisation_ids),
+            )
+        ).all()
+    )
+
+    grant_recipients = [
+        GrantRecipient(grant_id=grant.id, organisation_id=organisation_id, mode=mode, status=status)
+        for organisation_id in unique_organisation_ids
+        if organisation_id not in existing_organisation_ids
+    ]
 
     db.session.add_all(grant_recipients)
 
