@@ -41,6 +41,20 @@
       ]
     },
     {
+      "groupName": "Valkey in line with deployed environments",
+      "matchPackageNames": [
+        "valkey/valkey"
+      ],
+      "matchManagers": [
+        "docker-compose"
+      ],
+      "allowedVersions": "7.2",
+      "description": "Keep the local/test Valkey image aligned with the ElastiCache Valkey 7.2 deployment",
+      "prBodyNotes": [
+        "## Notice for developers\n\nThe deployed ElastiCache Valkey version is 7.2. Update the infrastructure version and this rule together."
+      ]
+    },
+    {
       "groupName": "Paths filter GitHub action",
       "matchPackageNames": [
         "dorny/paths-filter"

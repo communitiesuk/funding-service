@@ -76,11 +76,25 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
         run: |
+          set -o pipefail
           # Get the current deployed DB version
           if [ "$ENVIRONMENT" != "prod" ]; then
-            DEPLOYED_VERSION=$(curl -s -f -u "${{ secrets.FS_BASIC_AUTH_USERNAME }}:${{ secrets.FS_BASIC_AUTH_PASSWORD }}" "${{ vars.BASE_URL }}/healthcheck/db") || exit 1
+            HEALTHCHECK_RESPONSE=$(curl -s -f -u "${{ secrets.FS_BASIC_AUTH_USERNAME }}:${{ secrets.FS_BASIC_AUTH_PASSWORD }}" "${{ vars.BASE_URL }}/healthcheck/db") || exit 1
           else
-            DEPLOYED_VERSION=$(curl -s -f "${{ vars.BASE_URL }}/healthcheck/db") || exit 1
+            HEALTHCHECK_RESPONSE=$(curl -s -f "${{ vars.BASE_URL }}/healthcheck/db") || exit 1
+          fi
+
+          DEPLOYED_VERSION=$(printf '%s' "$HEALTHCHECK_RESPONSE" | jq -e -r '.db // empty' 2>/dev/null || true)
+          if [ -z "$DEPLOYED_VERSION" ]; then
+            DEPLOYED_VERSION="$HEALTHCHECK_RESPONSE"
+          fi
+          if [ -z "$DEPLOYED_VERSION" ]; then
+            echo "::error::Deployed DB version could not be read or is empty."
+            exit 1
+          fi
+          if [ "$DEPLOYED_VERSION" = "ERROR" ]; then
+            echo "::error::The deployed database healthcheck reported an error."
+            exit 1
           fi
 
           # Get the local repository version
