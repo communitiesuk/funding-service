@@ -100,11 +100,15 @@ def organisation_name_exists(name: str, mode: OrganisationModeEnum = Organisatio
     return db.session.scalar(statement) is not None
 
 
-def organisation_companies_house_number_exists(
-    companies_house_number: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
+def organisation_typed_id_exists(
+    type_: OrganisationType, typed_id: str, mode: OrganisationModeEnum = OrganisationModeEnum.LIVE
 ) -> bool:
+    """Exact match on the number as stored, through the external ID made from it, within a single mode."""
+    if type_ not in (OrganisationType.CHARITY, OrganisationType.COMPANY):
+        raise ValueError(f"Organisations of type {type_.value} are not looked up by a registration number")
+
     statement = select(Organisation).where(
-        Organisation.companies_house_number == companies_house_number, Organisation.mode == mode
+        Organisation.external_id == f"{type_.external_id_prefix}{typed_id}", Organisation.mode == mode
     )
     return db.session.scalar(statement) is not None
 
