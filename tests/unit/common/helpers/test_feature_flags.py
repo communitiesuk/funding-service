@@ -1,10 +1,4 @@
-from unittest.mock import patch
-
-from flask import Flask
-
-from app.common.data.types import RoleEnum
 from app.common.helpers.feature_flags import (
-    NewContextSourcesFeatureFlag,
     StaticFeatureFlag,
 )
 
@@ -53,21 +47,3 @@ class TestFeatureFlag:
 
         assert bool(AlwaysOn()) is True
         assert bool(AlwaysOff()) is False
-
-
-class TestNewContextSourcesFeatureFlag:
-    flag = NewContextSourcesFeatureFlag()
-
-    def test_enabled(self, app: Flask, factories) -> None:
-        user = factories.user.build()
-        factories.user_role.build(user=user, organisation=None, grant=None, permissions=[RoleEnum.MEMBER])
-
-        with app.test_request_context("/"):
-            with patch("app.common.helpers.feature_flags.get_current_user", return_value=user):
-                assert self.flag.is_enabled is True
-
-    def test_disabled(self, app: Flask, factories) -> None:
-        user = factories.user.build()
-        with app.test_request_context("/"):
-            with patch("app.common.helpers.feature_flags.get_current_user", return_value=user):
-                assert self.flag.is_enabled is False

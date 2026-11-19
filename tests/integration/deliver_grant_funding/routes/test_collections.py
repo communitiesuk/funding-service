@@ -4888,7 +4888,7 @@ class TestSelectContextSource:
         assert "Select a data source" in soup.text
 
     def test_post_redirect_and_updates_session(self, authenticated_grant_admin_client, factories):
-        assert len(ExpressionContext.ContextSources) == 4, "Check all redirects if adding new context source choices"
+        assert len(ExpressionContext.ContextSources) == 3, "Check all redirects if adding new context source choices"
 
         collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
         form = factories.form.create(collection=collection)
@@ -4921,35 +4921,6 @@ class TestSelectContextSource:
                 form_id=form.id,
             )
         )
-
-
-class TestSelectContextSourceCollection:
-    def test_404(self, authenticated_grant_admin_client, factories):
-        collection = factories.collection.create(grant=authenticated_grant_admin_client.grant)
-        form = factories.form.create(collection=collection)
-
-        with authenticated_grant_admin_client.session_transaction() as sess:
-            sess["question"] = AddContextToComponentSessionModel(
-                data_type=QuestionDataType.TEXT_SINGLE_LINE,
-                component_form_data={
-                    "text": "Test text",
-                    "name": "Test name",
-                    "hint": "Test hint",
-                    "add_context": "text",
-                },
-                data_source=ExpressionContext.ContextSources.SECTION,
-                collection_id=None,
-                form_id=None,
-            ).model_dump(mode="json")
-
-        response = authenticated_grant_admin_client.get(
-            url_for(
-                "deliver_grant_funding.select_context_source_collection",
-                grant_id=authenticated_grant_admin_client.grant.id,
-                form_id=form.id,
-            )
-        )
-        assert response.status_code == 404
 
 
 class TestSelectContextSourceSection:

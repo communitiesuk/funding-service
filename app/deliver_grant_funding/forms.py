@@ -56,7 +56,6 @@ from app.common.forms.filters import strip_string_if_not_empty
 from app.common.forms.helpers import get_referenceable_questions
 from app.common.forms.validators import CommunitiesEmail, WordRange
 from app.common.helpers.collections import SubmissionHelper
-from app.common.helpers.feature_flags import FeatureFlags
 from app.common.safe_ids import safe_column_id
 from app.common.utils import comma_join_items, slugify, uppercase_first
 from app.constants import DATA_SET_EXTERNAL_ID_COLUMN_HEADER, DATA_SET_IDENTIFIER_COLUMN_HEADERS
@@ -620,29 +619,12 @@ class AddContextSelectSourceForm(FlaskForm):
         self.parent_component = parent_component
         self.include_this_component = include_this_component
 
-        if FeatureFlags.NEW_CONTEXT_SOURCES.is_enabled:
-            # A soft feature flag that will (when implemented) allow platform admins to test new context sources
-            # before releasing to a wider audience eg form builders.
-            self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
-        else:
-            self.data_source.choices = [
-                (ExpressionContext.ContextSources.SECTION.name, ExpressionContext.ContextSources.SECTION.value),
-                (
-                    ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
-                    ExpressionContext.ContextSources.PREVIOUS_SECTION.value,
-                ),
-                (
-                    ExpressionContext.ContextSources.DATASET.name,
-                    ExpressionContext.ContextSources.DATASET.value,
-                ),
-            ]
+        self.data_source.choices = [(choice.name, choice.value) for choice in ExpressionContext.ContextSources]
 
         if form.is_eligibility_section:
-            # Reference data isn't supported in the eligibility section for previous sections, previous
-            # collections, or uploaded data sets.
+            # Reference data isn't supported in the eligibility section for previous sections or uploaded data sets.
             excluded_sources = {
                 ExpressionContext.ContextSources.PREVIOUS_SECTION.name,
-                ExpressionContext.ContextSources.PREVIOUS_COLLECTION.name,
                 ExpressionContext.ContextSources.DATASET.name,
             }
             self.data_source.choices = [

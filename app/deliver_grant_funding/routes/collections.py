@@ -1917,13 +1917,6 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
                     )
                     add_context_data.collection_id = db_form.collection_id
 
-                case ExpressionContext.ContextSources.PREVIOUS_COLLECTION:
-                    redirect_response = redirect(
-                        url_for(
-                            "deliver_grant_funding.select_context_source_collection", grant_id=grant_id, form_id=form_id
-                        )
-                    )
-
                 case ExpressionContext.ContextSources.DATASET:
                     redirect_response = redirect(
                         url_for(
@@ -1945,15 +1938,6 @@ def select_context_source(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
         form=wtform,
         add_context_data=add_context_data,
     )
-
-
-@deliver_grant_funding_blueprint.route(
-    "/grant/<uuid:grant_id>/section/<uuid:form_id>/add-context/select-collection", methods=["GET", "POST"]
-)
-@has_deliver_grant_role(RoleEnum.ADMIN)
-@collection_is_editable()
-def select_context_source_collection(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
-    return abort(404)
 
 
 @deliver_grant_funding_blueprint.route(

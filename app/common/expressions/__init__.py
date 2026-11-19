@@ -190,7 +190,6 @@ class ExpressionContext(ChainMap[str, Any]):
         # just questions in the same section.
         SECTION = "A previous question in this section"
         PREVIOUS_SECTION = "A question in a previous section"
-        PREVIOUS_COLLECTION = "A question in a previous collection"
         DATASET = "An uploaded data set"
 
     def __init__(
@@ -351,7 +350,7 @@ class ExpressionContext(ChainMap[str, Any]):
         `include_children_of_context_end_point` to True when creating validations; it should be False everywhere else.
         """
 
-        assert len(ExpressionContext.ContextSources) == 4, (
+        assert len(ExpressionContext.ContextSources) == 3, (
             "When defining a new source of context for expressions, "
             "update this method and the ContextSourceChoices enum"
         )
