@@ -543,6 +543,14 @@ class Collection(BaseModel):
         return self.status in [CollectionStatusEnum.OPEN, CollectionStatusEnum.DRAFT]
 
     @property
+    def is_accepting_public_sign_up(self) -> bool:
+        return self.allow_public_sign_up and self.grant.status == GrantStatusEnum.LIVE and self.is_open
+
+    @property
+    def is_accepting_test_sign_up(self) -> bool:
+        return self.allow_public_sign_up and not self.is_closed
+
+    @property
     def submission_deadline_with_time(self) -> datetime.datetime | None:
         if not self.submission_period_end_date:
             return None
@@ -1204,7 +1212,7 @@ class Question(Component, SafeQidMixin):
     if TYPE_CHECKING:
         # database constraints ensure the question component will have a data_type
         # we reflect that its required on the question component but don't hook in a competing migration
-        data_type: QuestionDataType  # ty: ignore[invalid-mutable-override]
+        data_type: QuestionDataType  # ty: ignore[incompatible-mutable-override]
 
     @property
     def question_id(self) -> uuid.UUID:
@@ -1331,7 +1339,7 @@ class Group(Component):
 
     if TYPE_CHECKING:
         # reflect that groups will never have a data type but don't hook in a competing migration
-        data_type: None  # ty: ignore[invalid-mutable-override]
+        data_type: None  # ty: ignore[incompatible-mutable-override]
 
     def clear_caches(self):
         for attr, value in self.__class__.__dict__.items():

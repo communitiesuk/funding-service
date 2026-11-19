@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="organisationtype",
         new_values=[
@@ -38,7 +38,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="organisationtype",
         new_values=[

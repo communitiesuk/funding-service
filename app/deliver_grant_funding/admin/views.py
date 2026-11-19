@@ -340,11 +340,11 @@ class PlatformAdminCollectionLifecycleView(FlaskAdminPlatformAdminGrantLifecycle
         if form.validate_on_submit():
             organisation = form.get_organisation_data()
             if get_organisations(with_external_ids=[organisation.external_id]):
-                form.organisation_id.errors.append(  # ty: ignore[unresolved-attribute]
+                form.organisation_id.errors.append(  # ty: ignore[missing-attribute]
                     f"An organisation with the ID '{organisation.external_id}' already exists."
                 )
             elif organisation_name_exists(organisation.name):
-                form.name.errors.append(  # ty: ignore[unresolved-attribute]
+                form.name.errors.append(  # ty: ignore[missing-attribute]
                     f"An organisation called '{organisation.name}' already exists."
                 )
             else:

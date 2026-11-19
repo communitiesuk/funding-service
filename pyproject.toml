@@ -37,7 +37,7 @@ dependencies = [
     "flask-admin==2.2.1",
     "playwright==1.64.1",
     "boto3==1.43.114",
-    "types-boto3[s3]==1.43.115",
+    "types-boto3[s3]==1.43.127",
     "alembic==1.19.1",
     "charset-normalizer==3.5.2",
     "free-email-domains==1.0.2",
@@ -71,7 +71,7 @@ dev = [
     "pytest==9.1.1",
     "pytest-playwright==0.10.0",
     "pyyaml==6.0.3",
-    "ty==0.0.89",
+    "ty==0.0.100",
     "watchdog[watchmedo]==6.0.0",
 ]
 
@@ -207,3 +207,10 @@ filterwarnings = [
 [tool.ty.src]
 include = ["app", "tests"]
 exclude = ["tests/**/test_*.py"]
+
+# Alembic plugins register operations such as `op.sync_enum_values` at runtime, so ty can't see them.
+[[tool.ty.overrides]]
+include = ["app/common/data/migrations/versions"]
+
+[tool.ty.overrides.rules]
+missing-attribute = "ignore"

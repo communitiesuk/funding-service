@@ -221,6 +221,10 @@ def start_test_grant_recipient_journey(
     grant = get_grant(grant_id, with_all_collections=True)
     collection = get_collection(collection_id, grant_id=grant_id, type_=collection_type, with_full_schema=False)
 
+    # Public sign up doesn't support testing the grant recipient journey once the collection is closed
+    if collection.allow_public_sign_up and not collection.is_accepting_test_sign_up:
+        abort(404)
+
     user = get_current_user()
     test_grant_recipients = [
         grant_recipient
@@ -400,7 +404,7 @@ def set_up_collection(grant_id: UUID, collection_type: CollectionType) -> Respon
             return redirect(url_for(collection_type.constants.list_endpoint, grant_id=grant_id))
 
         except DuplicateValueError:
-            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.name.errors.append(f"A {collection_type.constants.singular} with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/set_up_collection.html",
@@ -435,7 +439,7 @@ def change_collection_name(grant_id: UUID, collection_type: CollectionType, coll
             )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.name.errors.append(  # ty: ignore[unresolved-attribute]
+            form.name.errors.append(  # ty: ignore[missing-attribute]
                 f"A {collection.type.constants.singular} with this name already exists"
             )
 
@@ -654,7 +658,7 @@ def collection_multiple_submissions(
                     )
                 )
             except ValueError as e:
-                form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+                form.allow_multiple_submissions.errors.append(str(e))  # ty: ignore[missing-attribute]
 
         else:
             return redirect(
@@ -773,7 +777,7 @@ def collection_multiple_submissions_settings(
                 submission_guidance=None if managed_by_service else form.guidance_body.data,
             )
         except ValueError as e:
-            form.submission_name_question.errors.append(str(e))  # ty: ignore[unresolved-attribute]
+            form.submission_name_question.errors.append(str(e))  # ty: ignore[missing-attribute]
         else:
             if form.preview.data:
                 return redirect(
@@ -960,7 +964,7 @@ def add_section(grant_id: UUID, collection_type: CollectionType, collection_id: 
             )
 
         except DuplicateValueError:
-            form.title.errors.append("A section with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.title.errors.append("A section with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/add_section.html",
@@ -1005,7 +1009,7 @@ def change_form_name(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError:
             # FIXME: standardise+consolidate how we handle form errors raised from interfaces
-            form.title.errors.append("A section with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.title.errors.append("A section with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/change_form_name.html",
@@ -1043,7 +1047,7 @@ def change_group_name(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
                 )
             )
         except DuplicateValueError:
-            form.name.errors.append("A question group with this name already exists")  # ty: ignore[unresolved-attribute]
+            form.name.errors.append("A question group with this name already exists")  # ty: ignore[missing-attribute]
 
     return render_template(
         "deliver_grant_funding/collections/change_question_group_name.html",
@@ -1149,15 +1153,15 @@ def change_group_display_options(grant_id: UUID, group_id: UUID) -> ResponseRetu
             )
         except DependencyOrderException:
             # TODO: can we show the user the problematic questions like we do when rendering flashable exceptions?
-            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot display on the same page if questions depend on answers within the group"
             )
         except NestedGroupDisplayTypeSamePageException:
-            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot display on the same page if it contains a nested group"
             )
         except GroupHasValidationsCannotBeOnePerPageException:
-            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[unresolved-attribute]
+            form.show_questions_on_the_same_page.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot display one question per page while it has validation rules attached. "
                 "Delete the group validations first."
             )
@@ -1239,17 +1243,17 @@ def change_group_add_another_options(grant_id: UUID, group_id: UUID) -> Response
                 )
             )
         except GroupContainsAddAnotherException:
-            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot be answered more than once if it already contains questions that can "
                 "be answered more than once"
             )
         except AddAnotherDependencyException:
-            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot be answered more than once if questions elsewhere in the form depend on "
                 "questions in this group"
             )
         except AddAnotherNotValidException:
-            form.question_group_is_add_another.errors.append(  # ty: ignore[unresolved-attribute]
+            form.question_group_is_add_another.errors.append(  # ty: ignore[missing-attribute]
                 "A question group cannot be answered more than once if it is already inside a group that can "
                 "be answered more than once"
             )
@@ -1747,7 +1751,7 @@ def _handle_remove_context_for_expression_forms(
     add_context_data: AddContextToExpressionsModel | None = None,
     subject_reference: ExpressionReference | None = None,
 ) -> None:
-    field_to_clear = form.remove_context.data  # ty: ignore[unresolved-attribute]
+    field_to_clear = form.remove_context.data  # ty: ignore[missing-attribute]
     if not field_to_clear:
         return
 
@@ -1801,7 +1805,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
     )
 
     wt_form = QuestionForm(
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         question_type=question_data_type_enum,
     )
 
@@ -1845,7 +1849,7 @@ def add_question(grant_id: UUID, form_id: UUID) -> ResponseReturnValue:
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[missing-attribute]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.form_error_message)
@@ -2336,7 +2340,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
 
     wt_form = QuestionForm(
         obj=question if not add_context_data else None,
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         question_type=question.data_type,
     )
 
@@ -2419,7 +2423,7 @@ def edit_question(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:  # 
             )
         except DuplicateValueError as e:
             field_with_error: Field = getattr(wt_form, e.field_name)
-            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[unresolved-attribute]
+            field_with_error.errors.append(f"{field_with_error.name.capitalize()} already in use")  # ty: ignore[missing-attribute]
         except InvalidReferenceInExpression as e:
             field_with_error = getattr(wt_form, e.field_name)  # ty:ignore[invalid-argument-type]
             field_with_error.errors.append(e.form_error_message)
@@ -2467,7 +2471,7 @@ def manage_add_another_guidance(grant_id: UUID, group_id: UUID) -> ResponseRetur
     )
 
     form = AddGuidanceForm(
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         heading_required=False,
     )
     if not add_context_data and not form.is_submitted():
@@ -2540,7 +2544,7 @@ def manage_guidance(grant_id: UUID, question_id: UUID) -> ResponseReturnValue:
 
     form = AddGuidanceForm(
         obj=question if not add_context_data else None,
-        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data.component_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
     )
 
     if form.is_submitted_to_add_context():
@@ -2626,7 +2630,7 @@ def add_calculated_condition(grant_id: UUID, component_id: UUID) -> ResponseRetu
         session_model=AddContextToExpressionsModel, component_id=component.id
     )
     wt_form = CalculatedConditionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         component=component,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -2722,7 +2726,7 @@ def edit_calculated_condition(grant_id: UUID, expression_id: UUID) -> ResponseRe
         return redirect(return_url)
 
     wt_form = CalculatedConditionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         obj=expression.custom if not add_context_data else None,
         component=component,
         interpolation_context=(
@@ -2862,7 +2866,7 @@ def add_question_condition(
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, subject_reference)
     form = (
-        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ConditionForm
         else None
     )
@@ -2968,7 +2972,7 @@ def edit_question_condition(grant_id: UUID, expression_id: UUID) -> ResponseRetu
 
     ConditionForm = build_managed_expression_form(ExpressionType.CONDITION, reference, expression)
     form = (
-        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ConditionForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ConditionForm
         else None
     )
@@ -3050,7 +3054,7 @@ def add_question_validation(grant_id: UUID, question_id: UUID) -> ResponseReturn
         ExpressionReference.from_question(question),
     )
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ValidationForm
         else None
     )
@@ -3155,7 +3159,7 @@ def edit_question_validation(grant_id: UUID, expression_id: UUID) -> ResponseRet
         ExpressionType.VALIDATION, ExpressionReference.from_question(cast("Question", question)), expression
     )
     form = (
-        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[unresolved-attribute]
+        ValidationForm(data=add_context_data._prepared_form_data if add_context_data else None)  # ty: ignore[missing-union-attribute]
         if ValidationForm
         else None
     )
@@ -3335,7 +3339,7 @@ def add_custom_question_validation(grant_id: UUID, question_id: UUID) -> Respons
         session_model=AddContextToExpressionsModel, component_id=question.id
     )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         component=question,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -3429,7 +3433,7 @@ def edit_custom_question_validation(grant_id: UUID, question_id: UUID, expressio
             )
         )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         obj=expression.custom if not add_context_data else None,
         component=question,
         interpolation_context=(
@@ -3514,7 +3518,7 @@ def add_group_validation(grant_id: UUID, group_id: UUID) -> ResponseReturnValue:
         session_model=AddContextToExpressionsModel, component_id=group.id
     )
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty: ignore[missing-union-attribute]
         component=group,
         interpolation_context=(
             ExpressionContext.build_expression_context(
@@ -3608,7 +3612,7 @@ def edit_group_validation(grant_id: UUID, group_id: UUID, expression_id: UUID) -
         )
 
     wt_form = CustomValidationExpressionForm(
-        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[unresolved-attribute]
+        data=add_context_data._prepared_form_data if add_context_data else None,  # ty:ignore[missing-union-attribute]
         obj=expression.custom if not add_context_data else None,
         component=group,
         interpolation_context=(
@@ -4038,7 +4042,7 @@ def list_collection_data_sets(
             del session[SESSION_DATA_SET_UPLOAD]
 
         if collection.allow_public_sign_up:
-            form.submit.errors.append(  # ty: ignore[unresolved-attribute]
+            form.submit.errors.append(  # ty: ignore[missing-attribute]
                 "You cannot add a data set to a form that has public sign up switched on"
             )
         else:
@@ -4432,7 +4436,7 @@ def map_data_set_columns(  # noqa: C901
         existing_datasource = get_data_source(data_set_data.data_source_id, with_organisation_items=True)
         existing_column_names = [
             col_def.original_column_name
-            for _, col_def in existing_datasource.schema.ordered_items()  # ty:ignore[unresolved-attribute]
+            for _, col_def in existing_datasource.schema.ordered_items()  # ty:ignore[missing-union-attribute]
         ]
         columns_to_map = [col for col in data_set_data.data_columns if col not in existing_column_names]
         if not columns_to_map:  # no new columns
@@ -4644,7 +4648,7 @@ def confirm_data_set(  # noqa: C901
         if data_set_data.is_replace:
             existing_columns = [
                 v
-                for k, v in existing_datasource.schema.ordered_items()  # ty:ignore[unresolved-attribute]
+                for k, v in existing_datasource.schema.ordered_items()  # ty:ignore[missing-union-attribute]
                 if v.original_column_name in data_set_data.data_columns
             ]
             columns_to_display_in_formatting.extend(

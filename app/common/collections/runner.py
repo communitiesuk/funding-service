@@ -370,7 +370,7 @@ class FormRunner:
             )
             return True
         except ValueError:
-            self.check_your_answers_form.section_completed.errors.append(  # ty: ignore[unresolved-attribute]
+            self.check_your_answers_form.section_completed.errors.append(  # ty: ignore[missing-attribute]
                 "You must complete all questions before marking this section as complete"
             )
             return False
@@ -380,7 +380,7 @@ class FormRunner:
             SubmissionValidator(self.submission).validate_all_reachable_questions()
             return True
         except SubmissionValidationFailed as e:
-            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[unresolved-attribute]
+            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[missing-attribute]
             return False
 
     def complete_submission(self, user: User) -> bool:
@@ -392,7 +392,7 @@ class FormRunner:
                 self.submission.submit(user)
             return True
         except SubmissionValidationFailed as e:
-            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[unresolved-attribute]
+            self._tasklist_form.submit.errors.append(e.error_message)  # ty: ignore[missing-attribute]
             return False
         except ValueError:
             current_app.logger.warning(
@@ -400,7 +400,7 @@ class FormRunner:
                 {"submission_id": str(self.submission.id)},
                 exc_info=True,
             )
-            self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # ty: ignore[unresolved-attribute]
+            self._tasklist_form.submit.errors.append("You must complete all sections before submitting")  # ty: ignore[missing-attribute]
             return False
 
     def to_url(
@@ -423,7 +423,7 @@ class FormRunner:
             check_entries = self.submission.get_count_for_add_another(self.component.add_another_container)
 
         # todo: resolve type hinting issues w/ circular dependencies and bringing in class for instance check
-        return self.url_map[state](  # ty: ignore[invalid-key]
+        return self.url_map[state](  # ty: ignore[non-literal-typed-dict-key]
             self, question or self.component, form or self.form, source, add_another_index, action, check_entries
         )
 
@@ -771,3 +771,100 @@ class AGFFormRunner(FormRunner):
             )
 
         return form_runner
+
+
+class EligibilityFormRunner(FormRunner):
+    @classmethod
+    def load(
+        cls,
+        *,
+        submission_id: UUID,
+        question_id: UUID | None = None,
+        form_id: UUID | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        grant_recipient_id: UUID | None = None,
+        is_removing: bool = False,
+        is_clearing: bool = False,
+        check_entries: int | None = None,
+    ) -> "EligibilityFormRunner":
+        form_runner = cast(
+            "EligibilityFormRunner",
+            super().load(
+                submission_id=submission_id,
+                question_id=question_id,
+                form_id=form_id,
+                source=source,
+                add_another_index=add_another_index,
+                grant_recipient_id=grant_recipient_id,
+                is_removing=is_removing,
+                is_clearing=is_clearing,
+                check_entries=check_entries,
+            ),
+        )
+
+        if form_runner.form and not form_runner.form.is_eligibility_section:
+            current_app.logger.warning(
+                "EligibilityFormRunner loaded a question belonging to form_id=%(form_id)s, which is not an "
+                "eligibility section",
+                {"form_id": form_runner.form.id},
+            )
+            abort(404)
+
+        return form_runner
+
+    @property
+    def can_edit(self) -> bool:
+        # Eligibility questions are answered against an unclaimed submission with no grant_recipient yet, so
+        # the base class's org/grant_recipient permission check doesn't apply here.
+        if self.submission.in_answers_locked_state:
+            return False
+        return True
+
+    def to_url(
+        self,
+        state: FormRunnerState,
+        *,
+        question: Question | None = None,
+        form: Form | None = None,
+        source: FormRunnerState | None = None,
+        add_another_index: int | None = None,
+        action: str | None = None,
+    ) -> str:
+        # Eligibility sections have no tasklist or report page to route to. Raise error if they are hit.
+        if state in (FormRunnerState.TASKLIST, FormRunnerState.VIEW_REPORT_PAGE):
+            raise RuntimeError(f"Eligibility sections don't support {state}")
+
+        return super().to_url(
+            state, question=question, form=form, source=source, add_another_index=add_another_index, action=action
+        )
+
+    url_map: ClassVar[TRunnerUrlMap] = {
+        FormRunnerState.QUESTION: (
+            lambda runner, question, _form, _source, add_another_index, action, check_entries: url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=runner.submission.collection.grant.slug,
+                collection_slug=runner.submission.collection.slug,
+                question_id=question.id if question else None,
+                add_another_index=add_another_index,
+                action=action if action else None,
+                check_entries=check_entries,
+            )
+        ),
+        # Eligibility sections have no tasklist - `to_url` raises before this is ever reached.
+        FormRunnerState.TASKLIST: (
+            lambda _runner, _question, _form, _source, _add_another_index, _action, _check_entries: ""
+        ),
+        # next_url falls back to this state once all eligibility questions have been answered
+        FormRunnerState.CHECK_YOUR_ANSWERS: (
+            lambda runner, _question, _form, _source, _add_another_index, _action, _check_entries: url_for(
+                "access_grant_funding.eligible_to_apply",
+                grant_slug=runner.submission.collection.grant.slug,
+                collection_slug=runner.submission.collection.slug,
+            )
+        ),
+        # Eligibility sections have no report page - `to_url` raises before this is ever reached.
+        FormRunnerState.VIEW_REPORT_PAGE: (
+            lambda _runner, _question, _form, _source, _add_another_index, _action, _check_entries: ""
+        ),
+    }

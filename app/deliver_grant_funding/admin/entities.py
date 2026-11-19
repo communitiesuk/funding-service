@@ -121,12 +121,12 @@ class PlatformAdminModelView(XGovukModelView):
     def entity_label(self, model: Any) -> str:
         return str(model)
 
-    def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
+    def on_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty: ignore[incompatible-method-override]
         if not is_created:
             g.audit_event = create_database_model_change_for_update(model, get_current_user())
         return super().on_model_change(form, model, is_created)
 
-    def after_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
+    def after_model_change(self, form: Form, model: BaseModel, is_created: bool) -> None:  # ty:ignore[incompatible-method-override]
         """This is called after flask-admin has committed the changes; when we track an audit event, that event
         needs to be responsible for committing itself, as flask-admin won't commit again automatically.
         """
@@ -141,11 +141,11 @@ class PlatformAdminModelView(XGovukModelView):
 
         return super().after_model_change(form, model, is_created)
 
-    def on_model_delete(self, model: BaseModel) -> None:  # ty:ignore[invalid-method-override]
+    def on_model_delete(self, model: BaseModel) -> None:  # ty:ignore[incompatible-method-override]
         g.audit_event = create_database_model_change_for_delete(model, get_current_user())
         return super().on_model_delete(model)
 
-    def after_model_delete(self, model: BaseModel) -> None:  # ty:ignore[invalid-method-override]
+    def after_model_delete(self, model: BaseModel) -> None:  # ty:ignore[incompatible-method-override]
         """This is called after flask-admin has committed the changes; when we track an audit event, that event
         needs to be responsible for committing itself, as flask-admin won't commit again automatically.
         """
@@ -299,7 +299,7 @@ class PlatformAdminOrganisationView(FlaskAdminPlatformAdminAccessibleMixin, Plat
         "custom_code": "Our own custom identifier code for 'Other' organisation types",
     }
 
-    def on_model_change(self, form: Form, model: Organisation, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
+    def on_model_change(self, form: Form, model: Organisation, is_created: bool) -> None:  # ty:ignore[incompatible-method-override]
         external_id_before = model.external_id
 
         if not isinstance(model.type, OrganisationType):
@@ -373,7 +373,7 @@ class PlatformAdminCollectionView(FlaskAdminPlatformAdminAccessibleMixin, Platfo
         },
     }
 
-    def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
+    def after_model_change(self, form: Form, model: Collection, is_created: bool) -> None:  # ty: ignore[incompatible-method-override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
             if status_change := audit_event.changes.get("status"):
                 emit_metric_count(MetricEventName.COLLECTION_STATUS_CHANGED, count=1, collection=model)
@@ -508,11 +508,11 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
         },
     }
 
-    def edit_form(self, obj: Grant | None = None) -> Form:  # ty:ignore[invalid-method-override]
+    def edit_form(self, obj: Grant | None = None) -> Form:  # ty:ignore[incompatible-method-override]
         form = super().edit_form(obj)
         if obj:
             privacy_policy_url = url_for("access_grant_funding.privacy_notice", grant_id=obj.id)
-            form.privacy_policy_markdown.description = markupsafe.Markup(  # ty: ignore[unresolved-attribute]
+            form.privacy_policy_markdown.description = markupsafe.Markup(  # ty: ignore[missing-attribute]
                 "GOV.UK-style markdown for the grant's privacy notice. Once saved, "
                 f"<a class='govuk-link govuk-link--no-visited-state' href='{privacy_policy_url}' target='_blank'>"
                 "preview the privacy notice (opens in a new tab)"
@@ -520,7 +520,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
             )
         return form
 
-    def on_model_delete(self, model: Grant) -> None:  # ty:ignore[invalid-method-override]
+    def on_model_delete(self, model: Grant) -> None:  # ty:ignore[incompatible-method-override]
         user = get_current_user()
         for collection in list(model.collections):
             audit_event = create_database_model_change_for_delete(collection, user)
@@ -538,7 +538,7 @@ class PlatformAdminGrantView(FlaskAdminPlatformAdminAccessibleMixin, PlatformAdm
 
         return super().on_model_delete(model)
 
-    def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
+    def after_model_change(self, form: Form, model: Grant, is_created: bool) -> None:  # ty: ignore[incompatible-method-override]
         if audit_event := cast("DatabaseModelChange | None", getattr(g, "audit_event", None)):
             if "status" in audit_event.changes:
                 emit_metric_count(MetricEventName.GRANT_STATUS_CHANGED, count=1, grant=model)
@@ -588,13 +588,13 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
         "grant": {"get_label": "name"},
     }
 
-    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # ty:ignore[invalid-method-override]
+    def on_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # ty:ignore[incompatible-method-override]
         if is_created:
             # Make new invitations last 1 hour by default, since these invitations are very privileged.
             model.expires_at_utc = func.now() + datetime.timedelta(hours=1)
             model.created_by = get_current_user()
 
-            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # ty: ignore[unresolved-attribute]
+            if user := self.session.session.scalar(select(User).where(User.email == form.email.data)):  # ty: ignore[missing-attribute]
                 model.user = user
 
         return super().on_model_change(form, model, is_created)
@@ -611,9 +611,9 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
                 and hasattr(form, "grant")
             ):
                 # Only allow 'Deliver grant funding' org admin+member (ie funding service) invitations to be created
-                permissions = [RoleEnum[p] for p in form.permissions.data]  # ty: ignore[unresolved-attribute]
-                organisation = form.organisation.data  # ty: ignore[unresolved-attribute]
-                grant = form.grant.data  # ty: ignore[unresolved-attribute]
+                permissions = [RoleEnum[p] for p in form.permissions.data]  # ty: ignore[missing-attribute]
+                organisation = form.organisation.data  # ty: ignore[missing-attribute]
+                grant = form.grant.data  # ty: ignore[missing-attribute]
 
                 if (
                     (not organisation or not organisation.can_manage_grants)
@@ -625,7 +625,7 @@ class PlatformAdminInvitationView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
 
         return result
 
-    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # ty: ignore[invalid-method-override]
+    def after_model_change(self, form: Form, model: Invitation, is_created: bool) -> None:  # ty: ignore[incompatible-method-override]
         if is_created:
             if (not model.organisation or not model.organisation.can_manage_grants) or model.grant:
                 db.session.delete(model)
@@ -848,7 +848,7 @@ class PlatformAdminAuditEventView(FlaskAdminPlatformAdminGrantLifecycleManagerAc
     def render_details(self, model: AuditEvent) -> markupsafe.Markup:
         """The parsed event is the record, so the details page renders it in place of the row's columns."""
         # flask-admin has no public accessor for its registered views.
-        views = self.admin._views  # ty: ignore[unresolved-attribute]
+        views = self.admin._views  # ty: ignore[missing-union-attribute]
         renderer = AuditEventDetailsRenderer(v for v in views if isinstance(v, PlatformAdminModelView))
         try:
             event = parse_audit_event(model.event_type, model.data)

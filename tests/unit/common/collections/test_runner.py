@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.common.collections.runner import FormRunner
+from app.common.collections.runner import EligibilityFormRunner, FormRunner
 from app.common.collections.types import FileUploadAnswer, TextSingleLineAnswer
 from app.common.data.models import ComponentReference, Expression
 from app.common.data.types import ExpressionType, FormRunnerState, QuestionDataType, QuestionPresentationOptions
@@ -315,7 +315,15 @@ class TestFormRunner:
             )
             runner = runner_class(submission=SubmissionHelper(submission), question=question)
             for state in FormRunnerState:
-                assert runner.to_url(state) is not None
+                # Eligibility sections have no tasklist or report page to route to. Raise error if they are hit.
+                if runner_class is EligibilityFormRunner and state in (
+                    FormRunnerState.TASKLIST,
+                    FormRunnerState.VIEW_REPORT_PAGE,
+                ):
+                    with pytest.raises(RuntimeError, match="Eligibility sections don't support"):
+                        runner.to_url(state)
+                else:
+                    assert runner.to_url(state) is not None
 
     class TestPageHeadings:
         def test_single_question(self, factories):

@@ -1050,18 +1050,18 @@ class TestPublicSignUpStartPage:
         assert response.status_code == expected_status
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status",
+        "grant_status, collection_status, expected_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
-        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
     ):
         grant = factories.grant.create(status=grant_status, slug="grant-slug")
         can_manage_grants_organisation = grant.organisation
@@ -1089,7 +1089,7 @@ class TestPublicSignUpStartPage:
             )
         )
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status
 
     def test_page_content_with_prospectus_url(self, anonymous_client, factories):
         grant = factories.grant.create(
@@ -1440,18 +1440,18 @@ class TestPublicSignUpRouter:
         assert response.status_code == expected_status
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status",
+        "grant_status, collection_status, expected_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 302),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 302),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 302),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 302),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 302),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
-        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
     ):
         grant = factories.grant.create(status=grant_status, slug="grant-slug")
         can_manage_grants_organisation = grant.organisation
@@ -1479,7 +1479,7 @@ class TestPublicSignUpRouter:
             )
         )
 
-        assert response.status_code == 302
+        assert response.status_code == expected_status
 
     def test_get_redirects_to_eligible_to_apply_when_no_eligibility_form(
         self, authenticated_grant_member_client, factories
@@ -1768,18 +1768,18 @@ class TestEligibleToApplyPage:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status",
+        "grant_status, collection_status, expected_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
-        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
     ):
         grant = factories.grant.create(status=grant_status, slug="grant-slug")
         can_manage_grants_organisation = grant.organisation
@@ -1808,7 +1808,7 @@ class TestEligibleToApplyPage:
             url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug)
         )
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_get_redirects_to_first_eligibility_question_when_not_passed(
@@ -3361,18 +3361,18 @@ class TestAlreadyApplyingPage:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status",
+        "grant_status, collection_status, expected_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
-        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
     ):
         grant = factories.grant.create(status=grant_status, slug="grant-slug")
         can_manage_grants_organisation = grant.organisation
@@ -3403,7 +3403,7 @@ class TestAlreadyApplyingPage:
             )
         )
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status
 
     @pytest.mark.authenticate_as("test@example-org.com")
     def test_get_404s_when_no_grant_recipient_exists_for_organisation(self, authenticated_no_role_client, factories):
@@ -3568,18 +3568,18 @@ class TestPublicSignUpIneligiblePage:
         assert response.status_code == expected_status
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status",
+        "grant_status, collection_status, expected_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
-        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
     ):
         grant = factories.grant.create(status=grant_status, slug="grant-slug")
         can_manage_grants_organisation = grant.organisation
@@ -3623,7 +3623,7 @@ class TestPublicSignUpIneligiblePage:
             )
         )
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status
 
     def test_get_redirects_when_not_signed_up(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
@@ -3670,6 +3670,51 @@ class TestPublicSignUpIneligiblePage:
         assert response.location == url_for(
             "access_grant_funding.public_sign_up_router", grant_slug=grant.slug, collection_slug=collection.slug
         )
+
+    def test_get_shows_answer_for_specific_add_another_entry(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        group = factories.group.create(form=eligibility_form, add_another=True)
+        question = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, text="Are you an eagle?"
+        )
+        add_component_eligibility(
+            question,
+            authenticated_no_role_client.user,
+            IsNo(subject_reference=ExpressionReference.from_question(question)),
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        factories.submission.create(
+            collection=collection,
+            mode=SubmissionModeEnum.LIVE,
+            created_by=authenticated_no_role_client.user,
+            grant_recipient=None,
+            answers=[
+                # entry 0 passes eligibility, entry 1 fails - the page should show entry 1's answer specifically
+                FactoryAnswer(question, YesNoAnswer(True), add_another_index=0),
+                FactoryAnswer(question, YesNoAnswer(False), add_another_index=1),
+            ],
+        )
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_ineligible",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+                add_another_index=1,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "This is because you answered ‘No’ for ‘Are you an eagle?’." in soup.text
 
     def test_get_404s_for_unknown_question_id(self, authenticated_no_role_client, factories, db_session):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
@@ -3876,18 +3921,18 @@ class TestPublicSignUpEligibilityQuestion:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "grant_status, collection_status",
+        "grant_status, collection_status, expected_status",
         (
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN),
-            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.DRAFT, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.DRAFT, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.ONBOARDING, CollectionStatusEnum.OPEN, 200),
+            (GrantStatusEnum.LIVE, CollectionStatusEnum.CLOSED, 404),
         ),
     )
     def test_deliver_user_testing_access_allowed_for_any_status(
-        self, anonymous_client, factories, user, db_session, grant_status, collection_status
+        self, anonymous_client, factories, user, db_session, grant_status, collection_status, expected_status
     ):
         grant = factories.grant.create(status=grant_status, slug="grant-slug")
         can_manage_grants_organisation = grant.organisation
@@ -3923,7 +3968,7 @@ class TestPublicSignUpEligibilityQuestion:
             )
         )
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status
 
     def test_get_redirects_when_no_session_set(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
@@ -3962,6 +4007,29 @@ class TestPublicSignUpEligibilityQuestion:
                 grant_slug=grant.slug,
                 collection_slug=collection.slug,
                 question_id=uuid.uuid4(),
+            )
+        )
+
+        assert response.status_code == 404
+
+    def test_404s_for_question_not_belonging_to_eligibility_section(self, authenticated_no_role_client, factories):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        factories.form.create(collection=collection, is_eligibility_section=True)
+        application_form = factories.form.create(collection=collection, is_eligibility_section=False)
+        question = factories.question.create(form=application_form, data_type=QuestionDataType.YES_NO)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
             )
         )
 
@@ -4046,6 +4114,7 @@ class TestPublicSignUpEligibilityQuestion:
         factories.question.create(
             form=eligibility_form,
             text="Confirm your experience",
+            guidance_heading="Why we're asking",
             guidance_body=(
                 f"You told us you have {ExpressionReference.from_question(first_question).wrapped} years experience."
             ),
@@ -4108,6 +4177,49 @@ class TestPublicSignUpEligibilityQuestion:
             grant_slug=grant.slug,
             collection_slug=collection.slug,
             question_id=question.id,
+        )
+
+    def test_post_fails_eligibility_for_add_another_entry_redirects_to_ineligible(
+        self, authenticated_no_role_client, factories
+    ):
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        group = factories.group.create(form=eligibility_form, add_another=True)
+        question = factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.NUMBER)
+        add_component_eligibility(
+            question,
+            authenticated_no_role_client.user,
+            GreaterThan(minimum_value=3, subject_reference=ExpressionReference.from_question(question)),
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        FormCls = build_question_form([question], ExpressionContext(), ExpressionContext())
+        form = FormCls(data={question.safe_qid: "1"})
+
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=question.id,
+                add_another_index=0,
+            ),
+            data=get_form_data(form),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_ineligible",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question.id,
+            add_another_index=0,
         )
 
     def test_post_passes_eligibility_redirects_to_eligible_to_apply(self, authenticated_no_role_client, factories):

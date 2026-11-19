@@ -19,7 +19,7 @@ def upgrade() -> None:
     with op.batch_alter_table("collection", schema=None) as batch_op:
         batch_op.drop_constraint("ck_monitoring_certification_not_null")
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="collection_type",
         new_values=["MONITORING_REPORT", "APPLICATION"],
@@ -38,7 +38,7 @@ def downgrade() -> None:
     with op.batch_alter_table("collection", schema=None) as batch_op:
         batch_op.drop_constraint("ck_monitoring_certification_not_null")
 
-    op.sync_enum_values(  # ty: ignore[unresolved-attribute]
+    op.sync_enum_values(
         enum_schema="public",
         enum_name="collection_type",
         new_values=["MONITORING_REPORT"],
