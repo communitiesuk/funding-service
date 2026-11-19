@@ -551,6 +551,13 @@ class Collection(BaseModel):
         return self.allow_public_sign_up and not self.is_closed
 
     @property
+    def can_test_grant_recipient_journey(self) -> bool:
+        if self.allow_public_sign_up:
+            # Public sign up doesn't support testing the grant recipient journey once the collection is closed
+            return self.is_accepting_test_sign_up
+        return True
+
+    @property
     def submission_deadline_with_time(self) -> datetime.datetime | None:
         if not self.submission_period_end_date:
             return None

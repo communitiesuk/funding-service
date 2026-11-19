@@ -760,6 +760,21 @@ class TestCollectionModel:
         collection = factories.collection.build(allow_public_sign_up=True)
         assert collection.submission_visibility == SubmissionVisibilityEnum.REQUIRES_CLOSED_COLLECTION
 
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, status, expected",
+        [
+            (False, CollectionStatusEnum.DRAFT, True),
+            (False, CollectionStatusEnum.OPEN, True),
+            (False, CollectionStatusEnum.CLOSED, True),
+            (True, CollectionStatusEnum.DRAFT, True),
+            (True, CollectionStatusEnum.OPEN, True),
+            (True, CollectionStatusEnum.CLOSED, False),
+        ],
+    )
+    def test_can_test_grant_recipient_journey(self, factories, allow_public_sign_up, status, expected):
+        collection = factories.collection.build(allow_public_sign_up=allow_public_sign_up, status=status)
+        assert collection.can_test_grant_recipient_journey is expected
+
     def test_live_submissions_excludes_unclaimed_submissions(self, factories, mocker):
         collection = factories.collection.build()
         claimed = factories.submission.build(collection=collection, mode=SubmissionModeEnum.LIVE)
