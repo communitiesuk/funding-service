@@ -1,9 +1,8 @@
 {% extends "admin/base.html" %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgRequestTracingBanner with context %}
-{% from 'govuk_frontend_jinja/components/generic-header/macro.html' import govukGenericHeader %}
+{% from "common/macros/header.html" import fundingServiceHeader with context %}
 {% from "common/partials/mhclg-logo.html" import mhclgLogo %}
 {% from "common/macros/navigation.html" import serviceNavigationWithRightItems %}
-{% from "common/macros/navigation.html" import serviceNavigationWithRightItems2 %}
 
 {% block pageTitle %}Admin panel - MHCLG Funding Service{% endblock %}
 
@@ -25,10 +24,9 @@
   {{ mhclgRequestTracingBanner() }}
 
   {{
-    govukGenericHeader({
-      "url": url_for("platform_admin.index"),
-      "classes": "app-generic-header--brand",
-      "logoHtml": mhclgLogo(vite_asset('assets'),"Deliver grant funding | Admin")
+    fundingServiceHeader({
+      "serviceNameUrl": url_for("platform_admin.index"),
+      "logoText": "Deliver grant funding | Admin"
     })
   }}
 {% endblock %}

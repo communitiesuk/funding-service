@@ -1,6 +1,6 @@
 {% from "govuk_frontend_jinja/components/error-summary/macro.html" import govukErrorSummary %}
 {% from "common/partials/mhclg-logo.html" import mhclgLogo %}
-{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
+{% from "common/macros/header.html" import fundingServiceHeader with context %}
 
 {% set assetPath = vite_asset('assets') %}
 
@@ -29,9 +29,9 @@
     <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
 
     {{
-      govukGenericHeader({
-        "url": "#",
-        "logoHtml": mhclgLogo(assetPath, "Deliver grant funding")
+      fundingServiceHeader({
+        "serviceNameUrl": "#",
+        "logoText": "Deliver grant funding"
       })
     }}
     <div class="govuk-width-container">
