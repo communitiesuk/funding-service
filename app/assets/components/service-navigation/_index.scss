@@ -12,6 +12,11 @@
     }
 }
 
+.govuk-service-navigation__item,
+.govuk-service-navigation__service-name {
+    padding: 10px 0;
+}
+
 .app-service-nav {
     .govuk-service-navigation__link.govuk-header__link {
         color: govuk.govuk-colour(white);
@@ -23,6 +28,7 @@
     .govuk-service-navigation__item.app-service-navigation__item--right-nav {
         @include govuk.govuk-media-query($from: tablet) {
             padding-top: 20px;
+            padding-bottom: 10px;
         }
         @include govuk.govuk-media-query($until: tablet) {
             padding-top: 0;
