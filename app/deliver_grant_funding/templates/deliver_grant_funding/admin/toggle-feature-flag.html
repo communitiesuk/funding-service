@@ -5,7 +5,7 @@
 {% from "govuk_frontend_jinja/components/inset-text/macro.html" import govukInsetText %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ govukBackLink({"text": "Back", "href": url_for('feature_flags.index') }) }}
 {% endblock %}
 

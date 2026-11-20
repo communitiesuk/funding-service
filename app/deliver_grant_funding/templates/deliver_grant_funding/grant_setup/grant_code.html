@@ -9,7 +9,7 @@
 
 {% set page_title = grant.name %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if not grant.id %}
     {{
       govukBackLink({
@@ -18,7 +18,7 @@
       })
     }}
   {% endif %}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

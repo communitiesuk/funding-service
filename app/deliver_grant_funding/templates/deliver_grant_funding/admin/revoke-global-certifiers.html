@@ -5,7 +5,7 @@
 {% from 'deliver_grant_funding/partials/existing-certifiers.html' import existingCertifiersTable %}
 {% from 'govuk_frontend_jinja/components/details/macro.html' import govukDetails %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.set_up_global_certifiers', grant_id=grant.id, collection_id=collection.id) }) }}
 {% endblock %}
 

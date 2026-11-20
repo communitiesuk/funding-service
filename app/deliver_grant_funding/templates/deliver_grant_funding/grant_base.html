@@ -2,6 +2,8 @@
 
 {% set cspNonce = csp_nonce() %}
 
+{% set grant_name=grant.name %}
+
 {% set nav_items = [] %}
 {%
   do nav_items.append({
@@ -35,15 +37,3 @@
       },
   ])
 %}
-
-{% set right_nav_items = [] %}
-
-{% if authorisation_helper.is_deliver_org_member(current_user) or current_user.deliver_grants | length > 1 %}
-  {%
-    do right_nav_items.append({
-        "text": "See all grants",
-        "href": url_for("deliver_grant_funding.list_grants"),
-        "current": false
-    })
-  %}
-{% endif %}

@@ -4,9 +4,9 @@
 // Based on the error colour in:
 // https://github.com/alphagov/govuk-frontend/blob/v4.2.0/src/govuk/settings/_colours-applied.scss
 // with :hover and :active variants based on those for links
-$app-destructive-link-colour: govuk.$govuk-error-colour;
+$app-destructive-link-colour: govuk.govuk-functional-colour("error");
 $app-destructive-link-hover-colour: govuk.govuk-colour("red");
-$app-destructive-link-active-colour: govuk.$govuk-text-colour;
+$app-destructive-link-active-colour: govuk.govuk-functional-colour("text");
 
 // Extends govuk-link to create a class of link that causes a destructive action
 // Based on styles of link in:
@@ -37,8 +37,8 @@ $app-destructive-link-active-colour: govuk.$govuk-text-colour;
 }
 
 .app-notification-banner--destructive {
-    border-color: govuk.$govuk-error-colour;
-    background-color: govuk.$govuk-error-colour;
+    border-color: govuk.govuk-functional-colour("error");
+    background-color: govuk.govuk-functional-colour("error");
 
     .app-notification-banner__link {
         @include govuk.govuk-link-style-error;

@@ -54,20 +54,20 @@
 
     .choices[data-type*="select-multiple"] .choices__button,
     .choices[data-type*="text"] .choices__button {
-        border-color: govuk.$govuk-border-colour;
-        border-right: 1px solid govuk.$govuk-border-colour;
+        border-color: govuk.govuk-functional-colour("border");
+        border-right: 1px solid govuk.govuk-functional-colour("border");
         padding: 10px 20px 10px 10px;
         margin-right: 0;
 
         &:hover {
-            background-color: govuk.$govuk-border-colour;
-            border-color: govuk.$govuk-secondary-text-colour;
-            box-shadow: 0 2px govuk.$govuk-secondary-text-colour;
+            background-color: govuk.govuk-functional-colour("border");
+            border-color: govuk.govuk-functional-colour("secondary-text");
+            box-shadow: 0 2px govuk.govuk-functional-colour("secondary-text");
         }
 
         &:focus {
-            background-color: govuk.$govuk-focus-colour;
-            box-shadow: 0 2px govuk.$govuk-text-colour;
+            background-color: govuk.govuk-functional-colour("focus");
+            box-shadow: 0 2px govuk.govuk-functional-colour("text");
         }
     }
 
@@ -86,13 +86,13 @@
 
     .choices__inner {
         padding: 5px;
-        border: 2px solid govuk.$govuk-input-border-colour;
+        border: 2px solid govuk.govuk-functional-colour("input-border");
     }
 
     &.govuk-form-group--error
         .choices:not(.is-active):not(.is-focused):not(.is-open)
         .choices__inner {
-        border-color: govuk.$govuk-error-colour;
+        border-color: govuk.govuk-functional-colour("error");
     }
 
     .choices.is-focused,
@@ -107,7 +107,7 @@
 
     .choices.is-focused .choices__inner,
     .choices.is-open .choices__inner {
-        outline: 3px solid govuk.$govuk-focus-colour;
+        outline: 3px solid govuk.govuk-functional-colour("focus");
         outline-offset: 0;
         box-shadow: inset 0 0 0 2px;
     }
@@ -117,7 +117,8 @@
 
         &:not(:empty) {
             margin-block-start: 6px;
-            border-block-start: 1px solid govuk.$govuk-border-colour;
+            border-block-start: 1px solid
+                govuk.govuk-functional-colour("border");
             padding-block-end: 5px;
         }
 
@@ -127,10 +128,10 @@
             border: 0;
             padding: 0 0 0 10px;
             margin: 10px 10px 0 0;
-            background-color: govuk.govuk-colour("light-grey");
-            box-shadow: 0 2px govuk.$govuk-border-colour;
+            background-color: govuk.govuk-colour("black", $variant: "tint-95");
+            box-shadow: 0 2px govuk.govuk-functional-colour("border");
             line-height: 1;
-            color: govuk.$govuk-text-colour;
+            color: govuk.govuk-functional-colour("text");
         }
     }
 
@@ -140,7 +141,7 @@
 
     .choices__list--dropdown,
     .choices__list[aria-expanded] {
-        border: 2px solid govuk.$govuk-input-border-colour;
+        border: 2px solid govuk.govuk-functional-colour("input-border");
         border-top-width: 0;
     }
 
@@ -153,7 +154,7 @@
     .choices__list--dropdown .choices__item,
     .choices__list[aria-expanded] .choices__item {
         position: relative;
-        border-bottom: 1px solid govuk.$govuk-border-colour;
+        border-bottom: 1px solid govuk.govuk-functional-colour("border");
 
         &:last-child {
             border-bottom: 0;
@@ -170,9 +171,9 @@
 
     .choices__heading {
         font-weight: 700;
-        color: govuk.$govuk-text-colour;
+        color: govuk.govuk-functional-colour("text");
         padding: 30px 10px 10px;
-        border-bottom: 1px solid govuk.$govuk-border-colour;
+        border-bottom: 1px solid govuk.govuk-functional-colour("border");
         cursor: default;
     }
 
@@ -180,7 +181,7 @@
     // provided via a `data-hint` attribute on the corresponding <option>.
     .app-select-with-search__option-hint {
         display: block;
-        color: govuk.$govuk-secondary-text-colour;
+        color: govuk.govuk-functional-colour("secondary-text");
         @include govuk.govuk-font($size: 16);
     }
 
