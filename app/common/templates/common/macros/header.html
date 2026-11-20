@@ -1,0 +1,7 @@
+{% from 'govuk_frontend_jinja/components/generic-header/macro.html' import govukGenericHeader %}
+{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
+
+{% set assetPath = vite_asset('assets') %}
+{% macro fundingServiceHeader(params) %}
+  {{ govukGenericHeader({ "url": params.serviceNameUrl, "logoHtml": mhclgLogo(assetPath=assetPath, productName=params.logoText) }) }}
+{% endmacro %}

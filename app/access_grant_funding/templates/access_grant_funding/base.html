@@ -1,6 +1,5 @@
 {% extends "common/base.html" %}
-{% from "common/partials/mhclg-logo.html" import mhclgLogo %}
-{% from "govuk_frontend_jinja/components/generic-header/macro.html" import govukGenericHeader %}
+{% from "common/macros/header.html" import fundingServiceHeader with context %}
 {% from "common/macros/navigation.html" import accessGrantFundingServiceNavigation %}
 {% from "govuk_frontend_jinja/components/footer/macro.html" import govukFooter %}
 {% from "common/partials/mhclg-test-banner.html" import mhclgTestBanner, mhclgRequestTracingBanner with context %}
@@ -35,9 +34,9 @@
 {% block govukHeader %}
   {{ mhclgRequestTracingBanner() }}
   {{
-    govukGenericHeader({
-      "url": url_for("access_grant_funding.index"),
-      "logoHtml": mhclgLogo(assetPath, "Access grant funding")
+    fundingServiceHeader({
+      "serviceNameUrl": url_for("access_grant_funding.index"),
+      "logoText": "Access grant funding"
     })
   }}
 
