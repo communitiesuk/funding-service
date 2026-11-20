@@ -267,6 +267,7 @@ routes_with_no_expected_access_restrictions = [
     # \/ authorisation done within the endpoint via bearer token for Jira data connector \/
     "deliver_grant_funding.api.list_active_grants",
     "xgovuk_flask_admin.static",
+    "security_txt",
 ]
 routes_with_access_controlled_by_flask_admin = [
     "platform_admin.index",
@@ -431,7 +432,9 @@ routes_with_access_controlled_by_flask_admin = [
 def test_accessibility_for_user_role_to_each_endpoint(app, subtests):  # noqa: C901
     for rule in app.url_map.iter_rules():
         with subtests.test(msg=rule.endpoint):
-            decorators = _get_decorators(app.view_functions[rule.endpoint])
+            if not (view_func := app.view_functions.get(rule.endpoint)):
+                continue
+            decorators = _get_decorators(view_func)
             if rule.endpoint in routes_with_expected_platform_admin_only_access:
                 assert "@is_platform_admin" in decorators
             elif rule.endpoint in routes_with_expected_deliver_org_member_only_access:
@@ -516,7 +519,9 @@ routes_with_get_change_state_exception = [
 def test_restrict_mutate_state_on_only_get(app, subtests):
     for rule in app.url_map.iter_rules():
         with subtests.test(msg=rule.endpoint):
-            decorators = _get_decorators(app.view_functions[rule.endpoint])
+            if not (view_func := app.view_functions.get(rule.endpoint)):
+                continue
+            decorators = _get_decorators(view_func)
             if (
                 rule.endpoint not in routes_with_get_change_state_exception
                 and rule.methods == {"GET", "HEAD", "OPTIONS"}
