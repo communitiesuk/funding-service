@@ -6,12 +6,6 @@
   {% set grant_recipients = user.get_grant_recipients() %}
   {% set number_of_organisations = grant_recipients | map(attribute='organisation_id') | unique | list | length %}
   {% set right_nav_items=[] %}
-  {% if user and user.is_authenticated %}
-    {% if authorisation_helper.is_platform_member(user) %}
-      {% do right_nav_items.append({"text": "Admin panel", "href": "/deliver/admin/"}) %}
-    {% endif %}
-    {% do right_nav_items.append({"text": "Sign out", "href": url_for("auth.sign_out")}) %}
-  {% endif %}
   {% if organisation or grant_recipient %}
     {% set org_right_nav_items=[] %}
     {% if number_of_organisations > 1 %}
@@ -34,13 +28,15 @@
       "navigation": []}, grant_right_nav_items, navigationId="grantNav")
     }}
   {% endif %}
-  {{
-    serviceNavigationWithRightItems({
-        "navigation": nav_items,
-        "navigationClasses": navigation_classes,
-        "attributes": { "id": "access-nav" }
-    },right_nav_items, "navigation" )
-  }}
+  {% if nav_items or right_nav_items %}
+    {{
+      serviceNavigationWithRightItems({
+          "navigation": nav_items,
+          "navigationClasses": navigation_classes,
+          "attributes": { "id": "access-nav" }
+      },right_nav_items, "navigation" )
+    }}
+  {% endif %}
 {% endmacro %}
 
 {% macro deliverGrantFundingServiceNavigation(user,grant_name=None, nav_items=[], right_nav_items=[]) %}

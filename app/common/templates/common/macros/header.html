@@ -3,5 +3,28 @@
 
 {% set assetPath = vite_asset('assets') %}
 {% macro fundingServiceHeader(params) %}
-  {{ govukGenericHeader({ "url": params.serviceNameUrl, "logoHtml": mhclgLogo(assetPath=assetPath, productName=params.logoText) }) }}
+  {#  This html is copied from the generic header and should be kept in sync with design system changes #}
+  <div class="govuk-generic-header">
+    <div class="govuk-generic-header__container govuk-width-container">
+      <div class="govuk-generic-header__logo">
+        <a href="{{ params.serviceNameUrl }}" class="govuk-generic-header__homepage-link"> {{ mhclgLogo(assetPath=assetPath, productName=params.logoText) }} </a>
+      </div>
+      <div class="govuk-header__content">
+        {% if current_user and current_user.is_authenticated %}
+          <nav id="serviceHeaderRightNav" class="app-service-nav">
+            <ul class="govuk-service-navigation__list">
+              {% if authorisation_helper.is_platform_member(current_user) %}
+                <li class="govuk-service-navigation__item app-service-navigation__item--right-nav">
+                  <a class="govuk-service-navigation__link govuk-header__link" href="/deliver/admin/">Admin panel</a>
+                </li>
+              {% endif %}
+              <li class="govuk-service-navigation__item app-service-navigation__item--right-nav">
+                <a class="govuk-service-navigation__link govuk-header__link" href="{{ url_for('auth.sign_out') }}">Sign out</a>
+              </li>
+            </ul>
+          </nav>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 {% endmacro %}
