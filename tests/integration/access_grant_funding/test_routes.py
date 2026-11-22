@@ -4222,6 +4222,129 @@ class TestPublicSignUpEligibilityQuestion:
             add_another_index=0,
         )
 
+    def test_post_shows_next_question_conditional_on_sibling_in_same_add_another_entry(
+        self, authenticated_no_role_client, factories
+    ):
+        # Scenario:
+        #   group (add another)
+        #     trigger_question      index 0  (answered Yes)
+        #     conditional_question  index 0  (conditional on trigger_question == Yes)
+        #
+        # Checks that answering trigger_question correctly renders conditional_question next, rather than
+        # erroring when the back link computes conditional_question's visibility.
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        group = factories.group.create(form=eligibility_form, add_another=True)
+        trigger_question = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=0
+        )
+        conditional_question = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=1, text="Conditional?"
+        )
+        add_component_condition(
+            conditional_question,
+            authenticated_no_role_client.user,
+            IsYes(subject_reference=ExpressionReference.from_question(trigger_question)),
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        # answer the trigger question, making conditional_question visible
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=trigger_question.id,
+                add_another_index=0,
+            ),
+            data={trigger_question.safe_qid: "1", "submit": "y"},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert "Conditional?" in soup.text
+
+    def test_post_exiting_add_another_group_renders_summary_page_when_last_entry_is_conditional(
+        self, authenticated_no_role_client, factories
+    ):
+        # Scenario:
+        #   preceding_question                        (answered, comes before the group in the form)
+        #   group (add another)
+        #     trigger_question      index 0  (answered Yes)
+        #     conditional_question  index 0  (conditional on trigger_question == Yes, answered)
+        #
+        # Checks that answering conditional_question, the last question in the group, redirects to the add
+        # another summary page rather than erroring, even though conditional_question is itself conditional.
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        preceding_question = factories.question.create(
+            form=eligibility_form, data_type=QuestionDataType.TEXT_SINGLE_LINE, order=0
+        )
+        group = factories.group.create(form=eligibility_form, order=1, add_another=True)
+        trigger_question = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=0
+        )
+        conditional_question = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=1, text="Conditional?"
+        )
+        add_component_condition(
+            conditional_question,
+            authenticated_no_role_client.user,
+            IsYes(subject_reference=ExpressionReference.from_question(trigger_question)),
+        )
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        # answer the question that comes before the group
+        authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=preceding_question.id,
+            ),
+            data={preceding_question.safe_qid: "hello", "submit": "y"},
+            follow_redirects=True,
+        )
+
+        # answer the trigger question, making conditional_question visible
+        authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=trigger_question.id,
+                add_another_index=0,
+            ),
+            data={trigger_question.safe_qid: "1", "submit": "y"},
+            follow_redirects=True,
+        )
+
+        # answer conditional_question, the last question in the group, exiting to the summary page
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=conditional_question.id,
+                add_another_index=0,
+            ),
+            data={conditional_question.safe_qid: "1", "submit": "y"},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+
     def test_post_passes_eligibility_redirects_to_eligible_to_apply(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(

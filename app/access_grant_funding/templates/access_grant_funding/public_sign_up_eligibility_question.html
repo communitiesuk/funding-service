@@ -6,10 +6,10 @@
 {% set page_title = runner.interpolate(runner.component.text) ~ " - " ~ grant.name %}
 
 {% set form = runner.question_with_add_another_summary_form %}
-{% set previous_question = runner.submission.get_previous_question(runner.linked_question.id) %}
+{% set first_question = runner.submission.get_first_question_for_form(runner.form) %}
 
 {% block beforeContent %}
-  {% if previous_question %}
+  {% if first_question and runner.linked_question.id != first_question.id %}
     {{ govukBackLink({ "text": "Back", "href": runner.back_url }) }}
   {% endif %}
 {% endblock beforeContent %}
