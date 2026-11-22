@@ -4674,6 +4674,89 @@ class TestPublicSignUpEligibilityQuestion:
         # confirm we actually landed on group_two's page, not still on group_one
         assert question_b1.safe_qid in response.data.decode()
 
+    def test_post_revisits_incomplete_add_another_entry_instead_of_skipping_it(
+        self, authenticated_no_role_client, factories
+    ):
+        # Scenario:
+        #   earlier_question           (answered)
+        #   group (add another)
+        #     answered_group_question  index 0  (answered)
+        #     <unnamed question>       index 0  (unanswered - entry is incomplete)
+        #
+        # Checks that re-submitting earlier_question routes back to the group's summary page, so the
+        # incomplete entry can be finished, rather than skipping past the group entirely.
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        earlier_question = factories.question.create(form=eligibility_form, data_type=QuestionDataType.YES_NO, order=0)
+        group = factories.group.create(
+            form=eligibility_form,
+            order=1,
+            add_another=True,
+            name="Group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        answered_group_question = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=0
+        )
+        factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=1)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        # answer the earlier question
+        authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=earlier_question.id,
+            ),
+            data={earlier_question.safe_qid: "1", "submit": "y"},
+            follow_redirects=False,
+        )
+
+        # answer only the first group question for index 0 - the second is left incomplete
+        authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=answered_group_question.id,
+                add_another_index=0,
+            ),
+            data={answered_group_question.safe_qid: "1", "submit": "y"},
+            follow_redirects=False,
+        )
+
+        # re-submitting the earlier question should route back to the group's summary page, so the
+        # incomplete entry can be finished, not skip past the group entirely
+        response = authenticated_no_role_client.post(
+            url_for(
+                "access_grant_funding.public_sign_up_eligibility_question",
+                grant_slug=grant.slug,
+                collection_slug=collection.slug,
+                question_id=earlier_question.id,
+            ),
+            data={earlier_question.safe_qid: "1", "submit": "y"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=answered_group_question.id,
+        )
+
+        followed = authenticated_no_role_client.get(response.location, follow_redirects=False)
+        assert followed.status_code == 200
+        soup = BeautifulSoup(followed.data, "html.parser")
+        assert "Group" in soup.text
+        assert "Enter missing information" in soup.text
+
     def test_post_passes_eligibility_redirects_to_eligible_to_apply(self, authenticated_no_role_client, factories):
         grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
         collection = factories.collection.create(

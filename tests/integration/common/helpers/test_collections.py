@@ -558,6 +558,41 @@ class TestSubmissionHelper:
             assert len(mock_s3_service_calls.delete_file_calls) == 1
             assert mock_s3_service_calls.delete_file_calls[0].args[0] == "an-s3-key-0"
 
+    class TestIsAddAnotherContainerFullyAnswered:
+        def test_false_when_question_is_not_in_an_add_another_container(self, factories):
+            question = factories.question.create()
+            submission = factories.submission.create(collection=question.form.collection)
+
+            assert SubmissionHelper(submission).is_add_another_container_fully_answered(question) is False
+
+        def test_false_when_container_has_no_entries(self, factories):
+            group = factories.group.create(add_another=True)
+            question = factories.question.create(form=group.form, parent=group)
+            submission = factories.submission.create(collection=group.form.collection)
+
+            assert SubmissionHelper(submission).is_add_another_container_fully_answered(question) is False
+
+        def test_true_when_the_only_entry_is_fully_answered(self, factories):
+            group = factories.group.create(add_another=True)
+            question = factories.question.create(form=group.form, parent=group)
+            submission = factories.submission.create(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(question, TextSingleLineAnswer("hi"), add_another_index=0)],
+            )
+
+            assert SubmissionHelper(submission).is_add_another_container_fully_answered(question) is True
+
+        def test_false_when_an_entry_is_missing_an_answer(self, factories):
+            group = factories.group.create(add_another=True)
+            answered_question = factories.question.create(form=group.form, parent=group, order=0)
+            unanswered_question = factories.question.create(form=group.form, parent=group, order=1)
+            submission = factories.submission.create(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(answered_question, TextSingleLineAnswer("hi"), add_another_index=0)],
+            )
+
+            assert SubmissionHelper(submission).is_add_another_container_fully_answered(unanswered_question) is False
+
     class TestRemoveAnswerForQuestion:
         def test_remove_answer_for_file_upload_question_and_clears_cache(
             self, db_session, factories, mock_s3_service_calls

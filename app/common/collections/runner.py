@@ -484,8 +484,10 @@ class FormRunner:
                 (self.submission.cached_get_answer_for_question(next_question.id) is not None)
                 # only if we know exactly which answer to check (its not add another)
                 if not next_question.add_another_container
-                # otherwise for add another questions skip if we've got at least one entry
-                else (self.submission.get_count_for_add_another(next_question.add_another_container))
+                # otherwise for add another questions skip only if every existing entry is fully answered
+                # if an entry is incomplete we stop here, landing on the add another summary page instead of
+                # skipping straight past it
+                else self.submission.is_add_another_container_fully_answered(next_question)
             ):
                 next_question = self.submission.get_next_question(
                     next_question.id,
