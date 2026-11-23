@@ -2753,8 +2753,22 @@ def delete_all_collection_preview_submissions(collection: Collection) -> None:
         db.session.execute(delete(Submission).where(Submission.id.in_(submission_ids)))
 
 
+def lock_collection_preview_submissions_for_user(collection: Collection, user: User) -> None:
+    # Acquire a transaction-scoped advisory lock keyed on (user, collection) for preview submissions. This serialises
+    # concurrent "start preview" requests (eg a double-clicked submit button) so that the second request only reads,
+    # deletes and recreates the user's preview submission after the first has committed. Without it both requests can
+    # insert a new preview submission and violate `uq_submission_unclaimed_created_by_collection_mode`.
+    # pg_advisory_xact_lock is re-entrant within a transaction and released automatically when it ends.
+    db.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"preview:{user.id}:{collection.id}"},
+    )
+
+
 @flush_and_rollback_on_exceptions
 def delete_collection_preview_submissions_created_by_user(collection: Collection, created_by_user: User) -> None:
+    lock_collection_preview_submissions_for_user(collection=collection, user=created_by_user)
+
     # We're trying to rely less on ORM relationships and cascades in delete queries so here we explicitly delete all
     # SubmissionEvents related to the `created_by_user`'s test submissions for that collection, and then
     # subsequently delete the submissions.

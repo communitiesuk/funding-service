@@ -9,6 +9,7 @@ from app.common.data.interfaces.collections import (
     create_submission,
     delete_collection_preview_submissions_created_by_user,
     get_submissions_by_user,
+    lock_collection_preview_submissions_for_user,
 )
 from app.common.data.types import SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
@@ -22,6 +23,9 @@ if TYPE_CHECKING:
 
 def start_previewing_collection(collection: Collection, form: Form | None = None) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
+
+    # Serialise concurrent preview starts for this user/collection before reading existing preview submissions.
+    lock_collection_preview_submissions_for_user(collection=collection, user=user)
 
     file_prefixes_to_delete = [
         submission.s3_key_prefix

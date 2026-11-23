@@ -1,3 +1,5 @@
+from sqlalchemy import text
+
 from app.common.data.models import Submission, SubmissionEvent
 from app.common.data.types import SubmissionModeEnum
 from app.deliver_grant_funding.helpers import start_previewing_collection
@@ -48,3 +50,19 @@ def test_start_previewing_collection(authenticated_grant_admin_client, db_sessio
     ]
     assert len(mock_s3_service_calls.delete_prefix_calls) == 2
     assert str(test_submissions_from_db[0].id) in mock_s3_service_calls.delete_prefix_calls[1].args[0]
+
+
+def test_start_previewing_collection_takes_advisory_lock(
+    authenticated_grant_admin_client, db_session, factories, mock_s3_service_calls
+):
+    collection = factories.collection.create()
+
+    response = start_previewing_collection(collection=collection)
+    assert response.status_code == 302
+
+    # The transaction-scoped advisory lock serialising concurrent preview starts is held by this session
+    held_advisory_locks = db_session.execute(
+        text("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid() AND granted")
+    ).scalar_one()
+    assert held_advisory_locks >= 1
+    assert db_session.query(Submission).where(Submission.mode == SubmissionModeEnum.PREVIEW).count() == 1
