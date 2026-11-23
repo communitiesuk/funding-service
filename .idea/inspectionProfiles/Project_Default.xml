@@ -1,0 +1,23 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="mistune" />
+          <option value="alembic" />
+          <option value="boto3" />
+          <option value="faker" />
+          <option value="flask-admin" />
+          <option value="msal" />
+          <option value="playwright" />
+          <option value="sentry-sdk" />
+          <option value="types-boto3" />
+          <option value="notifications-python-client" />
+          <option value="charset-normalizer" />
+          <option value="xgovuk-flask-admin" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
