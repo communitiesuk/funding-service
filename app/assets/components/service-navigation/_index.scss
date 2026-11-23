@@ -19,7 +19,7 @@
 
 .app-service-nav {
     .govuk-service-navigation__link.govuk-header__link {
-        color: govuk.govuk-colour(white);
+        color: white;
         @include govuk.govuk-media-query($from: tablet) {
             font-weight: 700;
         }
@@ -34,6 +34,13 @@
             padding-top: 0;
         }
     }
+}
+
+.govuk-service-navigation__container
+    .app-service-navigation__item--right-nav
+    .govuk-service-navigation__link:not(:hover):not(:active) {
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .app-service-navigation__item--right-nav {
