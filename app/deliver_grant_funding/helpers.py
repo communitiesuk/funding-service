@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Callable
 
 from flask import current_app, jsonify, redirect, session, url_for
 from flask.typing import ResponseReturnValue
+from sqlalchemy import text
 
 from app.common.data import interfaces
 from app.common.data.interfaces.collections import (
@@ -14,7 +15,7 @@ from app.common.data.types import SubmissionModeEnum
 from app.common.helpers.collections import SubmissionHelper
 from app.deliver_grant_funding.forms import PreviewGuidanceForm
 from app.deliver_grant_funding.types import PreviewGuidanceBadRequestResponse, PreviewGuidanceSuccessResponse
-from app.extensions import s3_service
+from app.extensions import db, s3_service
 
 if TYPE_CHECKING:
     from app.common.data.models import Collection, Form
@@ -22,6 +23,18 @@ if TYPE_CHECKING:
 
 def start_previewing_collection(collection: Collection, form: Form | None = None) -> ResponseReturnValue:
     user = interfaces.user.get_current_user()
+
+    # Acquire a transaction-scoped advisory lock keyed on (user, collection) BEFORE
+    # reading/deleting/creating. This prevents the double-click race condition: without
+    # the lock, two concurrent preview requests can both delete the old submission and
+    # then both try to insert a new one, tripping uq_submission_unclaimed_created_by_
+    # collection_mode. The lock serialises them so the second request waits for the first
+    # to commit its delete+create before running its own. pg_advisory_xact_lock releases
+    # automatically when the transaction ends, with no manual cleanup required.
+    db.session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{user.id}:{collection.id}:preview"},
+    )
 
     file_prefixes_to_delete = [
         submission.s3_key_prefix
