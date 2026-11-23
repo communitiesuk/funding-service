@@ -15,11 +15,11 @@
             <ul class="govuk-service-navigation__list">
               {% if authorisation_helper.is_platform_member(current_user) %}
                 <li class="govuk-service-navigation__item app-service-navigation__item--right-nav">
-                  <a class="govuk-service-navigation__link govuk-header__link" href="/deliver/admin/">Admin panel</a>
+                  <a class="govuk-service-navigation__link govuk-header__link  govuk-link--inverse" href="/deliver/admin/">Admin panel</a>
                 </li>
               {% endif %}
               <li class="govuk-service-navigation__item app-service-navigation__item--right-nav">
-                <a class="govuk-service-navigation__link govuk-header__link" href="{{ url_for('auth.sign_out') }}">Sign out</a>
+                <a class="govuk-service-navigation__link govuk-header__link govuk-link--inverse" href="{{ url_for('auth.sign_out') }}">Sign out</a>
               </li>
             </ul>
           </nav>
