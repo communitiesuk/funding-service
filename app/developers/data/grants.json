@@ -1665,6 +1665,13 @@
           "mode": "live",
           "organisation_id": "74b2ee5d-20e6-4ab9-b5d0-150444bf9510",
           "status": "awarded"
+        },
+        {
+          "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+          "id": "32fb2840-75cb-4edf-8f87-2067f2094774",
+          "mode": "live",
+          "organisation_id": "d78be85b-8532-4e6b-a99e-51777f92dbc5",
+          "status": "awarded"
         }
       ],
       "questions": [
@@ -2941,6 +2948,505 @@
           "type": "QUESTION"
         }
       ]
+    },
+    {
+      "collections": [
+        {
+          "allow_edits_after_submission_deadline": true,
+          "allow_multiple_submissions": false,
+          "allow_public_sign_up": false,
+          "allow_submission_reopening": true,
+          "allow_validation": false,
+          "created_by_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72",
+          "grant_id": "5b4eafbd-2f65-4bc4-af08-ac307c07baea",
+          "id": "950b0a75-98f8-4745-8d04-320463ccbf3f",
+          "multiple_submissions_are_managed_by_service": false,
+          "name": "LGF Calculations",
+          "reminder_email_business_days_before_closing": 5,
+          "requires_certification": true,
+          "send_deadline_reminder_emails": true,
+          "send_overdue_emails": true,
+          "slug": "lgf-calculations",
+          "status": "Open",
+          "submission_visibility": "Always visible",
+          "type": "monitoring report"
+        }
+      ],
+      "component_references": [
+        {
+          "component_id": "fbbd37aa-7df8-4abb-aee9-4e34289ae445",
+          "depends_on_component_id": "0efc6cc8-e1e2-49be-9e62-90222a2c6ee4",
+          "id": "04f6fd80-65bc-4356-975f-a9d1174c03b6"
+        },
+        {
+          "component_id": "fbbd37aa-7df8-4abb-aee9-4e34289ae445",
+          "depends_on_component_id": "0efc6cc8-e1e2-49be-9e62-90222a2c6ee4",
+          "expression_id": "cd6ae815-52b3-4498-839c-a1c540625cc8",
+          "id": "09de5340-f3d6-4557-99b7-ce8b6df250c7"
+        },
+        {
+          "component_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "depends_on_component_id": "baf070fb-671b-43c0-b109-855ac494f4bd",
+          "expression_id": "4a7e8ab6-1a89-4455-9ba7-d1756e26e0d1",
+          "id": "2fd3a346-7ad8-4730-844e-ecdcc4e77444"
+        },
+        {
+          "component_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "depends_on_component_id": "c3b3c408-c387-4e88-8f6b-6cdeab8cdbb3",
+          "expression_id": "4a7e8ab6-1a89-4455-9ba7-d1756e26e0d1",
+          "id": "6d2b509f-1edd-4c5c-b0af-b3dfcdf11f35"
+        },
+        {
+          "component_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "depends_on_component_id": "91f768b7-92fb-4677-b483-8adb06138de7",
+          "expression_id": "4a7e8ab6-1a89-4455-9ba7-d1756e26e0d1",
+          "id": "8f311c5d-2b2b-4cc4-a3ba-5573272077c0"
+        },
+        {
+          "component_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "depends_on_component_id": "fbbd37aa-7df8-4abb-aee9-4e34289ae445",
+          "expression_id": "b3fc0a1c-d67e-4a37-b4a6-c21905fa573f",
+          "id": "90e2d843-c4ad-4f9b-b8ba-6904ae7a6e8f"
+        },
+        {
+          "component_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "depends_on_component_id": "1e83bb2f-3767-4603-bce8-d6ce69770bfb",
+          "expression_id": "b3fc0a1c-d67e-4a37-b4a6-c21905fa573f",
+          "id": "ac349c73-66f1-4964-a01a-35d9900c4bb0"
+        },
+        {
+          "component_id": "9278ec47-590a-4819-a909-86ef69dd95eb",
+          "depends_on_component_id": "fbbd37aa-7df8-4abb-aee9-4e34289ae445",
+          "expression_id": "dcbbaf84-cb03-4522-bc68-d79f86f2b016",
+          "id": "b4147bb4-462c-4d38-b4ff-2d12c9cf95bf"
+        },
+        {
+          "component_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "depends_on_component_id": "4ba814d9-9725-4099-b6b0-6b5e1916ae7d",
+          "expression_id": "b3fc0a1c-d67e-4a37-b4a6-c21905fa573f",
+          "id": "bddcab2c-f2e7-4414-bc0b-245849b76135"
+        },
+        {
+          "component_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "depends_on_component_id": "7e73f224-cf8b-4617-b37f-4cfffc28ebb2",
+          "expression_id": "4a7e8ab6-1a89-4455-9ba7-d1756e26e0d1",
+          "id": "cd249f3b-8b4a-40f0-a26a-81d9aa374c9e"
+        },
+        {
+          "component_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "depends_on_component_id": "0afef423-c2e1-45f2-b068-63462d2bc583",
+          "expression_id": "b3fc0a1c-d67e-4a37-b4a6-c21905fa573f",
+          "id": "cf714a6d-dc95-400c-b7f8-37bb7c32b3c0"
+        },
+        {
+          "component_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "depends_on_component_id": "33d6f36d-30fe-4e7d-bc68-e657a4c5026a",
+          "expression_id": "4a7e8ab6-1a89-4455-9ba7-d1756e26e0d1",
+          "id": "ef52a03b-de32-4fbc-8dec-e535352d05f7"
+        },
+        {
+          "component_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "depends_on_component_id": "ebc57678-8421-4e53-9d97-e3177bf1be09",
+          "expression_id": "b3fc0a1c-d67e-4a37-b4a6-c21905fa573f",
+          "id": "efee9403-8e68-4812-af4f-6376f2154100"
+        },
+        {
+          "component_id": "9278ec47-590a-4819-a909-86ef69dd95eb",
+          "depends_on_component_id": "0efc6cc8-e1e2-49be-9e62-90222a2c6ee4",
+          "expression_id": "dcbbaf84-cb03-4522-bc68-d79f86f2b016",
+          "id": "f39c6692-b21f-4225-b6e5-ebf73202882c"
+        }
+      ],
+      "data_source_items": [],
+      "data_source_organisation_items": [],
+      "data_sources": [],
+      "expressions": [
+        {
+          "context": {
+            "custom_expression": "((q_91f768b792fb4677b4838adb06138de7)) >= ((q_baf070fb671b43c0b109855ac494f4bd)) + ((q_33d6f36d30fe4e7dbc68e657a4c5026a)) + ((q_c3b3c408c3874e888f6b6cdeab8cdbb3)) + ((q_7e73f224cf8b4617b37f4cfffc28ebb2))",
+            "custom_message": "Your total project spend cannot exceed the maximum project budget of ((q_91f768b792fb4677b4838adb06138de7))",
+            "expression_name": null
+          },
+          "created_by_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72",
+          "id": "4a7e8ab6-1a89-4455-9ba7-d1756e26e0d1",
+          "question_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "statement": "((q_91f768b792fb4677b4838adb06138de7)) >= ((q_baf070fb671b43c0b109855ac494f4bd)) + ((q_33d6f36d30fe4e7dbc68e657a4c5026a)) + ((q_c3b3c408c3874e888f6b6cdeab8cdbb3)) + ((q_7e73f224cf8b4617b37f4cfffc28ebb2))",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
+            "custom_expression": "((q_fbbd37aa7df84abbaee94e34289ae445)) == ((q_4ba814d997254099b6b06b5e1916ae7d)) + ((q_0afef423c2e145f2b06863462d2bc583)) + ((q_ebc5767884214e539d97e3177bf1be09)) + ((q_1e83bb2f37674603bce8d6ce69770bfb))",
+            "custom_message": "The total of your spend breakdown must match your spend of ((q_fbbd37aa7df84abbaee94e34289ae445))",
+            "expression_name": null
+          },
+          "created_by_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72",
+          "id": "b3fc0a1c-d67e-4a37-b4a6-c21905fa573f",
+          "question_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "statement": "((q_fbbd37aa7df84abbaee94e34289ae445)) == ((q_4ba814d997254099b6b06b5e1916ae7d)) + ((q_0afef423c2e145f2b06863462d2bc583)) + ((q_ebc5767884214e539d97e3177bf1be09)) + ((q_1e83bb2f37674603bce8d6ce69770bfb))",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
+            "custom_expression": "((q_fbbd37aa7df84abbaee94e34289ae445)) < ((q_0efc6cc8e1e249be9e6290222a2c6ee4)) + 100",
+            "custom_message": "This answer must be less than the allocation + \u00a3100 leeway",
+            "expression_name": null
+          },
+          "created_by_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72",
+          "id": "cd6ae815-52b3-4498-839c-a1c540625cc8",
+          "question_id": "fbbd37aa-7df8-4abb-aee9-4e34289ae445",
+          "statement": "((q_fbbd37aa7df84abbaee94e34289ae445)) < ((q_0efc6cc8e1e249be9e6290222a2c6ee4)) + 100",
+          "type_": "VALIDATION"
+        },
+        {
+          "context": {
+            "custom_expression": "((q_fbbd37aa7df84abbaee94e34289ae445)) > ((q_0efc6cc8e1e249be9e6290222a2c6ee4))",
+            "custom_message": null,
+            "expression_name": "Spend uses leeway funds"
+          },
+          "created_by_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72",
+          "id": "dcbbaf84-cb03-4522-bc68-d79f86f2b016",
+          "question_id": "9278ec47-590a-4819-a909-86ef69dd95eb",
+          "statement": "((q_fbbd37aa7df84abbaee94e34289ae445)) > ((q_0efc6cc8e1e249be9e6290222a2c6ee4))",
+          "type_": "CONDITION"
+        }
+      ],
+      "forms": [
+        {
+          "collection_id": "950b0a75-98f8-4745-8d04-320463ccbf3f",
+          "id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "is_eligibility_section": false,
+          "order": 0,
+          "slug": "numbers",
+          "title": "Numbers"
+        }
+      ],
+      "grant": {
+        "code": "LGFSAW",
+        "description": "To test out the layout with a really long grant name",
+        "ggis_number": "TEST-123-ABC",
+        "id": "5b4eafbd-2f65-4bc4-af08-ac307c07baea",
+        "name": "Local Growth Fund (Scotland, Wales and Northern Ireland) - Scotland and Wales",
+        "primary_contact_email": "sarah.sloan@communities.gov.uk",
+        "primary_contact_name": "Sarah Sloan",
+        "slug": "local-growth-fund-scotland-wales-and-northern-ireland-scotland-and-wales",
+        "status": "live"
+      },
+      "grant_recipients": [
+        {
+          "grant_id": "5b4eafbd-2f65-4bc4-af08-ac307c07baea",
+          "id": "22fb2840-75cb-4edf-8f87-2067f2094773",
+          "mode": "live",
+          "organisation_id": "d78be85b-8532-4e6b-a99e-51777f92dbc5",
+          "status": "awarded"
+        }
+      ],
+      "questions": [
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "0afef423-c2e1-45f2-b068-63462d2bc583",
+          "name": "Q2 spend",
+          "order": 1,
+          "parent_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q2-spend",
+          "text": "Q2 spend",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "0efc6cc8-e1e2-49be-9e62-90222a2c6ee4",
+          "name": "allocation",
+          "order": 0,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-the-allocated-amount",
+          "text": "What is the allocated amount?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "1e83bb2f-3767-4603-bce8-d6ce69770bfb",
+          "name": "Q4 spend",
+          "order": 3,
+          "parent_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q4-spend",
+          "text": "Q4 spend",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "33d6f36d-30fe-4e7d-bc68-e657a4c5026a",
+          "name": "project q2 spend",
+          "order": 2,
+          "parent_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q2-spend",
+          "text": "What is your project's Q2 spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "4ba814d9-9725-4099-b6b0-6b5e1916ae7d",
+          "name": "Q1 spend",
+          "order": 0,
+          "parent_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q1-spend",
+          "text": "Q1 spend",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "7e73f224-cf8b-4617-b37f-4cfffc28ebb2",
+          "name": "project q4 spend",
+          "order": 4,
+          "parent_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q4-spend",
+          "text": "What is your project's Q4 spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "91f768b7-92fb-4677-b483-8adb06138de7",
+          "name": "per project budget",
+          "order": 4,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-maximum-budget-per-project",
+          "text": "What is your maximum budget per project?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Multiple lines of text",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "9278ec47-590a-4819-a909-86ef69dd95eb",
+          "name": "explanation for leeway fund use",
+          "order": 2,
+          "presentation_options": {
+            "rows": 5
+          },
+          "slug": "explain-use-of-leeway-funds",
+          "text": "Explain use of leeway funds",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "baf070fb-671b-43c0-b109-855ac494f4bd",
+          "name": "project q1 spend",
+          "order": 1,
+          "parent_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q1-spend",
+          "text": "What is your project's Q1 spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "c3b3c408-c387-4e88-8f6b-6cdeab8cdbb3",
+          "name": "project q3 spend",
+          "order": 3,
+          "parent_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "what-is-your-projects-q3-spend",
+          "text": "What is your project's Q3 spend?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "data_type": "Single line of text",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "d8d7f955-ee01-4bd5-afbd-30e9c76e656c",
+          "name": "project name",
+          "order": 0,
+          "parent_id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "presentation_options": {},
+          "slug": "what-is-the-project-name",
+          "text": "What is the project name?",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "name": "Spend breakdown",
+          "order": 3,
+          "presentation_options": {
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "spend-breakdown",
+          "text": "Spend breakdown",
+          "type": "GROUP"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "",
+          "id": "ebc57678-8421-4e53-9d97-e3177bf1be09",
+          "name": "Q3 spend",
+          "order": 2,
+          "parent_id": "e0048aa6-93ee-4cd1-aa9a-9b8d9342bfbf",
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "q3-spend",
+          "text": "Q3 spend",
+          "type": "QUESTION"
+        },
+        {
+          "add_another": true,
+          "conditions_operator": "ALL",
+          "data_options": {},
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "id": "f08acdc5-65c7-4440-bc61-fca2c516f789",
+          "name": "projects",
+          "order": 5,
+          "presentation_options": {
+            "add_another_summary_line_question_ids": [
+              "d8d7f955-ee01-4bd5-afbd-30e9c76e656c"
+            ],
+            "show_questions_on_the_same_page": true
+          },
+          "slug": "projects",
+          "text": "projects",
+          "type": "GROUP"
+        },
+        {
+          "add_another": false,
+          "conditions_operator": "ALL",
+          "data_options": {
+            "max_decimal_places": 2,
+            "number_type": "Decimal number"
+          },
+          "data_type": "A number",
+          "form_id": "c16d06ab-828a-49b7-88af-c1f35bc14cbc",
+          "hint": "You have \u00a3100 leeway on top of your ((q_0efc6cc8e1e249be9e6290222a2c6ee4)) allocation",
+          "id": "fbbd37aa-7df8-4abb-aee9-4e34289ae445",
+          "name": "amount spent",
+          "order": 1,
+          "presentation_options": {
+            "prefix": "\u00a3",
+            "width": "govuk-input--width-10"
+          },
+          "slug": "how-much-did-you-spend",
+          "text": "How much did you spend?",
+          "type": "QUESTION"
+        }
+      ]
     }
   ],
   "organisations": [
@@ -2976,6 +3482,19 @@
       "ons_lad_id": "T0001",
       "status": "active",
       "type": "Unitary Authority"
+    },
+    {
+      "active_date": "Mon, 23 Nov 2026 00:00:00 GMT",
+      "can_manage_grants": false,
+      "custom_code": "TEST",
+      "domains": [],
+      "external_id": "FS-TEST",
+      "iati_id": "E0001234",
+      "id": "d78be85b-8532-4e6b-a99e-51777f92dbc5",
+      "mode": "live",
+      "name": "The Parochial Church Council of the Ecclesiastical Parish of a completely fictional location",
+      "status": "active",
+      "type": "Other"
     }
   ],
   "user_roles": [
@@ -3090,6 +3609,34 @@
         "member"
       ],
       "user_id": "e8f81083-7d87-4c20-af0a-4ec4b3378cdb"
+    },
+    {
+      "id": "421230ad-1a4d-4eb0-b087-c89e15b8df49",
+      "permissions": [
+        "admin",
+        "member"
+      ],
+      "user_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72"
+    },
+    {
+      "grant_id": "5b4eafbd-2f65-4bc4-af08-ac307c07baea",
+      "id": "bc50e7d9-2adf-4995-b680-698bef5c0c1b",
+      "organisation_id": "d78be85b-8532-4e6b-a99e-51777f92dbc5",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72"
+    },
+    {
+      "grant_id": "caf0ce3f-5175-f69c-66a9-41e2c2245845",
+      "id": "cc50e7d9-2adf-4995-b680-698bef5c0c1b",
+      "organisation_id": "d78be85b-8532-4e6b-a99e-51777f92dbc5",
+      "permissions": [
+        "member",
+        "data-provider"
+      ],
+      "user_id": "ec7f1a24-cf86-4f7a-862e-73e081851c72"
     }
   ],
   "users": [
@@ -3119,6 +3666,13 @@
       "id": "e397f4fd-ff3f-45c0-93a9-70fc4e824abe",
       "last_logged_in_at_utc": "Fri, 27 Feb 2026 14:17:14 GMT",
       "name": "MHCLG Test User"
+    },
+    {
+      "azure_ad_subject_id": "5dea12e3c884d0e9f080ef45f239f01d",
+      "email": "jennifer.livingston@test.communities.gov.uk",
+      "id": "ec7f1a24-cf86-4f7a-862e-73e081851c72",
+      "last_logged_in_at_utc": "Mon, 23 Nov 2026 07:24:17 GMT",
+      "name": "Jennifer Livingston"
     },
     {
       "azure_ad_subject_id": "36f6f23d57459ed3eef25d2835e2d31a",
