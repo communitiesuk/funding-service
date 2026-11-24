@@ -6,21 +6,36 @@
     }
 }
 
-.govuk-header__content {
+.app-header-navigation {
     @include govuk.govuk-media-query($from: tablet) {
         margin-left: auto;
     }
 }
+.app-header-navigation__list {
+    padding: 0;
+}
+.app-header-navigation__item {
+    list-style: none;
+    display: inline-block;
+    padding: 10px 0;
+}
+.app-header-navigation__item:not(:last-child) {
+    margin-right: 30px;
+}
 
+//TODO put in hover and visited states
+.app-header-navigation__link {
+    //TODO why does govuk.govuk-functional-colour(inverse) not work?
+    color: govuk.govuk-colour(white);
+    font-weight: bold;
+    text-decoration: none;
+}
 .govuk-service-navigation__item,
 .govuk-service-navigation__service-name {
     padding: 10px 0;
 }
 
 .app-service-nav {
-    .app-service-navigation__item--right-nav {
-        padding-top: 20px;
-    }
     .govuk-service-navigation__link.govuk-header__link {
         color: white;
         @include govuk.govuk-media-query($from: tablet) {
