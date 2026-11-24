@@ -10,14 +10,14 @@
 {% set type_constants = collection.type.constants %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
         "text": "Back",
         "href": back_link
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

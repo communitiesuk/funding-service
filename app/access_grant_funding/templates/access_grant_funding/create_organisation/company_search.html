@@ -11,9 +11,9 @@
   {{ standardErrorSummary(select_form if select_form.errors else form) }}
 {% endblock errorSummary %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ govukBackLink({"text": "Back", "href": back_link_href}) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

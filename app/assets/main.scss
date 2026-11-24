@@ -1,24 +1,16 @@
-$brand-colour: #00625e;
+$functional-colours: (
+    brand: #00625e,
+);
 $assets-path: "/static/assets/";
-$new-organisation-colours: true;
-
-@use "moj/settings/assets" with (
-    $moj-assets-path: $assets-path
-);
-
-// This configures govuk/base for us, which @use components below will then reuse with the correct configuration.
-@use "moj/vendor/govuk-frontend" with (
-    $govuk-brand-colour: $brand-colour,
-    $govuk-new-organisation-colours: $new-organisation-colours
-);
 
 @use "govuk" with (
-    $govuk-new-organisation-colours: $new-organisation-colours,
     $govuk-assets-path: $assets-path,
-    $govuk-brand-colour: $brand-colour
+    $govuk-functional-colours: $functional-colours
 );
 
-@use "moj/objects/scrollable-pane";
+@forward "node_modules/@ministryofjustice/frontend/moj/all";
+
+@use "moj/components/scrollable-pane/scrollable-pane";
 @use "moj/components/sortable-table/sortable-table";
 @use "moj/components/timeline/timeline";
 
@@ -28,6 +20,7 @@ $new-organisation-colours: true;
 @use "components/destructive-link";
 @use "components/link-button";
 @use "components/metadata";
+@use "components/mhclg-logo";
 @use "components/move-up-down-table";
 @use "components/print-header";
 @use "components/section";

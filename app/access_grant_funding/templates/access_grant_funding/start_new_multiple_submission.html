@@ -5,7 +5,7 @@
 {% set page_title = question.text ~ " - " ~ collection.name %}
 {% set active_item_identifier = "reports" %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{ super() }}
   {{
     govukBackLink({
@@ -13,7 +13,7 @@
       "text": "Back"
     })
   }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   <div class="govuk-grid-row">

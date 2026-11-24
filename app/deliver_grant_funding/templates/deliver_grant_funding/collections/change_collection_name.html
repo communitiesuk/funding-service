@@ -6,7 +6,7 @@
 {% set active_item_identifier = type_constants.active_nav %}
 {% set back_link = url_for("deliver_grant_funding.collection_settings", grant_id=grant.id, collection_type=collection.type, collection_id=collection.id) %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
       "text": "Back",

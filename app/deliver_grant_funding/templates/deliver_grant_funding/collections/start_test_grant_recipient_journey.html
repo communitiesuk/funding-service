@@ -6,7 +6,7 @@
 {% set active_item_identifier = type_constants.active_nav %}
 {% set grant_admin = authorisation_helper.is_deliver_grant_admin(grant.id, current_user) %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {{
     govukBackLink({
       "href": url_for('deliver_grant_funding.list_collection_sections', grant_id=grant.id, collection_type=collection.type, collection_id=collection.id),
