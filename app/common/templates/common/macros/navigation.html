@@ -1,9 +1,5 @@
 {% from "govuk_frontend_jinja/components/service-navigation/macro.html" import govukServiceNavigation %}
 
-{# TODO: we won't be able to rely on a formal grant_recipient being created for anything pre-award, we'll likely need something #}
-{#       more general that still associates your organisation with a grant (that would be associated when someone first creates an application, for example) #}
-
-{% set inline_nav=True %}
 {% macro accessGrantFundingServiceNavigation(user, nav_items=[], grant_recipient=None, organisation=None) %}
   {% set grant_recipients = user.get_grant_recipients() %}
   {% set number_of_organisations = grant_recipients | map(attribute='organisation_id') | unique | list | length %}
@@ -13,54 +9,27 @@
     {% if number_of_organisations > 1 %}
       {% do org_right_nav_items.append({"href":url_for('access_grant_funding.list_organisations'), "text":"Change organisation"}) %}
     {% endif %}
-    {{ serviceNavigationWithRightItems({"serviceName":organisation.name if organisation else grant_recipient.organisation.name}, org_right_nav_items, "orgNav") }}
+    {{ serviceNavigationWithRightItems({"serviceName":organisation.name if organisation else grant_recipient.organisation.name, "classes":"govuk-service-navigation__container--organisation"}, org_right_nav_items, "orgNav") }}
   {% endif %}
-  {% if inline_nav == True %}
-    {% if grant_recipient %}
-      {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
+  {% if grant_recipient %}
+    {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
 
-      {% set grant = grant_recipient.grant %}
-      {% set grant_right_nav_items=[] %}
+    {% set grant = grant_recipient.grant %}
+    {% set grant_right_nav_items=[] %}
 
-      {% if number_of_grants > 1 %}
-        {% do right_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
-      {% endif %}
+    {% if number_of_grants > 1 %}
+      {% do right_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
     {% endif %}
-    {% if nav_items or right_nav_items %}
-      {{
-        serviceNavigationWithRightItems({
-        "serviceName": grant.name,
-            "navigation": nav_items,
-            "navigationClasses": navigation_classes,
-            "attributes": { "id": "access-nav" }
-        },right_nav_items, "navigation" )
-      }}
-    {% endif %}
-  {% else %}
-    {% if grant_recipient %}
-      {% set number_of_grants = grant_recipients | selectattr('organisation_id', 'equalto', grant_recipient.organisation.id) | map(attribute='grant_id')| unique | list | length %}
-
-      {% set grant = grant_recipient.grant %}
-      {% set grant_right_nav_items=[] %}
-
-      {% if number_of_grants > 1 %}
-        {% do grant_right_nav_items.append({"text": "Change grant", "href": url_for("access_grant_funding.list_grants", organisation_id=grant_recipient.organisation.id)}) %}
-      {% endif %}
-      {{
-        serviceNavigationWithRightItems({
-        "serviceName": grant.name,
-        "navigation": []}, grant_right_nav_items, navigationId="grantNav")
-      }}
-    {% endif %}
-    {% if nav_items or right_nav_items %}
-      {{
-        serviceNavigationWithRightItems({
-            "navigation": nav_items,
-            "navigationClasses": navigation_classes,
-            "attributes": { "id": "access-nav" }
-        },right_nav_items, "navigation" )
-      }}
-    {% endif %}
+  {% endif %}
+  {% if nav_items or right_nav_items %}
+    {{
+      serviceNavigationWithRightItems({
+      "serviceName": grant.name,
+          "navigation": nav_items,
+          "navigationClasses": navigation_classes,
+          "attributes": { "id": "access-nav" }
+      },right_nav_items, "navigation" )
+    }}
   {% endif %}
 {% endmacro %}
 

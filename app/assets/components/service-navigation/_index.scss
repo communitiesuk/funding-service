@@ -1,6 +1,11 @@
 @use "govuk/base" as govuk;
 
 // ################# Main top service header #################
+.govuk-generic-header__logo {
+    @include govuk.govuk-media-query($until: tablet) {
+        padding-bottom: 0;
+    }
+}
 
 // Makes the right hand header navigation appear on the same line as the logo
 .govuk-generic-header__container {
@@ -43,7 +48,9 @@
 //Shrink the height of each navigation row
 .govuk-service-navigation__item,
 .govuk-service-navigation__service-name {
-    padding: 10px 0;
+    @include govuk.govuk-media-query($from: tablet) {
+        padding: 10px 0;
+    }
 }
 
 // Add the underline back onto the change links as we have reused the service nav classes, which have no underlines
@@ -51,8 +58,10 @@
 .govuk-service-navigation__container
     .app-service-navigation__item--right-nav
     .govuk-service-navigation__link:not(:hover):not(:active) {
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    @include govuk.govuk-media-query($from: tablet) {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
 }
 
 // Put the right nav on the right
@@ -63,6 +72,12 @@
 // Remove the thin blue line at the bottom of each service nav row, but keep it on the last one
 .govuk-service-navigation:not(:last-child) {
     border-bottom: none;
+}
+
+// Make the service name wrap rather than push the change link onto the next line
+.govuk-service-navigation__container--organisation
+    .govuk-service-navigation__service-name {
+    max-width: 70%;
 }
 
 // ################# Service Footer #################
