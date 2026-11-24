@@ -18,6 +18,9 @@
 }
 
 .app-service-nav {
+    .app-service-navigation__item--right-nav {
+        padding-top: 20px;
+    }
     .govuk-service-navigation__link.govuk-header__link {
         color: white;
         @include govuk.govuk-media-query($from: tablet) {
