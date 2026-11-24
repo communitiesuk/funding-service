@@ -1750,9 +1750,9 @@ class SubmissionHelper:
 
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
 
-    def is_add_another_container_fully_answered(self, question: Question) -> bool:
-        """Whether every existing add-another entry for `question`'s container is fully answered."""
-        container = question.add_another_container
+    def is_add_another_container_fully_answered(self, component: Component) -> bool:
+        """Whether every existing add-another entry for `component`'s container is fully answered."""
+        container = component.add_another_container
         if container is None:
             return False
 
@@ -1761,7 +1761,7 @@ class SubmissionHelper:
             return False
 
         return all(
-            self.get_answer_summary_for_add_another(question, add_another_index=i).is_answered for i in range(count)
+            self.get_answer_summary_for_add_another(component, add_another_index=i).is_answered for i in range(count)
         )
 
     @cached_property

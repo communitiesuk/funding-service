@@ -593,6 +593,33 @@ class TestSubmissionHelper:
 
             assert SubmissionHelper(submission).is_add_another_container_fully_answered(unanswered_question) is False
 
+        def test_false_when_a_later_entry_is_incomplete_despite_many_complete_entries(
+            self, factories, track_sql_queries
+        ):
+            # The number of already-complete entries shouldn't matter - a single incomplete entry anywhere
+            # in the range, even the last of many, should still make this False, and still cost zero
+            # queries once the schema is eagerly loaded.
+            group = factories.group.create(add_another=True)
+            question_one = factories.question.create(form=group.form, parent=group, order=0)
+            question_two = factories.question.create(form=group.form, parent=group, order=1)
+            submission = factories.submission.create(
+                collection=group.form.collection,
+                answers=[
+                    FactoryAnswer(question, TextSingleLineAnswer(f"entry {i}"), add_another_index=i)
+                    for i in range(10)
+                    for question in (question_one, question_two)
+                ]
+                # the 11th entry only answers question_one, leaving it incomplete
+                + [FactoryAnswer(question_one, TextSingleLineAnswer("entry 10"), add_another_index=10)],
+            )
+
+            helper = SubmissionHelper.load(submission.id)
+
+            with track_sql_queries() as queries:
+                assert helper.is_add_another_container_fully_answered(question_one) is False
+
+            assert len(queries) == 0
+
     class TestRemoveAnswerForQuestion:
         def test_remove_answer_for_file_upload_question_and_clears_cache(
             self, db_session, factories, mock_s3_service_calls

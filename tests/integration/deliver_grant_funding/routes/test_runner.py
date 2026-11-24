@@ -531,6 +531,79 @@ class TestAskAQuestion:
         )
         assert response.location == expected_location
 
+    def test_post_revisits_incomplete_add_another_entry_instead_of_skipping_it(
+        self, authenticated_grant_admin_client, factories
+    ):
+        # Scenario:
+        #   earlier_question           (answered)
+        #   group (add another)
+        #     answered_group_question  index 0  (answered)
+        #     <unnamed question>       index 0  (unanswered - entry is incomplete)
+        #
+        # Checks that re-submitting earlier_question routes back to the group's summary page, so the
+        # incomplete entry can be finished, rather than skipping past the group entirely.
+        grant = authenticated_grant_admin_client.grant
+        earlier_question = factories.question.create(form__collection__grant=grant, data_type=QuestionDataType.YES_NO)
+        group = factories.group.create(
+            form=earlier_question.form,
+            add_another=True,
+            name="Group",
+            presentation_options=QuestionPresentationOptions(show_questions_on_the_same_page=False),
+        )
+        answered_group_question = factories.question.create(
+            form=group.form, parent=group, data_type=QuestionDataType.YES_NO
+        )
+        factories.question.create(form=group.form, parent=group, data_type=QuestionDataType.YES_NO)
+
+        submission = factories.submission.create(
+            collection=group.form.collection, created_by=authenticated_grant_admin_client.user
+        )
+
+        # answer the earlier question
+        authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=earlier_question.id,
+            ),
+            data={"submit": True, earlier_question.safe_qid: "1"},
+            follow_redirects=False,
+        )
+
+        # answer only the first group question for index 0 - the second is left incomplete
+        authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=answered_group_question.id,
+                add_another_index=0,
+            ),
+            data={"submit": True, answered_group_question.safe_qid: "1"},
+            follow_redirects=False,
+        )
+
+        # re-submitting the earlier question should route back to the group's summary page, so the
+        # incomplete entry can be finished, not skip past the group entirely
+        response = authenticated_grant_admin_client.post(
+            url_for(
+                "deliver_grant_funding.ask_a_question",
+                grant_id=grant.id,
+                submission_id=submission.id,
+                question_id=earlier_question.id,
+            ),
+            data={"submit": True, earlier_question.safe_qid: "1"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "deliver_grant_funding.ask_a_question",
+            grant_id=grant.id,
+            submission_id=submission.id,
+            question_id=answered_group_question.id,
+        )
+
     def test_post_ask_a_question_skips_for_existing_file_upload_answer_add_another_context(
         self, authenticated_grant_admin_client, factories, mock_s3_service_calls
     ):
