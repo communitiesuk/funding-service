@@ -1,11 +1,15 @@
 @use "govuk/base" as govuk;
 
+// ################# Main top service header #################
+
+// Makes the right hand header navigation appear on the same line as the logo
 .govuk-generic-header__container {
     @include govuk.govuk-media-query($from: tablet) {
         display: flex;
     }
 }
 
+// Layout for the navigation (admin and sign out links) in the main top header
 .app-header-navigation {
     @include govuk.govuk-media-query($from: tablet) {
         margin-left: auto;
@@ -16,8 +20,11 @@
 }
 .app-header-navigation__item {
     list-style: none;
-    display: inline-block;
     padding: 10px 0;
+
+    @include govuk.govuk-media-query($from: tablet) {
+        display: inline-block;
+    }
 }
 .app-header-navigation__item:not(:last-child) {
     margin-right: 30px;
@@ -30,34 +37,17 @@
     font-weight: bold;
     text-decoration: none;
 }
+
+// ################# Service Navigation #################
+
+//Shrink the height of each navigation row
 .govuk-service-navigation__item,
 .govuk-service-navigation__service-name {
     padding: 10px 0;
 }
 
-.app-service-nav {
-    .govuk-service-navigation__link.govuk-header__link {
-        color: white;
-        @include govuk.govuk-media-query($from: tablet) {
-            font-weight: 700;
-        }
-        @include govuk.govuk-media-query($until: tablet) {
-            @include govuk.govuk-font(19);
-            padding: 0;
-        }
-    }
-
-    .govuk-service-navigation__item .app-service-navigation__item--right-nav {
-        @include govuk.govuk-media-query($from: tablet) {
-            padding-top: 20px;
-            padding-bottom: 10px;
-        }
-        @include govuk.govuk-media-query($until: tablet) {
-            padding-top: 0;
-        }
-    }
-}
-
+// Add the underline back onto the change links as we have reused the service nav classes, which have no underlines
+// because they funtion more like tabs
 .govuk-service-navigation__container
     .app-service-navigation__item--right-nav
     .govuk-service-navigation__link:not(:hover):not(:active) {
@@ -65,88 +55,30 @@
     text-underline-offset: 3px;
 }
 
+// Put the right nav on the right
 .app-service-navigation__item--right-nav {
     margin-left: auto;
 }
 
-.govuk-service-navigation__item.app-service-navigation__item--right-nav-outside-menu {
-    text-align: right;
-    display: block;
-}
-
-@include govuk.govuk-media-query($until: tablet) {
-    // Slightly separate the right nav items from the rest of the menu on mobile
-    .app-service-navigation__item--right-nav {
-        padding-top: 10px;
-    }
-}
-
+// Remove the thin blue line at the bottom of each service nav row, but keep it on the last one
 .govuk-service-navigation:not(:last-child) {
     border-bottom: none;
 }
 
-//  &--org-hidden {
-//    @extend .app-service-navigation__wrapper--sectional;
-//    @include govuk.govuk-media-query($from: tablet) {
-//      .govuk-service-navigation__item:last-child {
-//        display: none;
-//      }
-//    }
-//  }
-//
-//  &--grant-and-org-hidden {
-//    @extend .app-service-navigation__wrapper--sectional;
-//    @include govuk.govuk-media-query($from: tablet) {
-//      .govuk-service-navigation__item:nth-last-child(2) {
-//        display: none;
-//      }
-//    }
-//  }
-//}
-
-//.govuk-service-navigation__list--right-nav {
-//  display: block;
-//}
-//
-//@include govuk.govuk-media-query($from: tablet) {
-//  .govuk-service-navigation__list--right-nav {
-//    text-align: right;
-//  }
-//}
-
-.app-service-nav-org {
-    border-bottom: none;
-
-    .govuk-service-navigation__service-name {
-        padding-top: 20px;
-        padding-bottom: 0px;
-    }
-
-    .govuk-service-navigation__item {
-        padding-top: 20px;
-        padding-bottom: 0px;
-    }
-
-    @include govuk.govuk-media-query($until: tablet) {
-        .govuk-service-navigation__service-name {
-            padding-top: 0px;
-        }
-        .govuk-service-navigation__item {
-            padding-top: 0px;
-        }
-    }
-}
-
+// ################# Service Footer #################
+// Add a top border to separate the footer from the rest of the page
 .govuk-footer {
     border-top-width: 1px;
     border-top-style: solid;
     border-top-color: govuk.govuk-functional-colour(surface-border);
 }
 
+//reduce spacing between crown and the rest of the footer content otherwise it looks a bit floaty
 .govuk-footer__crown {
     margin-bottom: 0;
 }
 
+// Make the copyright link align vertically with the footer links
 .govuk-footer__meta-item:last-child {
     padding-bottom: 5px;
 }
