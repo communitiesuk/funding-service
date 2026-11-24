@@ -23,9 +23,13 @@
         @include govuk.govuk-media-query($from: tablet) {
             font-weight: 700;
         }
+        @include govuk.govuk-media-query($until: tablet) {
+            @include govuk.govuk-font(19);
+            padding: 0;
+        }
     }
 
-    .govuk-service-navigation__item.app-service-navigation__item--right-nav {
+    .govuk-service-navigation__item .app-service-navigation__item--right-nav {
         @include govuk.govuk-media-query($from: tablet) {
             padding-top: 20px;
             padding-bottom: 10px;
