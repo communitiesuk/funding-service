@@ -7,9 +7,12 @@
 
 {% set form = runner.question_with_add_another_summary_form %}
 {% set first_question = runner.submission.get_first_question_for_form(runner.form) %}
+{% set can_determine_position = first_question and runner.questions %}
+{% set is_a_later_add_another_entry = runner.add_another_index is not none and runner.add_another_index > 0 %}
+{% set show_back_link = can_determine_position and (runner.questions[0].id != first_question.id or is_a_later_add_another_entry) %}
 
 {% block beforeContent %}
-  {% if first_question and runner.linked_question.id != first_question.id %}
+  {% if show_back_link %}
     {{ govukBackLink({ "text": "Back", "href": runner.back_url }) }}
   {% endif %}
 {% endblock beforeContent %}
