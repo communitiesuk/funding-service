@@ -821,6 +821,20 @@ class EligibilityFormRunner(FormRunner):
             return False
         return True
 
+    @property
+    def show_back_link(self) -> bool:
+        if not self.form:
+            return False
+
+        form_first_question = self.submission.get_first_question_for_form(self.form)
+        if not form_first_question or not self.questions:
+            return False
+
+        current_page_first_question = self.questions[0]
+        is_not_index_0 = self.add_another_index is not None and self.add_another_index > 0
+        is_a_different_question_to_the_forms_first = current_page_first_question.id != form_first_question.id
+        return is_a_different_question_to_the_forms_first or is_not_index_0
+
     def to_url(
         self,
         state: FormRunnerState,
