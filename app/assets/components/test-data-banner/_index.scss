@@ -1,7 +1,9 @@
 @use "govuk/base" as govuk;
 
+$test-banner-colour: #bf4a1d;
+
 .app-test-data-banner {
-    background-color: govuk.govuk-colour("orange");
+    background-color: $test-banner-colour;
 
     &--container {
         padding: 15px 0;
@@ -32,7 +34,7 @@
 
 .app-test-data-banner--standalone {
     margin-top: govuk.govuk-spacing(2);
-    background-color: govuk.govuk-colour("orange");
+    background-color: $test-banner-colour;
     padding: 15px 15px;
 }
 
