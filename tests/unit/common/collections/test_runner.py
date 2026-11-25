@@ -465,3 +465,62 @@ class TestFormRunner:
 
             runner = FormRunner(submission=helper, question=q_b, source=None)
             assert runner.validate_can_show_question_page() is True
+
+
+class TestEligibilityFormRunner:
+    class TestShowBackLink:
+        def test_false_on_the_forms_first_question(self, factories):
+            form = factories.form.build(is_eligibility_section=True)
+            question_one = factories.question.build(form=form, order=0)
+            factories.question.build(form=form, order=1)
+            submission = factories.submission.build(collection=form.collection)
+            helper = SubmissionHelper(submission)
+
+            runner = EligibilityFormRunner(submission=helper, question=question_one, source=None)
+            assert runner.show_back_link is False
+
+        def test_true_on_a_later_question(self, factories):
+            form = factories.form.build(is_eligibility_section=True)
+            factories.question.build(form=form, order=0)
+            question_two = factories.question.build(form=form, order=1)
+            submission = factories.submission.build(collection=form.collection)
+            helper = SubmissionHelper(submission)
+
+            runner = EligibilityFormRunner(submission=helper, question=question_two, source=None)
+            assert runner.show_back_link is True
+
+        def test_false_on_the_forms_first_question_at_add_another_index_0(self, factories):
+            group = factories.group.build(add_another=True)
+            question_one = factories.question.build(form=group.form, parent=group, order=0)
+            submission = factories.submission.build(collection=group.form.collection)
+            helper = SubmissionHelper(submission)
+
+            runner = EligibilityFormRunner(submission=helper, question=question_one, add_another_index=0, source=None)
+            assert runner.show_back_link is False
+
+        def test_true_on_the_forms_first_question_at_a_later_add_another_index(self, factories):
+            group = factories.group.build(add_another=True)
+            question_one = factories.question.build(form=group.form, parent=group, order=0)
+            submission = factories.submission.build(
+                collection=group.form.collection,
+                answers=[FactoryAnswer(question_one, TextSingleLineAnswer("entry 0"), add_another_index=0)],
+            )
+            helper = SubmissionHelper(submission)
+
+            runner = EligibilityFormRunner(submission=helper, question=question_one, add_another_index=1, source=None)
+            assert runner.show_back_link is True
+
+        def test_false_when_there_is_no_form(self, factories):
+            submission = factories.submission.build()
+            helper = SubmissionHelper(submission)
+
+            runner = EligibilityFormRunner(submission=helper, source=None)
+            assert runner.show_back_link is False
+
+        def test_false_when_the_form_has_no_questions(self, factories):
+            form = factories.form.build(is_eligibility_section=True)
+            submission = factories.submission.build(collection=form.collection)
+            helper = SubmissionHelper(submission)
+
+            runner = EligibilityFormRunner(submission=helper, form=form, source=None)
+            assert runner.show_back_link is False
