@@ -1845,6 +1845,79 @@ class TestEligibleToApplyPage:
             question_id=question.id,
         )
 
+    def test_get_redirects_to_group_summary_when_first_component_is_a_group(
+        self, authenticated_no_role_client, factories
+    ):
+        # Scenario:
+        #   group (first and only content in the eligibility form, nothing answered)
+        #     question_one
+        #     question_two
+        #
+        # Checks that an incomplete add_another entry redirects to the group's summary page when the
+        # group is the eligibility form's first component.
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        group = factories.group.create(form=eligibility_form, order=0)
+        question_one = factories.question.create(
+            form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=0
+        )
+        factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=1)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=question_one.id,
+        )
+
+    def test_get_redirects_to_first_question_when_group_is_not_first(self, authenticated_no_role_client, factories):
+        # Scenario:
+        #   preceding_question             (unanswered, comes before the group)
+        #   group
+        #     question_one
+        #     question_two
+        #
+        # Checks that an incomplete eligibility form redirects to the first question of the form.
+        grant = factories.grant.create(status=GrantStatusEnum.LIVE, slug="grant-slug")
+        collection = factories.collection.create(
+            grant=grant, status=CollectionStatusEnum.OPEN, slug="collection-slug", allow_public_sign_up=True
+        )
+        eligibility_form = factories.form.create(collection=collection, is_eligibility_section=True)
+        preceding_question = factories.question.create(
+            form=eligibility_form, data_type=QuestionDataType.TEXT_SINGLE_LINE, order=0
+        )
+        group = factories.group.create(form=eligibility_form, order=1)
+        factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=0)
+        factories.question.create(form=eligibility_form, parent=group, data_type=QuestionDataType.YES_NO, order=1)
+
+        with authenticated_no_role_client.session_transaction() as flask_session:
+            flask_session["signing_up_for_collection_id"] = collection.id
+
+        response = authenticated_no_role_client.get(
+            url_for("access_grant_funding.eligible_to_apply", grant_slug=grant.slug, collection_slug=collection.slug),
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location == url_for(
+            "access_grant_funding.public_sign_up_eligibility_question",
+            grant_slug=grant.slug,
+            collection_slug=collection.slug,
+            question_id=preceding_question.id,
+        )
+
     @pytest.mark.authenticate_as("test@no-matching-org.com")
     def test_get_back_link_goes_to_sign_up_router_when_eligibility_form_exists(
         self, authenticated_no_role_client, factories, db_session
