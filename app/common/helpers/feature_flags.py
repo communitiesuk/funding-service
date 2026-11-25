@@ -14,9 +14,6 @@ from abc import ABC, abstractmethod
 from flask import session
 from flask.sessions import SessionMixin
 
-from app.common.auth.authorisation_helper import AuthorisationHelper
-from app.common.data.interfaces.user import get_current_user
-
 
 class FeatureFlagBase(ABC):
     # A description of what feature this flag is for
@@ -81,18 +78,12 @@ class SessionFeatureFlag(FeatureFlagBase):
         session[self.name] = "on"
 
 
-class NewContextSourcesFeatureFlag(StaticFeatureFlag):
-    description = "Show new context sources for referencing data in collections."
-    resolver_description = "On for users with platform admin access."
-    uses_request_context = False
-
-    @classmethod
-    def resolve(cls) -> bool:
-        return AuthorisationHelper.is_platform_member(get_current_user())
+# class ExampleSessionFlag(SessionFeatureFlag):
+#     description = "An example session-based feature flag."
 
 
 class FeatureFlags:
-    NEW_CONTEXT_SOURCES = NewContextSourcesFeatureFlag()
+    # EXAMPLE_SESSION_FLAG = ExampleSessionFlag()
 
     @classmethod
     def all(cls) -> list[FeatureFlagBase]:
