@@ -1,7 +1,9 @@
 @use "govuk/base" as govuk;
 
+$test-banner-colour: #bf4a1d;
+
 .app-test-data-banner {
-    background-color: govuk.govuk-colour("orange");
+    background-color: $test-banner-colour;
 
     &--container {
         padding: 15px 0;
@@ -22,7 +24,7 @@
     box-shadow: 0 2px 0 #7a3c1c;
 
     // a darker button colour because the background contrast is too high
-    color: #b7592a !important;
+    color: $test-banner-colour !important;
 }
 
 .app-test-data-banner__tag {
@@ -32,7 +34,7 @@
 
 .app-test-data-banner--standalone {
     margin-top: govuk.govuk-spacing(2);
-    background-color: govuk.govuk-colour("orange");
+    background-color: $test-banner-colour;
     padding: 15px 15px;
 }
 
