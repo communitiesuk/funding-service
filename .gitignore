@@ -278,6 +278,9 @@ http-client.private.env.json
 # Kubernetes Plugin
 .idea/kubernetes/configs/kubeconfig_*
 
+# CSV Editor plugin (stores a list of files and separators, not portable across machines)
+/.idea/csv-editor.xml
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
@@ -331,3 +334,6 @@ app/assets/dist
 
 .import_linter_cache
 /.run/
+/.idea/material_theme_project_new.xml
+/.idea/pyProjectModel.xml
+/.idea/inspectionProfiles/Project_Default.xml
