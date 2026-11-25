@@ -26,8 +26,8 @@
   {{
     fundingServiceHeader({
       "serviceNameUrl": url_for("platform_admin.index"),
-      "logoText": "Deliver grant funding | Admin"
-    })
+      "logoText": "Admin panel"
+    },inAdminPanel=True)
   }}
 {% endblock %}
 
@@ -47,19 +47,12 @@
     {% endif %}
   {% endfor %}
 
-  {%
-    set right_nav_items = [
-      {"text": "Deliver grant funding", "href": url_for("deliver_grant_funding.list_grants")},
-      {"text": "Sign out", "href": url_for("auth.sign_out")},
-    ]
-  %}
-
   {{
     serviceNavigationWithRightItems({
       "serviceName": xgovuk_flask_admin_service_name,
       "serviceUrl": url_for(admin_view.admin.endpoint ~ ".index"),
       "navigation": service_nav_items,
-    }, right_nav_items)
+    }, [])
   }}
 {% endblock headerNav %}
 
