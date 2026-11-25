@@ -10,12 +10,12 @@
 {% set page_title = "Submissions - " ~ collection.name %}
 {% set active_item_identifier = type_constants.active_nav %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if submission_mode==enum.submission_mode.TEST %}
     {{ mhclgInlinePageTestDataBanner("Test submissions") }}
   {% endif %}
   {{ deliver_grant_funding_collection_breadcrumb(grant=grant, collection=collection, this_page_breadcrumb_item={"text":"Submissions"}) }}
-{% endblock beforeContent %}
+{% endblock containerStart %}
 
 {% block content %}
   {% if delete_all_form %}

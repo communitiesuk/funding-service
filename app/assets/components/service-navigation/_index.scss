@@ -1,49 +1,100 @@
 @use "govuk/base" as govuk;
 
-.app-service-navigation__wrapper--sectional {
-    flex: 1;
-
-    .govuk-service-navigation__item:last-child {
-        margin-left: auto;
-    }
-
-    &--org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:last-child {
-                display: none;
-            }
-        }
-    }
-
-    &--grant-and-org-hidden {
-        @extend .app-service-navigation__wrapper--sectional;
-        @include govuk.govuk-media-query($from: tablet) {
-            .govuk-service-navigation__item:nth-last-child(2) {
-                display: none;
-            }
-        }
+// ################# Main top service header #################
+.govuk-generic-header__logo {
+    @include govuk.govuk-media-query($until: tablet) {
+        padding-bottom: 0;
     }
 }
 
-.app-service-nav-org {
+// Makes the right hand header navigation appear on the same line as the logo
+.govuk-generic-header__container {
+    @include govuk.govuk-media-query($from: tablet) {
+        display: flex;
+    }
+}
+
+// Layout for the navigation (admin and sign out links) in the main top header
+.app-header-navigation {
+    @include govuk.govuk-media-query($from: tablet) {
+        margin-left: auto;
+    }
+}
+.app-header-navigation__list {
+    padding: 0;
+}
+.app-header-navigation__item {
+    list-style: none;
+    padding: 10px 0;
+
+    @include govuk.govuk-media-query($from: tablet) {
+        display: inline-block;
+    }
+}
+.app-header-navigation__item:not(:last-child) {
+    margin-right: 30px;
+}
+
+//TODO put in hover and visited states
+.app-header-navigation__link {
+    //TODO why does govuk.govuk-functional-colour(inverse) not work?
+    color: govuk.govuk-colour(white);
+    font-weight: bold;
+    text-decoration: none;
+}
+
+// ################# Service Navigation #################
+
+//Shrink the height of each navigation row
+.govuk-service-navigation__item,
+.govuk-service-navigation__service-name {
+    @include govuk.govuk-media-query($from: tablet) {
+        padding: 10px 0;
+    }
+}
+
+// Add the underline back onto the change links as we have reused the service nav classes, which have no underlines
+// because they funtion more like tabs
+.govuk-service-navigation__container
+    .app-service-navigation__item--right-nav
+    .govuk-service-navigation__link:not(:hover):not(:active) {
+    @include govuk.govuk-media-query($from: tablet) {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+}
+
+// Put the right nav on the right
+.app-service-navigation__item--right-nav {
+    margin-left: auto;
+}
+
+//}
+
+.govuk-service-navigation:not(:last-child) {
     border-bottom: none;
+}
 
+// Make the service name wrap rather than push the change link onto the next line
+.govuk-service-navigation__container--organisation
     .govuk-service-navigation__service-name {
-        padding-top: 20px;
-        padding-bottom: 0px;
-    }
-    .govuk-service-navigation__item {
-        padding-top: 20px;
-        padding-bottom: 0px;
-    }
+    max-width: 70%;
+}
 
-    @include govuk.govuk-media-query($until: tablet) {
-        .govuk-service-navigation__service-name {
-            padding-top: 0px;
-        }
-        .govuk-service-navigation__item {
-            padding-top: 0px;
-        }
-    }
+// ################# Service Footer #################
+// Add a top border to separate the footer from the rest of the page
+.govuk-footer {
+    border-top-width: 1px;
+    border-top-style: solid;
+    border-top-color: govuk.govuk-functional-colour(surface-border);
+}
+
+//reduce spacing between crown and the rest of the footer content otherwise it looks a bit floaty
+.govuk-footer__crown {
+    margin-bottom: 0;
+}
+
+// Make the copyright link align vertically with the footer links
+.govuk-footer__meta-item:last-child {
+    padding-bottom: 5px;
 }

@@ -4,7 +4,7 @@
 {% from "govuk_frontend_jinja/components/task-list/macro.html" import govukTaskList %}
 {% from "govuk_frontend_jinja/components/tag/macro.html" import govukTag %}
 
-{% block beforeContent %}
+{% block containerStart %}
   {% if grant.collections|length == 1 %}
     {{ govukBackLink({"text": "Back", "href": url_for('collection_lifecycle.index') }) }}
   {% else %}
