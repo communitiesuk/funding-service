@@ -29,6 +29,11 @@ def _manual_intervention_logs(caplog) -> list[str]:
     ]
 
 
+def _logged_anywhere(caplog, text: str) -> bool:
+    # Checks every attribute of the log record: `extra` fields too
+    return any(text in repr(vars(r)) for r in caplog.records)
+
+
 class TestGovukNotifyCallback:
     @staticmethod
     def _payload(**overrides):
@@ -59,7 +64,7 @@ class TestGovukNotifyCallback:
         assert response.status_code == 204
         capture_message.assert_not_called()
 
-    def test_technical_failure_captures_error_with_full_context(
+    def test_technical_failure_captures_error_with_full_context_and_no_recipient_email(
         self, anonymous_client, mocker: MockerFixture, caplog
     ) -> None:
         new_scope = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.sentry_sdk.new_scope")
@@ -79,7 +84,7 @@ class TestGovukNotifyCallback:
         scope.set_context.assert_called_once()
         context_name, context = scope.set_context.call_args.args
         assert context_name == "notify_callback"
-        assert context["to"] == "failed@example.com"
+        assert "to" not in context
         assert context["status"] == "technical-failure"
         assert context["id"] == payload["id"]
         assert context["template_id"] == payload["template_id"]
@@ -103,7 +108,7 @@ class TestGovukNotifyCallback:
         context_name, context = scope.set_context.call_args.args
         assert context_name == "notify_callback"
         assert context["notification_type"] == "sms"
-        assert context["to"] == "+447700900000"
+        assert "to" not in context
 
     def test_missing_or_wrong_token_returns_403(self, anonymous_client, mocker: MockerFixture) -> None:
         capture_message = mocker.patch("app.deliver_grant_funding.routes.api.callbacks.sentry_sdk.capture_message")
@@ -346,10 +351,11 @@ class TestGovukNotifyCallback:
             assert any("CERTIFIER" in msg and str(grant_b.id) in msg and str(recipient_org.id) in msg for msg in logs)
 
         def test_permanent_failure_unknown_email_logs_error_and_no_db_changes(self, anonymous_client, caplog) -> None:
-            response, _ = self._post(anonymous_client, status="permanent-failure", to="not-a-user@example.com")
+            response, payload = self._post(anonymous_client, status="permanent-failure", to="not-a-user@example.com")
 
             assert response.status_code == 202
-            assert any("not-a-user@example.com" in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR)
+            assert any(payload["id"] in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR)
+            assert not _logged_anywhere(caplog, "not-a-user@example.com")
 
             audit_events = db.session.scalars(
                 select(AuditEvent).where(AuditEvent.event_type == AuditEventType.SYSTEM)
@@ -612,10 +618,11 @@ class TestGovukNotifyCallback:
 
         def test_unknown_email_logs_error_and_no_db_changes(self, anonymous_client, caplog) -> None:
             with caplog.at_level(logging.ERROR, logger="app"):
-                response, _ = self._post(anonymous_client, to="not-a-user@example.com")
+                response, payload = self._post(anonymous_client, to="not-a-user@example.com")
 
             assert response.status_code == 202
-            assert any("not-a-user@example.com" in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR)
+            assert any(payload["id"] in r.getMessage() for r in caplog.records if r.levelno == logging.ERROR)
+            assert not _logged_anywhere(caplog, "not-a-user@example.com")
             assert _manual_intervention_logs(caplog) == []
 
         def test_temporary_failure_for_access_invitation_emails_creator(
