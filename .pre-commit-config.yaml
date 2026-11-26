@@ -34,7 +34,7 @@ repos:
         exclude: tests/pre_award/keys/rsa256
 
   - repo: https://github.com/seddonym/import-linter
-    rev: v2.15
+    rev: v2.17
     hooks:
       - id: import-linter
         language: python
@@ -52,6 +52,6 @@ repos:
         entry: make format-frontend
         language: node
         additional_dependencies:
-          - "prettier@3.9.10"
+          - "prettier@3.10.1"
           - "prettier-plugin-jinja-template@2.2.0"
         pass_filenames: false
