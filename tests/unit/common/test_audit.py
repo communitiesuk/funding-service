@@ -3,7 +3,7 @@ import logging
 from collections.abc import Iterator
 from enum import IntEnum, StrEnum
 from typing import Any, Literal, get_origin
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -452,7 +452,8 @@ class TestTrackAuditEvent:
             track_audit_event(event, user)
 
         record = next(record for record in caplog.records if record.getMessage().startswith("audit_event:"))
-        assert record.audit["event_type"] == event.event_type
-        assert record.audit["user_id"] == str(user.id)
-        assert record.audit["user_email"] == "test@local.gov.uk"
+        assert "test@local.gov.uk" not in repr(vars(record))
+        assert record.audit_event_type == event.event_type
+        assert record.audit_user_id == str(user.id)
+        assert UUID(record.audit_event_id)
         assert not hasattr(record, "user_id")
