@@ -46,6 +46,7 @@ from app.common.data.types import (
     DataSourceType,
     ExpressionType,
     GrantRecipientModeEnum,
+    GrantRecipientStatusEnum,
     ManagedExpressionsEnum,
     NumberTypeEnum,
     OrganisationModeEnum,
@@ -1068,15 +1069,6 @@ class TestListCollectionSections:
             name="Test Report",
             type=CollectionType.APPLICATION,
             allow_public_sign_up=False,
-        )
-        test_grant_recipient = factories.grant_recipient.create(
-            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
-        )
-        factories.user_role.create(
-            user=authenticated_grant_member_client.user,
-            organisation=test_grant_recipient.organisation,
-            grant=authenticated_grant_member_client.grant,
-            permissions=[RoleEnum.DATA_PROVIDER],
         )
 
         response = authenticated_grant_member_client.get(
@@ -10693,6 +10685,74 @@ class TestListSubmissions:
         assert flashes == ["All test submissions reset"]
         assert len(mock_s3_service_calls.delete_prefix_calls) == 1
 
+    @pytest.mark.parametrize(
+        "reset_all, flash_type, flash_message",
+        [
+            (False, FlashMessageType.TEST_SUBMISSION_RESET, "Submission reset"),
+            (True, FlashMessageType.TEST_SUBMISSIONS_RESET, "All test submissions reset"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "allow_public_sign_up, status, expect_link",
+        [
+            (False, CollectionStatusEnum.DRAFT, True),
+            (True, CollectionStatusEnum.DRAFT, True),
+            (True, CollectionStatusEnum.CLOSED, False),
+        ],
+    )
+    def test_reset_banner_links_to_test_journey_when_available(
+        self,
+        authenticated_grant_member_client,
+        factories,
+        mock_s3_service_calls,
+        reset_all,
+        flash_type,
+        flash_message,
+        allow_public_sign_up,
+        status,
+        expect_link,
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=allow_public_sign_up,
+            status=status,
+            submission_visibility=SubmissionVisibilityEnum.ALWAYS_VISIBLE,
+            create_submissions__test=1,
+        )
+
+        if reset_all:
+            reset_url = url_for(
+                "deliver_grant_funding.list_submissions",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+                submission_mode=SubmissionModeEnum.TEST,
+                delete_all=True,
+            )
+        else:
+            reset_url = url_for(
+                "deliver_grant_funding.view_submission",
+                grant_id=authenticated_grant_member_client.grant.id,
+                submission_id=collection.test_submissions[0].id,
+                delete="",
+            )
+
+        form = GenericConfirmDeletionForm(data={"confirm_deletion": True})
+        response = authenticated_grant_member_client.post(reset_url, data=get_form_data(form), follow_redirects=False)
+
+        assert response.status_code == 302
+        assert get_test_flashes(authenticated_grant_member_client, flash_type) == [flash_message]
+
+        # Loads the page the user would be redirected to with the above POST, so we can also read the flash message
+        # rendered by the template
+        response = authenticated_grant_member_client.get(response.location)
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        link = page_has_link(soup, "test the grant recipient journey for this form")
+        assert (link is not None) is expect_link
+
     def test_post_on_live_view_400s_and_does_not_delete_anything(
         self, authenticated_grant_member_client, factories, db_session, mock_s3_service_calls
     ):
@@ -17968,7 +18028,7 @@ class TestSelectCollectionToCopy:
 
 
 class TestStartTestGrantRecipientJourney:
-    def test_get_shows_organisation_dropdown_when_public_sign_up_off(
+    def test_get_lists_all_test_grant_recipients_regardless_of_access(
         self, authenticated_grant_member_client, factories
     ):
         collection = factories.collection.create(
@@ -17976,12 +18036,177 @@ class TestStartTestGrantRecipientJourney:
             type=CollectionType.APPLICATION,
             allow_public_sign_up=False,
         )
+        # The member has no access to this recipient but it should still be listed
         test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        applying_test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            mode=GrantRecipientModeEnum.TEST,
+            status=GrantRecipientStatusEnum.APPLYING,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Start test submission journey") is not None
+        assert test_grant_recipient.organisation.name in soup.text
+        # Applicants are not allocated/awarded recipients and are excluded
+        assert applying_test_grant_recipient.organisation.name not in soup.text
+
+    def test_get_shows_empty_state_when_no_test_grant_recipients(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert page_has_button(soup, "Start test submission journey") is None
+        assert "There are no grant recipients set up for this grant yet." in soup.text
+
+    def test_get_marks_recipients_already_being_tested(self, authenticated_grant_member_client, factories):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        tested_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        untested_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=tested_recipient
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        assert f"{tested_recipient.organisation.name} (Already testing)" in soup.text
+        assert f"{untested_recipient.organisation.name} (Already testing)" not in soup.text
+
+    def test_get_links_back_to_access_for_recipients_you_are_testing(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        # A recipient this user is testing (has access to and has a test submission for)
+        your_recipient = factories.grant_recipient.create(
             grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
         )
         factories.user_role.create(
             user=authenticated_grant_member_client.user,
-            organisation=test_grant_recipient.organisation,
+            organisation=your_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.submission.create(collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=your_recipient)
+        # A recipient someone else is testing - the user has no access, so no link
+        other_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=other_recipient
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        your_link = page_has_link(soup, your_recipient.organisation.name)
+        assert your_link is not None
+        assert your_link["href"] == url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=your_recipient.organisation.id,
+            grant_id=your_recipient.grant.id,
+            collection_id=collection.id,
+        )
+        assert page_has_link(soup, other_recipient.organisation.name) is None
+
+    def test_get_only_links_back_to_recipients_with_a_test_submission_for_this_collection(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.MONITORING_REPORT,
+            allow_public_sign_up=False,
+        )
+        other_collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.MONITORING_REPORT,
+            allow_public_sign_up=False,
+        )
+        # A recipient this user is testing for this collection - should be linked
+        this_collection_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=this_collection_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=this_collection_recipient
+        )
+        # A recipient this user is testing for a different collection on the grant - no link
+        other_collection_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=other_collection_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.submission.create(
+            collection=other_collection, mode=SubmissionModeEnum.TEST, grant_recipient=other_collection_recipient
+        )
+        # A recipient this user has access to but no test submission has been started - no link
+        no_submission_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=no_submission_recipient.organisation,
             grant=authenticated_grant_member_client.grant,
             permissions=[RoleEnum.DATA_PROVIDER],
         )
@@ -17997,7 +18222,107 @@ class TestStartTestGrantRecipientJourney:
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.data, "html.parser")
-        assert page_has_button(soup, "Start test submission journey") is not None
+        assert page_has_link(soup, this_collection_recipient.organisation.name) is not None
+        assert page_has_link(soup, other_collection_recipient.organisation.name) is None
+        assert page_has_link(soup, no_submission_recipient.organisation.name) is None
+
+    def test_get_links_back_to_applicant_recipients_for_public_sign_up(
+        self, authenticated_grant_member_client, factories
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+        )
+        other_collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=True,
+        )
+        # A test org this user signed up for this collection, which makes it an applicant - should be linked
+        this_collection_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            mode=GrantRecipientModeEnum.TEST,
+            status=GrantRecipientStatusEnum.APPLYING,
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=this_collection_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.submission.create(
+            collection=collection, mode=SubmissionModeEnum.TEST, grant_recipient=this_collection_recipient
+        )
+        # A test org this user signed up for a different collection on the grant - no link
+        other_collection_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant,
+            mode=GrantRecipientModeEnum.TEST,
+            status=GrantRecipientStatusEnum.APPLYING,
+        )
+        factories.user_role.create(
+            user=authenticated_grant_member_client.user,
+            organisation=other_collection_recipient.organisation,
+            grant=authenticated_grant_member_client.grant,
+            permissions=[RoleEnum.DATA_PROVIDER],
+        )
+        factories.submission.create(
+            collection=other_collection, mode=SubmissionModeEnum.TEST, grant_recipient=other_collection_recipient
+        )
+
+        response = authenticated_grant_member_client.get(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            )
+        )
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.data, "html.parser")
+        your_link = page_has_link(soup, this_collection_recipient.organisation.name)
+        assert your_link is not None
+        assert your_link["href"] == url_for(
+            "access_grant_funding.route_to_submission",
+            organisation_id=this_collection_recipient.organisation.id,
+            grant_id=this_collection_recipient.grant.id,
+            collection_id=collection.id,
+        )
+        assert page_has_link(soup, other_collection_recipient.organisation.name) is None
+
+    def test_post_grants_current_user_access_to_chosen_recipient(
+        self, authenticated_grant_member_client, factories, mock_notification_service_calls
+    ):
+        collection = factories.collection.create(
+            grant=authenticated_grant_member_client.grant,
+            type=CollectionType.APPLICATION,
+            allow_public_sign_up=False,
+        )
+        test_grant_recipient = factories.grant_recipient.create(
+            grant=authenticated_grant_member_client.grant, mode=GrantRecipientModeEnum.TEST
+        )
+        user = authenticated_grant_member_client.user
+        assert (
+            interfaces.user.get_user_role(user, test_grant_recipient.organisation_id, test_grant_recipient.grant_id)
+            is None
+        )
+
+        response = authenticated_grant_member_client.post(
+            url_for(
+                "deliver_grant_funding.start_test_grant_recipient_journey",
+                grant_id=authenticated_grant_member_client.grant.id,
+                collection_type=collection.type,
+                collection_id=collection.id,
+            ),
+            data={"organisation": str(test_grant_recipient.id)},
+        )
+
+        assert response.status_code == 302
+        role = interfaces.user.get_user_role(user, test_grant_recipient.organisation_id, test_grant_recipient.grant_id)
+        assert role is not None
+        assert RoleEnum.DATA_PROVIDER in role.permissions
+        assert RoleEnum.CERTIFIER in role.permissions
 
     def test_get_shows_public_sign_up_button_when_public_sign_up_on(self, authenticated_grant_member_client, factories):
         collection = factories.collection.create(
