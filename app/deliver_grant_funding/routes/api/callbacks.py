@@ -109,14 +109,14 @@ def handle_permanent_email_failure(
     if user is None:
         if invitation is not None:
             current_app.logger.info(
-                "GOV.UK Notify permanent failure for invitation to unregistered user: %(recipient_email)s. "
+                "GOV.UK Notify permanent failure for invitation to unregistered user: %(notification_id)s. "
                 "Invitation has already been cancelled — no further action required.",
-                dict(recipient_email=recipient_email),
+                dict(notification_id=notification_id),
             )
         else:
             current_app.logger.error(
-                "GOV.UK Notify permanent failure for unknown user: %(recipient_email)s",
-                dict(recipient_email=recipient_email),
+                "GOV.UK Notify permanent failure for unknown user: %(notification_id)s",
+                dict(notification_id=notification_id),
             )
         return
 
@@ -152,7 +152,9 @@ def handle_permanent_email_failure(
     )
 
 
-def handle_temporary_email_failure(recipient_email: str, reference: NotificationReference | None) -> None:
+def handle_temporary_email_failure(
+    notification_id: uuid.UUID, recipient_email: str, reference: NotificationReference | None
+) -> None:
     invitation = _get_invitation_for_reference(reference)
     if invitation:
         # If the invitation was for grant recipient permissions, send a notification to the person that created
@@ -174,8 +176,8 @@ def handle_temporary_email_failure(recipient_email: str, reference: Notification
     user = get_user_by_email(recipient_email)
     if user is None:
         current_app.logger.error(
-            "GOV.UK Notify temporary failure for unknown user: %(recipient_email)s",
-            dict(recipient_email=recipient_email),
+            "GOV.UK Notify temporary failure for unknown user: %(notification_id)s",
+            dict(notification_id=notification_id),
         )
         return
 
@@ -280,7 +282,8 @@ def govuk_notify_callback() -> ResponseReturnValue:
         return jsonify(), 400
 
     with sentry_sdk.new_scope() as scope:
-        scope.set_context("notify_callback", callback_data.model_dump(mode="json"))
+        # `to` is an email address or phone number. Sentry events don't need this
+        scope.set_context("notify_callback", callback_data.model_dump(mode="json", exclude={"to"}))
 
         if callback_data.notification_type != "email":
             current_app.logger.warning(
@@ -294,7 +297,7 @@ def govuk_notify_callback() -> ResponseReturnValue:
             return jsonify(), 202
 
         if callback_data.status == GovukNotifyStatus.TEMPORARY_FAILURE:
-            handle_temporary_email_failure(callback_data.to, callback_data.reference)
+            handle_temporary_email_failure(callback_data.id, callback_data.to, callback_data.reference)
             return jsonify(), 202
 
         if callback_data.status != GovukNotifyStatus.DELIVERED:
