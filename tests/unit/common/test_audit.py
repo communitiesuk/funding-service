@@ -453,7 +453,8 @@ class TestTrackAuditEvent:
 
         record = next(record for record in caplog.records if record.getMessage().startswith("audit_event:"))
         assert "test@local.gov.uk" not in repr(vars(record))
-        assert record.audit_event_type == event.event_type
-        assert record.audit_user_id == str(user.id)
-        assert UUID(record.audit_event_id)
+        assert set(record.audit) == {"event_type", "user_id", "event_id"}
+        assert record.audit["event_type"] == event.event_type
+        assert record.audit["user_id"] == str(user.id)
+        assert UUID(record.audit["event_id"])
         assert not hasattr(record, "user_id")
