@@ -27,7 +27,7 @@ def track_audit_event(event: AuditEvent, user: User) -> None:
             "audit": {
                 "event_type": event.event_type,
                 "user_id": str(event.user_id),
-                "event_id": str(audit_record.id),
+                "id": str(audit_record.id),
             }
         },
     )
