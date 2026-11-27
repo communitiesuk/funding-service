@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from http.cookies import SimpleCookie
 
 from flask import current_app, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from werkzeug.http import parse_cookie
 
 from app.common.data.types import TraceLevelEnum
 
@@ -69,13 +69,13 @@ def get_tracing_levels_from_environ(wsgi_environ: dict[str, str], secret: str) -
     if not cookie_header:
         return []
 
-    cookies: SimpleCookie = SimpleCookie()
-    cookies.load(cookie_header)
-    morsel = cookies.get(REQUEST_TRACING_COOKIE_NAME)
-    if morsel is None:
+    # Use werkzeug's lenient parser (the same one behind `request.cookies`) rather than `http.cookies.SimpleCookie`,
+    # which raises `CookieError` on the whole header if any cookie name is illegal (eg `Arm@session` sent by bots).
+    token = parse_cookie(cookie_header).get(REQUEST_TRACING_COOKIE_NAME)
+    if not token:
         return []
 
-    return decode_levels(morsel.value, secret)
+    return decode_levels(token, secret)
 
 
 def get_tracing_levels() -> list[TraceLevelEnum]:

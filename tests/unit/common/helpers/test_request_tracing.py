@@ -67,3 +67,12 @@ class TestGetTracingLevelsFromEnviron:
         token = encode_levels([TraceLevelEnum.TRACE], "secret")
         environ = {"HTTP_COOKIE": f"{REQUEST_TRACING_COOKIE_NAME}={token}"}
         assert get_tracing_levels_from_environ(environ, "different-secret") == []
+
+    def test_illegal_cookie_name_returns_empty_list(self):
+        environ = {"HTTP_COOKIE": "Arm@session=r3tjjig5oguc2le61v95u1sl1a; other=xyz"}
+        assert get_tracing_levels_from_environ(environ, "secret") == []
+
+    def test_extracts_levels_alongside_illegal_cookie_name(self):
+        token = encode_levels([TraceLevelEnum.DEBUG_LOGGING], "secret")
+        environ = {"HTTP_COOKIE": f"Arm@session=abc; {REQUEST_TRACING_COOKIE_NAME}={token}; ASP.NET_SessionId=xyz"}
+        assert get_tracing_levels_from_environ(environ, "secret") == [TraceLevelEnum.DEBUG_LOGGING]
