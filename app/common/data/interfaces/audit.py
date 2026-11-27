@@ -24,8 +24,10 @@ def track_audit_event(event: AuditEvent, user: User) -> None:
         "audit_event: %(event_type)s",
         {"event_type": event.event_type},
         extra={
-            "audit_event_type": event.event_type,
-            "audit_event_id": str(audit_record.id),
-            "audit_user_id": str(event.user_id),
+            "audit": {
+                "event_type": event.event_type,
+                "user_id": str(event.user_id),
+                "id": str(audit_record.id),
+            }
         },
     )
