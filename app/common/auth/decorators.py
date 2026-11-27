@@ -197,7 +197,7 @@ def requires_passed_eligibility[**P](
             is_deliver_testing = AuthorisationHelper.is_deliver_user_testing_access(user)
             submission_mode = SubmissionModeEnum.TEST if is_deliver_testing else SubmissionModeEnum.LIVE
             if not eligibility_answers_currently_pass(user, collection, submission_mode):
-                first_question = collection.eligibility_form.components[0]
+                first_question = collection.eligibility_form.cached_questions[0]
                 return redirect(
                     url_for(
                         "access_grant_funding.public_sign_up_eligibility_question",

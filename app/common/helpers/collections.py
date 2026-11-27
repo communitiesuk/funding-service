@@ -1750,6 +1750,20 @@ class SubmissionHelper:
 
         return AddAnotherAnswerSummary(summary=", ".join(answers), is_answered=all(answer_status))
 
+    def is_add_another_container_fully_answered(self, component: Component) -> bool:
+        """Whether every existing add-another entry for `component`'s container is fully answered."""
+        container = component.add_another_container
+        if container is None:
+            return False
+
+        count = self.get_count_for_add_another(container)
+        if count == 0:
+            return False
+
+        return all(
+            self.get_answer_summary_for_add_another(component, add_another_index=i).is_answered for i in range(count)
+        )
+
     @cached_property
     def previous_submission_data(self) -> SubmissionDataManager | None:
         submission_data = self.events.submission_state.submission_data
